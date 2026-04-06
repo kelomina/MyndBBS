@@ -3,4 +3,4 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-export const prisma = new PrismaClient({});
+export const prisma = new PrismaClient();
