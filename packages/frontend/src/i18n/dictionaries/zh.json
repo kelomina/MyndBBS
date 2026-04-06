@@ -1,0 +1,26 @@
+{
+  "common": {
+    "searchPlaceholder": "搜索社区...",
+    "newPost": "发帖",
+    "account": "账号",
+    "categories": "分类节点"
+  },
+  "nav": {
+    "home": "首页",
+    "popular": "热门",
+    "recent": "最新"
+  },
+  "auth": {
+    "welcomeBack": "欢迎回来",
+    "signInToAccount": "登录您的 MyndBBS 账号",
+    "emailAddress": "邮箱地址",
+    "password": "密码",
+    "rememberMe": "记住我",
+    "forgotPassword": "忘记密码？",
+    "signIn": "登录",
+    "orContinueWith": "或其他登录方式",
+    "signInWithPasskey": "使用 Passkey 快捷登录",
+    "dontHaveAccount": "还没有账号？",
+    "signUpNow": "立即注册"
+  }
+}

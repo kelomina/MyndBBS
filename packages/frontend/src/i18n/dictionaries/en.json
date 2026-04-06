@@ -1,0 +1,26 @@
+{
+  "common": {
+    "searchPlaceholder": "Search community...",
+    "newPost": "New Post",
+    "account": "Account",
+    "categories": "Categories"
+  },
+  "nav": {
+    "home": "Home",
+    "popular": "Popular",
+    "recent": "Recent"
+  },
+  "auth": {
+    "welcomeBack": "Welcome back",
+    "signInToAccount": "Sign in to your MyndBBS account",
+    "emailAddress": "Email address",
+    "password": "Password",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password?",
+    "signIn": "Sign in",
+    "orContinueWith": "Or continue with",
+    "signInWithPasskey": "Sign in with Passkey",
+    "dontHaveAccount": "Don't have an account?",
+    "signUpNow": "Sign up now"
+  }
+}
