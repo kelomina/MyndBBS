@@ -3,12 +3,13 @@ import { Search, User, PenSquare } from 'lucide-react';
 import { getDictionary } from '../../i18n/get-dictionary';
 import { Locale } from '../../i18n/config';
 import { LanguageSwitcher } from '../LanguageSwitcher';
+import { ThemeToggle } from '../ThemeToggle';
 
 export async function Header({ locale }: { locale: Locale }) {
   const dict = await getDictionary(locale);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-white/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center">
           <Link href="/" className="text-xl font-bold tracking-tight text-primary">
@@ -23,13 +24,14 @@ export async function Header({ locale }: { locale: Locale }) {
             </div>
             <input
               type="search"
-              className="block w-full rounded-full border border-border bg-background py-2 pl-10 pr-3 text-sm placeholder-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="block w-full rounded-full border border-border bg-background py-2 pl-10 pr-3 text-sm text-foreground placeholder-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder={dict.common.searchPlaceholder}
             />
           </div>
         </div>
 
         <div className="flex items-center space-x-3">
+          <ThemeToggle />
           <LanguageSwitcher currentLocale={locale} />
           <Link 
             href="/compose" 

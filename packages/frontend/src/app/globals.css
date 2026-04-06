@@ -6,8 +6,18 @@
   --color-card: #ffffff;
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
-  --color-primary: #0ea5e9; /* Teal/Blue accent */
+  --color-primary: #0ea5e9;
   --color-primary-foreground: #ffffff;
+}
+
+/* Note: Tailwind 4 allows inline dark mode variants or custom CSS media queries. 
+   Using class-based approach for next-themes compatibility. */
+.dark {
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+  --color-card: #1e293b;
+  --color-muted: #94a3b8;
+  --color-border: #334155;
 }
 
 body {

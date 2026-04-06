@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { Header } from "../components/layout/Header";
 import { Locale, defaultLocale } from "../i18n/config";
+import { ThemeProvider } from "../components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "MyndBBS - Modern Community",
@@ -20,11 +21,13 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body className="min-h-screen flex flex-col bg-background">
-        <Header locale={locale} />
-        <div className="flex-1">
-          {children}
-        </div>
+      <body className="min-h-screen flex flex-col bg-background transition-colors duration-300">
+        <ThemeProvider>
+          <Header locale={locale} />
+          <div className="flex-1">
+            {children}
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );
