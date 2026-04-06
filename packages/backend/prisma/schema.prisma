@@ -1,0 +1,48 @@
+// packages/backend/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // Using sqlite for initial setup, change to mysql later if needed
+}
+
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+enum Status {
+  ACTIVE
+  BANNED
+  PENDING
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String    @unique
+  passwordHash  String?   
+  passwordSalt  String?
+  role          Role      @default(USER)
+  status        Status    @default(ACTIVE)
+  registeredIp  String?
+  isPasskeyMandatory Boolean @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  passkeys      Passkey[] 
+}
+
+model Passkey {
+  id             String   @id // CredentialID
+  publicKey      Bytes
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  webAuthnUserID String
+  counter        BigInt
+  deviceType     String
+  backedUp       Boolean
+  createdAt      DateTime @default(now())
+}
