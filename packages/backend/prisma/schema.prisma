@@ -1,10 +1,9 @@
-// packages/backend/prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite" // Using sqlite for initial setup, change to mysql later if needed
+  provider = "sqlite" // Using sqlite for initial setup
 }
 
 enum Role {
@@ -19,20 +18,26 @@ enum Status {
   PENDING
 }
 
-model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  username      String    @unique
-  passwordHash  String?   
-  passwordSalt  String?
-  role          Role      @default(USER)
-  status        Status    @default(ACTIVE)
-  registeredIp  String?
-  isPasskeyMandatory Boolean @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+enum PostStatus {
+  PUBLISHED
+  HIDDEN
+  PINNED
+}
 
-  passkeys      Passkey[] 
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  username           String    @unique
+  password           String?   // Argon2 handles salt internally
+  role               Role      @default(USER)
+  status             Status    @default(ACTIVE)
+  registeredIp       String?
+  isPasskeyMandatory Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  passkeys           Passkey[] 
+  posts              Post[]
 }
 
 model Passkey {
@@ -45,4 +50,35 @@ model Passkey {
   deviceType     String
   backedUp       Boolean
   createdAt      DateTime @default(now())
+}
+
+model CaptchaChallenge {
+  id             String   @id @default(uuid())
+  targetPosition Int
+  verified       Boolean  @default(false)
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  posts       Post[]
+}
+
+model Post {
+  id         String     @id @default(uuid())
+  title      String
+  content    String
+  authorId   String
+  author     User       @relation(fields: [authorId], references: [id])
+  categoryId String
+  category   Category   @relation(fields: [categoryId], references: [id])
+  status     PostStatus @default(PUBLISHED)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 }
