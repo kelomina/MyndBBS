@@ -131,7 +131,7 @@
 - Create: `packages/backend/src/controllers/captcha.ts`
 - Modify: `packages/backend/src/routes/auth.ts`
 
-- [ ] **Step 1: Create Captcha Controller**
+- [x] **Step 1: Create Captcha Controller**
   Create `packages/backend/src/controllers/captcha.ts`:
   ```typescript
   import { Request, Response } from 'express';
@@ -230,7 +230,7 @@
   };
   ```
 
-- [ ] **Step 2: Mount Captcha Routes**
+- [x] **Step 2: Mount Captcha Routes**
   Modify `packages/backend/src/routes/auth.ts` to include captcha endpoints:
   ```typescript
   import { Router } from 'express';
@@ -252,7 +252,7 @@
   export default router;
   ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
   ```bash
   git add packages/backend/src/controllers/captcha.ts packages/backend/src/routes/auth.ts
   git commit -m "feat(backend): implement server-side slider captcha validation"
@@ -264,7 +264,7 @@
 - Modify: `packages/backend/src/controllers/register.ts`
 - Create: `packages/backend/src/middleware/auth.ts`
 
-- [ ] **Step 1: Rewrite Register and Add Login Controller**
+- [x] **Step 1: Rewrite Register and Add Login Controller**
   Modify `packages/backend/src/controllers/register.ts` to use `argon2` and `jsonwebtoken`, and enforce Captcha validation during registration.
   ```typescript
   import { Request, Response } from 'express';
@@ -365,7 +365,7 @@
   };
   ```
 
-- [ ] **Step 2: Create Auth Middleware**
+- [x] **Step 2: Create Auth Middleware**
   Create `packages/backend/src/middleware/auth.ts`:
   ```typescript
   import { Request, Response, NextFunction } from 'express';
@@ -412,7 +412,7 @@
   };
   ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
   ```bash
   git add packages/backend/src/controllers/register.ts packages/backend/src/middleware/auth.ts
   git commit -m "feat(backend): implement argon2 auth and jwt middleware"
