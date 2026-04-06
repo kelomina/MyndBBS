@@ -1,94 +1,96 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { isValidPassword } from '@myndbbs/shared';
-import { hashPassword } from '../utils/crypto';
-import { verifyCaptcha } from '../utils/captcha';
+import * as argon2 from 'argon2';
+import jwt from 'jsonwebtoken';
 
-// Initialize with null adapter for type bypass, local execution relies on prisma 7 settings
-const prisma = new PrismaClient({
-  adapter: {
-    queryRaw: () => Promise.resolve({} as any),
-    executeRaw: () => Promise.resolve(0),
-    flavour: 'postgres',
-    startTransaction: () => Promise.resolve({} as any),
-    provider: 'sqlite'
-  } as any
-});
-const MAX_ACCOUNTS_PER_IP = 3;
+const prisma = new PrismaClient();
+const JWT_SECRET: string = process.env.JWT_SECRET || 'super-secret-key-change-in-prod';
 
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
-  const { email, username, password, captchaToken, supportsWebAuthn } = req.body;
-  const ip = req.ip || req.headers['x-forwarded-for']?.toString() || 'unknown';
-
-  if (!email || !username || !captchaToken || supportsWebAuthn === undefined) {
-    res.status(400).json({ code: 400, message: 'Missing required fields' });
-    return;
-  }
-
-  // Verify Captcha
-  const isCaptchaValid = await verifyCaptcha(captchaToken, ip);
-  if (!isCaptchaValid) {
-    res.status(403).json({ code: 403, message: 'Invalid captcha token' });
-    return;
-  }
-
-  // Password is required for all new registrations (Cross-device fallback)
-  if (!password) {
-    res.status(400).json({ code: 400, message: 'Password is required' });
-    return;
-  }
-  
-  if (!isValidPassword(password)) {
-    res.status(400).json({ code: 400, message: 'Password does not meet strict requirements' });
-    return;
-  }
-
   try {
-    // Check IP limits
-    const ipAccountCount = await prisma.user.count({
-      where: { registeredIp: ip }
-    });
+    const { email, username, password, captchaId } = req.body;
 
-    if (ipAccountCount >= MAX_ACCOUNTS_PER_IP) {
-      res.status(403).json({ code: 403, message: 'Maximum accounts reached for this IP' });
+    if (!email || !username || !password || !captchaId) {
+      res.status(400).json({ error: 'Missing required fields' });
       return;
     }
 
-    // Check if email/username exists
+    // Verify Captcha
+    const challenge = await prisma.captchaChallenge.findUnique({
+      where: { id: captchaId }
+    });
+
+    if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
+      res.status(400).json({ error: 'Invalid, expired, or unverified captcha' });
+      return;
+    }
+
+    // Check if user exists
     const existingUser = await prisma.user.findFirst({
       where: { OR: [{ email }, { username }] }
     });
 
     if (existingUser) {
-      res.status(409).json({ code: 409, message: 'Email or username already exists' });
+      res.status(400).json({ error: 'Email or username already in use' });
       return;
     }
 
-    const { hash: passwordHash, salt: passwordSalt } = hashPassword(password);
+    // Hash password with Argon2id
+    const hashedPassword = await argon2.hash(password);
 
-    const newUser = await prisma.user.create({
+    // Create user
+    const user = await prisma.user.create({
       data: {
         email,
         username,
-        passwordHash, // Saved even if Passkey is supported
-        passwordSalt,
-        registeredIp: ip,
-        isPasskeyMandatory: supportsWebAuthn // Flag to prompt Passkey on compatible devices
+        password: hashedPassword
       }
     });
 
-    if (supportsWebAuthn) {
-      // Logic to trigger Passkey registration challenge will go here
-      res.status(201).json({ 
-        code: 0, 
-        message: 'User registered, proceed to Passkey and 2FA setup', 
-        data: { userId: newUser.id, requirePasskeySetup: true } 
-      });
+    // Cleanup captcha
+    await prisma.captchaChallenge.delete({ where: { id: captchaId } });
+
+    // Generate JWT
+    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.status(201).json({ message: 'User registered successfully', token, user: { id: user.id, username: user.username, role: user.role } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const loginUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ error: 'Email and password required' });
       return;
     }
 
-    res.status(201).json({ code: 0, message: 'User registered, proceed to 2FA setup', data: { userId: newUser.id } });
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.password) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
+    if (user.status === 'BANNED') {
+      res.status(403).json({ error: 'Account is banned' });
+      return;
+    }
+
+    const isValid = await argon2.verify(user.password, password);
+    if (!isValid) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
+    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({ message: 'Login successful', token, user: { id: user.id, username: user.username, role: user.role } });
   } catch (error) {
-    res.status(500).json({ code: 500, message: 'Internal server error' });
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
