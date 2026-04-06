@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db';
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
-
-const prisma = new PrismaClient();
 const JWT_SECRET: string = process.env.JWT_SECRET || 'super-secret-key-change-in-prod';
 
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
