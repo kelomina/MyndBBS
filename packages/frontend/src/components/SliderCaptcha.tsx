@@ -8,7 +8,7 @@ interface SliderCaptchaProps {
   apiUrl?: string;
 }
 
-export function SliderCaptcha({ onSuccess, apiUrl = 'http://localhost:3001/api/auth' }: SliderCaptchaProps) {
+export function SliderCaptcha({ onSuccess, apiUrl = 'http://localhost:3001/api/v1/auth' }: SliderCaptchaProps) {
   const [captchaId, setCaptchaId] = useState<string | null>(null);
   const [targetPosition, setTargetPosition] = useState<number>(0);
   const [sliderLeft, setSliderLeft] = useState<number>(0);
