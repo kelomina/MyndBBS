@@ -1,19 +1,19 @@
 import Link from 'next/link';
 import { Home, TrendingUp, Clock, Hash } from 'lucide-react';
 
-const MAIN_NAV = [
-  { name: 'Home', href: '/', icon: Home },
-  { name: 'Popular', href: '/popular', icon: TrendingUp },
-  { name: 'Recent', href: '/recent', icon: Clock },
-];
+export function Sidebar({ dict }: { dict: any }) {
+  const MAIN_NAV = [
+    { name: dict.nav.home, href: '/', icon: Home },
+    { name: dict.nav.popular, href: '/popular', icon: TrendingUp },
+    { name: dict.nav.recent, href: '/recent', icon: Clock },
+  ];
 
-const CATEGORIES = [
-  { name: 'Technology', href: '/c/tech' },
-  { name: 'Life', href: '/c/life' },
-  { name: 'Q&A', href: '/c/qa' },
-];
+  const CATEGORIES = [
+    { name: 'Technology', href: '/c/tech' },
+    { name: 'Life', href: '/c/life' },
+    { name: 'Q&A', href: '/c/qa' },
+  ];
 
-export function Sidebar() {
   return (
     <aside className="hidden w-64 shrink-0 md:block">
       <div className="sticky top-20 flex flex-col gap-8 py-6 pr-6">
@@ -36,7 +36,7 @@ export function Sidebar() {
 
         <div>
           <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted">
-            Categories
+            {dict.common.categories}
           </h3>
           <nav className="flex flex-col gap-1">
             {CATEGORIES.map((category) => (

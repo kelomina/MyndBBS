@@ -1,17 +1,23 @@
+import { headers } from "next/headers";
 import { Sidebar } from "../components/layout/Sidebar";
 import { MessageSquare, ArrowBigUp } from "lucide-react";
+import { Locale, defaultLocale } from "../i18n/config";
+import { getDictionary } from "../i18n/get-dictionary";
 
-// Mock data for the feed
 const MOCK_POSTS = [
   { id: 1, title: "Welcome to MyndBBS! Here is our design philosophy.", author: "Admin", category: "Announcements", time: "2h ago", upvotes: 142, comments: 24, excerpt: "We are building a clean, light, and secure forum. In this post, we discuss why we chose Next.js and how we implemented WebAuthn for passwordless login." },
   { id: 2, title: "How to properly type Prisma queries in a monorepo?", author: "DevGuy", category: "Technology", time: "5h ago", upvotes: 38, comments: 12, excerpt: "I'm struggling with sharing Prisma types between my backend and frontend packages. Does anyone have a good pattern for this?" },
   { id: 3, title: "Share your minimal desk setups for 2026", author: "Minimalist", category: "Life", time: "1d ago", upvotes: 215, comments: 89, excerpt: "Since we're all about that clean/light aesthetic here, let's see where you write your code. Post your desk photos below!" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const headersList = await headers();
+  const locale = (headersList.get('x-locale') || defaultLocale) as Locale;
+  const dict = await getDictionary(locale);
+
   return (
     <main className="mx-auto flex max-w-7xl px-4 sm:px-6 lg:px-8">
-      <Sidebar />
+      <Sidebar dict={dict} />
       
       {/* Main Feed Area */}
       <div className="flex-1 py-6 md:pl-8">
