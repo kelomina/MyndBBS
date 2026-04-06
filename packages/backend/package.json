@@ -11,9 +11,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.28.1",
   "dependencies": {
-    "@libsql/client": "^0.17.2",
     "@myndbbs/shared": "workspace:*",
-    "@prisma/adapter-libsql": "^7.6.0",
     "@prisma/client": "^5.22.0",
     "@simplewebauthn/server": "^13.3.0",
     "argon2": "^0.44.0",
@@ -25,7 +23,6 @@
     "prisma": "^5.22.0"
   },
   "devDependencies": {
-    "@prisma/config": "^7.6.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
