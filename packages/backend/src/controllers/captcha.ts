@@ -17,6 +17,7 @@ export const generateCaptcha = async (req: Request, res: Response) => {
 
     res.json({ captchaId: challenge.id, targetPosition });
   } catch (error) {
+    console.error("Error generating captcha:", error);
     res.status(500).json({ error: 'Failed to generate captcha' });
   }
 };
