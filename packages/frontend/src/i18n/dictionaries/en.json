@@ -14,6 +14,7 @@
     "welcomeBack": "Welcome back",
     "signInToAccount": "Sign in to your MyndBBS account",
     "emailAddress": "Email address",
+    "username": "Username",
     "password": "Password",
     "rememberMe": "Remember me",
     "forgotPassword": "Forgot password?",
@@ -21,6 +22,12 @@
     "orContinueWith": "Or continue with",
     "signInWithPasskey": "Sign in with Passkey",
     "dontHaveAccount": "Don't have an account?",
-    "signUpNow": "Sign up now"
+    "signUpNow": "Sign up now",
+    "joinMyndbbs": "Join MyndBBS",
+    "createAccountToJoin": "Create an account to join the conversation",
+    "passwordHint": "Must be at least 8 characters, include uppercase, lowercase, number & special char.",
+    "captchaArea": "Captcha Verification Area",
+    "createAccount": "Create Account",
+    "alreadyHaveAccount": "Already have an account?"
   }
 }

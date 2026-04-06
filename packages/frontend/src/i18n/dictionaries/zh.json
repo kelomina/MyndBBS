@@ -14,6 +14,7 @@
     "welcomeBack": "欢迎回来",
     "signInToAccount": "登录您的 MyndBBS 账号",
     "emailAddress": "邮箱地址",
+    "username": "用户名",
     "password": "密码",
     "rememberMe": "记住我",
     "forgotPassword": "忘记密码？",
@@ -21,6 +22,12 @@
     "orContinueWith": "或其他登录方式",
     "signInWithPasskey": "使用 Passkey 快捷登录",
     "dontHaveAccount": "还没有账号？",
-    "signUpNow": "立即注册"
+    "signUpNow": "立即注册",
+    "joinMyndbbs": "加入 MyndBBS",
+    "createAccountToJoin": "创建一个账号，加入我们的讨论",
+    "passwordHint": "至少 8 个字符，必须包含大小写字母、数字和特殊字符。",
+    "captchaArea": "人机验证区域",
+    "createAccount": "创建账号",
+    "alreadyHaveAccount": "已经有账号了？"
   }
 }
