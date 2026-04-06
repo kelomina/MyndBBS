@@ -1,7 +1,12 @@
 import Link from 'next/link';
 import { Search, User, PenSquare } from 'lucide-react';
+import { getDictionary } from '../../i18n/get-dictionary';
+import { Locale } from '../../i18n/config';
+import { LanguageSwitcher } from '../LanguageSwitcher';
 
-export function Header() {
+export async function Header({ locale }: { locale: Locale }) {
+  const dict = await getDictionary(locale);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -19,25 +24,27 @@ export function Header() {
             <input
               type="search"
               className="block w-full rounded-full border border-border bg-background py-2 pl-10 pr-3 text-sm placeholder-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              placeholder="Search community..."
+              placeholder={dict.common.searchPlaceholder}
             />
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
+          <LanguageSwitcher currentLocale={locale} />
           <Link 
             href="/compose" 
             className="hidden sm:flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <PenSquare className="mr-2 h-4 w-4" />
-            New Post
+            {dict.common.newPost}
           </Link>
           <Link 
             href="/login"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted transition-colors hover:bg-background hover:text-foreground"
+            title={dict.common.account}
           >
             <User className="h-5 w-5" />
-            <span className="sr-only">Account</span>
+            <span className="sr-only">{dict.common.account}</span>
           </Link>
         </div>
       </div>
