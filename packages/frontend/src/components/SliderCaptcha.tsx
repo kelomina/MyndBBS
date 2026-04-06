@@ -49,77 +49,75 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v
     dragPathRef.current = [{ x: sliderLeft, time: dragStartTimeRef.current }];
   };
 
-  const handlePointerMove = useCallback((clientX: number) => {
-    if (!isDragging || !trackRef.current) return;
-    const trackRect = trackRef.current.getBoundingClientRect();
-    const SLIDER_WIDTH = 50;
-    let newLeft = clientX - trackRect.left - (SLIDER_WIDTH / 2);
-    
-    const minX = 0;
-    const maxX = trackRect.width - SLIDER_WIDTH;
-    newLeft = Math.max(minX, Math.min(maxX, newLeft));
-    
-    setSliderLeft(newLeft);
-    dragPathRef.current.push({ x: newLeft, time: Date.now() });
-  }, [isDragging]);
-
-  const handlePointerUp = useCallback(async () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    setStatus('verifying');
-
-    const totalDragTime = Date.now() - dragStartTimeRef.current;
-    
-    try {
-      const res = await fetch(`${apiUrl}/captcha/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          captchaId,
-          dragPath: dragPathRef.current,
-          totalDragTime,
-          finalPosition: sliderLeft
-        })
-      });
-      
-      const data = await res.json();
-      if (data.success) {
-        setStatus('success');
-        onSuccess(captchaId!);
-      } else {
-        setStatus('error');
-        setErrorMsg(data.error || 'Verification failed');
-        setTimeout(fetchChallenge, 1500); // Reset after delay
-      }
-    } catch (err: unknown) {
-      console.error(err);
-      setStatus('error');
-      setErrorMsg('Server error');
-      setTimeout(fetchChallenge, 1500);
-    }
-  }, [isDragging, apiUrl, captchaId, sliderLeft, onSuccess, fetchChallenge]);
-
   // Global event listeners for drag
   useEffect(() => {
+    if (!isDragging) return;
+
+    const handlePointerMove = (clientX: number) => {
+      if (!trackRef.current) return;
+      const trackRect = trackRef.current.getBoundingClientRect();
+      const SLIDER_WIDTH = 50;
+      let newLeft = clientX - trackRect.left - (SLIDER_WIDTH / 2);
+      
+      const minX = 0;
+      const maxX = trackRect.width - SLIDER_WIDTH;
+      newLeft = Math.max(minX, Math.min(maxX, newLeft));
+      
+      setSliderLeft(newLeft);
+      dragPathRef.current.push({ x: newLeft, time: Date.now() });
+    };
+
     const handleGlobalMouseMove = (e: MouseEvent) => handlePointerMove(e.clientX);
     const handleGlobalTouchMove = (e: TouchEvent) => handlePointerMove(e.touches[0].clientX);
-    const handleGlobalMouseUp = () => handlePointerUp();
-    const handleGlobalTouchEnd = () => handlePointerUp();
 
-    if (isDragging) {
-      window.addEventListener('mousemove', handleGlobalMouseMove);
-      window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
-      window.addEventListener('mouseup', handleGlobalMouseUp);
-      window.addEventListener('touchend', handleGlobalTouchEnd);
-    }
+    const handleGlobalMouseUp = async () => {
+      setIsDragging(false);
+      setStatus('verifying');
+
+      const totalDragTime = Date.now() - dragStartTimeRef.current;
+      const finalPosition = dragPathRef.current[dragPathRef.current.length - 1]?.x ?? 0;
+      
+      try {
+        const res = await fetch(`${apiUrl}/captcha/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            captchaId,
+            dragPath: dragPathRef.current,
+            totalDragTime,
+            finalPosition
+          })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          setStatus('success');
+          onSuccess(captchaId!);
+        } else {
+          setStatus('error');
+          setErrorMsg(data.error || 'Verification failed');
+          setTimeout(fetchChallenge, 1500); // Reset after delay
+        }
+      } catch (err: unknown) {
+        console.error(err);
+        setStatus('error');
+        setErrorMsg('Server error');
+        setTimeout(fetchChallenge, 1500);
+      }
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    window.addEventListener('touchend', handleGlobalMouseUp);
 
     return () => {
       window.removeEventListener('mousemove', handleGlobalMouseMove);
       window.removeEventListener('touchmove', handleGlobalTouchMove);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
-      window.removeEventListener('touchend', handleGlobalTouchEnd);
+      window.removeEventListener('touchend', handleGlobalMouseUp);
     };
-  }, [isDragging, handlePointerMove, handlePointerUp]); // Include dependencies to capture latest state
+  }, [isDragging, apiUrl, captchaId, onSuccess, fetchChallenge]);
 
   return (
     <div className="relative w-full rounded-xl border border-border bg-card p-4 shadow-sm select-none">
