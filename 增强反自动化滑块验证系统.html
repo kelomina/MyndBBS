@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全滑块验证</title>
+    <link href="https://cdn.fontsource.org/fonts/noto-sans-sc/css.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Noto Sans SC', sans-serif;
+            padding: 20px;
+        }
+        
+        .captcha-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 480px;
+            width: 100%;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .steps-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+        }
+        
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+        
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 15px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: #dee2e6;
+        }
+        
+        .step.active:not(:last-child)::after {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #dee2e6;
+            color: #6c757d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active .step-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .step.completed .step-number {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        
+        .step-text {
+            font-size: 12px;
+            color: #6c757d;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active .step-text {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .step.completed .step-text {
+            color: #28a745;
+        }
+        
+        .captcha-area {
+            position: relative;
+            width: 100%;
+            height: 140px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .captcha-area.highlight {
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3), inset 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .captcha-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://image.qwenlm.ai/public_source/0c53a4c3-2d6a-4557-964b-6764ff435b54/1f6db28f5-edcc-49c7-ab97-0629fa2dc410.png');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.3;
+        }
+        
+        .target-zone {
+            position: absolute;
+            top: 0;
+            width: 60px;
+            height: 100%;
+            background: linear-gradient(180deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+            border-left: 3px solid rgba(102, 126, 234, 0.6);
+            border-right: 3px solid rgba(102, 126, 234, 0.6);
+            z-index: 1;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+            }
+        }
+        
+        .target-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .slider-track {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            overflow: visible;
+            z-index: 10;
+        }
+        
+        .slider-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 25px 0 0 25px;
+            transition: width 0.05s linear;
+            opacity: 0.3;
+        }
+        
+        .slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            cursor: grab;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 20px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            z-index: 20;
+            user-select: none;
+            touch-action: none;
+        }
+        
+        .slider:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
+        }
+        
+        .slider.dragging {
+            cursor: grabbing;
+            transform: scale(0.95);
+        }
+        
+        .slider.success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            box-shadow: 0 4px 20px rgba(17, 153, 142, 0.5);
+        }
+        
+        .slider.failure {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            box-shadow: 0 4px 20px rgba(235, 51, 73, 0.5);
+        }
+        
+        .slider-text {
+            pointer-events: none;
+            font-weight: 600;
+        }
+        
+        .hint-box {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .hint-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .hint-content {
+            flex: 1;
+        }
+        
+        .hint-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1565c0;
+            margin-bottom: 5px;
+        }
+        
+        .hint-text {
+            font-size: 13px;
+            color: #424242;
+            line-height: 1.5;
+        }
+        
+        .challenge-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px dashed #dee2e6;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .challenge-section:hover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%);
+        }
+        
+        .challenge-section.completed {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border-color: #28a745;
+            border-style: solid;
+            cursor: default;
+        }
+        
+        .challenge-text {
+            font-size: 15px;
+            color: #495057;
+            text-align: center;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .challenge-section:hover .challenge-text {
+            color: #667eea;
+        }
+        
+        .challenge-section.completed .challenge-text {
+            color: #28a745;
+        }
+        
+        .status-container {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .status-container.success {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #28a745;
+        }
+        
+        .status-container.failure {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            color: #dc3545;
+        }
+        
+        .status-container.warning {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+            color: #856404;
+        }
+        
+        .status-text {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .reset-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .reset-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+        }
+        
+        .reset-button:active {
+            transform: translateY(0);
+        }
+        
+        .info-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 12px;
+        }
+        
+        .success-animation {
+            animation: successBounce 0.5s ease;
+        }
+        
+        @keyframes successBounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .failure-animation {
+            animation: failureShake 0.5s ease;
+        }
+        
+        @keyframes failureShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        .glow-effect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: glow 2s ease-in-out infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes glow {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        }
+        
+        .arrow-hint {
+            position: absolute;
+            bottom: 70px;
+            left: 60px;
+            font-size: 24px;
+            color: #667eea;
+            animation: arrowBounce 1s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 30;
+        }
+        
+        @keyframes arrowBounce {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(10px); }
+        }
+        
+        .help-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        
+        .help-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+        }
+        
+        .help-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .help-modal.active {
+            display: flex;
+        }
+        
+        .help-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .help-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .help-header h3 {
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .help-close {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #f0f0f0;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        
+        .help-close:hover {
+            background: #e0e0e0;
+        }
+        
+        .help-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .help-step-number {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        
+        .help-step-text {
+            flex: 1;
+        }
+        
+        .help-step-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .help-step-desc {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .help-tips {
+            margin-top: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border-radius: 10px;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .help-tips-title {
+            font-weight: 600;
+            color: #e65100;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .help-tips-list {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.8;
+        }
+        
+        .help-tips-list li {
+            margin-bottom: 5px;
+        }
+        
+        .target-zone.success {
+            background: linear-gradient(180deg, rgba(17, 153, 142, 0.3) 0%, rgba(56, 239, 125, 0.3) 100%);
+            border-left-color: #11998e;
+            border-right-color: #11998e;
+            animation: successPulse 0.5s ease;
+        }
+        
+        @keyframes successPulse {
+            0% { box-shadow: 0 0 0 0 rgba(17, 153, 142, 0.4); }
+            50% { box-shadow: 0 0 0 20px rgba(17, 153, 142, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(17, 153, 142, 0); }
+        }
+        
+        .target-zone.near {
+            animation: nearPulse 0.3s ease-in-out infinite;
+        }
+        
+        @keyframes nearPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.6); }
+            50% { box-shadow: 0 0 0 15px rgba(102, 126, 234, 0); }
+        }
+        
+        /* 验证范围指示器 */
+        .validation-range {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background: rgba(17, 153, 142, 0.1);
+            border-left: 2px dashed rgba(17, 153, 142, 0.4);
+            border-right: 2px dashed rgba(17, 153, 142, 0.4);
+            z-index: 2;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        
+        .validation-range.visible {
+            opacity: 1;
+        }
+        
+        .validation-range.hidden {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="captcha-wrapper">
+        <button class="help-button" id="helpButton" title="查看帮助">?</button>
+        
+        <div class="header">
+            <h1>🔒 安全验证</h1>
+            <p>请完成以下验证以继续</p>
+        </div>
+        
+        <div class="steps-container">
+            <div class="step active" id="step1">
+                <div class="step-number">1</div>
+                <div class="step-text">点击确认</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-number">2</div>
+                <div class="step-text">拖动滑块</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-number">3</div>
+                <div class="step-text">完成验证</div>
+            </div>
+        </div>
+        
+        <div class="hint-box" id="hintBox">
+            <div class="hint-icon">💡</div>
+            <div class="hint-content">
+                <div class="hint-title">操作提示</div>
+                <div class="hint-text" id="hintText">请先点击下方"点击确认"按钮，然后拖动滑块到目标位置</div>
+            </div>
+        </div>
+        
+        <div class="captcha-area" id="captchaArea">
+            <div class="captcha-background"></div>
+            <div class="glow-effect"></div>
+            <div class="arrow-hint" id="arrowHint">➜</div>
+            <div class="target-zone" id="targetZone">
+                <div class="target-icon">🎯</div>
+            </div>
+            <div class="validation-range hidden" id="validationRange"></div>
+            <div class="slider-track">
+                <div class="slider-progress" id="progressFill"></div>
+                <div class="slider" id="slider">
+                    <span class="slider-text">➜</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="challenge-section" id="challengeSection">
+            <div class="challenge-text" id="challengeText">
+                <span class="icon">✓</span>
+                <span>点击此处确认是人类操作</span>
+            </div>
+        </div>
+        
+        <div class="status-container" id="statusContainer">
+            <div class="status-text" id="statusMessage">请完成上方挑战后拖动滑块</div>
+        </div>
+        
+        <button class="reset-button" id="resetButton">
+            🔄 重新验证
+        </button>
+        
+        <div class="info-section" id="infoSection" style="display: none;">
+            <div class="info-row">
+                <span>拖动时间:</span>
+                <span id="dragTime">0ms</span>
+            </div>
+            <div class="info-row">
+                <span>路径点数:</span>
+                <span id="pathPoints">0</span>
+            </div>
+            <div class="info-row">
+                <span>验证状态:</span>
+                <span id="verifyStatus">等待中</span>
+            </div>
+            <div class="info-row">
+                <span>中心点偏差:</span>
+                <span id="centerOffset">0px</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="help-modal" id="helpModal">
+        <div class="help-content">
+            <div class="help-header">
+                <h3>📖 如何完成验证</h3>
+                <button class="help-close" id="helpClose">×</button>
+            </div>
+            
+            <div class="help-step">
+                <div class="help-step-number">1</div>
+                <div class="help-step-text">
+                    <div class="help-step-title">点击确认按钮</div>
+                    <div class="help-step-desc">首先点击下方的"点击此处确认是人类操作"按钮，证明您是真实用户</div>
+                </div>
+            </div>
+            
+            <div class="help-step">
+                <div class="help-step-number">2</div>
+                <div class="help-step-text">
+                    <div class="help-step-title">拖动滑块到目标</div>
+                    <div class="help-step-desc">按住左侧的圆形滑块，向右拖动到带有 🎯 图标的目标区域</div>
+                </div>
+            </div>
+            
+            <div class="help-step">
+                <div class="help-step-number">3</div>
+                <div class="help-step-text">
+                    <div class="help-step-title">松开完成验证</div>
+                    <div class="help-step-desc">当滑块到达目标区域后松开鼠标，系统会自动验证您的操作</div>
+                </div>
+            </div>
+            
+            <div class="help-tips">
+                <div class="help-tips-title">⚠️ 注意事项</div>
+                <ul class="help-tips-list">
+                    <li>• 请使用鼠标或手指自然拖动，不要使用自动化工具</li>
+                    <li>• 拖动速度请保持正常人类操作速度</li>
+                    <li>• 如果验证失败，可以点击"重新验证"按钮重试</li>
+                    <li>• 请确保在网络稳定的环境下进行操作</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const slider = document.getElementById('slider');
+            const sliderTrack = document.querySelector('.slider-track');
+            const captchaArea = document.getElementById('captchaArea');
+            const targetZone = document.getElementById('targetZone');
+            const validationRange = document.getElementById('validationRange');
+            const statusContainer = document.getElementById('statusContainer');
+            const statusMessage = document.getElementById('statusMessage');
+            const resetButton = document.getElementById('resetButton');
+            const progressFill = document.getElementById('progressFill');
+            const challengeSection = document.getElementById('challengeSection');
+            const challengeText = document.getElementById('challengeText');
+            const infoSection = document.getElementById('infoSection');
+            const dragTimeEl = document.getElementById('dragTime');
+            const pathPointsEl = document.getElementById('pathPoints');
+            const verifyStatusEl = document.getElementById('verifyStatus');
+            const centerOffsetEl = document.getElementById('centerOffset');
+            const hintBox = document.getElementById('hintBox');
+            const hintText = document.getElementById('hintText');
+            const arrowHint = document.getElementById('arrowHint');
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const step3 = document.getElementById('step3');
+            const helpButton = document.getElementById('helpButton');
+            const helpModal = document.getElementById('helpModal');
+            const helpClose = document.getElementById('helpClose');
+            
+            // 滑块尺寸
+            const SLIDER_WIDTH = 50;
+            const SLIDER_CENTER_OFFSET = SLIDER_WIDTH / 2;
+            
+            // 目标区域尺寸
+            const TARGET_ZONE_WIDTH = 60;
+            const TARGET_CENTER_OFFSET = TARGET_ZONE_WIDTH / 2;
+            
+            // 验证容差 - 滑块中心点允许偏离目标中心点的最大距离
+            const VALIDATION_TOLERANCE = 35;
+            
+            function getTrackBounds() {
+                const trackRect = sliderTrack.getBoundingClientRect();
+                return {
+                    minX: 0,
+                    maxX: trackRect.width - SLIDER_WIDTH
+                };
+            }
+            
+            function generateRandomTargetPosition() {
+                const bounds = getTrackBounds();
+                const minPosition = Math.max(80, bounds.minX + 30);
+                const maxPosition = Math.min(bounds.maxX - 30, bounds.maxX - TARGET_ZONE_WIDTH);
+                return Math.floor(Math.random() * (maxPosition - minPosition + 1)) + minPosition;
+            }
+            
+            let targetPosition = generateRandomTargetPosition();
+            targetZone.style.left = targetPosition + 'px';
+            
+            let isDragging = false;
+            let startX = 0;
+            let startLeft = 0;
+            let verified = false;
+            let automationDetected = false;
+            let challengeCompleted = false;
+            
+            let dragPath = [];
+            let dragStartTime = 0;
+            let dragEndTime = 0;
+            let totalDragTime = 0;
+            let finalCenterOffset = 0;
+            
+            function updateStatus(message, type) {
+                statusMessage.textContent = message;
+                statusContainer.className = 'status-container ' + type;
+            }
+            
+            function updateHint(step) {
+                const hints = {
+                    1: '请先点击下方"点击确认"按钮，然后拖动滑块到目标位置',
+                    2: '按住滑块向右拖动，将滑块移动到 🎯 目标区域后松开',
+                    3: '验证成功！您可以继续后续操作了',
+                    failure: '验证未通过，请尝试重新拖动滑块到目标位置'
+                };
+                hintText.textContent = hints[step] || hints[1];
+            }
+            
+            function updateSteps(currentStep) {
+                step1.classList.remove('active', 'completed');
+                step2.classList.remove('active', 'completed');
+                step3.classList.remove('active', 'completed');
+                
+                if (currentStep >= 1) {
+                    step1.classList.add(currentStep > 1 ? 'completed' : 'active');
+                }
+                if (currentStep >= 2) {
+                    step2.classList.add(currentStep > 2 ? 'completed' : 'active');
+                }
+                if (currentStep >= 3) {
+                    step3.classList.add('active');
+                }
+            }
+            
+            function updateArrowHint(show) {
+                arrowHint.style.display = show ? 'block' : 'none';
+            }
+            
+            // 更新验证范围指示器
+            function updateValidationRange() {
+                const targetCenter = targetPosition + TARGET_CENTER_OFFSET;
+                const rangeStart = targetCenter - VALIDATION_TOLERANCE - SLIDER_CENTER_OFFSET;
+                const rangeWidth = VALIDATION_TOLERANCE * 2;
+                
+                validationRange.style.left = rangeStart + 'px';
+                validationRange.style.width = rangeWidth + 'px';
+            }
+            
+            // 更新滑块位置
+            function updateSliderPosition(clientX) {
+                const trackRect = sliderTrack.getBoundingClientRect();
+                const bounds = getTrackBounds();
+                
+                let newLeft = clientX - trackRect.left - SLIDER_CENTER_OFFSET;
+                newLeft = Math.max(bounds.minX, Math.min(bounds.maxX, newLeft));
+                
+                slider.style.left = newLeft + 'px';
+                
+                const progress = (newLeft / bounds.maxX) * 100;
+                progressFill.style.width = progress + '%';
+                
+                dragPath.push({
+                    x: newLeft,
+                    time: Date.now()
+                });
+                
+                // 计算滑块中心点与目标中心点的距离
+                const sliderCenter = newLeft + SLIDER_CENTER_OFFSET;
+                const targetCenter = targetPosition + TARGET_CENTER_OFFSET;
+                const distance = Math.abs(sliderCenter - targetCenter);
+                
+                // 接近目标时显示提示
+                if (distance < 50 && distance > VALIDATION_TOLERANCE) {
+                    targetZone.classList.add('near');
+                    validationRange.classList.remove('hidden');
+                    validationRange.classList.add('visible');
+                } else {
+                    targetZone.classList.remove('near');
+                    validationRange.classList.remove('visible');
+                    validationRange.classList.add('hidden');
+                }
+                
+                return newLeft;
+            }
+            
+            // 鼠标按下事件
+            slider.addEventListener('mousedown', function(e) {
+                if (!verified && !automationDetected && challengeCompleted) {
+                    isDragging = true;
+                    slider.classList.add('dragging');
+                    
+                    const currentLeft = parseFloat(slider.style.left) || 0;
+                    startX = e.clientX - currentLeft;
+                    startLeft = currentLeft;
+                    
+                    dragStartTime = Date.now();
+                    dragPath = [{ x: startLeft, time: dragStartTime }];
+                    
+                    e.preventDefault();
+                    captchaArea.classList.add('highlight');
+                    updateArrowHint(false);
+                    updateHint(2);
+                    updateSteps(2);
+                } else if (!challengeCompleted) {
+                    updateStatus('请先完成上方挑战', 'warning');
+                    updateHint(1);
+                }
+            });
+            
+            // 触摸开始事件
+            slider.addEventListener('touchstart', function(e) {
+                if (!verified && !automationDetected && challengeCompleted) {
+                    isDragging = true;
+                    slider.classList.add('dragging');
+                    
+                    const currentLeft = parseFloat(slider.style.left) || 0;
+                    startX = e.touches[0].clientX - currentLeft;
+                    startLeft = currentLeft;
+                    
+                    dragStartTime = Date.now();
+                    dragPath = [{ x: startLeft, time: dragStartTime }];
+                    
+                    e.preventDefault();
+                    captchaArea.classList.add('highlight');
+                    updateArrowHint(false);
+                    updateHint(2);
+                    updateSteps(2);
+                } else if (!challengeCompleted) {
+                    updateStatus('请先完成上方挑战', 'warning');
+                    updateHint(1);
+                }
+            }, { passive: false });
+            
+            // 鼠标移动事件
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging || verified || automationDetected) return;
+                e.preventDefault();
+                updateSliderPosition(e.clientX);
+            });
+            
+            // 触摸移动事件
+            document.addEventListener('touchmove', function(e) {
+                if (!isDragging || verified || automationDetected) return;
+                e.preventDefault();
+                updateSliderPosition(e.touches[0].clientX);
+            }, { passive: false });
+            
+            // 鼠标释放事件
+            document.addEventListener('mouseup', function() {
+                if (isDragging) {
+                    handleDragEnd();
+                }
+            });
+            
+            // 触摸结束事件
+            document.addEventListener('touchend', function() {
+                if (isDragging) {
+                    handleDragEnd();
+                }
+            });
+            
+            // 处理拖动结束
+            function handleDragEnd() {
+                isDragging = false;
+                slider.classList.remove('dragging');
+                dragEndTime = Date.now();
+                totalDragTime = dragEndTime - dragStartTime;
+                captchaArea.classList.remove('highlight');
+                targetZone.classList.remove('near');
+                validationRange.classList.remove('visible');
+                validationRange.classList.add('hidden');
+                
+                if (!verified && !automationDetected) {
+                    const finalPosition = parseFloat(slider.style.left) || 0;
+                    
+                    // 检查自动化行为
+                    if (checkForAutomation()) {
+                        automationDetected = true;
+                        verificationFailure(true);
+                    } else {
+                        // 计算滑块中心点与目标中心点的距离
+                        const sliderCenter = finalPosition + SLIDER_CENTER_OFFSET;
+                        const targetCenter = targetPosition + TARGET_CENTER_OFFSET;
+                        finalCenterOffset = Math.abs(sliderCenter - targetCenter);
+                        
+                        // 核心判定逻辑：滑块中心点位于目标容差范围内即为成功
+                        if (finalCenterOffset <= VALIDATION_TOLERANCE) {
+                            verificationSuccess();
+                        } else {
+                            verificationFailure(false);
+                        }
+                    }
+                }
+                
+                updateInfoDisplay();
+            }
+            
+            // 自动化检测
+            function checkForAutomation() {
+                if (totalDragTime < 200) return true;
+                if (dragPath.length < 8) return true;
+                
+                if (dragPath.length > 8) {
+                    let timeIntervals = [];
+                    for (let i = 1; i < dragPath.length; i++) {
+                        timeIntervals.push(dragPath[i].time - dragPath[i-1].time);
+                    }
+                    
+                    const avgInterval = timeIntervals.reduce((a, b) => a + b, 0) / timeIntervals.length;
+                    const variance = timeIntervals.reduce((sum, interval) => sum + Math.pow(interval - avgInterval, 2), 0) / timeIntervals.length;
+                    const stdDev = Math.sqrt(variance);
+                    
+                    if (stdDev < 1.5) return true;
+                }
+                
+                return false;
+            }
+            
+            // 验证成功
+            function verificationSuccess() {
+                verified = true;
+                slider.classList.add('success');
+                slider.innerHTML = '<span class="slider-text">✓</span>';
+                progressFill.style.opacity = '1';
+                targetZone.classList.add('success');
+                updateStatus('✓ 验证成功！', 'success');
+                statusContainer.classList.add('success-animation');
+                infoSection.style.display = 'block';
+                verifyStatusEl.textContent = '成功';
+                verifyStatusEl.style.color = '#28a745';
+                updateHint(3);
+                updateSteps(3);
+                updateArrowHint(false);
+            }
+            
+            // 验证失败
+            function verificationFailure(isAutomation) {
+                verified = true;
+                slider.classList.add('failure');
+                slider.innerHTML = '<span class="slider-text">✗</span>';
+                
+                if (isAutomation) {
+                    updateStatus('✗ 检测到自动化行为', 'failure');
+                    verifyStatusEl.textContent = '自动化检测';
+                    verifyStatusEl.style.color = '#dc3545';
+                    updateHint('failure');
+                } else {
+                    updateStatus('✗ 未到达目标位置，请重试', 'failure');
+                    verifyStatusEl.textContent = '位置错误';
+                    verifyStatusEl.style.color = '#dc3545';
+                    updateHint('failure');
+                }
+                
+                statusContainer.classList.add('failure-animation');
+                infoSection.style.display = 'block';
+            }
+            
+            function updateInfoDisplay() {
+                dragTimeEl.textContent = totalDragTime + 'ms';
+                pathPointsEl.textContent = dragPath.length;
+                centerOffsetEl.textContent = finalCenterOffset.toFixed(1) + 'px';
+                
+                // 显示容差范围
+                if (finalCenterOffset <= VALIDATION_TOLERANCE) {
+                    centerOffsetEl.style.color = '#28a745';
+                } else {
+                    centerOffsetEl.style.color = '#dc3545';
+                }
+            }
+            
+            function resetVerification() {
+                targetPosition = generateRandomTargetPosition();
+                targetZone.style.left = targetPosition + 'px';
+                targetZone.classList.remove('success', 'near');
+                
+                slider.style.left = '0px';
+                slider.classList.remove('success', 'failure', 'dragging');
+                slider.innerHTML = '<span class="slider-text">➜</span>';
+                
+                progressFill.style.width = '0%';
+                progressFill.style.opacity = '0.3';
+                
+                updateStatus('请完成上方挑战后拖动滑块', '');
+                statusContainer.classList.remove('success-animation', 'failure-animation');
+                
+                verified = false;
+                automationDetected = false;
+                challengeCompleted = false;
+                finalCenterOffset = 0;
+                
+                challengeSection.classList.remove('completed');
+                challengeText.innerHTML = '<span class="icon">✓</span><span>点击此处确认是人类操作</span>';
+                
+                dragPath = [];
+                infoSection.style.display = 'none';
+                
+                updateValidationRange();
+                updateHint(1);
+                updateSteps(1);
+                updateArrowHint(true);
+                captchaArea.classList.remove('highlight');
+            }
+            
+            resetButton.addEventListener('click', resetVerification);
+            
+            challengeText.addEventListener('click', function() {
+                if (!challengeCompleted) {
+                    challengeCompleted = true;
+                    challengeSection.classList.add('completed');
+                    challengeText.innerHTML = '<span class="icon" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">✓</span><span>已确认是人类操作</span>';
+                    updateStatus('现在可以拖动滑块到目标位置', '');
+                    updateHint(2);
+                    updateSteps(2);
+                    updateArrowHint(true);
+                    updateValidationRange();
+                }
+            });
+            
+            // 帮助弹窗
+            helpButton.addEventListener('click', function() {
+                helpModal.classList.add('active');
+            });
+            
+            helpClose.addEventListener('click', function() {
+                helpModal.classList.remove('active');
+            });
+            
+            helpModal.addEventListener('click', function(e) {
+                if (e.target === helpModal) {
+                    helpModal.classList.remove('active');
+                }
+            });
+            
+            // 初始化
+            slider.style.left = '0px';
+            updateHint(1);
+            updateSteps(1);
+            updateArrowHint(true);
+            updateValidationRange();
+            
+            // 窗口大小变化时重新计算目标位置
+            window.addEventListener('resize', function() {
+                if (!verified) {
+                    targetPosition = generateRandomTargetPosition();
+                    targetZone.style.left = targetPosition + 'px';
+                    updateValidationRange();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
