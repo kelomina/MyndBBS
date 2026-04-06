@@ -1,66 +1,56 @@
-import Image from "next/image";
-import { APP_NAME } from "@myndbbs/shared";
+import { Sidebar } from "../components/layout/Sidebar";
+import { MessageSquare, ArrowBigUp } from "lucide-react";
+
+// Mock data for the feed
+const MOCK_POSTS = [
+  { id: 1, title: "Welcome to MyndBBS! Here is our design philosophy.", author: "Admin", category: "Announcements", time: "2h ago", upvotes: 142, comments: 24, excerpt: "We are building a clean, light, and secure forum. In this post, we discuss why we chose Next.js and how we implemented WebAuthn for passwordless login." },
+  { id: 2, title: "How to properly type Prisma queries in a monorepo?", author: "DevGuy", category: "Technology", time: "5h ago", upvotes: 38, comments: 12, excerpt: "I'm struggling with sharing Prisma types between my backend and frontend packages. Does anyone have a good pattern for this?" },
+  { id: 3, title: "Share your minimal desk setups for 2026", author: "Minimalist", category: "Life", time: "1d ago", upvotes: 215, comments: 89, excerpt: "Since we're all about that clean/light aesthetic here, let's see where you write your code. Post your desk photos below!" },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            Welcome to {APP_NAME}
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="mx-auto flex max-w-7xl px-4 sm:px-6 lg:px-8">
+      <Sidebar />
+      
+      {/* Main Feed Area */}
+      <div className="flex-1 py-6 md:pl-8">
+        <div className="mx-auto max-w-3xl space-y-4">
+          {MOCK_POSTS.map((post) => (
+            <article key={post.id} className="rounded-xl bg-card p-5 shadow-sm transition-shadow hover:shadow-md border border-border/50">
+              <div className="mb-3 flex items-center justify-between text-xs text-muted">
+                <div className="flex items-center space-x-2">
+                  <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold">{post.author[0]}</div>
+                  <span className="font-medium text-foreground">{post.author}</span>
+                  <span>•</span>
+                  <span>{post.time}</span>
+                </div>
+                <span className="rounded-full bg-background px-2.5 py-0.5 font-medium">
+                  {post.category}
+                </span>
+              </div>
+              
+              <h2 className="mb-2 text-xl font-bold text-foreground transition-colors hover:text-primary cursor-pointer">
+                {post.title}
+              </h2>
+              <p className="mb-4 text-sm text-muted line-clamp-2">
+                {post.excerpt}
+              </p>
+              
+              <div className="flex items-center space-x-4 text-sm font-medium text-muted">
+                <button className="flex items-center space-x-1 transition-colors hover:text-primary">
+                  <ArrowBigUp className="h-5 w-5" />
+                  <span>{post.upvotes}</span>
+                </button>
+                <button className="flex items-center space-x-1 transition-colors hover:text-primary">
+                  <MessageSquare className="h-4 w-4" />
+                  <span>{post.comments}</span>
+                </button>
+              </div>
+            </article>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
