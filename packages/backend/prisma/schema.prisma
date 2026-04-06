@@ -1,37 +1,21 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite" // Using sqlite for initial setup
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
-enum Role {
-  USER
-  ADMIN
-  MODERATOR
-}
 
-enum Status {
-  ACTIVE
-  BANNED
-  PENDING
-}
-
-enum PostStatus {
-  PUBLISHED
-  HIDDEN
-  PINNED
-}
 
 model User {
   id                 String    @id @default(uuid())
   email              String    @unique
   username           String    @unique
   password           String?   // Argon2 handles salt internally
-  role               Role      @default(USER)
-  status             Status    @default(ACTIVE)
+  role               String    @default("USER")
+  status             String    @default("ACTIVE")
   registeredIp       String?
   isPasskeyMandatory Boolean   @default(false)
   createdAt          DateTime  @default(now())
@@ -79,7 +63,7 @@ model Post {
   author     User       @relation(fields: [authorId], references: [id])
   categoryId String
   category   Category   @relation(fields: [categoryId], references: [id])
-  status     PostStatus @default(PUBLISHED)
+  status     String     @default("PUBLISHED")
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 }
