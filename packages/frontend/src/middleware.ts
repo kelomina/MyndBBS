@@ -5,6 +5,7 @@ import { defaultLocale, locales } from './i18n/config';
 function getLocale(request: NextRequest): string {
   // 1. Check cookie
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (cookieLocale && locales.includes(cookieLocale as any)) {
     return cookieLocale;
   }

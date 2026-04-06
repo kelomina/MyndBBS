@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Home, TrendingUp, Clock, Hash } from 'lucide-react';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function Sidebar({ dict }: { dict: any }) {
   const MAIN_NAV = [
     { name: dict.nav.home, href: '/', icon: Home },
