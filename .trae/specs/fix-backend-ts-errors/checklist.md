@@ -1,0 +1,3 @@
+- [x] `argon2` module can be imported without TS compilation errors.
+- [x] `PrismaClient` recognizes `captchaChallenge` and `password` properties.
+- [x] `ts-node src/index.ts` starts without errors.
