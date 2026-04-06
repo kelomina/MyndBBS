@@ -31,7 +31,8 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://localhost:3001/api/a
       const data = await res.json();
       setCaptchaId(data.captchaId);
       setTargetPosition(data.targetPosition);
-    } catch (err) {
+    } catch (err: unknown) {
+      console.error(err);
       setStatus('error');
       setErrorMsg('Network error. Please try again.');
     }
@@ -41,14 +42,14 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://localhost:3001/api/a
     fetchChallenge();
   }, [fetchChallenge]);
 
-  const handlePointerDown = (clientX: number) => {
+  const handlePointerDown = () => {
     if (status === 'success' || status === 'verifying') return;
     setIsDragging(true);
     dragStartTimeRef.current = Date.now();
     dragPathRef.current = [{ x: sliderLeft, time: dragStartTimeRef.current }];
   };
 
-  const handlePointerMove = (clientX: number) => {
+  const handlePointerMove = useCallback((clientX: number) => {
     if (!isDragging || !trackRef.current) return;
     const trackRect = trackRef.current.getBoundingClientRect();
     const SLIDER_WIDTH = 50;
@@ -60,9 +61,9 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://localhost:3001/api/a
     
     setSliderLeft(newLeft);
     dragPathRef.current.push({ x: newLeft, time: Date.now() });
-  };
+  }, [isDragging]);
 
-  const handlePointerUp = async () => {
+  const handlePointerUp = useCallback(async () => {
     if (!isDragging) return;
     setIsDragging(false);
     setStatus('verifying');
@@ -90,12 +91,13 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://localhost:3001/api/a
         setErrorMsg(data.error || 'Verification failed');
         setTimeout(fetchChallenge, 1500); // Reset after delay
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      console.error(err);
       setStatus('error');
       setErrorMsg('Server error');
       setTimeout(fetchChallenge, 1500);
     }
-  };
+  }, [isDragging, apiUrl, captchaId, sliderLeft, onSuccess, fetchChallenge]);
 
   // Global event listeners for drag
   useEffect(() => {
@@ -117,7 +119,7 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://localhost:3001/api/a
       window.removeEventListener('mouseup', handleGlobalMouseUp);
       window.removeEventListener('touchend', handleGlobalTouchEnd);
     };
-  }, [isDragging, sliderLeft]); // Include dependencies to capture latest state
+  }, [isDragging, handlePointerMove, handlePointerUp]); // Include dependencies to capture latest state
 
   return (
     <div className="relative w-full rounded-xl border border-border bg-card p-4 shadow-sm select-none">
@@ -151,8 +153,8 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://localhost:3001/api/a
           <div 
             className={`absolute top-0 h-12 w-[50px] flex cursor-grab items-center justify-center rounded-full shadow-md transition-transform ${isDragging ? 'scale-95 cursor-grabbing' : 'hover:scale-105'} ${status === 'success' ? 'bg-green-500 text-white' : 'bg-primary text-white'}`}
             style={{ left: `${sliderLeft}px` }}
-            onMouseDown={(e) => { e.preventDefault(); handlePointerDown(e.clientX); }}
-            onTouchStart={(e) => { handlePointerDown(e.touches[0].clientX); }}
+            onMouseDown={(e) => { e.preventDefault(); handlePointerDown(); }}
+            onTouchStart={() => { handlePointerDown(); }}
           >
             {status === 'success' ? '✓' : '➜'}
           </div>
