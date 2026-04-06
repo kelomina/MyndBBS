@@ -1,4 +1,4 @@
-import { PrismaClient } from './generated/prisma';
+import { PrismaClient } from './generated/prisma/index.js';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import * as dotenv from 'dotenv';
 
