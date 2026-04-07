@@ -19,6 +19,8 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@casl/ability": "^6.8.0",
+    "@casl/prisma": "^1.6.1",
     "@myndbbs/shared": "workspace:*",
     "@prisma/client": "5.22.0",
     "@simplewebauthn/server": "^13.3.0",

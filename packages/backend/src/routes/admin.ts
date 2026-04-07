@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireAdmin, requireSuperAdmin } from '../middleware/auth';
+import { requireAuth, requireAbility } from '../middleware/auth';
 import {
   getUsers, updateUserRole, updateUserStatus,
   getCategories, createCategory, deleteCategory,
@@ -11,18 +11,20 @@ const router: Router = Router();
 
 router.use(requireAuth);
 
-// Super Admin only routes (User Management & Category Structure)
-router.get('/users', requireSuperAdmin, getUsers);
-router.patch('/users/:id/role', requireSuperAdmin, updateUserRole);
-router.patch('/users/:id/status', requireSuperAdmin, updateUserStatus);
-router.post('/categories', requireSuperAdmin, createCategory);
-router.delete('/categories/:id', requireSuperAdmin, deleteCategory);
-router.post('/categories/:categoryId/moderators/:userId', requireSuperAdmin, assignCategoryModerator);
-router.delete('/categories/:categoryId/moderators/:userId', requireSuperAdmin, removeCategoryModerator);
+// User Management routes
+router.get('/users', requireAbility('manage', 'User'), getUsers);
+router.patch('/users/:id/role', requireAbility('manage', 'User'), updateUserRole);
+router.patch('/users/:id/status', requireAbility('manage', 'User'), updateUserStatus);
 
-// Moderator & Admin routes (Content Management)
-router.get('/categories', requireAdmin, getCategories);
-router.get('/posts', requireAdmin, getPosts);
-router.patch('/posts/:id/status', requireAdmin, updatePostStatus);
+// Category Structure routes
+router.post('/categories', requireAbility('manage', 'Category'), createCategory);
+router.delete('/categories/:id', requireAbility('manage', 'Category'), deleteCategory);
+router.post('/categories/:categoryId/moderators/:userId', requireAbility('manage', 'Category'), assignCategoryModerator);
+router.delete('/categories/:categoryId/moderators/:userId', requireAbility('manage', 'Category'), removeCategoryModerator);
+
+// Content Management routes
+router.get('/categories', requireAbility('read', 'AdminPanel'), getCategories);
+router.get('/posts', requireAbility('read', 'AdminPanel'), getPosts);
+router.patch('/posts/:id/status', requireAbility('update_status', 'Post'), updatePostStatus);
 
 export default router;

@@ -49,6 +49,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
   });
 
   const roleLevels: Record<string, number> = {
+    'SUPER_ADMIN': 4,
     'ADMIN': 3,
     'MODERATOR': 2,
     'USER': 1
@@ -56,6 +57,13 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
 
   const currentRoleLevel = roleLevels[currentUser.role?.name || 'USER'] || 1;
   const newRoleLevel = roleLevels[role] || 1;
+
+  // Prevent managing users with equal or higher roles than the operator
+  const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
+  if (currentRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
+    res.status(403).json({ error: 'Forbidden: Cannot manage user with equal or higher role' });
+    return;
+  }
 
   if (newRoleLevel < currentRoleLevel) {
     // Revoke sessions on downgrade
@@ -67,6 +75,16 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       }
       await pipeline.exec();
       await prisma.session.deleteMany({ where: { userId: id } });
+    }
+  } else if (newRoleLevel > currentRoleLevel) {
+    // Mark sessions for refresh on promotion
+    const sessions = await prisma.session.findMany({ where: { userId: id } });
+    if (sessions.length > 0) {
+      const pipeline = redis.pipeline();
+      for (const session of sessions) {
+        pipeline.set(`session:${session.id}:requires_refresh`, 'true', 'EX', 7 * 24 * 60 * 60); // same as session expiry
+      }
+      await pipeline.exec();
     }
   }
 
@@ -108,6 +126,22 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
     res.status(400).json({ error: 'Invalid status' });
     return;
   }
+
+  const targetUser = await prisma.user.findUnique({ where: { id }, include: { role: true } });
+  if (!targetUser) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  const roleLevels: Record<string, number> = { 'SUPER_ADMIN': 4, 'ADMIN': 3, 'MODERATOR': 2, 'USER': 1 };
+  const targetRoleLevel = roleLevels[targetUser.role?.name || 'USER'] || 1;
+  const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
+
+  if (targetRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
+    res.status(403).json({ error: 'Forbidden: Cannot manage user with equal or higher role' });
+    return;
+  }
+
   const user = await prisma.user.update({ where: { id }, data: { status } });
 
   if (status === 'BANNED') {
@@ -211,8 +245,16 @@ export const removeCategoryModerator = async (req: AuthRequest, res: Response): 
 };
 
 // Posts
-export const getPosts = async (req: Request, res: Response) => {
+export const getPosts = async (req: AuthRequest, res: Response) => {
+  const { accessibleBy } = await import('@casl/prisma');
+  
+  if (!req.ability) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
   const posts = await prisma.post.findMany({
+    where: accessibleBy(req.ability, 'read').Post,
     include: { author: { select: { username: true } }, category: { select: { name: true } } },
     orderBy: { createdAt: 'desc' }
   });
@@ -228,6 +270,19 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
     res.status(400).json({ error: 'Invalid status' });
     return;
   }
+
+  const existingPost = await prisma.post.findUnique({ where: { id } });
+  if (!existingPost) {
+    res.status(404).json({ error: 'Post not found' });
+    return;
+  }
+
+  const { subject } = await import('@casl/ability');
+  if (!req.ability?.can('update_status', subject('Post', existingPost as any))) {
+    res.status(403).json({ error: 'Forbidden: Insufficient permissions to manage this post' });
+    return;
+  }
+
   const post = await prisma.post.update({ where: { id }, data: { status } });
 
   await logAudit(operatorId, 'UPDATE_POST_STATUS', `Post:${id} to ${status}`);

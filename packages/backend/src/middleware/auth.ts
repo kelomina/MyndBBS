@@ -2,12 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 import { redis } from '../lib/redis';
+import { defineAbilityFor, AppAbility, Action, AppSubjects } from '../lib/casl';
 
 export interface AuthRequest extends Request {
   user?: {
     userId: string;
     role: string;
   };
+  ability?: AppAbility;
 }
 
 export const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -51,9 +53,60 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
         }
         await redis.set(cacheKey, 'valid', 'EX', 3600); // Cache valid session state
       }
+
+      const refreshKey = `${cacheKey}:requires_refresh`;
+      const requiresRefresh = await redis.get(refreshKey);
+
+      if (requiresRefresh === 'true') {
+        const user = await prisma.user.findUnique({
+          where: { id: decoded.userId },
+          include: { role: true }
+        });
+
+        if (user && user.status !== 'BANNED') {
+          const roleName = user.role?.name || 'USER';
+          
+          const newAccessToken = jwt.sign(
+            { userId: user.id, role: roleName, sessionId: decoded.sessionId },
+            process.env.JWT_SECRET as string,
+            { expiresIn: '15m' }
+          );
+
+          decoded.role = roleName;
+          
+          res.cookie('accessToken', newAccessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000
+          });
+
+          await redis.del(refreshKey);
+        } else if (user?.status === 'BANNED') {
+          res.clearCookie('accessToken');
+          res.clearCookie('refreshToken');
+          res.status(401).json({ error: 'User banned' });
+          return;
+        }
+      }
     }
     
     req.user = { userId: decoded.userId, role: decoded.role };
+
+    let moderatedCategories: { categoryId: string }[] = [];
+    if (decoded.role === 'MODERATOR') {
+      moderatedCategories = await prisma.categoryModerator.findMany({
+        where: { userId: decoded.userId },
+        select: { categoryId: true }
+      });
+    }
+
+    req.ability = defineAbilityFor({
+      id: decoded.userId,
+      role: decoded.role,
+      moderatedCategories
+    });
+
     next();
   } catch (error) {
     res.clearCookie('accessToken');
@@ -62,31 +115,18 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
-export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  if (!req.user) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
+export const requireAbility = (action: Action, subject: AppSubjects) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.ability) {
+      res.status(401).json({ error: 'Unauthorized: missing ability' });
+      return;
+    }
 
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'MODERATOR') {
-    res.status(403).json({ error: 'Forbidden: Admin access required' });
-    return;
-  }
-  
-  next();
-};
-
-export const requireSuperAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  if (!req.user) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  if (req.user.role !== 'ADMIN') {
-    res.status(403).json({ error: 'Forbidden: Super Admin access required' });
-    return;
-  }
-  
-  next();
+    if (req.ability.can(action, subject)) {
+      next();
+    } else {
+      res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+    }
+  };
 };
 
