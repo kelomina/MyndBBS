@@ -24,6 +24,16 @@ export function RegisterClient({ dict }: { dict: any }) {
       return;
     }
 
+    if (password.length < 8 || password.length > 128) {
+      setError('Password must be between 8 and 128 characters');
+      return;
+    }
+    
+    if (!/\d/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      setError('Password must contain at least one number and one special character');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch('http://127.0.0.1:3001/api/v1/auth/register', {

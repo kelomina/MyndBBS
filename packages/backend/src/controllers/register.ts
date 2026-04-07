@@ -12,6 +12,16 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    if (password.length < 8 || password.length > 128) {
+      res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
+      return;
+    }
+    
+    if (!/\d/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      res.status(400).json({ error: 'Password must contain at least one number and one special character' });
+      return;
+    }
+
     // Verify Captcha
     const challenge = await prisma.captchaChallenge.findUnique({
       where: { id: captchaId }
@@ -47,10 +57,18 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     // Cleanup captcha
     await prisma.captchaChallenge.delete({ where: { id: captchaId } });
 
-    // Generate JWT
-    const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+    // Generate JWTs
+    const accessToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
-    res.cookie('token', token, {
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+
+    res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
@@ -90,18 +108,64 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+    const accessToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
-    res.cookie('token', token, {
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+
+    res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    res.json({ message: 'Login successful', token, user: { id: user.id, username: user.username, role: user.role } });
+    res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: user.role } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const refreshToken = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { refreshToken } = req.cookies;
+
+    if (!refreshToken) {
+      res.status(401).json({ error: 'Refresh token required' });
+      return;
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string) as any;
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    if (!user) {
+      res.status(401).json({ error: 'Invalid refresh token' });
+      return;
+    }
+
+    if (user.status === 'BANNED') {
+      res.status(403).json({ error: 'Account is banned' });
+      return;
+    }
+
+    const accessToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
+
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+
+    res.json({ message: 'Token refreshed successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(401).json({ error: 'Invalid or expired refresh token' });
   }
 };
