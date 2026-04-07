@@ -1,98 +1,189 @@
 import { Request, Response } from 'express';
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
+import { OTP } from 'otplib';
+import QRCode from 'qrcode';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 
 const rpName = 'MyndBBS';
-const rpID = 'localhost'; // Should be domain in prod
-const origin = `http://${rpID}:3000`;
+const rpID = process.env.RP_ID || 'localhost';
+const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 
-export const generateRegisterChallenge = async (req: Request, res: Response) => {
-  const { email, username } = req.body;
-  
-  if (!email || !username) {
-    return res.status(400).json({ code: 400, message: 'Email and username required' });
+const authenticator = new OTP({ strategy: 'totp' });
+
+// Helper to get user from tempToken
+const getUserFromTempToken = async (req: Request) => {
+  const { tempToken } = req.cookies;
+  if (!tempToken) return null;
+  try {
+    const decoded = jwt.verify(tempToken, process.env.JWT_SECRET as string) as any;
+    if (decoded.type !== 'registration') return null;
+    return await prisma.user.findUnique({ where: { id: decoded.userId } });
+  } catch (err) {
+    return null;
   }
+};
 
-  // Mock user ID generation for challenge
-  const mockUserId = 'user-' + Date.now();
+// Helper to issue tokens and session
+const finalizeRegistration = async (user: any, req: Request, res: Response) => {
+  const accessToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
+  const refreshToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
-  // Periodically cleanup expired challenges to prevent database exhaustion (10% probability)
-  if (Math.random() < 0.1) {
-    prisma.authChallenge.deleteMany({
-      where: { expiresAt: { lt: new Date() } }
-    }).catch(console.error);
-  }
-
-  // Cryptographically secure challenge using @simplewebauthn options generator
-  const options = await generateRegistrationOptions({
-    rpName,
-    rpID,
-    userID: new Uint8Array(Buffer.from(mockUserId)),
-    userName: username,
-    attestationType: 'none',
-    authenticatorSelection: {
-      residentKey: 'preferred',
-      userVerification: 'preferred',
-    },
-  });
-
-  // Store in database instead of userChallenges dictionary
-  await prisma.authChallenge.create({
+  // Create Session
+  await prisma.session.create({
     data: {
-      id: mockUserId,
-      challenge: options.challenge,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes expiry
+      userId: user.id,
+      ...(req.ip && { ipAddress: req.ip }),
+      ...(req.headers['user-agent'] && { userAgent: req.headers['user-agent'] }),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
     }
   });
 
-  res.json({ 
-    code: 0, 
-    message: 'Challenge generated', 
-    data: { options, mockUserId } 
+  res.clearCookie('tempToken');
+
+  res.cookie('accessToken', accessToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 15 * 60 * 1000 // 15 minutes
+  });
+
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
 };
 
-export const verifyRegisterChallenge = async (req: Request, res: Response) => {
-  const { mockUserId, response } = req.body;
-
-  if (!mockUserId || !response) {
-    return res.status(400).json({ code: 400, message: 'Missing required fields' });
+export const generateTotp = async (req: Request, res: Response): Promise<void> => {
+  const user = await getUserFromTempToken(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized or token expired' });
+    return;
   }
 
-  const challengeRecord = await prisma.authChallenge.findUnique({
-    where: { id: mockUserId }
+  const secret = authenticator.generateSecret();
+  const otpauth = authenticator.generateURI({ issuer: rpName, label: user.email, secret });
+  const qrCodeUrl = await QRCode.toDataURL(otpauth);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { totpSecret: secret }
   });
 
-  try {
-    if (challengeRecord) {
-      await prisma.authChallenge.delete({ where: { id: mockUserId } });
-    }
-  } catch (error) {
-    return res.status(400).json({ code: 400, message: 'Challenge already used or invalid' });
+  res.json({ secret, qrCodeUrl });
+};
+
+export const verifyTotpRegistration = async (req: Request, res: Response): Promise<void> => {
+  const { code } = req.body;
+  const user = await getUserFromTempToken(req);
+  if (!user || !user.totpSecret) {
+    res.status(401).json({ error: 'Unauthorized or setup not initiated' });
+    return;
   }
 
-  if (!challengeRecord || challengeRecord.expiresAt < new Date()) {
-    return res.status(400).json({ code: 400, message: 'Challenge expired or invalid' });
+  const result = authenticator.verifySync({ secret: user.totpSecret, token: code });
+  if (!result || !result.valid) {
+    res.status(400).json({ error: 'Invalid TOTP code' });
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { isTotpEnabled: true }
+  });
+
+  await finalizeRegistration(user, req, res);
+
+  res.json({ message: 'TOTP setup successful', user: { id: user.id, username: user.username, role: user.role } });
+};
+
+export const generatePasskeyRegistrationOptions = async (req: Request, res: Response): Promise<void> => {
+  const user = await getUserFromTempToken(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const userPasskeys = await prisma.passkey.findMany({ where: { userId: user.id } });
+
+  const options = await generateRegistrationOptions({
+    rpName,
+    rpID,
+    userID: new Uint8Array(Buffer.from(user.id)),
+    userName: user.email,
+    attestationType: 'none',
+    excludeCredentials: userPasskeys.map(passkey => ({
+      id: passkey.id,
+      transports: ['internal'],
+    })),
+    authenticatorSelection: {
+      residentKey: 'preferred',
+      userVerification: 'preferred',
+      authenticatorAttachment: 'platform',
+    },
+  });
+
+  // Store challenge
+  await prisma.authChallenge.upsert({
+    where: { id: user.id },
+    update: { challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
+    create: { id: user.id, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
+  });
+
+  res.json(options);
+};
+
+export const verifyPasskeyRegistrationResponse = async (req: Request, res: Response): Promise<void> => {
+  const { response } = req.body;
+  const user = await getUserFromTempToken(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: user.id } });
+  if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
+    res.status(400).json({ error: 'Challenge expired or not found' });
+    return;
   }
 
   let verification;
   try {
     verification = await verifyRegistrationResponse({
       response,
-      expectedChallenge: challengeRecord.challenge,
+      expectedChallenge: expectedChallenge.challenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
     });
   } catch (error) {
-    return res.status(400).json({ code: 400, message: (error as Error).message || 'Challenge already used or invalid' });
+    res.status(400).json({ error: (error as Error).message });
+    return;
   }
 
-  const { verified } = verification;
-  
-  if (verified) {
-    return res.json({ code: 0, message: 'Registration verified successfully', data: { verified } });
-  }
+  if (verification.verified && verification.registrationInfo) {
+    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+    const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
 
-  return res.status(400).json({ code: 400, message: 'Registration verification failed' });
+    await prisma.passkey.create({
+      data: {
+        id: credentialID,
+        publicKey: Buffer.from(credentialPublicKey),
+        userId: user.id,
+        webAuthnUserID: user.id,
+        counter: BigInt(counter),
+        deviceType: credentialDeviceType,
+        backedUp: credentialBackedUp,
+      }
+    });
+
+    await prisma.authChallenge.delete({ where: { id: user.id } });
+
+    await finalizeRegistration(user, req, res);
+
+    res.json({ message: 'Passkey registered successfully', user: { id: user.id, username: user.username, role: user.role } });
+  } else {
+    res.status(400).json({ error: 'Verification failed' });
+  }
 };
-

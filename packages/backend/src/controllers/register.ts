@@ -65,25 +65,17 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       }
     });
 
-    // Generate JWTs
-    const accessToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
+    // Generate Temp Token for 2FA Registration
+    const tempToken = jwt.sign({ userId: user.id, type: 'registration' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
 
-    res.cookie('accessToken', accessToken, {
+    res.cookie('tempToken', tempToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 15 * 60 * 1000 // 15 minutes
+      maxAge: 60 * 60 * 1000 // 1 hour
     });
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
-
-    res.status(201).json({ message: 'User registered successfully', user: { id: user.id, username: user.username, role: user.role } });
+    res.status(201).json({ message: 'User registered. Please complete 2FA.', user: { id: user.id, username: user.username, role: user.role } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });

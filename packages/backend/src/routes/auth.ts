@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { generateRegisterChallenge, verifyRegisterChallenge } from '../controllers/auth';
+import { generateTotp, verifyTotpRegistration, generatePasskeyRegistrationOptions, verifyPasskeyRegistrationResponse } from '../controllers/auth';
 import { registerUser, loginUser, refreshToken } from '../controllers/register';
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
 
@@ -30,7 +30,9 @@ router.post('/captcha/verify', verifyCaptcha);
 router.post('/register', strictAuthLimiter, registerUser);
 router.post('/login', strictAuthLimiter, loginUser);
 router.post('/refresh', refreshToken); // Uses general authLimiter from router.use()
-router.post('/register/challenge', generateRegisterChallenge);
-router.post('/register/challenge/verify', verifyRegisterChallenge);
+router.post('/totp/generate', generateTotp);
+router.post('/totp/verify', verifyTotpRegistration);
+router.get('/passkey/generate-registration-options', generatePasskeyRegistrationOptions);
+router.post('/passkey/verify-registration', verifyPasskeyRegistrationResponse);
 
 export default router;
