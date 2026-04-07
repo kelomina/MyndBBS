@@ -65,7 +65,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
 
           {/* Comments Section */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-foreground mb-4">Comments (24)</h3>
+            <h3 className="text-lg font-bold text-foreground mb-4">{dict.post.comments} (24)</h3>
             
             {/* Comment Input */}
             <div className="rounded-xl bg-card p-4 shadow-sm border border-border/50 flex gap-4">
@@ -73,11 +73,11 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
               <div className="flex-1 space-y-3">
                 <textarea 
                   className="w-full rounded-lg border border-border bg-background p-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px] resize-y"
-                  placeholder="Write a comment..."
+                  placeholder={dict.post.writeComment}
                 ></textarea>
                 <div className="flex justify-end">
                   <button className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                    Post Comment
+                    {dict.post.postComment}
                   </button>
                 </div>
               </div>
@@ -90,13 +90,13 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
                 <div>
                   <div className="flex items-baseline space-x-2">
                     <span className="font-medium text-foreground text-sm">DevGuy</span>
-                    <span className="text-xs text-muted">1 hour ago</span>
+                    <span className="text-xs text-muted">1 {dict.post.hoursAgo}</span>
                   </div>
                   <p className="mt-1 text-sm text-foreground">
                     This looks amazing! The dark mode support is exactly what I was hoping for.
                   </p>
                   <div className="mt-2 flex items-center space-x-4 text-xs text-muted font-medium">
-                    <button className="hover:text-primary">Reply</button>
+                    <button className="hover:text-primary">{dict.post.reply}</button>
                     <button className="hover:text-primary flex items-center gap-1"><ArrowBigUp className="h-4 w-4" /> 12</button>
                   </div>
                 </div>

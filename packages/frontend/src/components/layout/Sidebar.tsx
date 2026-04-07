@@ -10,9 +10,9 @@ export function Sidebar({ dict }: { dict: any }) {
   ];
 
   const CATEGORIES = [
-    { name: 'Technology', href: '/c/tech' },
-    { name: 'Life', href: '/c/life' },
-    { name: 'Q&A', href: '/c/qa' },
+    { name: dict.common.categoryTech, href: '/c/tech' },
+    { name: dict.common.categoryLife, href: '/c/life' },
+    { name: dict.common.categoryQA, href: '/c/qa' },
   ];
 
   return (

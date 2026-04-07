@@ -1,4 +1,29 @@
-import type { Metadata } from "next";
+const fs = require('fs');
+const path = require('path');
+
+const files = {
+  "packages/frontend/src/components/TranslationProvider.tsx": `'use client';
+import React, { createContext, useContext } from 'react';
+
+const TranslationContext = createContext<any>(null);
+
+export function TranslationProvider({ dict, children }: { dict: any, children: React.ReactNode }) {
+  return (
+    <TranslationContext.Provider value={dict}>
+      {children}
+    </TranslationContext.Provider>
+  );
+}
+
+export function useTranslation() {
+  const context = useContext(TranslationContext);
+  if (!context) {
+    throw new Error('useTranslation must be used within a TranslationProvider');
+  }
+  return context;
+}
+`,
+  "packages/frontend/src/app/layout.tsx": `import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import { Header } from "../components/layout/Header";
@@ -36,3 +61,12 @@ export default async function RootLayout({
     </html>
   );
 }
+`
+};
+
+for (const [relPath, content] of Object.entries(files)) {
+  const absPath = path.join(__dirname, relPath);
+  fs.mkdirSync(path.dirname(absPath), { recursive: true });
+  fs.writeFileSync(absPath, content, 'utf-8');
+}
+console.log('Updated layout and added TranslationProvider');

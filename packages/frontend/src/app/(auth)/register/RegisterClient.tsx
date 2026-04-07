@@ -22,17 +22,17 @@ export function RegisterClient({ dict }: { dict: any }) {
     setError('');
 
     if (!captchaId) {
-      setError('Please complete the security verification first.');
+      setError(dict.auth.completeSecurityVerificationFirst);
       return;
     }
 
     if (password.length < 8 || password.length > 128) {
-      setError('Password must be between 8 and 128 characters');
+      setError(dict.auth.passwordLengthError);
       return;
     }
     
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
-      setError('Password must contain uppercase, lowercase, number, and special character');
+      setError(dict.auth.passwordComplexityError);
       return;
     }
 
@@ -118,7 +118,7 @@ export function RegisterClient({ dict }: { dict: any }) {
         ) : (
           <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/15 py-3.5 px-4 text-sm font-medium text-emerald-700 dark:text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.1)]">
             <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white shadow-[0_0_10px_rgba(52,211,153,0.5)]">✓</div>
-            <span>Security Verification Passed</span>
+            <span>{dict.auth.securityVerificationPassed}</span>
           </div>
         )}
 
