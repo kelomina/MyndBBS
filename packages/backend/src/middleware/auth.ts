@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET: string = process.env.JWT_SECRET || 'super-secret-key-change-in-prod';
-
 export interface AuthRequest extends Request {
   user?: {
     userId: string;
@@ -11,19 +9,21 @@ export interface AuthRequest extends Request {
 }
 
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
+  let token = req.cookies?.token;
+
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
   }
 
-  const token = authHeader.split(' ')[1];
   if (!token) {
     res.status(401).json({ error: 'Unauthorized: missing token' });
     return;
   }
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
     req.user = { userId: decoded.userId, role: decoded.role };
     next();
   } catch (error) {

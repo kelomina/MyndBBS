@@ -22,14 +22,13 @@ export function LoginClient({ dict }: { dict: any }) {
       const res = await fetch('http://127.0.0.1:3001/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password })
       });
       
       const data = await res.json();
       
       if (res.ok) {
-        localStorage.setItem('token', data.token);
-        document.cookie = `auth_token=${data.token}; path=/; max-age=604800`;
         router.push('/');
         router.refresh();
       } else {

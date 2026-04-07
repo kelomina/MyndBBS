@@ -6,16 +6,17 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export const requireAuth = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ code: 401, message: 'Unauthorized: No token provided' });
+  let token = req.cookies?.token;
+
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
   }
 
-  const token = authHeader.split(' ')[1];
-  
   if (!token) {
-    return res.status(401).json({ code: 401, message: 'Unauthorized: Invalid token format' });
+    return res.status(401).json({ code: 401, message: 'Unauthorized: No token provided' });
   }
 
   try {

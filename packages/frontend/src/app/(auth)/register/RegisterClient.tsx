@@ -29,16 +29,13 @@ export function RegisterClient({ dict }: { dict: any }) {
       const res = await fetch('http://127.0.0.1:3001/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, username, password, captchaId })
       });
       
       const data = await res.json();
       
       if (res.ok) {
-        // Store token and redirect
-        localStorage.setItem('token', data.token);
-        // Setting a cookie might be needed for SSR auth later
-        document.cookie = `auth_token=${data.token}; path=/; max-age=604800`; 
         router.push('/');
         router.refresh();
       } else {
