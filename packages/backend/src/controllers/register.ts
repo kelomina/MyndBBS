@@ -17,8 +17,9 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       return;
     }
     
-    if (!/\d/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      res.status(400).json({ error: 'Password must contain at least one number and one special character' });
+    // Add comprehensive strength check (uppercase, lowercase, number, special char)
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
+      res.status(400).json({ error: 'Password must contain uppercase, lowercase, number, and special character' });
       return;
     }
 
