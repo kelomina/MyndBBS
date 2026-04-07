@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
+import { useTranslation } from './TranslationProvider';
 
 interface SliderCaptchaProps {
   onSuccess: (captchaId: string) => void;
@@ -9,6 +10,7 @@ interface SliderCaptchaProps {
 }
 
 export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCaptchaProps) {
+  const dict = useTranslation();
   const [captchaId, setCaptchaId] = useState<string | null>(null);
   const [captchaImage, setCaptchaImage] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
@@ -49,9 +51,9 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
     } catch (err: unknown) {
       console.error('Error in fetchChallenge:', err);
       setStatus('error');
-      setErrorMsg('Network error. Please try again.');
+      setErrorMsg(dict.captcha.networkError);
     }
-  }, [apiUrl, resetUI]);
+  }, [apiUrl, resetUI, dict.captcha.networkError]);
 
   useEffect(() => {
     fetchChallenge();
@@ -115,13 +117,13 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
         onSuccess(captchaId!);
       } else {
         setStatus('error');
-        setErrorMsg(data.error || 'Verification failed');
+        setErrorMsg(data.error || dict.captcha.verificationFailed);
         setTimeout(fetchChallenge, 1500);
       }
     } catch (err: unknown) {
       console.error(err);
       setStatus('error');
-      setErrorMsg('Server error');
+      setErrorMsg(dict.captcha.serverError);
       setTimeout(fetchChallenge, 1500);
     }
   };
@@ -130,8 +132,8 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
     <div className="relative w-[350px] mx-auto rounded-2xl border border-white/10 bg-[#0f172a] p-4 shadow-xl select-none touch-none overflow-hidden">
       {/* Status Header */}
       <div className="mb-4 text-xs font-medium text-slate-400 flex justify-between items-center tracking-wider">
-        <span>SECURITY VERIFICATION</span>
-        {status === 'success' && <span className="text-emerald-400 flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5"/> VERIFIED</span>}
+        <span>{dict.captcha.securityVerification}</span>
+        {status === 'success' && <span className="text-emerald-400 flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5"/> {dict.captcha.verified}</span>}
         {status === 'error' && <span className="text-rose-400 flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5"/> {errorMsg.toUpperCase()}</span>}
       </div>
 

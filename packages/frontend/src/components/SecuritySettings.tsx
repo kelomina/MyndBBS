@@ -4,8 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { Fingerprint, Smartphone, Trash2 } from 'lucide-react';
 import { startRegistration } from '@simplewebauthn/browser';
 import { TwoFactorSetup } from './TwoFactorSetup';
+import { useTranslation } from './TranslationProvider';
 
 export function SecuritySettings() {
+  const dict = useTranslation();
   const [passkeys, setPasskeys] = useState<{ id: string; deviceType: string; createdAt: string }[]>([]);
   const [totpEnabled, setTotpEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -73,20 +75,20 @@ export function SecuritySettings() {
       });
 
       if (verifyRes.ok) {
-        setMessage('Passkey added successfully');
+        setMessage(dict.settings.passkeyAdded);
         fetchSecurityData(); // Refresh list
       } else {
         const verifyData = await verifyRes.json();
-        throw new Error(verifyData.error || 'Failed to verify passkey');
+        throw new Error(verifyData.error || dict.auth.passkeyVerificationFailed);
       }
     } catch (err) {
       const errorObj = err as Error;
-      setError(errorObj.message || 'An error occurred adding passkey');
+      setError(errorObj.message || dict.auth.passkeyError);
     }
   };
 
   const handleDeletePasskey = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this passkey?')) return;
+    if (!confirm(dict.settings.confirmRemovePasskey)) return;
     
     try {
       const res = await fetch(`/api/v1/user/passkeys/${id}`, {
@@ -95,7 +97,7 @@ export function SecuritySettings() {
       });
       if (res.ok) {
         setPasskeys(passkeys.filter(pk => pk.id !== id));
-        setMessage('Passkey removed successfully');
+        setMessage(dict.settings.passkeyRemoved);
       } else {
         throw new Error('Failed to remove passkey');
       }
@@ -105,7 +107,7 @@ export function SecuritySettings() {
   };
 
   const handleDisableTotp = async () => {
-    if (!confirm('Are you sure you want to disable Authenticator App (TOTP)?')) return;
+    if (!confirm(dict.settings.confirmDisableTotp)) return;
     
     try {
       const res = await fetch('/api/v1/user/totp/disable', {
@@ -114,7 +116,7 @@ export function SecuritySettings() {
       });
       if (res.ok) {
         setTotpEnabled(false);
-        setMessage('Authenticator App disabled successfully');
+        setMessage(dict.settings.totpDisabled);
       } else {
         throw new Error('Failed to disable TOTP');
       }
@@ -123,12 +125,12 @@ export function SecuritySettings() {
     }
   };
 
-  if (loading) return <div className="text-sm text-muted">Loading security settings...</div>;
+  if (loading) return <div className="text-sm text-muted">{dict.settings.loadingSecurity}</div>;
 
   return (
     <div className="rounded-xl bg-card p-6 shadow-sm border border-border/50">
-      <h2 className="text-xl font-bold text-foreground mb-1">Security & Passkeys</h2>
-      <p className="text-sm text-muted mb-6">Manage your two-factor authentication and passwordless login methods.</p>
+      <h2 className="text-xl font-bold text-foreground mb-1">{dict.profile.securityPasskeys}</h2>
+      <p className="text-sm text-muted mb-6">{dict.settings.manageSecurity}</p>
 
       {message && <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-600 dark:bg-green-900/30 dark:text-green-400">{message}</div>}
       {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">{error}</div>}
@@ -136,12 +138,12 @@ export function SecuritySettings() {
       <div className="space-y-8">
         {/* Passkeys */}
         <div>
-          <h3 className="text-sm font-medium text-foreground mb-4">Passkeys</h3>
-          <p className="text-sm text-muted mb-4">Passkeys allow you to securely sign in using your device&apos;s fingerprint, face scan, or screen lock.</p>
+          <h3 className="text-sm font-medium text-foreground mb-4">{dict.settings.passkeys}</h3>
+          <p className="text-sm text-muted mb-4">{dict.settings.passkeysDesc}</p>
           
           <div className="space-y-3 mb-4">
             {passkeys.length === 0 ? (
-              <p className="text-sm text-muted italic">No passkeys registered yet.</p>
+              <p className="text-sm text-muted italic">{dict.settings.noPasskeys}</p>
             ) : (
               passkeys.map(pk => (
                 <div key={pk.id} className="rounded-lg border border-border bg-background p-4 flex items-center justify-between">
@@ -149,13 +151,13 @@ export function SecuritySettings() {
                     <Fingerprint className="h-8 w-8 text-primary" />
                     <div>
                       <div className="text-sm font-medium text-foreground">{pk.deviceType} Passkey</div>
-                      <div className="text-xs text-muted">Added {new Date(pk.createdAt).toLocaleDateString()}</div>
+                      <div className="text-xs text-muted">{dict.settings.added} {new Date(pk.createdAt).toLocaleDateString()}</div>
                     </div>
                   </div>
                   <button 
                     onClick={() => handleDeletePasskey(pk.id)}
                     className="p-2 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                    title="Remove Passkey"
+                    title={dict.settings.removePasskey}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -168,21 +170,21 @@ export function SecuritySettings() {
             onClick={handleAddPasskey}
             className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors"
           >
-            <Fingerprint className="h-4 w-4" /> Add New Passkey
+            <Fingerprint className="h-4 w-4" /> {dict.settings.addNewPasskey}
           </button>
         </div>
 
         <div className="border-t border-border pt-6">
-          <h3 className="text-sm font-medium text-foreground mb-4">Authenticator App (TOTP)</h3>
-          <p className="text-sm text-muted mb-4">Use an authenticator app (like Google Authenticator or Authy) to generate one-time codes for 2FA.</p>
+          <h3 className="text-sm font-medium text-foreground mb-4">{dict.settings.totpTitle}</h3>
+          <p className="text-sm text-muted mb-4">{dict.settings.totpDesc}</p>
           
           {totpEnabled ? (
             <div className="rounded-lg border border-green-200 bg-green-50 p-4 flex items-center justify-between dark:border-green-900/30 dark:bg-green-900/10 mb-4">
               <div className="flex items-center gap-3">
                 <Smartphone className="h-8 w-8 text-green-600 dark:text-green-500" />
                 <div>
-                  <div className="text-sm font-medium text-green-800 dark:text-green-400">Authenticator App Enabled</div>
-                  <div className="text-xs text-green-600/80 dark:text-green-500/80">Your account is protected with 2FA</div>
+                  <div className="text-sm font-medium text-green-800 dark:text-green-400">{dict.settings.totpEnabled}</div>
+                  <div className="text-xs text-green-600/80 dark:text-green-500/80">{dict.settings.accountProtected}</div>
                 </div>
               </div>
               <button 
@@ -199,7 +201,7 @@ export function SecuritySettings() {
                   onClick={() => setShowTotpSetup(true)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors"
                 >
-                  <Smartphone className="h-4 w-4" /> Enable Authenticator App
+                  <Smartphone className="h-4 w-4" /> {dict.settings.enableTotp}
                 </button>
               ) : (
                 <div className="mt-4 border border-border rounded-lg p-6 bg-background">

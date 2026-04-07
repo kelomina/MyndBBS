@@ -70,9 +70,9 @@ export function LoginClient({ dict }: { dict: any }) {
         const errorObj = err as Error;
         const errorMessage = errorObj?.message || '';
         if (errorObj?.name === 'NotAllowedError' || errorMessage.includes('timed out or was not allowed')) {
-          setError('Passkey authentication was cancelled or timed out.');
+          setError(dict.auth.passkeyCancelled);
         } else {
-          setError(errorMessage || 'Failed to authenticate with passkey. Ensure your device supports it.');
+          setError(errorMessage || dict.auth.passkeyFailed);
         }
         setLoading(false);
         return;
@@ -90,13 +90,13 @@ export function LoginClient({ dict }: { dict: any }) {
       if (verifyRes.ok) {
         window.location.href = '/';
       } else {
-        setError(verifyData.error || 'Passkey verification failed');
+        setError(verifyData.error || dict.auth.passkeyVerificationFailed);
       }
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message || 'An error occurred during passkey login');
+        setError(err.message || dict.auth.passkeyError);
       } else {
-        setError('An error occurred during passkey login');
+        setError(dict.auth.passkeyError);
       }
     } finally {
       setLoading(false);

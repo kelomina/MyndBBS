@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { startAuthentication } from '@simplewebauthn/browser';
+import { useTranslation } from './TranslationProvider';
 
 interface TwoFactorLoginProps {
   methods: string[];
 }
 
 export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
+  const dict = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [totpCode, setTotpCode] = useState('');
@@ -46,14 +48,14 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
         window.location.href = '/';
       } else {
         const data = await verifyRes.json();
-        throw new Error(data.error || 'Passkey verification failed');
+        throw new Error(data.error || dict.auth.passkeyVerificationFailed);
       }
     } catch (err) {
       const errorObj = err as Error;
       console.error('Passkey login failed:', err);
       const isCancel = errorObj?.name === 'NotAllowedError' || errorObj?.message?.includes('timed out or was not allowed');
       if (!isCancel) {
-        setError(errorObj.message || 'Passkey login failed');
+        setError(errorObj.message || dict.auth.passkeyFailed);
       }
       if (methods.includes('totp')) {
         setCurrentMethod('totp');
@@ -78,10 +80,10 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
         window.location.href = '/';
       } else {
         const data = await res.json();
-        setError(data.error || 'Invalid TOTP code');
+        setError(data.error || dict.twoFactor.invalidTotpCode);
       }
     } catch (err) {
-      setError('Network error');
+      setError(dict.auth.networkError);
     } finally {
       setLoading(false);
     }
@@ -89,7 +91,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
 
   return (
     <div className="rounded-2xl bg-card px-8 py-10 shadow-sm border border-border/50 text-center">
-      <h2 className="text-2xl font-bold tracking-tight text-foreground mb-4">Two-Factor Authentication</h2>
+      <h2 className="text-2xl font-bold tracking-tight text-foreground mb-4">{dict.twoFactor.title}</h2>
       
       {error && (
         <div className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
@@ -99,14 +101,14 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
 
       {currentMethod === 'passkey' && (
         <div className="space-y-4">
-          <p className="text-muted text-sm">Waiting for passkey login...</p>
+          <p className="text-muted text-sm">{dict.twoFactor.waitingPasskeyLogin}</p>
           <div className="animate-pulse bg-primary/20 h-2 w-full rounded"></div>
           {methods.includes('totp') && (
             <button 
               onClick={() => setCurrentMethod('totp')}
               className="text-sm text-primary hover:underline mt-4 block mx-auto"
             >
-              Use Authenticator App instead
+              {dict.twoFactor.useAuthenticatorApp}
             </button>
           )}
         </div>
@@ -114,12 +116,12 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
 
       {currentMethod === 'totp' && (
         <form onSubmit={verifyTotp} className="space-y-6">
-          <p className="text-sm text-muted">Enter the 6-digit code from your Authenticator App.</p>
+          <p className="text-sm text-muted">{dict.twoFactor.enterTotpHint}</p>
           <div>
             <input
               type="text"
               required
-              placeholder="Enter 6-digit code"
+              placeholder={dict.twoFactor.enter6DigitCode}
               value={totpCode}
               onChange={(e) => setTotpCode(e.target.value)}
               className="block w-full text-center tracking-widest text-lg rounded-lg border border-border px-3 py-2 bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
@@ -131,7 +133,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
             disabled={loading || totpCode.length < 6}
             className="flex w-full justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors disabled:opacity-50"
           >
-            {loading ? 'Verifying...' : 'Verify'}
+            {loading ? dict.twoFactor.verifying : dict.twoFactor.verify}
           </button>
           {methods.includes('passkey') && (
             <button 
@@ -139,7 +141,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
               type="button"
               className="text-sm text-primary hover:underline mt-4 block mx-auto bg-transparent border-none"
             >
-              Try Passkey again
+              {dict.twoFactor.tryPasskeyAgain}
             </button>
           )}
         </form>
