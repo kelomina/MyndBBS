@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { startRegistration } from '@simplewebauthn/browser';
 import { QRCodeSVG } from 'qrcode.react';
 
-export function TwoFactorSetup() {
+export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false }: { onComplete?: () => void, context?: 'auth' | 'user', forceTotp?: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -17,9 +17,15 @@ export function TwoFactorSetup() {
     initiateSetup();
   }, []);
 
+  const getEndpoint = (path: string) => {
+    return context === 'user' ? `/api/v1/user${path}` : `/api/v1/auth${path}`;
+  };
+
   const initiateSetup = async () => {
     try {
-      if (window.PublicKeyCredential) {
+      if (forceTotp) {
+        await fallbackToTotp();
+      } else if (window.PublicKeyCredential) {
         setSetupMethod('passkey');
         await tryPasskeyRegistration();
       } else {
@@ -34,7 +40,7 @@ export function TwoFactorSetup() {
   const tryPasskeyRegistration = async () => {
     try {
       // 1. Get options from server
-      const optionsRes = await fetch('/api/v1/auth/passkey/generate-registration-options', {
+      const optionsRes = await fetch(getEndpoint('/passkey/generate-registration-options'), {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -47,15 +53,18 @@ export function TwoFactorSetup() {
       const attResp = await startRegistration({ optionsJSON: options });
 
       // 3. Verify on server
-      const verifyRes = await fetch('/api/v1/auth/passkey/verify-registration', {
+      const verifyRes = await fetch(getEndpoint('/passkey/verify-registration'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ response: attResp }),
       });
 
       if (verifyRes.ok) {
-        router.push('/');
-        router.refresh();
+        if (onComplete) onComplete();
+        else {
+          router.push('/');
+          router.refresh();
+        }
       } else {
         const data = await verifyRes.json();
         throw new Error(data.error || 'Passkey verification failed');
@@ -74,7 +83,7 @@ export function TwoFactorSetup() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/v1/auth/totp/generate', {
+      const res = await fetch(getEndpoint('/totp/generate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -96,15 +105,18 @@ export function TwoFactorSetup() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/v1/auth/totp/verify', {
+      const res = await fetch(getEndpoint('/totp/verify'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: totpCode }),
       });
       
       if (res.ok) {
-        router.push('/');
-        router.refresh();
+        if (onComplete) onComplete();
+        else {
+          router.push('/');
+          router.refresh();
+        }
       } else {
         const data = await res.json();
         setError(data.error || 'Invalid TOTP code');

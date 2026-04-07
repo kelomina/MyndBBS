@@ -212,23 +212,23 @@ git commit -m "feat: backend user center endpoints"
 - Create: `packages/frontend/src/components/SecuritySettings.tsx`
 - Create: `packages/frontend/src/components/SessionManagement.tsx`
 
-- [ ] **Step 1: Build the Layout**
+- [x] **Step 1: Build the Layout**
 
 In `app/u/settings/page.tsx`, create tabs or a sidebar for Basic Profile, Security Settings, Session Management, and Activity. If user role is `ADMIN`, show a link to `/admin`.
 
-- [ ] **Step 2: Profile Settings Component**
+- [x] **Step 2: Profile Settings Component**
 
 Form to update email, username, and password.
 
-- [ ] **Step 3: Security Settings Component**
+- [x] **Step 3: Security Settings Component**
 
 List Passkeys, option to add new Passkey. Display TOTP status (enabled/disabled), option to disable or re-enable.
 
-- [ ] **Step 4: Session Management Component**
+- [x] **Step 4: Session Management Component**
 
 List active sessions. Button to revoke sessions.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/frontend/src

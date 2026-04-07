@@ -1,0 +1,222 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Fingerprint, Smartphone, Trash2 } from 'lucide-react';
+import { startRegistration } from '@simplewebauthn/browser';
+import { TwoFactorSetup } from './TwoFactorSetup';
+
+export function SecuritySettings() {
+  const [passkeys, setPasskeys] = useState<any[]>([]);
+  const [totpEnabled, setTotpEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [showTotpSetup, setShowTotpSetup] = useState(false);
+
+  useEffect(() => {
+    fetchSecurityData();
+  }, []);
+
+  const fetchSecurityData = async () => {
+    try {
+      const [profileRes, passkeysRes] = await Promise.all([
+        fetch('/api/v1/user/profile', { credentials: 'include' }),
+        fetch('/api/v1/user/passkeys', { credentials: 'include' })
+      ]);
+
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        setTotpEnabled(profileData.user.isTotpEnabled);
+      }
+
+      if (passkeysRes.ok) {
+        const passkeysData = await passkeysRes.json();
+        setPasskeys(passkeysData.passkeys);
+      }
+    } catch (err) {
+      console.error('Failed to fetch security data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddPasskey = async () => {
+    setError('');
+    setMessage('');
+    try {
+      // Temporarily use auth routes for passkey since the endpoints are in auth.ts
+      // In a real app we might want to expose a specific endpoint for user center
+      const res = await fetch('/api/v1/user/passkey/generate-registration-options', { credentials: 'include' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to generate passkey options');
+      }
+
+      const options = await res.json();
+      let attResp;
+      try {
+        attResp = await startRegistration({ optionsJSON: options });
+      } catch (err) {
+        if ((err as Error).name === 'NotAllowedError') {
+          return; // User canceled
+        }
+        throw err;
+      }
+
+      const verifyRes = await fetch('/api/v1/user/passkey/verify-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ response: attResp }),
+      });
+
+      if (verifyRes.ok) {
+        setMessage('Passkey added successfully');
+        fetchSecurityData(); // Refresh list
+      } else {
+        const verifyData = await verifyRes.json();
+        throw new Error(verifyData.error || 'Failed to verify passkey');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred adding passkey');
+    }
+  };
+
+  const handleDeletePasskey = async (id: string) => {
+    if (!confirm('Are you sure you want to remove this passkey?')) return;
+    
+    try {
+      const res = await fetch(`/api/v1/user/passkeys/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setPasskeys(passkeys.filter(pk => pk.id !== id));
+        setMessage('Passkey removed successfully');
+      } else {
+        throw new Error('Failed to remove passkey');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const handleDisableTotp = async () => {
+    if (!confirm('Are you sure you want to disable Authenticator App (TOTP)?')) return;
+    
+    try {
+      const res = await fetch('/api/v1/user/totp/disable', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setTotpEnabled(false);
+        setMessage('Authenticator App disabled successfully');
+      } else {
+        throw new Error('Failed to disable TOTP');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  if (loading) return <div className="text-sm text-muted">Loading security settings...</div>;
+
+  return (
+    <div className="rounded-xl bg-card p-6 shadow-sm border border-border/50">
+      <h2 className="text-xl font-bold text-foreground mb-1">Security & Passkeys</h2>
+      <p className="text-sm text-muted mb-6">Manage your two-factor authentication and passwordless login methods.</p>
+
+      {message && <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-600 dark:bg-green-900/30 dark:text-green-400">{message}</div>}
+      {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">{error}</div>}
+
+      <div className="space-y-8">
+        {/* Passkeys */}
+        <div>
+          <h3 className="text-sm font-medium text-foreground mb-4">Passkeys</h3>
+          <p className="text-sm text-muted mb-4">Passkeys allow you to securely sign in using your device&apos;s fingerprint, face scan, or screen lock.</p>
+          
+          <div className="space-y-3 mb-4">
+            {passkeys.length === 0 ? (
+              <p className="text-sm text-muted italic">No passkeys registered yet.</p>
+            ) : (
+              passkeys.map(pk => (
+                <div key={pk.id} className="rounded-lg border border-border bg-background p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Fingerprint className="h-8 w-8 text-primary" />
+                    <div>
+                      <div className="text-sm font-medium text-foreground">{pk.deviceType} Passkey</div>
+                      <div className="text-xs text-muted">Added {new Date(pk.createdAt).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleDeletePasskey(pk.id)}
+                    className="p-2 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                    title="Remove Passkey"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <button 
+            onClick={handleAddPasskey}
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors"
+          >
+            <Fingerprint className="h-4 w-4" /> Add New Passkey
+          </button>
+        </div>
+
+        <div className="border-t border-border pt-6">
+          <h3 className="text-sm font-medium text-foreground mb-4">Authenticator App (TOTP)</h3>
+          <p className="text-sm text-muted mb-4">Use an authenticator app (like Google Authenticator or Authy) to generate one-time codes for 2FA.</p>
+          
+          {totpEnabled ? (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4 flex items-center justify-between dark:border-green-900/30 dark:bg-green-900/10 mb-4">
+              <div className="flex items-center gap-3">
+                <Smartphone className="h-8 w-8 text-green-600 dark:text-green-500" />
+                <div>
+                  <div className="text-sm font-medium text-green-800 dark:text-green-400">Authenticator App Enabled</div>
+                  <div className="text-xs text-green-600/80 dark:text-green-500/80">Your account is protected with 2FA</div>
+                </div>
+              </div>
+              <button 
+                onClick={handleDisableTotp}
+                className="text-sm font-medium text-red-600 hover:text-red-700 bg-white dark:bg-black px-3 py-1.5 rounded-md border border-red-200 dark:border-red-900/50"
+              >
+                Disable
+              </button>
+            </div>
+          ) : (
+            <div>
+              {!showTotpSetup ? (
+                <button 
+                  onClick={() => setShowTotpSetup(true)}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors"
+                >
+                  <Smartphone className="h-4 w-4" /> Enable Authenticator App
+                </button>
+              ) : (
+                <div className="mt-4 border border-border rounded-lg p-6 bg-background">
+                  <TwoFactorSetup context="user" forceTotp={true} onComplete={() => {
+                    setTotpEnabled(true);
+                    setShowTotpSetup(false);
+                    setMessage('Authenticator App enabled successfully');
+                  }} />
+                  <button 
+                    onClick={() => setShowTotpSetup(false)}
+                    className="mt-4 text-sm text-muted hover:text-foreground"
+                  >
+                    Cancel Setup
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
