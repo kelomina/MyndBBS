@@ -6,7 +6,7 @@ import { startRegistration } from '@simplewebauthn/browser';
 import { TwoFactorSetup } from './TwoFactorSetup';
 
 export function SecuritySettings() {
-  const [passkeys, setPasskeys] = useState<any[]>([]);
+  const [passkeys, setPasskeys] = useState<{ id: string; deviceType: string; createdAt: string }[]>([]);
   const [totpEnabled, setTotpEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -57,7 +57,9 @@ export function SecuritySettings() {
       try {
         attResp = await startRegistration({ optionsJSON: options });
       } catch (err) {
-        if ((err as Error).name === 'NotAllowedError') {
+        const errorObj = err as Error;
+        const isCancel = errorObj?.name === 'NotAllowedError' || errorObj?.message?.includes('timed out or was not allowed');
+        if (isCancel) {
           return; // User canceled
         }
         throw err;
@@ -77,8 +79,9 @@ export function SecuritySettings() {
         const verifyData = await verifyRes.json();
         throw new Error(verifyData.error || 'Failed to verify passkey');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred adding passkey');
+    } catch (err) {
+      const errorObj = err as Error;
+      setError(errorObj.message || 'An error occurred adding passkey');
     }
   };
 
@@ -96,8 +99,8 @@ export function SecuritySettings() {
       } else {
         throw new Error('Failed to remove passkey');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 
@@ -115,8 +118,8 @@ export function SecuritySettings() {
       } else {
         throw new Error('Failed to disable TOTP');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 

@@ -51,7 +51,7 @@ export function LoginClient({ dict }: { dict: any }) {
   };
 
   const handlePasskeyLogin = async () => {
-    setError('Button clicked');
+    setError('');
     setLoading(true);
 
     try {
@@ -70,10 +70,12 @@ export function LoginClient({ dict }: { dict: any }) {
       try {
         authResponse = await startAuthentication(options);
       } catch (err) {
-        if (err instanceof Error && err.name === 'NotAllowedError') {
-          setError('Passkey authentication was cancelled.');
+        const errorObj = err as Error;
+        const errorMessage = errorObj?.message || '';
+        if (errorObj?.name === 'NotAllowedError' || errorMessage.includes('timed out or was not allowed')) {
+          setError('Passkey authentication was cancelled or timed out.');
         } else {
-          setError('Failed to authenticate with passkey. Ensure your device supports it.');
+          setError(errorMessage || 'Failed to authenticate with passkey. Ensure your device supports it.');
         }
         setLoading(false);
         return;

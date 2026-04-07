@@ -69,10 +69,12 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
         const data = await verifyRes.json();
         throw new Error(data.error || 'Passkey verification failed');
       }
-    } catch (err: any) {
+    } catch (err) {
+      const errorObj = err as Error;
       console.error('Passkey registration failed:', err);
-      if (err.name !== 'NotAllowedError') {
-        setError(err.message || 'Passkey setup failed');
+      const isCancel = errorObj?.name === 'NotAllowedError' || errorObj?.message?.includes('timed out or was not allowed');
+      if (!isCancel) {
+        setError(errorObj.message || 'Passkey setup failed');
       }
       await fallbackToTotp();
     }

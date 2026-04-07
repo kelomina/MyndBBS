@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Monitor, Trash2 } from 'lucide-react';
 
 export function SessionManagement() {
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; userAgent: string; ipAddress: string; expiresAt: string; createdAt: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -43,8 +43,8 @@ export function SessionManagement() {
       } else {
         throw new Error('Failed to revoke session');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 
