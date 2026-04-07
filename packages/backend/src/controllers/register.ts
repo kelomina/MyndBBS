@@ -146,6 +146,16 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string) as any;
 
+    if (decoded.sessionId) {
+      const session = await prisma.session.findUnique({ where: { id: decoded.sessionId } });
+      if (!session) {
+        res.clearCookie('accessToken');
+        res.clearCookie('refreshToken');
+        res.status(401).json({ error: 'Session revoked or invalid' });
+        return;
+      }
+    }
+
     const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
     if (!user) {
       res.status(401).json({ error: 'Invalid refresh token' });
@@ -157,7 +167,11 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const accessToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
+    const accessToken = jwt.sign(
+      { userId: user.id, role: user.role, sessionId: decoded.sessionId }, 
+      process.env.JWT_SECRET as string, 
+      { expiresIn: '15m' }
+    );
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
@@ -169,6 +183,8 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     res.json({ message: 'Token refreshed successfully' });
   } catch (error) {
     console.error(error);
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
     res.status(401).json({ error: 'Invalid or expired refresh token' });
   }
 };
