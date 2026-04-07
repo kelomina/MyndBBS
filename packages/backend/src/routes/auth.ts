@@ -1,6 +1,14 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { generateTotp, verifyTotpRegistration, generatePasskeyRegistrationOptions, verifyPasskeyRegistrationResponse } from '../controllers/auth';
+import { 
+  generateTotp, 
+  verifyTotpRegistration, 
+  generatePasskeyRegistrationOptions, 
+  verifyPasskeyRegistrationResponse,
+  verifyTotpLogin,
+  generatePasskeyAuthenticationOptions,
+  verifyPasskeyAuthenticationResponse
+} from '../controllers/auth';
 import { registerUser, loginUser, refreshToken } from '../controllers/register';
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
 
@@ -34,5 +42,10 @@ router.post('/totp/generate', generateTotp);
 router.post('/totp/verify', verifyTotpRegistration);
 router.get('/passkey/generate-registration-options', generatePasskeyRegistrationOptions);
 router.post('/passkey/verify-registration', verifyPasskeyRegistrationResponse);
+
+// 2FA Login
+router.post('/totp/login-verify', verifyTotpLogin);
+router.get('/passkey/generate-authentication-options', generatePasskeyAuthenticationOptions);
+router.post('/passkey/verify-authentication', verifyPasskeyAuthenticationResponse);
 
 export default router;
