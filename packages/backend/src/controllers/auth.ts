@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
-import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
+import { 
+  generateRegistrationOptions, 
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse
+} from '@simplewebauthn/server';
 import { OTP } from 'otplib';
 import QRCode from 'qrcode';
 import jwt from 'jsonwebtoken';
@@ -12,12 +17,12 @@ const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 const authenticator = new OTP({ strategy: 'totp' });
 
 // Helper to get user from tempToken
-const getUserFromTempToken = async (req: Request) => {
+const getUserFromTempToken = async (req: Request, expectedType: 'registration' | 'login' = 'registration') => {
   const { tempToken } = req.cookies;
   if (!tempToken) return null;
   try {
     const decoded = jwt.verify(tempToken, process.env.JWT_SECRET as string) as any;
-    if (decoded.type !== 'registration') return null;
+    if (decoded.type !== expectedType) return null;
     return await prisma.user.findUnique({ where: { id: decoded.userId } });
   } catch (err) {
     return null;
@@ -25,7 +30,7 @@ const getUserFromTempToken = async (req: Request) => {
 };
 
 // Helper to issue tokens and session
-const finalizeRegistration = async (user: any, req: Request, res: Response) => {
+const finalizeAuth = async (user: any, req: Request, res: Response) => {
   const accessToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
@@ -94,7 +99,7 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
     data: { isTotpEnabled: true }
   });
 
-  await finalizeRegistration(user, req, res);
+  await finalizeAuth(user, req, res);
 
   res.json({ message: 'TOTP setup successful', user: { id: user.id, username: user.username, role: user.role } });
 };
@@ -180,9 +185,113 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
 
     await prisma.authChallenge.delete({ where: { id: user.id } });
 
-    await finalizeRegistration(user, req, res);
+    await finalizeAuth(user, req, res);
 
     res.json({ message: 'Passkey registered successfully', user: { id: user.id, username: user.username, role: user.role } });
+  } else {
+    res.status(400).json({ error: 'Verification failed' });
+  }
+};
+
+export const verifyTotpLogin = async (req: Request, res: Response): Promise<void> => {
+  const { code } = req.body;
+  const user = await getUserFromTempToken(req, 'login');
+  
+  if (!user || !user.isTotpEnabled || !user.totpSecret) {
+    res.status(401).json({ error: 'Unauthorized or TOTP not enabled' });
+    return;
+  }
+
+  const result = authenticator.verifySync({ secret: user.totpSecret, token: code });
+  if (!result || !result.valid) {
+    res.status(400).json({ error: 'Invalid TOTP code' });
+    return;
+  }
+
+  await finalizeAuth(user, req, res);
+
+  res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: user.role } });
+};
+
+export const generatePasskeyAuthenticationOptions = async (req: Request, res: Response): Promise<void> => {
+  const user = await getUserFromTempToken(req, 'login');
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const userPasskeys = await prisma.passkey.findMany({ where: { userId: user.id } });
+
+  const options = await generateAuthenticationOptions({
+    rpID,
+    allowCredentials: userPasskeys.map(passkey => ({
+      id: passkey.id,
+      transports: ['internal'],
+    })),
+    userVerification: 'preferred',
+  });
+
+  // Store challenge
+  await prisma.authChallenge.upsert({
+    where: { id: user.id },
+    update: { challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
+    create: { id: user.id, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
+  });
+
+  res.json(options);
+};
+
+export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Response): Promise<void> => {
+  const { response } = req.body;
+  const user = await getUserFromTempToken(req, 'login');
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: user.id } });
+  if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
+    res.status(400).json({ error: 'Challenge expired or not found' });
+    return;
+  }
+
+  const passkey = await prisma.passkey.findUnique({ where: { id: response.id } });
+  if (!passkey || passkey.userId !== user.id) {
+    res.status(400).json({ error: 'Passkey not found or does not belong to user' });
+    return;
+  }
+
+  let verification;
+  try {
+    verification = await verifyAuthenticationResponse({
+      response,
+      expectedChallenge: expectedChallenge.challenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+      credential: {
+        id: passkey.id,
+        publicKey: new Uint8Array(passkey.publicKey),
+        counter: Number(passkey.counter),
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+    return;
+  }
+
+  if (verification.verified && verification.authenticationInfo) {
+    const { newCounter } = verification.authenticationInfo;
+    
+    await prisma.passkey.update({
+      where: { id: passkey.id },
+      data: { counter: BigInt(newCounter) }
+    });
+
+    await prisma.authChallenge.delete({ where: { id: user.id } });
+
+    await finalizeAuth(user, req, res);
+
+    res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: user.role } });
   } else {
     res.status(400).json({ error: 'Verification failed' });
   }

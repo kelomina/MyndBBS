@@ -91,7 +91,10 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ 
+      where: { email },
+      include: { passkeys: true }
+    });
     if (!user || !user.password) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
@@ -105,6 +108,22 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     const isValid = await argon2.verify(user.password, password);
     if (!isValid) {
       res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
+    const methods: string[] = [];
+    if (user.isTotpEnabled) methods.push('totp');
+    if (user.passkeys && user.passkeys.length > 0) methods.push('passkey');
+
+    if (methods.length > 0) {
+      const tempToken = jwt.sign({ userId: user.id, type: 'login' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+      res.cookie('tempToken', tempToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 1000 // 1 hour
+      });
+      res.json({ requires2FA: true, methods });
       return;
     }
 

@@ -114,19 +114,19 @@ git commit -m "feat: backend 2FA registration logic"
 - Modify: `packages/backend/src/controllers/register.ts` (loginUser)
 - Modify: `packages/backend/src/controllers/auth.ts`
 
-- [ ] **Step 1: Update `loginUser` to require 2FA**
+- [x] **Step 1: Update `loginUser` to require 2FA**
 
 In `register.ts`, change `loginUser`. If password is valid, check if `isTotpEnabled` or user has Passkeys. If yes, issue `tempToken` (type 'login') and return `{ requires2FA: true, methods: ['passkey', 'totp'] }`.
 
-- [ ] **Step 2: Implement TOTP Login Verification**
+- [x] **Step 2: Implement TOTP Login Verification**
 
 In `auth.ts` (controller), add `verifyTotpLogin`. Read `tempToken`, get user, check `otplib.authenticator.check(code, user.totpSecret)`. If valid, remove `tempToken`, issue `accessToken`/`refreshToken`. Create `Session`.
 
-- [ ] **Step 3: Implement Passkey Login Endpoints**
+- [x] **Step 3: Implement Passkey Login Endpoints**
 
 In `auth.ts` (controller), add `generateAuthenticationOptions` and `verifyAuthenticationResponse`. Upon success, remove `tempToken`, issue `accessToken`/`refreshToken`. Create `Session`.
 
-- [ ] **Step 4: Expose Login 2FA routes**
+- [x] **Step 4: Expose Login 2FA routes**
 
 ```typescript
 router.post('/totp/login-verify', verifyTotpLogin);
@@ -134,7 +134,7 @@ router.get('/passkey/generate-authentication-options', generateAuthenticationOpt
 router.post('/passkey/verify-authentication', verifyAuthenticationResponse);
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/backend/src
