@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Fingerprint } from 'lucide-react';
+import { TwoFactorLogin } from '../../../components/TwoFactorLogin';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function LoginClient({ dict }: { dict: any }) {
@@ -12,6 +13,8 @@ export function LoginClient({ dict }: { dict: any }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [twoFactorMethods, setTwoFactorMethods] = useState<string[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +32,13 @@ export function LoginClient({ dict }: { dict: any }) {
       const data = await res.json();
       
       if (res.ok) {
-        router.push('/');
-        router.refresh();
+        if (data.requires2FA) {
+          setRequires2FA(true);
+          setTwoFactorMethods(data.methods || []);
+        } else {
+          router.push('/');
+          router.refresh();
+        }
       } else {
         setError(data.error || 'Login failed');
       }
@@ -40,6 +48,10 @@ export function LoginClient({ dict }: { dict: any }) {
       setLoading(false);
     }
   };
+
+  if (requires2FA) {
+    return <TwoFactorLogin methods={twoFactorMethods} />;
+  }
 
   return (
     <div className="rounded-2xl bg-card px-8 py-10 shadow-sm border border-border/50">
