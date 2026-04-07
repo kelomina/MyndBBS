@@ -173,7 +173,7 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
         {/* Moving Puzzle Piece */}
         <div
           ref={puzzleRef}
-          className={`absolute top-[30%] w-[50px] h-[40px] -translate-y-1/2 rounded-md border-2 border-white/80 bg-primary/50 shadow-lg backdrop-blur-sm flex items-center justify-center transition-colors ${status === 'success' ? 'bg-green-500/60 border-green-400' : ''}`}
+          className={`absolute top-[44px] w-[50px] h-[40px] rounded-md border-2 border-white/80 bg-primary/50 shadow-lg backdrop-blur-sm flex items-center justify-center transition-colors ${status === 'success' ? 'bg-green-500/60 border-green-400' : ''}`}
           style={{ left: '8px' }}
         >
           <Puzzle className="text-white w-5 h-5 opacity-90" />
