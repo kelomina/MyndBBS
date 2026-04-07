@@ -151,23 +151,23 @@ git commit -m "feat: backend login 2FA flow"
 - Create: `packages/frontend/src/components/TwoFactorSetup.tsx`
 - Create: `packages/frontend/src/components/TwoFactorLogin.tsx`
 
-- [ ] **Step 1: Implement `TwoFactorSetup` Component**
+- [x] **Step 1: Implement `TwoFactorSetup` Component**
 
 Checks `window.PublicKeyCredential`. If available, automatically triggers `@simplewebauthn/browser` `startRegistration()`. If unsupported or fails, fetches TOTP QR code and displays input for TOTP verification.
 
-- [ ] **Step 2: Update Register Page**
+- [x] **Step 2: Update Register Page**
 
 Render `TwoFactorSetup` upon successful step 1 of registration.
 
-- [ ] **Step 3: Implement `TwoFactorLogin` Component**
+- [x] **Step 3: Implement `TwoFactorLogin` Component**
 
 Upon receiving `requires2FA` from login, render this component. It should try `startAuthentication()` if passkeys are available. Also provide a fallback TOTP code input.
 
-- [ ] **Step 4: Update Login Page**
+- [x] **Step 4: Update Login Page**
 
 Render `TwoFactorLogin` when step 1 of login returns `requires2FA`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/frontend/src
@@ -183,19 +183,19 @@ git commit -m "feat: frontend 2FA auth flows"
 - Create: `packages/backend/src/controllers/user.ts`
 - Modify: `packages/backend/src/index.ts` (add user routes)
 
-- [ ] **Step 1: Implement Profile Update**
+- [x] **Step 1: Implement Profile Update**
 
 In `user.ts`, add `updateProfile` (update email, username, password). Requires authentication.
 
-- [ ] **Step 2: Implement Session Management**
+- [x] **Step 2: Implement Session Management**
 
 In `user.ts`, add `getSessions` and `revokeSession`. `getSessions` returns `prisma.session.findMany` for the user. `revokeSession` deletes a specific session ID.
 
-- [ ] **Step 3: Expose User routes**
+- [x] **Step 3: Expose User routes**
 
 Create `user.routes.ts` or add to existing router. Secure with `authMiddleware`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/backend/src
