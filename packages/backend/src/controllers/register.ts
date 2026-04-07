@@ -27,6 +27,16 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       where: { id: captchaId }
     });
 
+    try {
+      // Immediately delete the captcha to prevent replay attacks and race conditions, and to cleanup expired records
+      if (challenge) {
+        await prisma.captchaChallenge.delete({ where: { id: captchaId } });
+      }
+    } catch (e) {
+      res.status(400).json({ error: 'Captcha already used or invalid' });
+      return;
+    }
+
     if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
       res.status(400).json({ error: 'Invalid, expired, or unverified captcha' });
       return;
@@ -53,9 +63,6 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
         password: hashedPassword
       }
     });
-
-    // Cleanup captcha
-    await prisma.captchaChallenge.delete({ where: { id: captchaId } });
 
     // Generate JWTs
     const accessToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
