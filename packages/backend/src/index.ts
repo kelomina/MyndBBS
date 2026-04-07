@@ -3,12 +3,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
+import path from 'path';
+
+// Force load .env from the current backend directory explicitly, regardless of cwd
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 import { APP_NAME } from '@myndbbs/shared';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
-
-// Load environment variables before checking them
-dotenv.config();
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is not set. Please set it in your .env file or environment.');
