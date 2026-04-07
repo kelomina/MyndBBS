@@ -16,6 +16,13 @@ export const generateRegisterChallenge = async (req: Request, res: Response) => 
   // Mock user ID generation for challenge
   const mockUserId = 'user-' + Date.now();
 
+  // Periodically cleanup expired challenges to prevent database exhaustion (10% probability)
+  if (Math.random() < 0.1) {
+    prisma.authChallenge.deleteMany({
+      where: { expiresAt: { lt: new Date() } }
+    }).catch(console.error);
+  }
+
   const options = await generateRegistrationOptions({
     rpName,
     rpID,
