@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
+import { TwoFactorSetup } from '../../../components/TwoFactorSetup';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function RegisterClient({ dict }: { dict: any }) {
@@ -14,6 +15,7 @@ export function RegisterClient({ dict }: { dict: any }) {
   const [captchaId, setCaptchaId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [requires2FA, setRequires2FA] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +48,7 @@ export function RegisterClient({ dict }: { dict: any }) {
       const data = await res.json();
       
       if (res.ok) {
-        router.push('/');
-        router.refresh();
+        setRequires2FA(true);
       } else {
         setError(data.error || 'Registration failed');
         setCaptchaId(null); // Force re-verification on fail
@@ -58,6 +59,10 @@ export function RegisterClient({ dict }: { dict: any }) {
       setLoading(false);
     }
   };
+
+  if (requires2FA) {
+    return <TwoFactorSetup />;
+  }
 
   return (
     <div className="rounded-2xl bg-card px-8 py-10 shadow-sm border border-border/50">
