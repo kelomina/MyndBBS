@@ -51,6 +51,49 @@ export const deleteCategory = async (req: Request, res: Response) => {
   res.json({ message: 'Category deleted' });
 };
 
+export const assignCategoryModerator = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const categoryId = req.params.categoryId as string;
+    const userId = req.params.userId as string;
+    
+    // Ensure both user and category exist, and user is a MODERATOR
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== 'MODERATOR') {
+      res.status(400).json({ error: 'User not found or is not a MODERATOR' });
+      return;
+    }
+
+    const assignment = await prisma.categoryModerator.upsert({
+      where: {
+        categoryId_userId: { categoryId, userId }
+      },
+      update: {},
+      create: { categoryId, userId }
+    });
+
+    res.json({ message: 'Moderator assigned', assignment });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const removeCategoryModerator = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const categoryId = req.params.categoryId as string;
+    const userId = req.params.userId as string;
+    
+    await prisma.categoryModerator.delete({
+      where: {
+        categoryId_userId: { categoryId, userId }
+      }
+    });
+
+    res.json({ message: 'Moderator removed' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // Posts
 export const getPosts = async (req: Request, res: Response) => {
   const posts = await prisma.post.findMany({

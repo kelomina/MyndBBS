@@ -3,6 +3,7 @@ import { requireAuth, requireAdmin, requireSuperAdmin } from '../middleware/auth
 import {
   getUsers, updateUserRole, updateUserStatus,
   getCategories, createCategory, deleteCategory,
+  assignCategoryModerator, removeCategoryModerator,
   getPosts, updatePostStatus
 } from '../controllers/admin';
 
@@ -16,6 +17,8 @@ router.patch('/users/:id/role', requireSuperAdmin, updateUserRole);
 router.patch('/users/:id/status', requireSuperAdmin, updateUserStatus);
 router.post('/categories', requireSuperAdmin, createCategory);
 router.delete('/categories/:id', requireSuperAdmin, deleteCategory);
+router.post('/categories/:categoryId/moderators/:userId', requireSuperAdmin, assignCategoryModerator);
+router.delete('/categories/:categoryId/moderators/:userId', requireSuperAdmin, removeCategoryModerator);
 
 // Moderator & Admin routes (Content Management)
 router.get('/categories', requireAdmin, getCategories);
