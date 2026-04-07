@@ -62,8 +62,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       if (verifyRes.ok) {
         if (onComplete) onComplete();
         else {
-          router.push('/');
-          router.refresh();
+          window.location.href = '/';
         }
       } else {
         const data = await verifyRes.json();
@@ -116,8 +115,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       if (res.ok) {
         if (onComplete) onComplete();
         else {
-          router.push('/');
-          router.refresh();
+          window.location.href = '/';
         }
       } else {
         const data = await res.json();
