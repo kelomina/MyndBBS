@@ -51,7 +51,7 @@ export function LoginClient({ dict }: { dict: any }) {
   };
 
   const handlePasskeyLogin = async () => {
-    setError('');
+    setError('Button clicked');
     setLoading(true);
 
     try {

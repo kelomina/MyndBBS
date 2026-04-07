@@ -177,13 +177,13 @@ git commit -m "feat(backend): support passwordless passkey verification"
 **Files:**
 - Modify: `packages/frontend/src/app/(auth)/login/LoginClient.tsx`
 
-- [ ] **Step 1: Add simplewebauthn import**
+- [x] **Step 1: Add simplewebauthn import**
 Add the import at the top of the file.
 ```tsx
 import { startAuthentication } from '@simplewebauthn/browser';
 ```
 
-- [ ] **Step 2: Add Passkey Login Handler**
+- [x] **Step 2: Add Passkey Login Handler**
 Add `handlePasskeyLogin` function inside `LoginClient`.
 ```tsx
   const handlePasskeyLogin = async () => {
@@ -238,7 +238,7 @@ Add `handlePasskeyLogin` function inside `LoginClient`.
   };
 ```
 
-- [ ] **Step 3: Attach Handler to Button**
+- [x] **Step 3: Attach Handler to Button**
 Find the passkey button and update it:
 ```tsx
           <button 
@@ -252,7 +252,7 @@ Find the passkey button and update it:
           </button>
 ```
 
-- [ ] **Step 4: Commit changes**
+- [x] **Step 4: Commit changes**
 ```bash
 git add packages/frontend/src/app/\(auth\)/login/LoginClient.tsx
 git commit -m "feat(frontend): implement passwordless passkey login"
