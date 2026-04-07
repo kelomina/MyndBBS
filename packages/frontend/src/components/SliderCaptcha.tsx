@@ -10,6 +10,7 @@ interface SliderCaptchaProps {
 
 export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v1/auth' }: SliderCaptchaProps) {
   const [captchaId, setCaptchaId] = useState<string | null>(null);
+  const [captchaImage, setCaptchaImage] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [challengeCompleted, setChallengeCompleted] = useState(false);
@@ -44,6 +45,7 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v
       if (!res.ok) throw new Error('Failed to load captcha');
       const data = await res.json();
       setCaptchaId(data.captchaId);
+      setCaptchaImage(data.image || null);
       setChallengeCompleted(false);
     } catch (err: unknown) {
       console.error('Error in fetchChallenge:', err);
@@ -139,7 +141,7 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v
   };
 
   return (
-    <div className="relative w-full max-w-[400px] mx-auto rounded-xl border border-border bg-card p-4 shadow-sm select-none touch-none">
+    <div className="relative w-[350px] mx-auto rounded-xl border border-border bg-card p-4 shadow-sm select-none touch-none">
       <div className="mb-3 text-sm font-medium text-foreground flex justify-between items-center">
         <span>Security Verification</span>
         {status === 'success' && <span className="text-green-500 flex items-center gap-1"><ShieldCheck className="w-4 h-4"/> Verified</span>}
@@ -163,7 +165,10 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v
       )}
 
       {/* Captcha Area */}
-      <div className={`relative h-32 w-full overflow-hidden rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700 border border-border/50 transition-opacity ${!challengeCompleted ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+      <div 
+        className={`relative h-32 w-full overflow-hidden rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700 border border-border/50 transition-opacity ${!challengeCompleted ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
+        style={{ backgroundImage: captchaImage ? `url(${captchaImage})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}
+      >
         
         {/* Moving Puzzle Piece */}
         <div

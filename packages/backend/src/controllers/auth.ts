@@ -55,6 +55,14 @@ export const verifyRegisterChallenge = async (req: Request, res: Response) => {
     where: { id: mockUserId }
   });
 
+  try {
+    if (challengeRecord) {
+      await prisma.authChallenge.delete({ where: { id: mockUserId } });
+    }
+  } catch (error) {
+    return res.status(400).json({ code: 400, message: 'Challenge already used or invalid' });
+  }
+
   if (!challengeRecord || challengeRecord.expiresAt < new Date()) {
     return res.status(400).json({ code: 400, message: 'Challenge expired or invalid' });
   }
@@ -68,14 +76,12 @@ export const verifyRegisterChallenge = async (req: Request, res: Response) => {
       expectedRPID: rpID,
     });
   } catch (error) {
-    return res.status(400).json({ code: 400, message: (error as Error).message });
+    return res.status(400).json({ code: 400, message: (error as Error).message || 'Challenge already used or invalid' });
   }
 
   const { verified } = verification;
   
   if (verified) {
-    // Clean up challenge after successful verification
-    await prisma.authChallenge.delete({ where: { id: mockUserId } });
     return res.json({ code: 0, message: 'Registration verified successfully', data: { verified } });
   }
 

@@ -28,7 +28,7 @@ router.post('/captcha/verify', verifyCaptcha);
 // Auth
 router.post('/register', strictAuthLimiter, registerUser);
 router.post('/login', strictAuthLimiter, loginUser);
-router.post('/refresh', strictAuthLimiter, refreshToken);
+router.post('/refresh', refreshToken); // Uses general authLimiter from router.use()
 router.post('/register/challenge', generateRegisterChallenge);
 router.post('/register/challenge/verify', verifyRegisterChallenge);
 

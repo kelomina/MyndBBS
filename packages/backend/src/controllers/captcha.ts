@@ -3,7 +3,8 @@ import { prisma } from '../db';
 
 export const generateCaptcha = async (req: Request, res: Response) => {
   try {
-    // Assuming a track width of 300px and target width of 60px.
+    // Assuming an inner container width of 318px.
+    // Track is slightly smaller, puzzle piece visually starts at 8px.
     // Position between 80 and 240
     const targetPosition = Math.floor(Math.random() * (240 - 80 + 1)) + 80;
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
@@ -15,7 +16,18 @@ export const generateCaptcha = async (req: Request, res: Response) => {
       }
     });
 
-    res.json({ captchaId: challenge.id });
+    // Generate SVG background to provide visual hint without sending the raw number
+    const svgBackground = `
+      <svg width="318" height="128" xmlns="http://www.w3.org/2000/svg">
+        <rect width="318" height="128" fill="#f1f5f9" />
+        <text x="159" y="64" font-family="sans-serif" font-size="14" fill="#94a3b8" text-anchor="middle" dominant-baseline="middle">Security Verification</text>
+        <path d="M ${targetPosition} 44 h 50 v 40 h -50 Z" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 4" />
+      </svg>
+    `;
+    const bgBase64 = Buffer.from(svgBackground).toString('base64');
+    const bgUrl = `data:image/svg+xml;base64,${bgBase64}`;
+
+    res.json({ captchaId: challenge.id, image: bgUrl });
   } catch (error) {
     console.error("Error generating captcha:", error);
     res.status(500).json({ error: 'Failed to generate captcha', details: String(error) });
@@ -41,6 +53,7 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
     }
 
     if (challenge.expiresAt < new Date()) {
+      await prisma.captchaChallenge.delete({ where: { id: captchaId } }).catch(() => {});
       res.status(400).json({ success: false, error: 'Challenge expired' });
       return;
     }
@@ -68,10 +81,11 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
 
     // Position Check
     const SLIDER_CENTER_OFFSET = 25; // 50 / 2
-    const TARGET_CENTER_OFFSET = 30; // 60 / 2
+    const TARGET_CENTER_OFFSET = 25; // 50 / 2
     const VALIDATION_TOLERANCE = 35;
 
-    const sliderCenter = finalPosition + SLIDER_CENTER_OFFSET;
+    // finalPosition is slider's left. The visual puzzle is at finalPosition + 8
+    const sliderCenter = finalPosition + 8 + SLIDER_CENTER_OFFSET;
     const targetCenter = challenge.targetPosition + TARGET_CENTER_OFFSET;
     const centerOffset = Math.abs(sliderCenter - targetCenter);
 
