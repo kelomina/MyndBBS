@@ -2,14 +2,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Fingerprint } from 'lucide-react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { TwoFactorLogin } from '../../../components/TwoFactorLogin';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function LoginClient({ dict }: { dict: any }) {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
