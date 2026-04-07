@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
-import { Search, PenSquare } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { getDictionary } from '../../i18n/get-dictionary';
 import { Locale } from '../../i18n/config';
 import { LanguageSwitcher } from '../LanguageSwitcher';
@@ -9,8 +8,6 @@ import { UserNav } from './UserNav';
 
 export async function Header({ locale }: { locale: Locale }) {
   const dict = await getDictionary(locale);
-  const cookieStore = await cookies();
-  const hasToken = cookieStore.has('accessToken') || cookieStore.has('refreshToken');
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
@@ -37,16 +34,7 @@ export async function Header({ locale }: { locale: Locale }) {
         <div className="flex items-center space-x-3">
           <ThemeToggle />
           <LanguageSwitcher currentLocale={locale} />
-          {hasToken && (
-            <Link 
-              href="/compose" 
-              className="hidden sm:flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <PenSquare className="mr-2 h-4 w-4" />
-              {dict.common.newPost}
-            </Link>
-          )}
-          <UserNav title={dict.common.account} />
+          <UserNav title={dict.common.account} newPostText={dict.common.newPost} />
         </div>
       </div>
     </header>
