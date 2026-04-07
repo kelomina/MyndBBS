@@ -144,8 +144,12 @@ vite.config.ts.timestamp-*
 # pnpm
 node_modules/
 
-pnpm-lock.yamlpackages/backend/src/generated/
-packages/backend/dev.db
+packages/backend/src/generated/
+packages/backend/prisma/dev.db
+packages/backend/prisma/dev.db-journal
+dev.db
+*.db
+*.db-journal
 
 .trae/
 
