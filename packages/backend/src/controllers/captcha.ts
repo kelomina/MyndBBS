@@ -9,6 +9,13 @@ export const generateCaptcha = async (req: Request, res: Response) => {
     const targetPosition = Math.floor(Math.random() * (240 - 80 + 1)) + 80;
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
+    // Periodically cleanup expired captchas to prevent database exhaustion (10% probability)
+    if (Math.random() < 0.1) {
+      prisma.captchaChallenge.deleteMany({
+        where: { expiresAt: { lt: new Date() } }
+      }).catch(console.error);
+    }
+
     const challenge = await prisma.captchaChallenge.create({
       data: {
         targetPosition,

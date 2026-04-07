@@ -13,6 +13,9 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Trust the reverse proxy to ensure req.ip is correct for rate limiting
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true }));
 app.use(helmet());
 app.use(express.json());
