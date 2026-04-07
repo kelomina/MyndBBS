@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import { 
   generateRegistrationOptions, 
   verifyRegistrationResponse,
@@ -214,51 +215,96 @@ export const verifyTotpLogin = async (req: Request, res: Response): Promise<void
 };
 
 export const generatePasskeyAuthenticationOptions = async (req: Request, res: Response): Promise<void> => {
-  const user = await getUserFromTempToken(req, 'login');
-  if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
+  const { tempToken } = req.cookies;
+  
+  let options;
+  let challengeId;
+
+  if (tempToken) {
+    // 2FA flow
+    const user = await getUserFromTempToken(req, 'login');
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const userPasskeys = await prisma.passkey.findMany({ where: { userId: user.id } });
+    options = await generateAuthenticationOptions({
+      rpID,
+      allowCredentials: userPasskeys.map(passkey => ({
+        id: passkey.id,
+        transports: ['internal'],
+      })),
+      userVerification: 'preferred',
+    });
+    challengeId = user.id;
+  } else {
+    // Passwordless flow
+    options = await generateAuthenticationOptions({
+      rpID,
+      allowCredentials: [], // Prompt for all discoverable credentials
+      userVerification: 'preferred',
+    });
+    challengeId = crypto.randomUUID();
   }
-
-  const userPasskeys = await prisma.passkey.findMany({ where: { userId: user.id } });
-
-  const options = await generateAuthenticationOptions({
-    rpID,
-    allowCredentials: userPasskeys.map(passkey => ({
-      id: passkey.id,
-      transports: ['internal'],
-    })),
-    userVerification: 'preferred',
-  });
 
   // Store challenge
   await prisma.authChallenge.upsert({
-    where: { id: user.id },
+    where: { id: challengeId },
     update: { challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
-    create: { id: user.id, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
+    create: { id: challengeId, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
   });
 
-  res.json(options);
+  res.json({ ...options, challengeId });
 };
 
 export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Response): Promise<void> => {
-  const { response } = req.body;
-  const user = await getUserFromTempToken(req, 'login');
-  if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
+  const { response, challengeId: bodyChallengeId } = req.body;
+  const { tempToken } = req.cookies;
+  
+  let user;
+  let challengeId;
+
+  if (tempToken) {
+    // 2FA flow
+    user = await getUserFromTempToken(req, 'login');
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    challengeId = user.id;
+  } else {
+    // Passwordless flow
+    if (!bodyChallengeId) {
+      res.status(400).json({ error: 'Challenge ID is required for passwordless login' });
+      return;
+    }
+    challengeId = bodyChallengeId;
   }
 
-  const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: user.id } });
+  const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
   if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
     res.status(400).json({ error: 'Challenge expired or not found' });
     return;
   }
 
   const passkey = await prisma.passkey.findUnique({ where: { id: response.id } });
-  if (!passkey || passkey.userId !== user.id) {
-    res.status(400).json({ error: 'Passkey not found or does not belong to user' });
+  if (!passkey) {
+    res.status(400).json({ error: 'Passkey not found' });
     return;
+  }
+
+  if (tempToken && passkey.userId !== user?.id) {
+    res.status(400).json({ error: 'Passkey does not belong to user' });
+    return;
+  }
+
+  // In passwordless flow, we find the user from the passkey
+  if (!tempToken) {
+    user = await prisma.user.findUnique({ where: { id: passkey.userId } });
+    if (!user) {
+      res.status(400).json({ error: 'User not found for this passkey' });
+      return;
+    }
   }
 
   let verification;
@@ -287,7 +333,12 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
       data: { counter: BigInt(newCounter) }
     });
 
-    await prisma.authChallenge.delete({ where: { id: user.id } });
+    await prisma.authChallenge.delete({ where: { id: challengeId } });
+
+    if (!user) {
+      res.status(400).json({ error: 'User not found' });
+      return;
+    }
 
     await finalizeAuth(user, req, res);
 
