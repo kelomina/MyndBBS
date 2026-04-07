@@ -36,7 +36,7 @@ export function RegisterClient({ dict }: { dict: any }) {
 
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/v1/auth/register', {
+      const res = await fetch('http://localhost:3001/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
