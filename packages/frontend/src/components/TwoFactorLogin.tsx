@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { startAuthentication } from '@simplewebauthn/browser';
 
 interface TwoFactorLoginProps {
@@ -9,7 +8,6 @@ interface TwoFactorLoginProps {
 }
 
 export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [totpCode, setTotpCode] = useState('');
@@ -45,8 +43,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
       });
 
       if (verifyRes.ok) {
-        router.push('/');
-        router.refresh();
+        window.location.href = '/';
       } else {
         const data = await verifyRes.json();
         throw new Error(data.error || 'Passkey verification failed');
@@ -78,8 +75,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
       });
       
       if (res.ok) {
-        router.push('/');
-        router.refresh();
+        window.location.href = '/';
       } else {
         const data = await res.json();
         setError(data.error || 'Invalid TOTP code');
