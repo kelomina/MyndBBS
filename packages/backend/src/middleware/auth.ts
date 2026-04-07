@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../db';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -8,7 +9,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {
+export const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   let token = req.cookies?.accessToken;
 
   if (!token) {
@@ -22,11 +23,26 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     res.status(401).json({ error: 'Unauthorized: missing token' });
     return;
   }
+  
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+    
+    // Check session validity
+    if (decoded.sessionId) {
+      const session = await prisma.session.findUnique({ where: { id: decoded.sessionId } });
+      if (!session) {
+        res.clearCookie('accessToken');
+        res.clearCookie('refreshToken');
+        res.status(401).json({ error: 'Session revoked or invalid' });
+        return;
+      }
+    }
+    
     req.user = { userId: decoded.userId, role: decoded.role };
     next();
   } catch (error) {
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
     res.status(401).json({ error: 'Invalid token' });
   }
 };
