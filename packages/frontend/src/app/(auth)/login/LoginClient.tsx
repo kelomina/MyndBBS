@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Fingerprint } from 'lucide-react';
+import { startAuthentication } from '@simplewebauthn/browser';
 import { TwoFactorLogin } from '../../../components/TwoFactorLogin';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,8 +43,63 @@ export function LoginClient({ dict }: { dict: any }) {
       } else {
         setError(data.error || 'Login failed');
       }
-    } catch (err) {
+    } catch {
       setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    setError('');
+    setLoading(true);
+
+    try {
+      // 1. Get options from server
+      const optionsRes = await fetch('/api/v1/auth/passkey/generate-authentication-options');
+      const optionsData = await optionsRes.json();
+
+      if (!optionsRes.ok) {
+        throw new Error(optionsData.error || 'Failed to generate passkey options');
+      }
+
+      const { challengeId, ...options } = optionsData;
+
+      // 2. Invoke WebAuthn
+      let authResponse;
+      try {
+        authResponse = await startAuthentication(options);
+      } catch (err) {
+        if (err instanceof Error && err.name === 'NotAllowedError') {
+          setError('Passkey authentication was cancelled.');
+        } else {
+          setError('Failed to authenticate with passkey. Ensure your device supports it.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      // 3. Verify response
+      const verifyRes = await fetch('/api/v1/auth/passkey/verify-authentication', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: authResponse, challengeId })
+      });
+
+      const verifyData = await verifyRes.json();
+
+      if (verifyRes.ok) {
+        router.push('/');
+        router.refresh();
+      } else {
+        setError(verifyData.error || 'Passkey verification failed');
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message || 'An error occurred during passkey login');
+      } else {
+        setError('An error occurred during passkey login');
+      }
     } finally {
       setLoading(false);
     }
@@ -116,7 +172,12 @@ export function LoginClient({ dict }: { dict: any }) {
           <div className="relative flex justify-center text-sm"><span className="bg-card px-2 text-muted">{dict.auth.orContinueWith}</span></div>
         </div>
         <div className="mt-6">
-          <button className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors">
+          <button 
+            type="button"
+            onClick={handlePasskeyLogin}
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors disabled:opacity-50"
+          >
             <Fingerprint className="h-5 w-5 text-primary" />
             {dict.auth.signInWithPasskey}
           </button>
