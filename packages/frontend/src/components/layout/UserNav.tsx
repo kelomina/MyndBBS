@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { User, Loader2 } from 'lucide-react';
+import { User, Loader2, PenSquare } from 'lucide-react';
 
-export function UserNav({ title }: { title: string }) {
+export function UserNav({ title, newPostText }: { title: string; newPostText?: string }) {
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,13 +37,24 @@ export function UserNav({ title }: { title: string }) {
 
   if (user) {
     return (
-      <Link
-        href="/u/settings"
-        className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground transition-transform hover:scale-105 uppercase font-bold text-sm"
-        title={title}
-      >
-        {user.username.charAt(0)}
-      </Link>
+      <>
+        {newPostText && (
+          <Link
+            href="/compose"
+            className="hidden sm:flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <PenSquare className="mr-2 h-4 w-4" />
+            {newPostText}
+          </Link>
+        )}
+        <Link
+          href="/u/settings"
+          className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground transition-transform hover:scale-105 uppercase font-bold text-sm"
+          title={title}
+        >
+          {user.username.charAt(0)}
+        </Link>
+      </>
     );
   }
 
