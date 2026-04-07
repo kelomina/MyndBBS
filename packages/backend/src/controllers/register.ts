@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { prisma } from '../db';
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
-const JWT_SECRET: string = process.env.JWT_SECRET || 'super-secret-key-change-in-prod';
 
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -49,9 +48,16 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     await prisma.captchaChallenge.delete({ where: { id: captchaId } });
 
     // Generate JWT
-    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
-    res.status(201).json({ message: 'User registered successfully', token, user: { id: user.id, username: user.username, role: user.role } });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.status(201).json({ message: 'User registered successfully', user: { id: user.id, username: user.username, role: user.role } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
@@ -84,7 +90,14 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
 
     res.json({ message: 'Login successful', token, user: { id: user.id, username: user.username, role: user.role } });
   } catch (error) {
