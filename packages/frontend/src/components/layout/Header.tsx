@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Search, User, PenSquare } from 'lucide-react';
+import { Search, PenSquare } from 'lucide-react';
 import { getDictionary } from '../../i18n/get-dictionary';
 import { Locale } from '../../i18n/config';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { ThemeToggle } from '../ThemeToggle';
+import { UserNav } from './UserNav';
 
 export async function Header({ locale }: { locale: Locale }) {
   const dict = await getDictionary(locale);
@@ -40,14 +41,7 @@ export async function Header({ locale }: { locale: Locale }) {
             <PenSquare className="mr-2 h-4 w-4" />
             {dict.common.newPost}
           </Link>
-          <Link 
-            href="/login"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted transition-colors hover:bg-background hover:text-foreground"
-            title={dict.common.account}
-          >
-            <User className="h-5 w-5" />
-            <span className="sr-only">{dict.common.account}</span>
-          </Link>
+          <UserNav title={dict.common.account} />
         </div>
       </div>
     </header>
