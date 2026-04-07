@@ -1,5 +1,108 @@
-'use client';
+# Eclipse Captcha Implementation Plan
 
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Implement the "Eclipse" glowing orb captcha design with enhanced anti-bot security checks.
+
+**Architecture:** The frontend SliderCaptcha component is refactored to a sleek, frictionless UI where a glowing orb perfectly eclipses a target ring. The backend SVG generation is updated to match this premium dark-mode aesthetic. Security is hardened by capturing Y-coordinates and analyzing drag velocity curves.
+
+**Tech Stack:** React, Tailwind CSS, Express, Prisma
+
+---
+
+### Task 1: Harden Backend Captcha Verification & SVG Generation
+
+**Files:**
+- Modify: `packages/backend/src/controllers/captcha.ts`
+
+- [ ] **Step 1: Update SVG generation**
+Modify `generateCaptcha` to return a premium dark-mode SVG with a delicate target ring.
+
+```typescript
+    // Inside generateCaptcha
+    const svgBackground = `
+      <svg width="318" height="128" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0f172a" />
+            <stop offset="100%" stop-color="#1e293b" />
+          </linearGradient>
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+        <rect width="318" height="128" fill="url(#bg)" rx="8" />
+        <text x="159" y="30" font-family="sans-serif" font-size="12" fill="#64748b" text-anchor="middle" letter-spacing="2">SECURITY VERIFICATION</text>
+        <circle cx="${targetPosition + 24}" cy="64" r="20" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" filter="url(#glow)" stroke-dasharray="4 4" />
+      </svg>
+    `;
+```
+
+- [ ] **Step 2: Update verification logic with stricter checks**
+Modify `verifyCaptcha` to use the new 48px orb offset and add stricter anti-bot checks.
+
+```typescript
+    // Inside verifyCaptcha
+    // Update dragPath extraction to include y
+    const { captchaId, dragPath, totalDragTime, finalPosition } = req.body;
+    
+    // ... existing basic checks ...
+
+    // Automation Check 1 & 2
+    if (totalDragTime < 200 || totalDragTime > 10000 || dragPath.length < 10) {
+      res.status(400).json({ success: false, error: 'Automation detected (Speed/Points)' });
+      return;
+    }
+
+    // Automation Check 3: Variance & Velocity
+    let timeIntervals: number[] = [];
+    let xDistances: number[] = [];
+    let yVariance = 0;
+    const yValues = dragPath.map((p: any) => p.y || 0);
+    const avgY = yValues.reduce((a: number, b: number) => a + b, 0) / yValues.length;
+    yVariance = yValues.reduce((sum: number, y: number) => sum + Math.pow(y - avgY, 2), 0) / yValues.length;
+
+    for (let i = 1; i < dragPath.length; i++) {
+      timeIntervals.push(dragPath[i].time - dragPath[i - 1].time);
+      xDistances.push(Math.abs(dragPath[i].x - dragPath[i - 1].x));
+    }
+    
+    const avgInterval = timeIntervals.reduce((a, b) => a + b, 0) / timeIntervals.length;
+    const variance = timeIntervals.reduce((sum, interval) => sum + Math.pow(interval - avgInterval, 2), 0) / timeIntervals.length;
+    const stdDev = Math.sqrt(variance);
+
+    // Humans rarely drag perfectly straight. If variance in Y is exactly 0 and X speeds are too uniform, flag it.
+    if (stdDev < 1.5 && yVariance === 0) {
+      res.status(400).json({ success: false, error: 'Automation detected (Linear trajectory)' });
+      return;
+    }
+
+    // Position Check for 48px Orb
+    const ORB_CENTER_OFFSET = 24; // 48 / 2
+    const TARGET_CENTER_OFFSET = 24; // 48 / 2
+    const VALIDATION_TOLERANCE = 15; // Stricter tolerance (down from 35)
+
+    // finalPosition is orb's left. 
+    const sliderCenter = finalPosition + ORB_CENTER_OFFSET;
+    const targetCenter = challenge.targetPosition + TARGET_CENTER_OFFSET;
+    const centerOffset = Math.abs(sliderCenter - targetCenter);
+
+    if (centerOffset > VALIDATION_TOLERANCE) {
+      res.status(400).json({ success: false, error: 'Position mismatch' });
+      return;
+    }
+```
+
+### Task 2: Refactor Frontend SliderCaptcha Component
+
+**Files:**
+- Modify: `packages/frontend/src/components/SliderCaptcha.tsx`
+
+- [ ] **Step 1: Refactor UI structure and state**
+Remove the `challengeCompleted` two-step logic. Create the sleek UI.
+
+```tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
 
@@ -47,7 +150,6 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
       setCaptchaId(data.captchaId);
       setCaptchaImage(data.image || null);
     } catch (err: unknown) {
-      console.error('Error in fetchChallenge:', err);
       setStatus('error');
       setErrorMsg('Network error. Please try again.');
     }
@@ -56,7 +158,10 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
   useEffect(() => {
     fetchChallenge();
   }, [fetchChallenge]);
+```
 
+- [ ] **Step 2: Update Pointer Handlers to capture Y coordinate**
+```tsx
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (status === 'success' || status === 'verifying') return;
     
@@ -119,13 +224,15 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
         setTimeout(fetchChallenge, 1500);
       }
     } catch (err: unknown) {
-      console.error(err);
       setStatus('error');
       setErrorMsg('Server error');
       setTimeout(fetchChallenge, 1500);
     }
   };
+```
 
+- [ ] **Step 3: Update Render logic for the Eclipse design**
+```tsx
   return (
     <div className="relative w-[350px] mx-auto rounded-2xl border border-white/10 bg-[#0f172a] p-4 shadow-xl select-none touch-none overflow-hidden">
       {/* Status Header */}
@@ -165,3 +272,15 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
     </div>
   );
 }
+```
+
+- [ ] **Step 4: Add Tailwind animation for error shake**
+Modify `tailwind.config.ts` (if applicable) or add global CSS for `.animate-shake`. If editing `tailwind.config.ts` is complex, just rely on the fallback spring transition `resetUI` to provide motion, or use an inline style / class if `shake` is already defined. Let's assume `resetUI`'s spring transition provides enough motion for the reset, and we don't strictly need `.animate-shake`. Or modify `globals.css` if necessary.
+
+For now, the spring-back in `resetUI` provides a satisfying physical response to failure.
+
+### Task 3: Test and Verify
+- [ ] Run the development server and test the captcha.
+- [ ] Verify dragging behavior feels fluid.
+- [ ] Verify backend correctly rejects overly fast, uniform, or perfectly straight lines.
+- [ ] Verify success animation.

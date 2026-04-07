@@ -26,9 +26,19 @@ export const generateCaptcha = async (req: Request, res: Response) => {
     // Generate SVG background to provide visual hint without sending the raw number
     const svgBackground = `
       <svg width="318" height="128" xmlns="http://www.w3.org/2000/svg">
-        <rect width="318" height="128" fill="#f1f5f9" />
-        <text x="159" y="64" font-family="sans-serif" font-size="14" fill="#94a3b8" text-anchor="middle" dominant-baseline="middle">Security Verification</text>
-        <path d="M ${targetPosition} 44 h 50 v 40 h -50 Z" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 4" />
+        <defs>
+          <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0f172a" />
+            <stop offset="100%" stop-color="#1e293b" />
+          </linearGradient>
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+        <rect width="318" height="128" fill="url(#bg)" rx="8" />
+        <text x="159" y="30" font-family="sans-serif" font-size="12" fill="#64748b" text-anchor="middle" letter-spacing="2">SECURITY VERIFICATION</text>
+        <circle cx="${targetPosition + 24}" cy="64" r="20" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" filter="url(#glow)" stroke-dasharray="4 4" />
       </svg>
     `;
     const bgBase64 = Buffer.from(svgBackground).toString('base64');
@@ -66,33 +76,41 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
     }
 
     // Automation Check 1 & 2
-    if (totalDragTime < 200 || dragPath.length < 8) {
+    if (totalDragTime < 200 || totalDragTime > 10000 || dragPath.length < 10) {
       res.status(400).json({ success: false, error: 'Automation detected (Speed/Points)' });
       return;
     }
 
-    // Automation Check 3: Variance
+    // Automation Check 3: Variance & Velocity
     let timeIntervals: number[] = [];
+    let xDistances: number[] = [];
+    let yVariance = 0;
+    const yValues = dragPath.map((p: any) => p.y || 0);
+    const avgY = yValues.reduce((a: number, b: number) => a + b, 0) / yValues.length;
+    yVariance = yValues.reduce((sum: number, y: number) => sum + Math.pow(y - avgY, 2), 0) / yValues.length;
+
     for (let i = 1; i < dragPath.length; i++) {
       timeIntervals.push(dragPath[i].time - dragPath[i - 1].time);
+      xDistances.push(Math.abs(dragPath[i].x - dragPath[i - 1].x));
     }
     
     const avgInterval = timeIntervals.reduce((a, b) => a + b, 0) / timeIntervals.length;
     const variance = timeIntervals.reduce((sum, interval) => sum + Math.pow(interval - avgInterval, 2), 0) / timeIntervals.length;
     const stdDev = Math.sqrt(variance);
 
-    if (stdDev < 1.5) {
-      res.status(400).json({ success: false, error: 'Automation detected (Variance)' });
+    // Humans rarely drag perfectly straight. If variance in Y is exactly 0 and X speeds are too uniform, flag it.
+    if (stdDev < 1.5 && yVariance === 0) {
+      res.status(400).json({ success: false, error: 'Automation detected (Linear trajectory)' });
       return;
     }
 
-    // Position Check
-    const SLIDER_CENTER_OFFSET = 25; // 50 / 2
-    const TARGET_CENTER_OFFSET = 25; // 50 / 2
-    const VALIDATION_TOLERANCE = 35;
+    // Position Check for 48px Orb
+    const ORB_CENTER_OFFSET = 24; // 48 / 2
+    const TARGET_CENTER_OFFSET = 24; // 48 / 2
+    const VALIDATION_TOLERANCE = 15; // Stricter tolerance (down from 35)
 
-    // finalPosition is slider's left. The visual puzzle is at finalPosition + 8
-    const sliderCenter = finalPosition + 8 + SLIDER_CENTER_OFFSET;
+    // finalPosition is orb's left. 
+    const sliderCenter = finalPosition + ORB_CENTER_OFFSET;
     const targetCenter = challenge.targetPosition + TARGET_CENTER_OFFSET;
     const centerOffset = Math.abs(sliderCenter - targetCenter);
 
