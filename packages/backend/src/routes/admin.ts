@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireAdmin } from '../middleware/auth';
+import { requireAuth, requireAdmin, requireSuperAdmin } from '../middleware/auth';
 import {
   getUsers, updateUserRole, updateUserStatus,
   getCategories, createCategory, deleteCategory,
@@ -8,22 +8,18 @@ import {
 
 const router: Router = Router();
 
-// Protect all admin routes
 router.use(requireAuth);
-router.use(requireAdmin);
 
-// Users
-router.get('/users', getUsers);
-router.patch('/users/:id/role', updateUserRole);
-router.patch('/users/:id/status', updateUserStatus);
+// Super Admin only routes (User Management & Category Structure)
+router.get('/users', requireSuperAdmin, getUsers);
+router.patch('/users/:id/role', requireSuperAdmin, updateUserRole);
+router.patch('/users/:id/status', requireSuperAdmin, updateUserStatus);
+router.post('/categories', requireSuperAdmin, createCategory);
+router.delete('/categories/:id', requireSuperAdmin, deleteCategory);
 
-// Categories
-router.get('/categories', getCategories);
-router.post('/categories', createCategory);
-router.delete('/categories/:id', deleteCategory);
-
-// Posts
-router.get('/posts', getPosts);
-router.patch('/posts/:id/status', updatePostStatus);
+// Moderator & Admin routes (Content Management)
+router.get('/categories', requireAdmin, getCategories);
+router.get('/posts', requireAdmin, getPosts);
+router.patch('/posts/:id/status', requireAdmin, updatePostStatus);
 
 export default router;
