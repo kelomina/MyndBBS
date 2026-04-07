@@ -26,6 +26,7 @@ model User {
   passkeys           Passkey[] 
   posts              Post[]
   sessions           Session[]
+  moderatedCategories CategoryModerator[]
 }
 
 model Session {
@@ -66,6 +67,16 @@ model Category {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   posts       Post[]
+  moderators  CategoryModerator[]
+}
+
+model CategoryModerator {
+  categoryId  String
+  userId      String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, userId])
 }
 
 model Post {
