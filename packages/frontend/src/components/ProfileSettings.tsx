@@ -40,7 +40,7 @@ export function ProfileSettings() {
     setError('');
 
     try {
-      const updateData: any = {};
+      const updateData: { email?: string; username?: string; password?: string } = {};
       if (email !== profile?.email) updateData.email = email;
       if (username !== profile?.username) updateData.username = username;
       if (password) updateData.password = password;
