@@ -1,33 +1,130 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db';
+import { redis } from '../lib/redis';
+import { logAudit } from '../lib/audit';
+import { AuthRequest } from '../middleware/auth';
 
 // Users
 export const getUsers = async (req: Request, res: Response) => {
   const users = await prisma.user.findMany({
-    select: { id: true, username: true, email: true, role: true, status: true, createdAt: true }
+    select: { id: true, username: true, email: true, role: { select: { name: true } }, status: true, createdAt: true }
   });
-  res.json(users);
+  const formattedUsers = users.map(user => ({
+    ...user,
+    role: user.role?.name || null
+  }));
+  res.json(formattedUsers);
 };
 
-export const updateUserRole = async (req: Request, res: Response): Promise<void> => {
+export const updateUserRole = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { role } = req.body;
+  const operatorId = req.user?.userId || 'unknown';
+
   if (!['USER', 'ADMIN', 'MODERATOR'].includes(role)) {
     res.status(400).json({ error: 'Invalid role' });
     return;
   }
-  const user = await prisma.user.update({ where: { id }, data: { role } });
-  res.json({ message: 'Role updated', user: { id: user.id, role: user.role } });
+  
+  const roleRecord = await prisma.role.findUnique({ where: { name: role } });
+  if (!roleRecord) {
+    res.status(400).json({ error: 'Role not found in database' });
+    return;
+  }
+
+  const currentUser = await prisma.user.findUnique({
+    where: { id },
+    include: { role: true }
+  });
+
+  if (!currentUser) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  const user = await prisma.user.update({ 
+    where: { id }, 
+    data: { roleId: roleRecord.id },
+    include: { role: true }
+  });
+
+  const roleLevels: Record<string, number> = {
+    'ADMIN': 3,
+    'MODERATOR': 2,
+    'USER': 1
+  };
+
+  const currentRoleLevel = roleLevels[currentUser.role?.name || 'USER'] || 1;
+  const newRoleLevel = roleLevels[role] || 1;
+
+  if (newRoleLevel < currentRoleLevel) {
+    // Revoke sessions on downgrade
+    const sessions = await prisma.session.findMany({ where: { userId: id } });
+    if (sessions.length > 0) {
+      const pipeline = redis.pipeline();
+      for (const session of sessions) {
+        pipeline.del(`session:${session.id}`);
+      }
+      await pipeline.exec();
+      await prisma.session.deleteMany({ where: { userId: id } });
+    }
+  }
+
+  // Auto-disable root if another user gets ADMIN role
+  if (role === 'ADMIN' && user.username !== 'root') {
+    const rootUser = await prisma.user.findFirst({
+      where: { username: 'root', status: { not: 'BANNED' } }
+    });
+    if (rootUser) {
+      await prisma.user.update({
+        where: { id: rootUser.id },
+        data: { status: 'BANNED' }
+      });
+      // Revoke root sessions
+      const rootSessions = await prisma.session.findMany({ where: { userId: rootUser.id } });
+      if (rootSessions.length > 0) {
+        const pipeline = redis.pipeline();
+        for (const session of rootSessions) {
+          pipeline.del(`session:${session.id}`);
+        }
+        await pipeline.exec();
+        await prisma.session.deleteMany({ where: { userId: rootUser.id } });
+      }
+      await logAudit('system', 'AUTO_DISABLE_ROOT', 'root');
+    }
+  }
+
+  await logAudit(operatorId, 'UPDATE_USER_ROLE', `User:${id} to ${role}`);
+
+  res.json({ message: 'Role updated', user: { id: user.id, role: user.role?.name } });
 };
 
-export const updateUserStatus = async (req: Request, res: Response): Promise<void> => {
+export const updateUserStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { status } = req.body;
+  const operatorId = req.user?.userId || 'unknown';
+
   if (!['ACTIVE', 'BANNED', 'PENDING'].includes(status)) {
     res.status(400).json({ error: 'Invalid status' });
     return;
   }
   const user = await prisma.user.update({ where: { id }, data: { status } });
+
+  if (status === 'BANNED') {
+    // Revoke sessions on ban
+    const sessions = await prisma.session.findMany({ where: { userId: id } });
+    if (sessions.length > 0) {
+      const pipeline = redis.pipeline();
+      for (const session of sessions) {
+        pipeline.del(`session:${session.id}`);
+      }
+      await pipeline.exec();
+      await prisma.session.deleteMany({ where: { userId: id } });
+    }
+  }
+
+  await logAudit(operatorId, 'UPDATE_USER_STATUS', `User:${id} to ${status}`);
+
   res.json({ message: 'Status updated', user: { id: user.id, status: user.status } });
 };
 
@@ -37,28 +134,42 @@ export const getCategories = async (req: Request, res: Response) => {
   res.json(categories);
 };
 
-export const createCategory = async (req: Request, res: Response) => {
+export const createCategory = async (req: AuthRequest, res: Response) => {
   const { name, description, sortOrder } = req.body;
+  const operatorId = req.user?.userId || 'unknown';
+
   const category = await prisma.category.create({
     data: { name, description, sortOrder: sortOrder || 0 }
   });
+
+  await logAudit(operatorId, 'CREATE_CATEGORY', `Category:${category.id}`);
+
   res.status(201).json(category);
 };
 
-export const deleteCategory = async (req: Request, res: Response) => {
+export const deleteCategory = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
+  const operatorId = req.user?.userId || 'unknown';
+
   await prisma.category.delete({ where: { id } });
+
+  await logAudit(operatorId, 'DELETE_CATEGORY', `Category:${id}`);
+
   res.json({ message: 'Category deleted' });
 };
 
-export const assignCategoryModerator = async (req: Request, res: Response): Promise<void> => {
+export const assignCategoryModerator = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
     const userId = req.params.userId as string;
+    const operatorId = req.user?.userId || 'unknown';
     
     // Ensure both user and category exist, and user is a MODERATOR
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.role !== 'MODERATOR') {
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: { role: true }
+    });
+    if (!user || user.role?.name !== 'MODERATOR') {
       res.status(400).json({ error: 'User not found or is not a MODERATOR' });
       return;
     }
@@ -71,22 +182,27 @@ export const assignCategoryModerator = async (req: Request, res: Response): Prom
       create: { categoryId, userId }
     });
 
+    await logAudit(operatorId, 'ASSIGN_CATEGORY_MODERATOR', `User:${userId} to Category:${categoryId}`);
+
     res.json({ message: 'Moderator assigned', assignment });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
 };
 
-export const removeCategoryModerator = async (req: Request, res: Response): Promise<void> => {
+export const removeCategoryModerator = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
     const userId = req.params.userId as string;
+    const operatorId = req.user?.userId || 'unknown';
     
     await prisma.categoryModerator.delete({
       where: {
         categoryId_userId: { categoryId, userId }
       }
     });
+
+    await logAudit(operatorId, 'REMOVE_CATEGORY_MODERATOR', `User:${userId} from Category:${categoryId}`);
 
     res.json({ message: 'Moderator removed' });
   } catch (error) {
@@ -103,13 +219,18 @@ export const getPosts = async (req: Request, res: Response) => {
   res.json(posts);
 };
 
-export const updatePostStatus = async (req: Request, res: Response): Promise<void> => {
+export const updatePostStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { status } = req.body;
+  const operatorId = req.user?.userId || 'unknown';
+
   if (!['PUBLISHED', 'HIDDEN', 'PINNED'].includes(status)) {
     res.status(400).json({ error: 'Invalid status' });
     return;
   }
   const post = await prisma.post.update({ where: { id }, data: { status } });
+
+  await logAudit(operatorId, 'UPDATE_POST_STATUS', `Post:${id} to ${status}`);
+
   res.json({ message: 'Post status updated', post });
 };

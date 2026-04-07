@@ -14,7 +14,8 @@ model User {
   email              String    @unique
   username           String    @unique
   password           String?   // Argon2 handles salt internally
-  role               String    @default("USER")
+  roleId             String?
+  role               Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
   status             String    @default("ACTIVE")
   registeredIp       String?
   isPasskeyMandatory Boolean   @default(false)
@@ -96,5 +97,44 @@ model AuthChallenge {
   id        String   @id @default(uuid())
   challenge String
   expiresAt DateTime
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  who       String
+  when      DateTime @default(now())
+  target    String
+  action    String
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  action      String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
 }
 
