@@ -111,8 +111,9 @@ export function RegisterClient({ dict }: { dict: any }) {
         {!captchaId ? (
           <SliderCaptcha onSuccess={(id) => setCaptchaId(id)} />
         ) : (
-          <div className="rounded-lg border border-green-500/50 bg-green-50/50 dark:bg-green-900/20 p-3 text-center text-sm font-medium text-green-600 dark:text-green-400">
-            ✓ Security Verification Passed
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/15 py-3.5 px-4 text-sm font-medium text-emerald-700 dark:text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.1)]">
+            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white shadow-[0_0_10px_rgba(52,211,153,0.5)]">✓</div>
+            <span>Security Verification Passed</span>
           </div>
         )}
 
