@@ -146,3 +146,7 @@ node_modules/
 
 pnpm-lock.yamlpackages/backend/src/generated/
 packages/backend/dev.db
+
+.trae/
+
+.superpowers/
