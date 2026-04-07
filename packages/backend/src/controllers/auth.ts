@@ -23,6 +23,7 @@ export const generateRegisterChallenge = async (req: Request, res: Response) => 
     }).catch(console.error);
   }
 
+  // Cryptographically secure challenge using @simplewebauthn options generator
   const options = await generateRegistrationOptions({
     rpName,
     rpID,

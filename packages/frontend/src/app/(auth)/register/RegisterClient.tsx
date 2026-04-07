@@ -29,8 +29,8 @@ export function RegisterClient({ dict }: { dict: any }) {
       return;
     }
     
-    if (!/\d/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      setError('Password must contain at least one number and one special character');
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
+      setError('Password must contain uppercase, lowercase, number, and special character');
       return;
     }
 
