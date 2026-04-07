@@ -18,11 +18,24 @@ model User {
   status             String    @default("ACTIVE")
   registeredIp       String?
   isPasskeyMandatory Boolean   @default(false)
+  totpSecret         String?
+  isTotpEnabled      Boolean   @default(false)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   passkeys           Passkey[] 
   posts              Post[]
+  sessions           Session[]
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress  String?
+  userAgent  String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
 }
 
 model Passkey {
