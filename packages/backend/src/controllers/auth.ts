@@ -30,13 +30,9 @@ const getUserFromTempToken = async (req: Request, expectedType: 'registration' |
   }
 };
 
-// Helper to issue tokens and session
-const finalizeAuth = async (user: any, req: Request, res: Response) => {
-  const accessToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
-
-  // Create Session
-  await prisma.session.create({
+export const finalizeAuth = async (user: any, req: Request, res: Response) => {
+  // Create Session first
+  const session = await prisma.session.create({
     data: {
       userId: user.id,
       ...(req.ip && { ipAddress: req.ip }),
@@ -44,6 +40,9 @@ const finalizeAuth = async (user: any, req: Request, res: Response) => {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
     }
   });
+
+  const accessToken = jwt.sign({ userId: user.id, role: user.role, sessionId: session.id }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
+  const refreshToken = jwt.sign({ userId: user.id, role: user.role, sessionId: session.id }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
   res.clearCookie('tempToken');
 
@@ -60,6 +59,8 @@ const finalizeAuth = async (user: any, req: Request, res: Response) => {
     sameSite: 'strict',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
+
+  res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: user.role } });
 };
 
 export const generateTotp = async (req: Request, res: Response): Promise<void> => {
@@ -101,8 +102,6 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
   });
 
   await finalizeAuth(user, req, res);
-
-  res.json({ message: 'TOTP setup successful', user: { id: user.id, username: user.username, role: user.role } });
 };
 
 export const generatePasskeyRegistrationOptions = async (req: Request, res: Response): Promise<void> => {
@@ -187,8 +186,6 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
     await prisma.authChallenge.delete({ where: { id: user.id } });
 
     await finalizeAuth(user, req, res);
-
-    res.json({ message: 'Passkey registered successfully', user: { id: user.id, username: user.username, role: user.role } });
   } else {
     res.status(400).json({ error: 'Verification failed' });
   }
@@ -210,8 +207,6 @@ export const verifyTotpLogin = async (req: Request, res: Response): Promise<void
   }
 
   await finalizeAuth(user, req, res);
-
-  res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: user.role } });
 };
 
 export const generatePasskeyAuthenticationOptions = async (req: Request, res: Response): Promise<void> => {
@@ -341,8 +336,6 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
     }
 
     await finalizeAuth(user, req, res);
-
-    res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: user.role } });
   } else {
     res.status(400).json({ error: 'Verification failed' });
   }
