@@ -10,11 +10,9 @@ interface SliderCaptchaProps {
 
 export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v1/auth' }: SliderCaptchaProps) {
   const [captchaId, setCaptchaId] = useState<string | null>(null);
-  const [targetPosition, setTargetPosition] = useState<number>(0);
   const [status, setStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [challengeCompleted, setChallengeCompleted] = useState(false);
-  const [isNearTarget, setIsNearTarget] = useState(false);
 
   // Refs for tracking and DOM manipulation (avoiding state updates during drag)
   const dragPathRef = useRef<{ x: number; time: number }[]>([]);
@@ -29,13 +27,11 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v
   const puzzleRef = useRef<HTMLDivElement>(null);
 
   const SLIDER_WIDTH = 50;
-  const TARGET_WIDTH = 60;
 
   const resetUI = useCallback(() => {
     if (sliderRef.current) sliderRef.current.style.left = '0px';
     if (progressRef.current) progressRef.current.style.width = `${SLIDER_WIDTH / 2}px`;
     if (puzzleRef.current) puzzleRef.current.style.left = '8px'; // 8px corresponds to track's left-2
-    setIsNearTarget(false);
   }, []);
 
   const fetchChallenge = useCallback(async () => {
@@ -48,7 +44,6 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v
       if (!res.ok) throw new Error('Failed to load captcha');
       const data = await res.json();
       setCaptchaId(data.captchaId);
-      setTargetPosition(data.targetPosition);
       setChallengeCompleted(false);
     } catch (err: unknown) {
       console.error('Error in fetchChallenge:', err);
@@ -102,12 +97,6 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v
     }
 
     dragPathRef.current.push({ x: newLeft, time: Date.now() });
-
-    const sliderCenterGlobal = newLeft + 8 + (SLIDER_WIDTH / 2);
-    const targetCenter = targetPosition + (TARGET_WIDTH / 2);
-    const distance = Math.abs(sliderCenterGlobal - targetCenter);
-    
-    setIsNearTarget(distance < 50);
   };
 
   const handlePointerUp = async (e: React.PointerEvent<HTMLDivElement>) => {
@@ -115,7 +104,6 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v
     
     e.currentTarget.releasePointerCapture(e.pointerId);
     isDraggingRef.current = false;
-    setIsNearTarget(false);
     setStatus('verifying');
 
     const totalDragTime = Date.now() - dragStartTimeRef.current;
@@ -177,37 +165,14 @@ export function SliderCaptcha({ onSuccess, apiUrl = 'http://127.0.0.1:3001/api/v
       {/* Captcha Area */}
       <div className={`relative h-32 w-full overflow-hidden rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700 border border-border/50 transition-opacity ${!challengeCompleted ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         
-        {/* Target Zone */}
-        {targetPosition > 0 && (
-          <div
-            className={`absolute top-0 h-full w-[60px] border-l-2 border-r-2 border-primary/50 bg-primary/20 transition-all duration-300 ${status === 'success' ? 'bg-green-500/30 border-green-500' : ''} ${isNearTarget && status !== 'success' ? 'border-primary bg-primary/30 shadow-[0_0_15px_rgba(var(--primary),0.3)]' : ''}`}
-            style={{ left: `${targetPosition}px` }}
-          >
-            <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl opacity-70">🎯</div>
-          </div>
-        )}
-
-        {/* Validation Range Hint (Dashed Box) */}
-        {targetPosition > 0 && isNearTarget && status !== 'success' && (
-          <div 
-            className="absolute top-0 h-full border-x-2 border-dashed border-primary/60 bg-primary/5 transition-opacity duration-200"
-            style={{ 
-              left: `${targetPosition - 15}px`, 
-              width: `${TARGET_WIDTH + 30}px` 
-            }}
-          />
-        )}
-
         {/* Moving Puzzle Piece */}
-        {targetPosition > 0 && (
-          <div
-            ref={puzzleRef}
-            className={`absolute top-[30%] w-[50px] h-[40px] -translate-y-1/2 rounded-md border-2 border-white/80 bg-primary/50 shadow-lg backdrop-blur-sm flex items-center justify-center transition-colors ${status === 'success' ? 'bg-green-500/60 border-green-400' : ''}`}
-            style={{ left: '8px' }}
-          >
-            <Puzzle className="text-white w-5 h-5 opacity-90" />
-          </div>
-        )}
+        <div
+          ref={puzzleRef}
+          className={`absolute top-[30%] w-[50px] h-[40px] -translate-y-1/2 rounded-md border-2 border-white/80 bg-primary/50 shadow-lg backdrop-blur-sm flex items-center justify-center transition-colors ${status === 'success' ? 'bg-green-500/60 border-green-400' : ''}`}
+          style={{ left: '8px' }}
+        >
+          <Puzzle className="text-white w-5 h-5 opacity-90" />
+        </div>
 
         {/* Slider Track */}
         <div ref={trackRef} className="absolute bottom-2 left-2 right-2 h-12 rounded-full bg-white/90 dark:bg-slate-900/90 shadow-inner border border-border/50">
