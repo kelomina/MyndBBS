@@ -57,13 +57,18 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     // Hash password with Argon2id
     const hashedPassword = await argon2.hash(password);
 
+    // Get USER role
+    const userRole = await prisma.role.findUnique({ where: { name: 'USER' } });
+
     // Create user
     const user = await prisma.user.create({
       data: {
         email,
         username,
-        password: hashedPassword
-      }
+        password: hashedPassword,
+        ...(userRole && { roleId: userRole.id })
+      },
+      include: { role: true }
     });
 
     // Generate Temp Token for 2FA Registration
@@ -76,7 +81,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       maxAge: 60 * 60 * 1000 // 1 hour
     });
 
-    res.status(201).json({ message: 'User registered. Please complete 2FA.', user: { id: user.id, username: user.username, role: user.role } });
+    res.status(201).json({ message: 'User registered. Please complete 2FA.', user: { id: user.id, username: user.username, role: user.role?.name } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
@@ -88,13 +93,13 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      res.status(400).json({ error: 'Email and password required' });
+      res.status(400).json({ error: 'Email/Username and password required' });
       return;
     }
 
-    const user = await prisma.user.findUnique({ 
-      where: { email },
-      include: { passkeys: true }
+    const user = await prisma.user.findFirst({ 
+      where: { OR: [{ email }, { username: email }] },
+      include: { passkeys: true, role: true }
     });
     if (!user || !user.password) {
       res.status(401).json({ error: 'Invalid credentials' });
@@ -156,7 +161,10 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       }
     }
 
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    const user = await prisma.user.findUnique({ 
+      where: { id: decoded.userId },
+      include: { role: true }
+    });
     if (!user) {
       res.status(401).json({ error: 'Invalid refresh token' });
       return;
@@ -168,7 +176,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     }
 
     const accessToken = jwt.sign(
-      { userId: user.id, role: user.role, sessionId: decoded.sessionId }, 
+      { userId: user.id, role: user.role?.name, sessionId: decoded.sessionId }, 
       process.env.JWT_SECRET as string, 
       { expiresIn: '15m' }
     );

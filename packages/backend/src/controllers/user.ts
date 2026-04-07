@@ -26,7 +26,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
         id: true,
         email: true,
         username: true,
-        role: true,
+        role: { select: { name: true } },
         isTotpEnabled: true,
       }
     });
@@ -36,7 +36,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    res.json({ user });
+    res.json({ user: { ...user, role: user.role?.name || null } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
@@ -164,10 +164,10 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
-      select: { id: true, email: true, username: true, role: true } // Don't return password or sensitive data
+      select: { id: true, email: true, username: true, role: { select: { name: true } } } // Don't return password or sensitive data
     });
 
-    res.json({ message: 'Profile updated successfully', user: updatedUser });
+    res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: updatedUser.role?.name || null } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
@@ -398,7 +398,7 @@ export const getPublicProfile = async (req: Request, res: Response): Promise<voi
       where: { username },
       select: {
         username: true,
-        role: true,
+        role: { select: { name: true } },
         createdAt: true,
         posts: {
           select: {
@@ -419,7 +419,7 @@ export const getPublicProfile = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    res.json({ user });
+    res.json({ user: { ...user, role: user.role?.name || null } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });

@@ -125,7 +125,7 @@ export function LoginClient({ dict }: { dict: any }) {
           <div>
             <label className="block text-sm font-medium text-foreground">{dict.auth.emailAddress}</label>
             <input
-              type="email"
+              type="text"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}

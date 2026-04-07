@@ -15,6 +15,9 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.28.1",
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "dependencies": {
     "@myndbbs/shared": "workspace:*",
     "@prisma/client": "5.22.0",
@@ -25,6 +28,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",
     "helmet": "^8.1.0",
+    "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
     "otplib": "^13.4.0",
     "qrcode": "^1.5.4"

@@ -24,7 +24,10 @@ const getUserFromTempToken = async (req: Request, expectedType: 'registration' |
   try {
     const decoded = jwt.verify(tempToken, process.env.JWT_SECRET as string) as any;
     if (decoded.type !== expectedType) return null;
-    return await prisma.user.findUnique({ where: { id: decoded.userId } });
+    return await prisma.user.findUnique({ 
+      where: { id: decoded.userId },
+      include: { role: true }
+    });
   } catch (err) {
     return null;
   }
@@ -41,8 +44,10 @@ export const finalizeAuth = async (user: any, req: Request, res: Response) => {
     }
   });
 
-  const accessToken = jwt.sign({ userId: user.id, role: user.role, sessionId: session.id }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ userId: user.id, role: user.role, sessionId: session.id }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
+  const roleName = user.role?.name || user.role || null;
+
+  const accessToken = jwt.sign({ userId: user.id, role: roleName, sessionId: session.id }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
+  const refreshToken = jwt.sign({ userId: user.id, role: roleName, sessionId: session.id }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
   res.clearCookie('tempToken');
 
@@ -60,7 +65,7 @@ export const finalizeAuth = async (user: any, req: Request, res: Response) => {
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
 
-  res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: user.role } });
+  res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: roleName } });
 };
 
 export const generateTotp = async (req: Request, res: Response): Promise<void> => {

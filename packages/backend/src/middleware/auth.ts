@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
+import { redis } from '../lib/redis';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -27,14 +28,28 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
     
-    // Check session validity
+    // Check session validity using Redis cache
     if (decoded.sessionId) {
-      const session = await prisma.session.findUnique({ where: { id: decoded.sessionId } });
-      if (!session) {
+      const cacheKey = `session:${decoded.sessionId}`;
+      const cachedSession = await redis.get(cacheKey);
+
+      if (cachedSession === 'invalid') {
         res.clearCookie('accessToken');
         res.clearCookie('refreshToken');
         res.status(401).json({ error: 'Session revoked or invalid' });
         return;
+      }
+
+      if (!cachedSession) {
+        const session = await prisma.session.findUnique({ where: { id: decoded.sessionId } });
+        if (!session) {
+          await redis.set(cacheKey, 'invalid', 'EX', 300); // Cache invalid state briefly
+          res.clearCookie('accessToken');
+          res.clearCookie('refreshToken');
+          res.status(401).json({ error: 'Session revoked or invalid' });
+          return;
+        }
+        await redis.set(cacheKey, 'valid', 'EX', 3600); // Cache valid session state
       }
     }
     
