@@ -390,3 +390,38 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getPublicProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const username = req.params.username as string;
+    const user = await prisma.user.findUnique({
+      where: { username },
+      select: {
+        username: true,
+        role: true,
+        createdAt: true,
+        posts: {
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            createdAt: true,
+            category: { select: { name: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        _count: { select: { posts: true } }
+      }
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
