@@ -11,6 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import { APP_NAME } from '@myndbbs/shared';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
+import userRoutes from './routes/user';
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is not set. Please set it in your .env file or environment.');
@@ -32,6 +33,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.listen(port, () => {
