@@ -37,8 +37,7 @@ export function LoginClient({ dict }: { dict: any }) {
           setRequires2FA(true);
           setTwoFactorMethods(data.methods || []);
         } else {
-          router.push('/');
-          router.refresh();
+          window.location.href = '/';
         }
       } else {
         setError(data.error || 'Login failed');
@@ -91,8 +90,7 @@ export function LoginClient({ dict }: { dict: any }) {
       const verifyData = await verifyRes.json();
 
       if (verifyRes.ok) {
-        router.push('/');
-        router.refresh();
+        window.location.href = '/';
       } else {
         setError(verifyData.error || 'Passkey verification failed');
       }
