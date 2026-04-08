@@ -43,6 +43,35 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const bookmarks = await prisma.bookmark.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        post: {
+          include: {
+            author: { select: { id: true, username: true } },
+            category: { select: { id: true, name: true, description: true } }
+          }
+        }
+      }
+    });
+
+    const posts = bookmarks.map(b => b.post);
+    res.json(posts);
+  } catch (error) {
+    console.error('Error fetching bookmarks:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const getPasskeys = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;

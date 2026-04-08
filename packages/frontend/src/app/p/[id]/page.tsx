@@ -1,10 +1,11 @@
 import { Sidebar } from "../../../components/layout/Sidebar";
-import { MessageSquare, ArrowBigUp, Bookmark, Share } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { headers } from "next/headers";
 import { Locale, defaultLocale } from "../../../i18n/config";
 import { getDictionary } from "../../../i18n/get-dictionary";
 import { notFound } from "next/navigation";
 import { CommentsSection } from "./CommentsSection";
+import { PostActions } from "./PostActions";
 
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -69,22 +70,11 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
               {post.content}
             </div>
             
-            <div className="mt-8 flex items-center justify-between border-t border-border pt-4">
-              <div className="flex items-center space-x-6 text-muted">
-                <button className="flex items-center space-x-2 transition-colors hover:text-primary">
-                  <ArrowBigUp className="h-6 w-6" />
-                  <span className="font-medium">0</span>
-                </button>
-                <button className="flex items-center space-x-2 transition-colors hover:text-primary">
-                  <MessageSquare className="h-5 w-5" />
-                  <span className="font-medium">{post._count?.comments || 0}</span>
-                </button>
-              </div>
-              <div className="flex items-center space-x-4 text-muted">
-                <button className="transition-colors hover:text-foreground"><Bookmark className="h-5 w-5" /></button>
-                <button className="transition-colors hover:text-foreground"><Share className="h-5 w-5" /></button>
-              </div>
-            </div>
+            <PostActions 
+              postId={post.id} 
+              initialUpvotes={post._count?.upvotes || 0} 
+              initialBookmarks={post._count?.bookmarks || 0} 
+            />
           </article>
 
           {/* Comments Section */}

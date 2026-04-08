@@ -1,5 +1,5 @@
 import { Router, Router as ExpressRouter } from 'express';
-import { updateProfile, getSessions, revokeSession, getProfile, getPasskeys, deletePasskey, disableTotp, generatePasskeyOptions, verifyPasskey, generateTotp, verifyTotp, getPublicProfile } from '../controllers/user';
+import { updateProfile, getSessions, revokeSession, getProfile, getPasskeys, deletePasskey, disableTotp, generatePasskeyOptions, verifyPasskey, generateTotp, verifyTotp, getPublicProfile, getBookmarkedPosts } from '../controllers/user';
 import { requireAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -13,6 +13,9 @@ router.use(requireAuth);
 // Profile Management
 router.get('/profile', getProfile);
 router.put('/profile', updateProfile);
+
+// Bookmarks
+router.get('/bookmarks', getBookmarkedPosts);
 
 // Security Settings
 router.get('/passkeys', getPasskeys);

@@ -25,9 +25,11 @@ model User {
 
   passkeys            Passkey[]
   posts               Post[]
-  comments            Comment[]
-  sessions            Session[]
+  comments           Comment[]
+  sessions           Session[]
   moderatedCategories CategoryModerator[]
+  upvotes            Upvote[]
+  bookmarks          Bookmark[]
 }
 
 model Session {
@@ -91,8 +93,10 @@ model Post {
   category   Category  @relation(fields: [categoryId], references: [id])
   status     String    @default("PUBLISHED")
   createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  updatedAt  DateTime   @updatedAt
   comments   Comment[]
+  upvotes    Upvote[]
+  bookmarks  Bookmark[]
 }
 
 model Comment {
@@ -104,6 +108,28 @@ model Comment {
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Upvote {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
 }
 
 model AuthChallenge {
