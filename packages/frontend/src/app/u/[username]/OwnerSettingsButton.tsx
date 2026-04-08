@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Settings } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export function OwnerSettingsButton({ username, label }: { username: string, label: string }) {
   const [isOwner, setIsOwner] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const checkOwner = async () => {
@@ -26,15 +29,42 @@ export function OwnerSettingsButton({ username, label }: { username: string, lab
     checkOwner();
   }, [username]);
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      // Redirect to home page
+      router.push('/');
+      router.refresh();
+    } catch (err) {
+      console.error('Logout failed', err);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   if (!isOwner) return null;
 
   return (
-    <Link 
-      href="/u/settings" 
-      className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
-    >
-      <Settings className="h-4 w-4" />
-      {label}
-    </Link>
+    <div className="flex gap-2">
+      <Link 
+        href="/u/settings" 
+        className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
+      >
+        <Settings className="h-4 w-4" />
+        {label}
+      </Link>
+      <button 
+        onClick={handleLogout}
+        disabled={isLoggingOut}
+        className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/80 transition-colors"
+      >
+        <LogOut className="h-4 w-4" />
+        {isLoggingOut ? '...' : 'Logout'}
+      </button>
+    </div>
   );
 }

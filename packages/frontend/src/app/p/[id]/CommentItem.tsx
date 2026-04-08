@@ -22,7 +22,7 @@ export function CommentItem({
     if (loadingUpvote) return;
     setLoadingUpvote(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/comments/${comment.id}/upvote`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/comments/${comment.id}/upvote`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -44,7 +44,7 @@ export function CommentItem({
     if (loadingBookmark) return;
     setLoadingBookmark(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/comments/${comment.id}/bookmark`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/comments/${comment.id}/bookmark`, {
         method: 'POST',
         credentials: 'include'
       });
