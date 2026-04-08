@@ -164,7 +164,18 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
 
 // Categories
 export const getCategories = async (req: Request, res: Response) => {
-  const categories = await prisma.category.findMany({ orderBy: { sortOrder: 'asc' } });
+  const categories = await prisma.category.findMany({ 
+    orderBy: { sortOrder: 'asc' },
+    include: {
+      moderators: {
+        include: {
+          user: {
+            select: { id: true, username: true, email: true }
+          }
+        }
+      }
+    }
+  });
   res.json(categories);
 };
 

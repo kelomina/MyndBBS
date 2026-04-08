@@ -5,9 +5,18 @@
   --color-foreground: #111827;
   --color-card: #ffffff;
   --color-muted: #6b7280;
+  --color-muted-foreground: #6b7280;
   --color-border: #e5e7eb;
+  --color-input: #e5e7eb;
   --color-primary: #0ea5e9;
   --color-primary-foreground: #ffffff;
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #0f172a;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-ring: #0ea5e9;
 }
 
 /* Note: Tailwind 4 allows inline dark mode variants or custom CSS media queries. 
@@ -16,8 +25,19 @@
   --color-background: #0f172a;
   --color-foreground: #f8fafc;
   --color-card: #1e293b;
-  --color-muted: #94a3b8;
+  --color-muted: #334155;
+  --color-muted-foreground: #94a3b8;
   --color-border: #334155;
+  --color-input: #334155;
+  --color-primary: #0ea5e9;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #1e293b;
+  --color-secondary-foreground: #f8fafc;
+  --color-accent: #1e293b;
+  --color-accent-foreground: #f8fafc;
+  --color-destructive: #7f1d1d;
+  --color-destructive-foreground: #f8fafc;
+  --color-ring: #0ea5e9;
 }
 
 body {
