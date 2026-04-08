@@ -31,6 +31,7 @@ export function middleware(request: NextRequest) {
   
   // We pass the locale to headers so Server Components can read it without needing to parse cookies manually everywhere
   response.headers.set('x-locale', locale);
+  response.headers.set('x-pathname', request.nextUrl.pathname);
 
   return response;
 }

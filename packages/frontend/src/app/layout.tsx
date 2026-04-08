@@ -19,6 +19,8 @@ export default async function RootLayout({
 }>) {
   const headersList = await headers();
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;
+  const pathname = headersList.get('x-pathname') || '';
+  const isAdminPath = pathname.startsWith('/admin');
   const dict = await getDictionary(locale);
 
   return (
@@ -26,7 +28,7 @@ export default async function RootLayout({
       <body className="min-h-screen flex flex-col bg-background transition-colors duration-300">
         <ThemeProvider>
           <TranslationProvider dict={dict}>
-            <Header locale={locale} />
+            {!isAdminPath && <Header locale={locale} />}
             <div className="flex-1">
               {children}
             </div>
