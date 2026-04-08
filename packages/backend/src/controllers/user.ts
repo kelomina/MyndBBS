@@ -52,7 +52,10 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
     }
 
     const bookmarks = await prisma.bookmark.findMany({
-      where: { userId },
+      where: { 
+        userId,
+        post: accessibleBy(req.ability!).Post
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         post: {
@@ -132,6 +135,8 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+import { accessibleBy } from '@casl/prisma';
 
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -420,7 +425,7 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-export const getPublicProfile = async (req: Request, res: Response): Promise<void> => {
+export const getPublicProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const username = req.params.username as string;
     const user = await prisma.user.findUnique({
@@ -430,6 +435,7 @@ export const getPublicProfile = async (req: Request, res: Response): Promise<voi
         role: { select: { name: true } },
         createdAt: true,
         posts: {
+          where: accessibleBy(req.ability!).Post,
           select: {
             id: true,
             title: true,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export function ProfileTabs({ 
@@ -15,6 +15,27 @@ export function ProfileTabs({
   const [activeTab, setActiveTab] = useState<'posts' | 'bookmarks'>('posts');
   const [bookmarks, setBookmarks] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    // Check if the logged-in user is the owner of this profile
+    const checkOwner = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user?.username === user.username) {
+            setIsOwner(true);
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+    checkOwner();
+  }, [user.username]);
 
   const handleTabChange = async (tab: 'posts' | 'bookmarks') => {
     setActiveTab(tab);
@@ -49,17 +70,14 @@ export function ProfileTabs({
           >
             {dict.profile?.posts || 'Posts'} ({user._count.posts})
           </button>
-          {/* We assume bookmarks can only be viewed by the owner. The API /api/v1/user/bookmarks returns the authenticated user's bookmarks.
-              If this is someone else's profile, the API might return the logged-in user's bookmarks, which is a logic flaw.
-              Wait! The prompt says "用户收藏的帖子应该在用户中心可见". If this page is public (/u/[username]), showing private bookmarks requires checking if the viewed profile is the logged-in user.
-              To handle this safely, we will just show the Bookmarks tab. If the user is viewing their own profile, it works. If they are viewing someone else's, the API will return their own bookmarks anyway (which is slightly confusing but acceptable for a quick implementation, or we can just fetch it).
-              Actually, let's just make it simple. */}
-          <button 
-            onClick={() => handleTabChange('bookmarks')}
-            className={`${activeTab === 'bookmarks' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-foreground hover:border-border'} whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
-          >
-            {dict.profile?.bookmarks || 'Bookmarks'}
-          </button>
+          {isOwner && (
+            <button 
+              onClick={() => handleTabChange('bookmarks')}
+              className={`${activeTab === 'bookmarks' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-foreground hover:border-border'} whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
+            >
+              {dict.profile?.bookmarks || 'Bookmarks'}
+            </button>
+          )}
         </nav>
       </div>
 
