@@ -34,7 +34,7 @@ export default async function AdminLayout({
     }
 
     const data = await response.json();
-    if (!data.user || (data.user.role !== 'ADMIN' && data.user.role !== 'MODERATOR')) {
+    if (!data.user || (data.user.role !== 'SUPER_ADMIN' && data.user.role !== 'ADMIN' && data.user.role !== 'MODERATOR')) {
       redirect('/');
     }
   } catch (error) {
