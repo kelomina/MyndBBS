@@ -87,6 +87,9 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
         },
         category: {
           select: { id: true, name: true, description: true }
+        },
+        _count: {
+          select: { comments: true }
         }
       }
     });
@@ -100,6 +103,63 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error('Error fetching post:', error);
     res.status(500).json({ error: 'Failed to fetch post' });
+  }
+});
+
+// GET comments for a post
+router.get('/:id/comments', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const postId = req.params.id as string;
+    const comments = await prisma.comment.findMany({
+      where: { postId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        author: {
+          select: { id: true, username: true }
+        }
+      }
+    });
+    res.json(comments);
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
+// POST a comment to a post
+router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const postId = req.params.id as string;
+    const { content } = req.body;
+
+    if (!content) {
+      res.status(400).json({ error: 'Comment content is required' });
+      return;
+    }
+
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post) {
+      res.status(404).json({ error: 'Post not found' });
+      return;
+    }
+
+    const comment = await prisma.comment.create({
+      data: {
+        content,
+        postId,
+        authorId: req.user!.userId
+      },
+      include: {
+        author: {
+          select: { id: true, username: true }
+        }
+      }
+    });
+
+    res.status(201).json(comment);
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({ error: 'Failed to create comment' });
   }
 });
 

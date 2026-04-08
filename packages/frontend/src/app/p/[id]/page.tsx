@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { Locale, defaultLocale } from "../../../i18n/config";
 import { getDictionary } from "../../../i18n/get-dictionary";
 import { notFound } from "next/navigation";
+import { CommentsSection } from "./CommentsSection";
 
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -76,7 +77,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
                 </button>
                 <button className="flex items-center space-x-2 transition-colors hover:text-primary">
                   <MessageSquare className="h-5 w-5" />
-                  <span className="font-medium">0</span>
+                  <span className="font-medium">{post._count?.comments || 0}</span>
                 </button>
               </div>
               <div className="flex items-center space-x-4 text-muted">
@@ -87,29 +88,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
           </article>
 
           {/* Comments Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-foreground mb-4">{dict.post.comments} (0)</h3>
-            
-            {/* Comment Input */}
-            <div className="rounded-xl bg-card p-4 shadow-sm border border-border/50 flex gap-4">
-              <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs mt-1">?</div>
-              <div className="flex-1 space-y-3">
-                <textarea 
-                  className="w-full rounded-lg border border-border bg-background p-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px] resize-y"
-                  placeholder={dict.post.writeComment}
-                ></textarea>
-                <div className="flex justify-end">
-                  <button className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                    {dict.post.postComment}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center text-muted py-4">
-              No comments yet. Be the first to comment!
-            </div>
-          </div>
+          <CommentsSection postId={post.id} dict={dict} initialCount={post._count?.comments || 0} />
           
         </div>
       </div>

@@ -7,38 +7,37 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-
-
 model User {
-  id                 String    @id @default(uuid())
-  email              String    @unique
-  username           String    @unique
-  password           String?   // Argon2 handles salt internally
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  username           String   @unique
+  password           String? // Argon2 handles salt internally
   roleId             String?
-  role               Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
-  status             String    @default("ACTIVE")
-  level              Int       @default(1)
+  role               Role?    @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  status             String   @default("ACTIVE")
+  level              Int      @default(1)
   registeredIp       String?
-  isPasskeyMandatory Boolean   @default(false)
+  isPasskeyMandatory Boolean  @default(false)
   totpSecret         String?
-  isTotpEnabled      Boolean   @default(false)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  isTotpEnabled      Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  passkeys           Passkey[] 
-  posts              Post[]
-  sessions           Session[]
+  passkeys            Passkey[]
+  posts               Post[]
+  comments            Comment[]
+  sessions            Session[]
   moderatedCategories CategoryModerator[]
 }
 
 model Session {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ipAddress  String?
-  userAgent  String?
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model Passkey {
@@ -62,37 +61,49 @@ model CaptchaChallenge {
 }
 
 model Category {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String              @id @default(uuid())
+  name        String              @unique
   description String?
-  sortOrder   Int      @default(0)
-  minLevel    Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sortOrder   Int                 @default(0)
+  minLevel    Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
   posts       Post[]
   moderators  CategoryModerator[]
 }
 
 model CategoryModerator {
-  categoryId  String
-  userId      String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId String
+  userId     String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([categoryId, userId])
 }
 
 model Post {
-  id         String     @id @default(uuid())
+  id         String    @id @default(uuid())
   title      String
   content    String
   authorId   String
-  author     User       @relation(fields: [authorId], references: [id])
+  author     User      @relation(fields: [authorId], references: [id])
   categoryId String
-  category   Category   @relation(fields: [categoryId], references: [id])
-  status     String     @default("PUBLISHED")
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  category   Category  @relation(fields: [categoryId], references: [id])
+  status     String    @default("PUBLISHED")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  comments   Comment[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AuthChallenge {
@@ -102,11 +113,11 @@ model AuthChallenge {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  who       String
-  when      DateTime @default(now())
-  target    String
-  action    String
+  id     String   @id @default(uuid())
+  who    String
+  when   DateTime @default(now())
+  target String
+  action String
 }
 
 model Role {
@@ -127,16 +138,15 @@ model Permission {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  roles       RolePermission[]
+  roles RolePermission[]
 }
 
 model RolePermission {
   roleId       String
   permissionId String
 
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
 }
-
