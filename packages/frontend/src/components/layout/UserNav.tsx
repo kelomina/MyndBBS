@@ -48,7 +48,7 @@ export function UserNav({ title, newPostText }: { title: string; newPostText?: s
           </Link>
         )}
         <Link
-          href="/u/settings"
+          href={`/u/${user.username}`}
           className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground transition-transform hover:scale-105 uppercase font-bold text-sm"
           title={title}
         >
