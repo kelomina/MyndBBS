@@ -10,7 +10,7 @@ import {
   verifyPasskeyAuthenticationResponse,
   getAbility
 } from '../controllers/auth';
-import { registerUser, loginUser, refreshToken } from '../controllers/register';
+import { registerUser, loginUser, refreshToken, logoutUser } from '../controllers/register';
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
 import { optionalAuth } from '../middleware/auth';
 
@@ -39,6 +39,7 @@ router.post('/captcha/verify', verifyCaptcha);
 // Auth
 router.post('/register', strictAuthLimiter, registerUser);
 router.post('/login', strictAuthLimiter, loginUser);
+router.post('/logout', logoutUser);
 router.post('/refresh', refreshToken); // Uses general authLimiter from router.use()
 router.post('/totp/generate', generateTotp);
 router.post('/totp/verify', verifyTotpRegistration);

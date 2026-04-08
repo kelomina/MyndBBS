@@ -140,6 +140,46 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const logoutUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { accessToken, refreshToken: tokenFromCookie } = req.cookies;
+
+    let sessionId = null;
+    
+    if (accessToken) {
+      try {
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET as string, { ignoreExpiration: true }) as any;
+        if (decoded.sessionId) sessionId = decoded.sessionId;
+      } catch (e) {
+        // ignore invalid token errors
+      }
+    }
+    
+    if (!sessionId && tokenFromCookie) {
+      try {
+        const decoded = jwt.verify(tokenFromCookie, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { ignoreExpiration: true }) as any;
+        if (decoded.sessionId) sessionId = decoded.sessionId;
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (sessionId) {
+      await prisma.session.deleteMany({
+        where: { id: sessionId }
+      });
+    }
+
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    res.clearCookie('tempToken');
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Internal server error during logout' });
+  }
+};
+
 export const refreshToken = async (req: Request, res: Response): Promise<void> => {
   try {
     const { refreshToken } = req.cookies;
