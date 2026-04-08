@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MessageSquare, ArrowBigUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { CommentItem } from './CommentItem';
 
 export function CommentsSection({ postId, dict, initialCount }: { postId: string, dict: any, initialCount: number }) {
   const router = useRouter();
@@ -10,6 +11,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(initialCount);
+  const [replyTo, setReplyTo] = useState<{ id: string, username: string } | null>(null);
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -37,7 +39,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content: newComment }),
+        body: JSON.stringify({ content: newComment, parentId: replyTo?.id }),
         credentials: 'include'
       });
 
@@ -46,6 +48,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
         setComments([...comments, comment]);
         setCount(count + 1);
         setNewComment('');
+        setReplyTo(null);
         router.refresh();
       } else {
         const data = await res.json();
@@ -59,28 +62,76 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     }
   };
 
+  const handleReply = (parentId: string) => {
+    const parentComment = comments.find(c => c.id === parentId);
+    if (parentComment) {
+      setReplyTo({ id: parentId, username: parentComment.author?.username || 'Unknown' });
+      // scroll to input
+      document.getElementById('comment-input-area')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const commentTree = useMemo(() => {
+    const map = new Map<string, any>();
+    const roots: any[] = [];
+
+    comments.forEach(c => {
+      map.set(c.id, { ...c, children: [] });
+    });
+
+    comments.forEach(c => {
+      const node = map.get(c.id);
+      if (c.parentId && map.has(c.parentId)) {
+        map.get(c.parentId).children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    return roots;
+  }, [comments]);
+
+  const renderCommentNode = (node: any, depth = 0) => (
+    <div key={node.id} className={`${depth > 0 ? 'ml-8 mt-4 border-l-2 border-border pl-4' : 'mt-4'}`}>
+      <CommentItem comment={node} dict={dict} onReply={handleReply} />
+      {node.children && node.children.length > 0 && (
+        <div className="space-y-4">
+          {node.children.map((child: any) => renderCommentNode(child, depth + 1))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" id="comment-input-area">
       <h3 className="text-lg font-bold text-foreground mb-4">{dict.post?.comments || 'Comments'} ({count})</h3>
       
       {/* Comment Input */}
-      <div className="rounded-xl bg-card p-4 shadow-sm border border-border/50 flex gap-4">
-        <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs mt-1">?</div>
-        <div className="flex-1 space-y-3">
-          <textarea 
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background p-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px] resize-y text-foreground"
-            placeholder={dict.post?.writeComment || 'Write a comment...'}
-          ></textarea>
-          <div className="flex justify-end">
-            <button 
-              onClick={handleSubmit}
-              disabled={loading || !newComment.trim()}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {loading ? '...' : (dict.post?.postComment || 'Post')}
-            </button>
+      <div className="rounded-xl bg-card p-4 shadow-sm border border-border/50 flex gap-4 flex-col">
+        {replyTo && (
+          <div className="flex items-center justify-between text-sm text-muted bg-background p-2 rounded-lg border border-border">
+            <span>Replying to <span className="font-medium text-foreground">{replyTo.username}</span></span>
+            <button onClick={() => setReplyTo(null)} className="hover:text-foreground">Cancel</button>
+          </div>
+        )}
+        <div className="flex gap-4">
+          <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs mt-1">?</div>
+          <div className="flex-1 space-y-3">
+            <textarea 
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background p-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px] resize-y text-foreground"
+              placeholder={dict.post?.writeComment || 'Write a comment...'}
+            ></textarea>
+            <div className="flex justify-end">
+              <button 
+                onClick={handleSubmit}
+                disabled={loading || !newComment.trim()}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {loading ? '...' : (dict.post?.postComment || 'Post')}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -90,27 +141,9 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
           No comments yet. Be the first to comment!
         </div>
       ) : (
-        comments.map((comment) => (
-          <div key={comment.id} className="rounded-xl bg-card p-5 shadow-sm border border-border/50">
-            <div className="flex space-x-3">
-              <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs">
-                {comment.author?.username?.[0]?.toUpperCase() || '?'}
-              </div>
-              <div>
-                <div className="flex items-baseline space-x-2">
-                  <span className="font-medium text-foreground text-sm">{comment.author?.username || 'Unknown'}</span>
-                  <span className="text-xs text-muted">{new Date(comment.createdAt).toLocaleString()}</span>
-                </div>
-                <p className="mt-1 text-sm text-foreground whitespace-pre-wrap">
-                  {comment.content}
-                </p>
-                <div className="mt-2 flex items-center space-x-4 text-xs text-muted font-medium">
-                  <button className="hover:text-primary flex items-center gap-1"><ArrowBigUp className="h-4 w-4" /> 0</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))
+        <div className="space-y-0">
+          {commentTree.map(rootNode => renderCommentNode(rootNode))}
+        </div>
       )}
     </div>
   );
