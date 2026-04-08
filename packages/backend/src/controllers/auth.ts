@@ -300,7 +300,10 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
 
   // In passwordless flow, we find the user from the passkey
   if (!tempToken) {
-    user = await prisma.user.findUnique({ where: { id: passkey.userId } });
+    user = await prisma.user.findUnique({ 
+      where: { id: passkey.userId },
+      include: { role: true }
+    });
     if (!user) {
       res.status(400).json({ error: 'User not found for this passkey' });
       return;
