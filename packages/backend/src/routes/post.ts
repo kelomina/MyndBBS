@@ -265,10 +265,40 @@ router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response
       include: {
         author: {
           select: { id: true, username: true }
+        },
+        _count: {
+          select: { upvotes: true, bookmarks: true, replies: true }
         }
       }
     });
-    res.json(comments);
+
+    // If user is logged in, attach their interaction status
+    let interactedUpvotes = new Set<string>();
+    let interactedBookmarks = new Set<string>();
+
+    if (req.user?.userId) {
+      const userId = req.user.userId;
+      const [userUpvotes, userBookmarks] = await Promise.all([
+        prisma.commentUpvote.findMany({
+          where: { userId, comment: { postId } },
+          select: { commentId: true }
+        }),
+        prisma.commentBookmark.findMany({
+          where: { userId, comment: { postId } },
+          select: { commentId: true }
+        })
+      ]);
+      userUpvotes.forEach(u => interactedUpvotes.add(u.commentId));
+      userBookmarks.forEach(b => interactedBookmarks.add(b.commentId));
+    }
+
+    const formattedComments = comments.map(comment => ({
+      ...comment,
+      hasUpvoted: interactedUpvotes.has(comment.id),
+      hasBookmarked: interactedBookmarks.has(comment.id)
+    }));
+
+    res.json(formattedComments);
   } catch (error) {
     console.error('Error fetching comments:', error);
     res.status(500).json({ error: 'Failed to fetch comments' });
@@ -279,7 +309,7 @@ router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response
 router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const postId = req.params.id as string;
-    const { content } = req.body;
+    const { content, parentId } = req.body;
 
     if (!content) {
       res.status(400).json({ error: 'Comment content is required' });
@@ -300,20 +330,32 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
       return;
     }
 
+    if (parentId) {
+      const parentComment = await prisma.comment.findUnique({ where: { id: parentId } });
+      if (!parentComment || parentComment.postId !== postId) {
+        res.status(400).json({ error: 'Invalid parent comment' });
+        return;
+      }
+    }
+
     const comment = await prisma.comment.create({
       data: {
         content,
         postId,
+        parentId: parentId || null,
         authorId: req.user!.userId
       },
       include: {
         author: {
           select: { id: true, username: true }
+        },
+        _count: {
+          select: { upvotes: true, bookmarks: true, replies: true }
         }
       }
     });
 
-    res.status(201).json(comment);
+    res.status(201).json({ ...comment, hasUpvoted: false, hasBookmarked: false });
   } catch (error) {
     console.error('Error creating comment:', error);
     res.status(500).json({ error: 'Failed to create comment' });
@@ -343,6 +385,92 @@ router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req:
     res.json({ message: 'Post deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+// Comment upvote
+router.post('/comments/:commentId/upvote', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const commentId = req.params.commentId as string;
+    const userId = req.user!.userId;
+
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { post: true }
+    });
+
+    if (!comment) {
+      res.status(404).json({ error: 'Comment not found' });
+      return;
+    }
+
+    // Verify user can read the post this comment belongs to
+    if (!req.ability?.can('read', subject('Post', comment.post as any))) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const existingUpvote = await prisma.commentUpvote.findUnique({
+      where: { userId_commentId: { userId, commentId } }
+    });
+
+    if (existingUpvote) {
+      await prisma.commentUpvote.delete({
+        where: { userId_commentId: { userId, commentId } }
+      });
+      res.json({ upvoted: false });
+    } else {
+      await prisma.commentUpvote.create({
+        data: { userId, commentId }
+      });
+      res.json({ upvoted: true });
+    }
+  } catch (error) {
+    console.error('Error toggling comment upvote:', error);
+    res.status(500).json({ error: 'Failed to toggle comment upvote' });
+  }
+});
+
+// Comment bookmark
+router.post('/comments/:commentId/bookmark', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const commentId = req.params.commentId as string;
+    const userId = req.user!.userId;
+
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { post: true }
+    });
+
+    if (!comment) {
+      res.status(404).json({ error: 'Comment not found' });
+      return;
+    }
+
+    // Verify user can read the post this comment belongs to
+    if (!req.ability?.can('read', subject('Post', comment.post as any))) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const existingBookmark = await prisma.commentBookmark.findUnique({
+      where: { userId_commentId: { userId, commentId } }
+    });
+
+    if (existingBookmark) {
+      await prisma.commentBookmark.delete({
+        where: { userId_commentId: { userId, commentId } }
+      });
+      res.json({ bookmarked: false });
+    } else {
+      await prisma.commentBookmark.create({
+        data: { userId, commentId }
+      });
+      res.json({ bookmarked: true });
+    }
+  } catch (error) {
+    console.error('Error toggling comment bookmark:', error);
+    res.status(500).json({ error: 'Failed to toggle comment bookmark' });
   }
 });
 

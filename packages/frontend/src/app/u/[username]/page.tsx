@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { Locale, defaultLocale } from '../../../i18n/config';
 import { getDictionary } from '../../../i18n/get-dictionary';
 import { ProfileTabs } from './ProfileTabs';
+import { OwnerSettingsButton } from './OwnerSettingsButton';
 
 async function getProfile(username: string) {
   // Using localhost:3001 for server-side fetch to backend
@@ -46,6 +47,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
               <h1 className="text-3xl font-bold text-foreground">{user.username}</h1>
               <p className="text-muted text-sm capitalize">{user.role}</p>
             </div>
+          </div>
+          <div className="pb-2">
+            <OwnerSettingsButton username={user.username} label={(dict.nav as any)?.settings || 'Settings'} />
           </div>
         </div>
 
