@@ -1,11 +1,11 @@
 import { Router, Router as ExpressRouter } from 'express';
 import { updateProfile, getSessions, revokeSession, getProfile, getPasskeys, deletePasskey, disableTotp, generatePasskeyOptions, verifyPasskey, generateTotp, verifyTotp, getPublicProfile, getBookmarkedPosts } from '../controllers/user';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, optionalAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
 
 // Public routes
-router.get('/public/:username', getPublicProfile);
+router.get('/public/:username', optionalAuth, getPublicProfile);
 
 // All other user routes require authentication
 router.use(requireAuth);

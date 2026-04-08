@@ -1,19 +1,26 @@
 import { Router, Response, Request } from 'express';
-import { requireAuth, requireAbility, AuthRequest } from '../middleware/auth';
+import { requireAuth, requireAbility, optionalAuth, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { subject } from '@casl/ability';
+import { accessibleBy } from '@casl/prisma';
 
 const router: Router = Router();
 
-router.get('/', async (req: Request, res: Response): Promise<void> => {
+router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { category, sortBy } = req.query;
-    const whereClause: any = {};
+    
+    // Base accessibility check
+    const whereClause: any = {
+      AND: [
+        accessibleBy(req.ability!).Post
+      ]
+    };
     
     if (category && typeof category === 'string') {
-      whereClause.category = {
-        name: category
-      };
+      whereClause.AND.push({
+        category: { name: category }
+      });
     }
 
     let orderByClause: any = { createdAt: 'desc' }; // default to latest
@@ -75,12 +82,17 @@ router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: Auth
   }
 });
 
-router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const postId = req.params.id as string;
     
-    const post = await prisma.post.findUnique({
-      where: { id: postId },
+    const post = await prisma.post.findFirst({
+      where: { 
+        AND: [
+          { id: postId },
+          accessibleBy(req.ability!).Post
+        ]
+      },
       include: {
         author: {
           select: { id: true, username: true }
@@ -95,7 +107,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!post) {
-      res.status(404).json({ error: 'Post not found' });
+      res.status(403).json({ error: 'Post not found or access denied' });
       return;
     }
 
@@ -111,6 +123,20 @@ router.get('/:id/interactions', requireAuth, async (req: AuthRequest, res: Respo
   try {
     const postId = req.params.id as string;
     const userId = req.user!.userId;
+
+    const post = await prisma.post.findFirst({
+      where: {
+        AND: [
+          { id: postId },
+          accessibleBy(req.ability!).Post
+        ]
+      }
+    });
+
+    if (!post) {
+      res.status(403).json({ error: 'Post not found or access denied' });
+      return;
+    }
 
     const [upvote, bookmark] = await Promise.all([
       prisma.upvote.findUnique({
@@ -137,9 +163,17 @@ router.post('/:id/upvote', requireAuth, async (req: AuthRequest, res: Response):
     const postId = req.params.id as string;
     const userId = req.user!.userId;
 
-    const post = await prisma.post.findUnique({ where: { id: postId } });
+    const post = await prisma.post.findFirst({
+      where: {
+        AND: [
+          { id: postId },
+          accessibleBy(req.ability!).Post
+        ]
+      }
+    });
+
     if (!post) {
-      res.status(404).json({ error: 'Post not found' });
+      res.status(403).json({ error: 'Post not found or access denied' });
       return;
     }
 
@@ -170,9 +204,17 @@ router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response
     const postId = req.params.id as string;
     const userId = req.user!.userId;
 
-    const post = await prisma.post.findUnique({ where: { id: postId } });
+    const post = await prisma.post.findFirst({
+      where: {
+        AND: [
+          { id: postId },
+          accessibleBy(req.ability!).Post
+        ]
+      }
+    });
+
     if (!post) {
-      res.status(404).json({ error: 'Post not found' });
+      res.status(403).json({ error: 'Post not found or access denied' });
       return;
     }
 
@@ -198,9 +240,25 @@ router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response
 });
 
 // GET comments for a post
-router.get('/:id/comments', async (req: Request, res: Response): Promise<void> => {
+router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const postId = req.params.id as string;
+    
+    // Verify user can read the post
+    const post = await prisma.post.findFirst({
+      where: {
+        AND: [
+          { id: postId },
+          accessibleBy(req.ability!).Post
+        ]
+      }
+    });
+
+    if (!post) {
+      res.status(403).json({ error: 'Post not found or access denied' });
+      return;
+    }
+
     const comments = await prisma.comment.findMany({
       where: { postId },
       orderBy: { createdAt: 'asc' },
@@ -228,9 +286,17 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
       return;
     }
 
-    const post = await prisma.post.findUnique({ where: { id: postId } });
+    const post = await prisma.post.findFirst({
+      where: {
+        AND: [
+          { id: postId },
+          accessibleBy(req.ability!).Post
+        ]
+      }
+    });
+
     if (!post) {
-      res.status(404).json({ error: 'Post not found' });
+      res.status(403).json({ error: 'Post not found or access denied' });
       return;
     }
 
