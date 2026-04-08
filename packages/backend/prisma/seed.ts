@@ -7,7 +7,7 @@ async function main() {
   console.log('Seeding database...');
 
   // 1. Ensure basic roles exist
-  const roles = ['USER', 'MODERATOR', 'ADMIN'];
+  const roles = ['USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN'];
   for (const roleName of roles) {
     await prisma.role.upsert({
       where: { name: roleName },
@@ -16,31 +16,42 @@ async function main() {
     });
   }
 
-  // 2. Check if any ADMIN exists
-  const adminRole = await prisma.role.findUnique({ where: { name: 'ADMIN' } });
-  if (!adminRole) {
-    throw new Error('ADMIN role not found after upsert');
+  // 2. Check if any SUPER_ADMIN exists
+  const superAdminRole = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
+  if (!superAdminRole) {
+    throw new Error('SUPER_ADMIN role not found after upsert');
   }
 
-  const existingAdmin = await prisma.user.findFirst({
-    where: { roleId: adminRole.id }
+  const existingSuperAdmin = await prisma.user.findFirst({
+    where: { roleId: superAdminRole.id }
   });
 
-  if (!existingAdmin) {
-    console.log('No ADMIN found. Creating root account...');
-    const hashedPassword = await argon2.hash('root');
-    await prisma.user.create({
-      data: {
-        username: 'root',
-        email: 'root@localhost',
-        password: hashedPassword,
-        roleId: adminRole.id,
-        status: 'ACTIVE'
-      }
-    });
-    console.log('Root account created successfully: username "root", password "root"');
+  if (!existingSuperAdmin) {
+    console.log('No SUPER_ADMIN found. Creating root account...');
+    
+    // In case a root user already exists but isn't SUPER_ADMIN, we should update it
+    const existingRoot = await prisma.user.findFirst({ where: { username: 'root' } });
+    if (existingRoot) {
+      await prisma.user.update({
+        where: { id: existingRoot.id },
+        data: { roleId: superAdminRole.id, status: 'ACTIVE' }
+      });
+      console.log('Root account existed but was updated to SUPER_ADMIN');
+    } else {
+      const hashedPassword = await argon2.hash('root');
+      await prisma.user.create({
+        data: {
+          username: 'root',
+          email: 'root@localhost',
+          password: hashedPassword,
+          roleId: superAdminRole.id,
+          status: 'ACTIVE'
+        }
+      });
+      console.log('Root account created successfully: username "root", password "root"');
+    }
   } else {
-    console.log('An ADMIN account already exists. Skipping root account creation.');
+    console.log('A SUPER_ADMIN account already exists. Skipping root account creation.');
   }
 }
 

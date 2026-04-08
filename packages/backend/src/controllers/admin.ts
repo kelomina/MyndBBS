@@ -21,7 +21,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
   const { role } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  if (!['USER', 'ADMIN', 'MODERATOR'].includes(role)) {
+  if (!['USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN'].includes(role)) {
     res.status(400).json({ error: 'Invalid role' });
     return;
   }
@@ -88,8 +88,8 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
     }
   }
 
-  // Auto-disable root if another user gets ADMIN role
-  if (role === 'ADMIN' && user.username !== 'root') {
+  // Auto-disable root if another user gets SUPER_ADMIN role
+  if (role === 'SUPER_ADMIN' && user.username !== 'root') {
     const rootUser = await prisma.user.findFirst({
       where: { username: 'root', status: { not: 'BANNED' } }
     });
