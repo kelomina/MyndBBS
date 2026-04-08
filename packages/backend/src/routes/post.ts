@@ -75,6 +75,34 @@ router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: Auth
   }
 });
 
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const postId = req.params.id as string;
+    
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        author: {
+          select: { id: true, username: true }
+        },
+        category: {
+          select: { id: true, name: true, description: true }
+        }
+      }
+    });
+
+    if (!post) {
+      res.status(404).json({ error: 'Post not found' });
+      return;
+    }
+
+    res.json(post);
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    res.status(500).json({ error: 'Failed to fetch post' });
+  }
+});
+
 router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const postId = req.params.id as string;
