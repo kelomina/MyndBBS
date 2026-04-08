@@ -7,7 +7,17 @@ const router: Router = Router();
 
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
+    const { category } = req.query;
+    const whereClause: any = {};
+    
+    if (category && typeof category === 'string') {
+      whereClause.category = {
+        name: category
+      };
+    }
+
     const posts = await prisma.post.findMany({
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
       include: {
         author: {
