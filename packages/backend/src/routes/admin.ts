@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireAbility } from '../middleware/auth';
 import {
   getUsers, updateUserRole, updateUserStatus,
-  getCategories, createCategory, deleteCategory,
+  getCategories, createCategory, updateCategory, deleteCategory,
   assignCategoryModerator, removeCategoryModerator,
   getPosts, updatePostStatus
 } from '../controllers/admin';
@@ -18,6 +18,7 @@ router.patch('/users/:id/status', requireAbility('manage', 'User'), updateUserSt
 
 // Category Structure routes
 router.post('/categories', requireAbility('manage', 'Category'), createCategory);
+router.put('/categories/:id', requireAbility('manage', 'Category'), updateCategory);
 router.delete('/categories/:id', requireAbility('manage', 'Category'), deleteCategory);
 router.post('/categories/:categoryId/moderators/:userId', requireAbility('manage', 'Category'), assignCategoryModerator);
 router.delete('/categories/:categoryId/moderators/:userId', requireAbility('manage', 'Category'), removeCategoryModerator);

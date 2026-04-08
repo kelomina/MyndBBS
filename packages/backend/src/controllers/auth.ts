@@ -196,6 +196,10 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
   }
 };
 
+export const getAbility = async (req: any, res: Response): Promise<void> => {
+  res.json({ rules: req.ability?.rules || [] });
+};
+
 export const verifyTotpLogin = async (req: Request, res: Response): Promise<void> => {
   const { code } = req.body;
   const user = await getUserFromTempToken(req, 'login');

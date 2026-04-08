@@ -20,25 +20,30 @@ export type AppAbility = PureAbility<[Action, AppSubjects], PrismaQuery>;
 type AbilityUser = {
   id: string;
   role: string; // "USER" | "MODERATOR" | "ADMIN" | "SUPER_ADMIN"
+  level: number;
   moderatedCategories?: { categoryId: string }[];
 };
 
 export function defineAbilityFor(user?: AbilityUser) {
   const { can, cannot, build } = new AbilityBuilder<AppAbility>(createPrismaAbility);
 
+  const userLevel = user ? user.level : 0;
+
   if (!user) {
-    // Guest can read published posts and categories
-    can('read', 'Post', { status: 'PUBLISHED' });
-    can('read', 'Category');
+    // Guest can read published posts and categories that allow guests (minLevel 0)
+    can('read', 'Post', { status: 'PUBLISHED', category: { is: { minLevel: 0 } } } as any);
+    can('read', 'Category', { minLevel: 0 });
     return build();
   }
 
   // Baseline permissions for all authenticated users
-  can('read', 'Post');
-  can('create', 'Post');
+  can('read', 'Category', { minLevel: { lte: userLevel } });
+  can('read', 'Post', { category: { is: { minLevel: { lte: userLevel } } } } as any);
+  
+  // Create and update posts only in categories they have access to
+  can('create', 'Post', { category: { is: { minLevel: { lte: userLevel } } } } as any);
   can('update', 'Post', { authorId: user.id });
   can('delete', 'Post', { authorId: user.id });
-  can('read', 'Category');
 
   // Define based on role
   if (user.role === 'SUPER_ADMIN') {

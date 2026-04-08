@@ -17,6 +17,7 @@ model User {
   roleId             String?
   role               Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
   status             String    @default("ACTIVE")
+  level              Int       @default(1)
   registeredIp       String?
   isPasskeyMandatory Boolean   @default(false)
   totpSecret         String?
@@ -65,6 +66,7 @@ model Category {
   name        String   @unique
   description String?
   sortOrder   Int      @default(0)
+  minLevel    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   posts       Post[]
