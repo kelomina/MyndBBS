@@ -6,6 +6,7 @@ import { getDictionary } from "../../../i18n/get-dictionary";
 import { notFound } from "next/navigation";
 import { CommentsSection } from "./CommentsSection";
 import { PostActions } from "./PostActions";
+import Link from "next/link";
 
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -49,13 +50,15 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
           <article className="rounded-xl bg-card p-6 shadow-sm border border-border/50 mb-6">
             <div className="mb-6 flex items-center justify-between text-sm text-muted">
               <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg">
-                  {post.author?.username?.[0]?.toUpperCase() || '?'}
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">{post.author?.username || 'Unknown'}</div>
-                  <div className="text-xs">{new Date(post.createdAt).toLocaleString()}</div>
-                </div>
+                <Link href={`/u/${post.author?.username}`} className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+                  <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg">
+                    {post.author?.username?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div>
+                    <div className="font-medium text-foreground">{post.author?.username || 'Unknown'}</div>
+                    <div className="text-xs">{new Date(post.createdAt).toLocaleString()}</div>
+                  </div>
+                </Link>
               </div>
               <span className="rounded-full bg-background px-3 py-1 font-medium border border-border">
                 {post.category?.name || 'Uncategorized'}
