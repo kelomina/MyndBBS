@@ -18,19 +18,8 @@ export const getUsers = async (req: Request, res: Response) => {
 
 export const updateUserRole = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
-  const { role } = req.body;
+  const { role, level } = req.body;
   const operatorId = req.user?.userId || 'unknown';
-
-  if (!['USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN'].includes(role)) {
-    res.status(400).json({ error: 'Invalid role' });
-    return;
-  }
-  
-  const roleRecord = await prisma.role.findUnique({ where: { name: role } });
-  if (!roleRecord) {
-    res.status(400).json({ error: 'Role not found in database' });
-    return;
-  }
 
   const currentUser = await prisma.user.findUnique({
     where: { id },
@@ -42,79 +31,107 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
     return;
   }
 
-  const user = await prisma.user.update({ 
-    where: { id }, 
-    data: { roleId: roleRecord.id },
-    include: { role: true }
-  });
+  let finalUser = currentUser;
 
-  const roleLevels: Record<string, number> = {
-    'SUPER_ADMIN': 4,
-    'ADMIN': 3,
-    'MODERATOR': 2,
-    'USER': 1
-  };
-
-  const currentRoleLevel = roleLevels[currentUser.role?.name || 'USER'] || 1;
-  const newRoleLevel = roleLevels[role] || 1;
-
-  // Prevent managing users with equal or higher roles than the operator
-  const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
-  if (currentRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
-    res.status(403).json({ error: 'Forbidden: Cannot manage user with equal or higher role' });
-    return;
-  }
-
-  if (newRoleLevel < currentRoleLevel) {
-    // Revoke sessions on downgrade
-    const sessions = await prisma.session.findMany({ where: { userId: id } });
-    if (sessions.length > 0) {
-      const pipeline = redis.pipeline();
-      for (const session of sessions) {
-        pipeline.del(`session:${session.id}`);
-      }
-      await pipeline.exec();
-      await prisma.session.deleteMany({ where: { userId: id } });
+  if (level !== undefined) {
+    if (level < 1 || level > 6) {
+      res.status(400).json({ error: 'Level must be between 1 and 6' });
+      return;
     }
-  } else if (newRoleLevel > currentRoleLevel) {
-    // Mark sessions for refresh on promotion
-    const sessions = await prisma.session.findMany({ where: { userId: id } });
-    if (sessions.length > 0) {
-      const pipeline = redis.pipeline();
-      for (const session of sessions) {
-        pipeline.set(`session:${session.id}:requires_refresh`, 'true', 'EX', 7 * 24 * 60 * 60); // same as session expiry
-      }
-      await pipeline.exec();
-    }
-  }
-
-  // Auto-disable root if another user gets SUPER_ADMIN role
-  if (role === 'SUPER_ADMIN' && user.username !== 'root') {
-    const rootUser = await prisma.user.findFirst({
-      where: { username: 'root', status: { not: 'BANNED' } }
+    finalUser = await prisma.user.update({
+      where: { id },
+      data: { level },
+      include: { role: true }
     });
-    if (rootUser) {
-      await prisma.user.update({
-        where: { id: rootUser.id },
-        data: { status: 'BANNED' }
-      });
-      // Revoke root sessions
-      const rootSessions = await prisma.session.findMany({ where: { userId: rootUser.id } });
-      if (rootSessions.length > 0) {
+    await logAudit(operatorId, 'UPDATE_USER_LEVEL', `User:${id} to Level:${level}`);
+  }
+
+  if (role) {
+    if (!['USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN'].includes(role)) {
+      res.status(400).json({ error: 'Invalid role' });
+      return;
+    }
+    
+    const roleRecord = await prisma.role.findUnique({ where: { name: role } });
+    if (!roleRecord) {
+      res.status(400).json({ error: 'Role not found in database' });
+      return;
+    }
+
+    const roleLevels: Record<string, number> = {
+      'SUPER_ADMIN': 4,
+      'ADMIN': 3,
+      'MODERATOR': 2,
+      'USER': 1
+    };
+
+    const currentRoleLevel = roleLevels[currentUser.role?.name || 'USER'] || 1;
+    const newRoleLevel = roleLevels[role] || 1;
+
+    // Prevent managing users with equal or higher roles than the operator
+    const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
+    if (currentRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
+      res.status(403).json({ error: 'Forbidden: Cannot manage user with equal or higher role' });
+      return;
+    }
+
+    finalUser = await prisma.user.update({ 
+      where: { id }, 
+      data: { roleId: roleRecord.id },
+      include: { role: true }
+    });
+
+    if (newRoleLevel < currentRoleLevel) {
+      // Revoke sessions on downgrade
+      const sessions = await prisma.session.findMany({ where: { userId: id } });
+      if (sessions.length > 0) {
         const pipeline = redis.pipeline();
-        for (const session of rootSessions) {
+        for (const session of sessions) {
           pipeline.del(`session:${session.id}`);
         }
         await pipeline.exec();
-        await prisma.session.deleteMany({ where: { userId: rootUser.id } });
+        await prisma.session.deleteMany({ where: { userId: id } });
       }
-      await logAudit('system', 'AUTO_DISABLE_ROOT', 'root');
+    } else if (newRoleLevel > currentRoleLevel) {
+      // Mark sessions for refresh on promotion
+      const sessions = await prisma.session.findMany({ where: { userId: id } });
+      if (sessions.length > 0) {
+        const pipeline = redis.pipeline();
+        for (const session of sessions) {
+          pipeline.set(`session:${session.id}:requires_refresh`, 'true', 'EX', 7 * 24 * 60 * 60); // same as session expiry
+        }
+        await pipeline.exec();
+      }
     }
+
+    // Auto-disable root if another user gets SUPER_ADMIN role
+    if (role === 'SUPER_ADMIN' && finalUser.username !== 'root') {
+      const rootUser = await prisma.user.findFirst({
+        where: { username: 'root', status: { not: 'BANNED' } }
+      });
+      if (rootUser) {
+        await prisma.user.update({
+          where: { id: rootUser.id },
+          data: { status: 'BANNED' }
+        });
+        // Revoke root sessions
+        const rootSessions = await prisma.session.findMany({ where: { userId: rootUser.id } });
+        if (rootSessions.length > 0) {
+          const pipeline = redis.pipeline();
+          for (const session of rootSessions) {
+            pipeline.del(`session:${session.id}`);
+          }
+          await pipeline.exec();
+          await prisma.session.deleteMany({ where: { userId: rootUser.id } });
+        }
+        await logAudit('system', 'AUTO_DISABLE_ROOT', 'root');
+      }
+    }
+
+    await logAudit(operatorId, 'UPDATE_USER_ROLE', `User:${id} to ${role}`);
   }
 
-  await logAudit(operatorId, 'UPDATE_USER_ROLE', `User:${id} to ${role}`);
-
-  res.json({ message: 'Role updated', user: { id: user.id, role: user.role?.name } });
+  res.json({ message: 'User updated', user: { id: finalUser.id, role: finalUser.role?.name, level: (finalUser as any).level } });
 };
 
 export const updateUserStatus = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -169,16 +186,31 @@ export const getCategories = async (req: Request, res: Response) => {
 };
 
 export const createCategory = async (req: AuthRequest, res: Response) => {
-  const { name, description, sortOrder } = req.body;
+  const { name, description, sortOrder, minLevel } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
   const category = await prisma.category.create({
-    data: { name, description, sortOrder: sortOrder || 0 }
+    data: { name, description, sortOrder: sortOrder || 0, minLevel: minLevel || 0 }
   });
 
   await logAudit(operatorId, 'CREATE_CATEGORY', `Category:${category.id}`);
 
   res.status(201).json(category);
+};
+
+export const updateCategory = async (req: AuthRequest, res: Response) => {
+  const id = req.params.id as string;
+  const { name, description, sortOrder, minLevel } = req.body;
+  const operatorId = req.user?.userId || 'unknown';
+
+  const category = await prisma.category.update({
+    where: { id },
+    data: { name, description, sortOrder, minLevel }
+  });
+
+  await logAudit(operatorId, 'UPDATE_CATEGORY', `Category:${category.id}`);
+
+  res.json(category);
 };
 
 export const deleteCategory = async (req: AuthRequest, res: Response) => {

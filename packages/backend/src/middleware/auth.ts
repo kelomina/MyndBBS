@@ -103,9 +103,12 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
       });
     }
 
+    const dbUser = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { level: true } });
+
     req.ability = defineAbilityFor({
       id: decoded.userId,
       role: decoded.role,
+      level: dbUser?.level || 1,
       moderatedCategories
     });
 
@@ -115,6 +118,47 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
     res.clearCookie('refreshToken');
     res.status(401).json({ error: 'Invalid token' });
   }
+};
+
+export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  let token = req.cookies?.accessToken;
+
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+  }
+
+  if (!token) {
+    req.ability = defineAbilityFor(undefined);
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+    req.user = { userId: decoded.userId, role: decoded.role };
+
+    let moderatedCategories: { categoryId: string }[] = [];
+    if (decoded.role === 'MODERATOR') {
+      moderatedCategories = await prisma.categoryModerator.findMany({
+        where: { userId: decoded.userId },
+        select: { categoryId: true }
+      });
+    }
+
+    const dbUser = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { level: true } });
+
+    req.ability = defineAbilityFor({
+      id: decoded.userId,
+      role: decoded.role,
+      level: dbUser?.level || 1,
+      moderatedCategories
+    });
+  } catch (error) {
+    req.ability = defineAbilityFor(undefined);
+  }
+  next();
 };
 
 export const requireAbility = (action: Action, subject: AppSubjects) => {

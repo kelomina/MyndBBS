@@ -7,10 +7,12 @@ import {
   verifyPasskeyRegistrationResponse,
   verifyTotpLogin,
   generatePasskeyAuthenticationOptions,
-  verifyPasskeyAuthenticationResponse
+  verifyPasskeyAuthenticationResponse,
+  getAbility
 } from '../controllers/auth';
 import { registerUser, loginUser, refreshToken } from '../controllers/register';
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
+import { optionalAuth } from '../middleware/auth';
 
 const router: Router = Router();
 
@@ -47,5 +49,7 @@ router.post('/passkey/verify-registration', verifyPasskeyRegistrationResponse);
 router.post('/totp/login-verify', verifyTotpLogin);
 router.get('/passkey/generate-authentication-options', generatePasskeyAuthenticationOptions);
 router.post('/passkey/verify-authentication', verifyPasskeyAuthenticationResponse);
+
+router.get('/ability', optionalAuth, getAbility);
 
 export default router;
