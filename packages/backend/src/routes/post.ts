@@ -89,7 +89,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
           select: { id: true, name: true, description: true }
         },
         _count: {
-          select: { comments: true }
+          select: { comments: true, upvotes: true, bookmarks: true }
         }
       }
     });
@@ -103,6 +103,97 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error('Error fetching post:', error);
     res.status(500).json({ error: 'Failed to fetch post' });
+  }
+});
+
+// Get interaction status for a post (if upvoted/bookmarked by current user)
+router.get('/:id/interactions', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const postId = req.params.id as string;
+    const userId = req.user!.userId;
+
+    const [upvote, bookmark] = await Promise.all([
+      prisma.upvote.findUnique({
+        where: { userId_postId: { userId, postId } }
+      }),
+      prisma.bookmark.findUnique({
+        where: { userId_postId: { userId, postId } }
+      })
+    ]);
+
+    res.json({
+      upvoted: !!upvote,
+      bookmarked: !!bookmark
+    });
+  } catch (error) {
+    console.error('Error fetching interactions:', error);
+    res.status(500).json({ error: 'Failed to fetch interaction status' });
+  }
+});
+
+// Toggle upvote
+router.post('/:id/upvote', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const postId = req.params.id as string;
+    const userId = req.user!.userId;
+
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post) {
+      res.status(404).json({ error: 'Post not found' });
+      return;
+    }
+
+    const existingUpvote = await prisma.upvote.findUnique({
+      where: { userId_postId: { userId, postId } }
+    });
+
+    if (existingUpvote) {
+      await prisma.upvote.delete({
+        where: { userId_postId: { userId, postId } }
+      });
+      res.json({ upvoted: false });
+    } else {
+      await prisma.upvote.create({
+        data: { userId, postId }
+      });
+      res.json({ upvoted: true });
+    }
+  } catch (error) {
+    console.error('Error toggling upvote:', error);
+    res.status(500).json({ error: 'Failed to toggle upvote' });
+  }
+});
+
+// Toggle bookmark
+router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const postId = req.params.id as string;
+    const userId = req.user!.userId;
+
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post) {
+      res.status(404).json({ error: 'Post not found' });
+      return;
+    }
+
+    const existingBookmark = await prisma.bookmark.findUnique({
+      where: { userId_postId: { userId, postId } }
+    });
+
+    if (existingBookmark) {
+      await prisma.bookmark.delete({
+        where: { userId_postId: { userId, postId } }
+      });
+      res.json({ bookmarked: false });
+    } else {
+      await prisma.bookmark.create({
+        data: { userId, postId }
+      });
+      res.json({ bookmarked: true });
+    }
+  } catch (error) {
+    console.error('Error toggling bookmark:', error);
+    res.status(500).json({ error: 'Failed to toggle bookmark' });
   }
 });
 

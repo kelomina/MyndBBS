@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { Locale, defaultLocale } from '../../../i18n/config';
 import { getDictionary } from '../../../i18n/get-dictionary';
+import { ProfileTabs } from './ProfileTabs';
 
 async function getProfile(username: string) {
   // Using localhost:3001 for server-side fetch to backend
@@ -61,29 +62,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
           </div>
 
           <div className="w-full md:w-2/3">
-            <div className="border-b border-border mb-6">
-              <nav className="-mb-px flex space-x-8">
-                <span className="border-primary text-primary whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium">{dict.profile.posts} ({user._count.posts})</span>
-              </nav>
-            </div>
-
-            <div className="space-y-4">
-              {user.posts.length === 0 ? (
-                <p className="text-muted text-sm">{dict.profile.noPostsYet}</p>
-              ) : (
-                user.posts.map((post: { id: string; title: string; content: string; createdAt: string; category?: { name: string } }) => (
-                  <div key={post.id} className="rounded-xl bg-card p-5 shadow-sm border border-border/50 transition-shadow hover:shadow-md cursor-pointer">
-                    <h2 className="text-lg font-bold text-foreground mb-2">{post.title}</h2>
-                    <p className="text-sm text-muted mb-4 line-clamp-2">{post.content}</p>
-                    <div className="flex items-center text-xs text-muted gap-4">
-                      <span>{post.category?.name || dict.profile.uncategorized}</span>
-                      <span>•</span>
-                      <span>{new Date(post.createdAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <ProfileTabs user={user} dict={dict} locale={locale} />
           </div>
         </div>
       </div>
