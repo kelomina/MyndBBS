@@ -16,6 +16,20 @@ async function main() {
     });
   }
 
+  // 1.5 Ensure basic categories exist
+  const categories = [
+    { name: 'tech', description: 'Technology and Development', sortOrder: 1 },
+    { name: 'life', description: 'Life and Sharing', sortOrder: 2 },
+    { name: 'qa', description: 'Questions and Answers', sortOrder: 3 }
+  ];
+  for (const cat of categories) {
+    await prisma.category.upsert({
+      where: { name: cat.name },
+      update: {},
+      create: cat
+    });
+  }
+
   // 2. Check if any SUPER_ADMIN exists
   const superAdminRole = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
   if (!superAdminRole) {

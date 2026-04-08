@@ -13,6 +13,7 @@ import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
 import userRoutes from './routes/user';
 import postRoutes from './routes/post';
+import categoryRoutes from './routes/category';
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is not set. Please set it in your .env file or environment.');
@@ -37,6 +38,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/categories', categoryRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
