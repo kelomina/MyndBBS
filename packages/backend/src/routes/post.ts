@@ -7,7 +7,7 @@ const router: Router = Router();
 
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { category } = req.query;
+    const { category, sortBy } = req.query;
     const whereClause: any = {};
     
     if (category && typeof category === 'string') {
@@ -16,9 +16,17 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       };
     }
 
+    let orderByClause: any = { createdAt: 'desc' }; // default to latest
+    if (sortBy === 'popular') {
+      // Since we don't have upvotes or view metrics yet in the database, 
+      // we'll just sort by title or id for now to show a different order.
+      // Alternatively, we could just fallback to ascending order of creation date for 'popular' to differentiate from 'latest'.
+      orderByClause = { id: 'asc' }; 
+    }
+
     const posts = await prisma.post.findMany({
       where: whereClause,
-      orderBy: { createdAt: 'desc' },
+      orderBy: orderByClause,
       include: {
         author: {
           select: { id: true, username: true }
