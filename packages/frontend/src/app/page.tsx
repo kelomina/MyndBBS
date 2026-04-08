@@ -51,7 +51,7 @@ export default async function Home() {
                 </div>
                 
                 <h2 className="mb-2 text-xl font-bold text-foreground transition-colors hover:text-primary cursor-pointer">
-                  {post.title}
+                  <Link href={`/p/${post.id}`}>{post.title}</Link>
                 </h2>
                 <p className="mb-4 text-sm text-muted line-clamp-2">
                   {post.content}
