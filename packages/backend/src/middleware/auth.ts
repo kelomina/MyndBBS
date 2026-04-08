@@ -78,10 +78,12 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 15 * 60 * 1000
+            maxAge: 15 * 60 * 1000 // 15 minutes
           });
 
-          await redis.del(refreshKey);
+          // Instead of deleting immediately, keep it for 1 minute to allow
+          // concurrent requests or SSR -> CSR transitions to also refresh
+          await redis.expire(refreshKey, 60);
         } else if (user?.status === 'BANNED') {
           res.clearCookie('accessToken');
           res.clearCookie('refreshToken');
