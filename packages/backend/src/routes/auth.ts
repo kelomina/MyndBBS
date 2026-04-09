@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import rateLimit from 'express-rate-limit';
 import { 
   generateTotp, 
@@ -16,11 +16,27 @@ import { optionalAuth } from '../middleware/auth';
 
 const router: Router = Router();
 
+// Utility to get the best possible IP address without blindly trusting the first X-Forwarded-For entry
+// X-Forwarded-For format: client, proxy1, proxy2... 
+// The most reliable IP that the proxy connected to us with is typically the last one in the chain, 
+// or req.socket.remoteAddress if no proxy is used/trusted.
+const getClientIp = (req: Request): string => {
+  const xForwardedFor = req.headers['x-forwarded-for'];
+  if (xForwardedFor) {
+    const ips = (typeof xForwardedFor === 'string' ? xForwardedFor : xForwardedFor[0]).split(',').map(ip => ip.trim());
+    // If the proxy chain is provided, we take the last IP in the chain (the one closest to our server)
+    // to prevent IP spoofing by clients providing their own X-Forwarded-For headers.
+    return ips[ips.length - 1];
+  }
+  return req.socket.remoteAddress || req.ip || 'unknown';
+};
+
 // Rate limiting for general auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per window
-  validate: { xForwardedForHeader: false }, // Disable x-forwarded-for validation
+  keyGenerator: getClientIp,
+  validate: { xForwardedForHeader: false }, // Disable x-forwarded-for validation as we handle it manually
   message: { error: 'Too many requests from this IP, please try again later.' }
 });
 
@@ -28,6 +44,7 @@ const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10, // Moderate limit for login
   skipSuccessfulRequests: true,
+  keyGenerator: getClientIp,
   validate: { xForwardedForHeader: false },
   message: { error: 'Too many failed login attempts from this IP, please try again later.' }
 });
@@ -35,6 +52,7 @@ const loginLimiter = rateLimit({
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // Strict limit for registration
+  keyGenerator: getClientIp,
   validate: { xForwardedForHeader: false },
   message: { error: 'Too many registration attempts from this IP, please try again later.' }
 });
@@ -43,6 +61,7 @@ const strict2FALimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5, // Very strict limit for 2FA
   skipSuccessfulRequests: true,
+  keyGenerator: getClientIp,
   validate: { xForwardedForHeader: false },
   message: { error: 'Too many failed 2FA attempts from this IP, please try again later.' }
 });
