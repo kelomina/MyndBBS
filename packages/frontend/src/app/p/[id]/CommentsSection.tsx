@@ -116,7 +116,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   }, [comments]);
 
   const handleDeleteComment = async (commentId: string) => {
-    if (!confirm('Are you sure you want to delete this comment?')) return;
+    if (!confirm(dict.post?.confirmDeleteComment || 'Are you sure you want to delete this comment?')) return;
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/comments/${commentId}`, {
         method: 'DELETE',

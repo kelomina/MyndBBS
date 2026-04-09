@@ -119,7 +119,13 @@
     "replyingTo": "Replying to",
     "edited": "Edited",
     "save": "Save",
-    "share": "Share"
+    "share": "Share",
+    "editComment": "Edit Comment",
+    "deleteComment": "Delete Comment",
+    "editPost": "Edit Post",
+    "deletePost": "Delete Post",
+    "confirmDeletePost": "Are you sure you want to delete this post? This action cannot be undone.",
+    "confirmDeleteComment": "Are you sure you want to delete this comment? This action cannot be undone."
   },
   "profile": {
     "joined": "Joined",
@@ -132,7 +138,8 @@
     "activeSessions": "Active Sessions",
     "appearance": "Appearance",
     "notifications": "Notifications",
-    "adminDashboard": "Admin Dashboard"
+    "adminDashboard": "Admin Dashboard",
+    "removeBookmark": "Remove bookmark"
   },
   "settings": {
     "loadingProfile": "Loading profile...",
@@ -205,7 +212,11 @@
     "roleAdmin": "Admin",
     "adminPanel": "Admin Panel",
     "admin": "Admin",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "removeModerator": "Remove moderator",
+    "assignModerator": "Assign Moderator",
+    "confirmDeletion": "Confirm Deletion",
+    "confirmRemoveModerator": "Are you sure you want to remove this moderator?"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "User not found",

@@ -1,4 +1,5 @@
 'use client';
+import { useTranslation } from '../../../components/TranslationProvider';
 
 import { useState, useEffect } from 'react';
 import { ArrowBigUp, Bookmark, Share, Trash2, Edit2 } from 'lucide-react';
@@ -15,6 +16,7 @@ export function PostActions({
   initialBookmarks: number,
   authorUsername: string
 }) {
+  const dict = useTranslation();
   const [upvotes, setUpvotes] = useState(initialUpvotes);
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [hasBookmarked, setHasBookmarked] = useState(false);
@@ -111,7 +113,7 @@ export function PostActions({
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this post?')) return;
+    if (!confirm(dict.post?.confirmDeletePost || 'Are you sure you want to delete this post?')) return;
     if (loading) return;
     setLoading(true);
     try {
@@ -173,7 +175,7 @@ export function PostActions({
               onClick={() => router.push(`/p/${postId}/edit`)}
               disabled={loading}
               className="transition-colors hover:text-primary"
-              title="Edit Post"
+              title={dict.post?.editPost || "Edit Post"}
             >
               <Edit2 className="h-5 w-5" />
             </button>
@@ -181,7 +183,7 @@ export function PostActions({
               onClick={handleDelete}
               disabled={loading}
               className="transition-colors hover:text-red-500"
-              title="Delete Post"
+              title={dict.post?.deletePost || "Delete Post"}
             >
               <Trash2 className="h-5 w-5" />
             </button>

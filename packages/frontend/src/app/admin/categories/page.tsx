@@ -120,7 +120,7 @@ export default function CategoriesPage() {
   };
 
   const handleRemoveModerator = async (categoryId: string, userId: string) => {
-    if (!confirm('Are you sure you want to remove this moderator?')) return;
+    if (!confirm(dict.admin?.confirmRemoveModerator || 'Are you sure you want to remove this moderator?')) return;
     try {
       await removeCategoryModerator(categoryId, userId);
       await loadData();
@@ -170,7 +170,7 @@ export default function CategoriesPage() {
                         <button
                           onClick={() => handleRemoveModerator(category.id, mod.userId)}
                           className="ml-1 text-muted-foreground hover:text-foreground"
-                          title="Remove moderator"
+                          title={dict.admin?.removeModerator || "Remove moderator"}
                         >
                           &times;
                         </button>
@@ -217,7 +217,7 @@ export default function CategoriesPage() {
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Create Category"
+        title={dict.admin?.createCategory || "Create Category"}
       >
         <form onSubmit={handleCreate} className="space-y-4 pt-4">
           <div className="space-y-2">
@@ -261,7 +261,7 @@ export default function CategoriesPage() {
       <Modal
         isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
-        title="Assign Moderator"
+        title={dict.admin?.assignModerator || "Assign Moderator"}
       >
         <form onSubmit={handleAssignModerator} className="space-y-4 pt-4">
           <div className="space-y-2">
@@ -302,7 +302,7 @@ export default function CategoriesPage() {
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Confirm Deletion"
+        title={dict.admin?.confirmDeletion || "Confirm Deletion"}
       >
         <div className="space-y-4 pt-4">
           <p className="text-sm text-muted-foreground">

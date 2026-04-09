@@ -143,7 +143,7 @@ export function ProfileTabs({
                       <button 
                         onClick={(e) => handleRemoveBookmark(e, 'comment', item.id)}
                         className="text-muted hover:text-destructive transition-colors p-2"
-                        title="Remove bookmark"
+                        title={dict.profile?.removeBookmark || "Remove bookmark"}
                       >
                         <BookmarkMinus size={18} />
                       </button>
@@ -168,7 +168,7 @@ export function ProfileTabs({
                     <button 
                       onClick={(e) => handleRemoveBookmark(e, 'comment', item.id)}
                       className="absolute top-4 right-4 text-muted hover:text-destructive transition-colors p-2"
-                      title="Remove bookmark"
+                      title={dict.profile?.removeBookmark || "Remove bookmark"}
                     >
                       <BookmarkMinus size={18} />
                     </button>
@@ -189,7 +189,7 @@ export function ProfileTabs({
                     <button 
                       onClick={(e) => handleRemoveBookmark(e, 'post', item.id)}
                       className="text-muted hover:text-destructive transition-colors p-2"
-                      title="Remove bookmark"
+                      title={dict.profile?.removeBookmark || "Remove bookmark"}
                     >
                       <BookmarkMinus size={18} />
                     </button>
@@ -211,7 +211,7 @@ export function ProfileTabs({
                   <button 
                     onClick={(e) => handleRemoveBookmark(e, 'post', item.id)}
                     className="absolute top-4 right-4 text-muted hover:text-destructive transition-colors p-2"
-                    title="Remove bookmark"
+                    title={dict.profile?.removeBookmark || "Remove bookmark"}
                   >
                     <BookmarkMinus size={18} />
                   </button>
