@@ -3,8 +3,6 @@
 **MyndBBS** 是一个现代化、企业级取向的开源论坛（BBS）项目，采用 TypeScript 全栈开发，包含前端应用、后端 API 与共享类型库。
 
 - 中文 / English: [中文](#中文) | [English](#english)
-- 设计文档: [2026-04-06-myndbbs-spec-design.md](file:///workspace/docs/superpowers/specs/2026-04-06-myndbbs-spec-design.md) | [2026-04-06-auth-design.md](file:///workspace/docs/superpowers/specs/2026-04-06-auth-design.md)
-- 实施计划: [2026-04-06-myndbbs-initial-setup.md](file:///workspace/docs/superpowers/plans/2026-04-06-myndbbs-initial-setup.md) | [2026-04-06-auth-implementation.md](file:///workspace/docs/superpowers/plans/2026-04-06-auth-implementation.md)
 
 ---
 
@@ -38,9 +36,6 @@ MyndBBS/
 │   ├── frontend/   # Next.js 前端应用
 │   ├── backend/    # Express 后端 API
 │   └── shared/     # 前后端共享 TS 类型/常量/校验
-├── docs/superpowers/
-│   ├── specs/      # 设计规范
-│   └── plans/      # 实施计划
 ├── eslint.config.mjs
 ├── pnpm-workspace.yaml
 └── package.json
@@ -57,8 +52,6 @@ MyndBBS/
 - 强密码：至少 8 位，包含大小写字母、数字、特殊符号（见 `@myndbbs/shared` 的校验工具）
 - 2FA：注册后引导绑定 TOTP，使用 `otplib` 和 `qrcode` 生成验证
 - 权限：集成 CASL，提供灵活的 ABAC 权限系统，限制操作范围与层级
-
-详细设计见 [2026-04-06-auth-design.md](file:///workspace/docs/superpowers/specs/2026-04-06-auth-design.md)。
 
 ### 反滥用与风控
 
@@ -120,11 +113,6 @@ pnpm lint
 pnpm format
 ```
 
-### 文档
-
-- 设计规范：`docs/superpowers/specs/`
-- 实施计划：`docs/superpowers/plans/`
-
 ---
 
 # English
@@ -157,9 +145,6 @@ MyndBBS/
 │   ├── frontend/   # Next.js frontend app
 │   ├── backend/    # Express backend API
 │   └── shared/     # Shared TS types/constants/validators
-├── docs/superpowers/
-│   ├── specs/      # Design specs
-│   └── plans/      # Implementation plans
 ├── eslint.config.mjs
 ├── pnpm-workspace.yaml
 └── package.json
@@ -176,8 +161,6 @@ The authentication system follows a “practical, security-first, extensible” 
 - Strong password policy: minimum 8 chars with upper/lowercase, number, and special char (implemented in `@myndbbs/shared`)
 - 2FA: user onboarding includes a TOTP (Authenticator App) setup flow using `otplib` and `qrcode`
 - Authorization: CASL integration providing a flexible Attribute-Based Access Control (ABAC) system for robust permissions handling
-
-See [2026-04-06-auth-design.md](file:///workspace/docs/superpowers/specs/2026-04-06-auth-design.md) for the full design.
 
 ### Abuse Prevention
 
@@ -238,8 +221,3 @@ Default URL:
 pnpm lint
 pnpm format
 ```
-
-### Docs
-
-- Design specs: `docs/superpowers/specs/`
-- Implementation plans: `docs/superpowers/plans/`
