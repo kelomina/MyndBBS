@@ -20,6 +20,7 @@ const router: Router = Router();
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per window
+  validate: { xForwardedForHeader: false }, // Disable x-forwarded-for validation
   message: { error: 'Too many requests from this IP, please try again later.' }
 });
 
@@ -27,12 +28,14 @@ const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10, // Moderate limit for login
   skipSuccessfulRequests: true,
+  validate: { xForwardedForHeader: false },
   message: { error: 'Too many failed login attempts from this IP, please try again later.' }
 });
 
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // Strict limit for registration
+  validate: { xForwardedForHeader: false },
   message: { error: 'Too many registration attempts from this IP, please try again later.' }
 });
 
@@ -40,6 +43,7 @@ const strict2FALimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5, // Very strict limit for 2FA
   skipSuccessfulRequests: true,
+  validate: { xForwardedForHeader: false },
   message: { error: 'Too many failed 2FA attempts from this IP, please try again later.' }
 });
 
