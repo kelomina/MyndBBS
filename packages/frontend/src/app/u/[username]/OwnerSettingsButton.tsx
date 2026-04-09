@@ -36,9 +36,8 @@ export function OwnerSettingsButton({ username, label }: { username: string, lab
         method: 'POST',
         credentials: 'include'
       });
-      // Redirect to home page
-      router.push('/');
-      router.refresh();
+      // Force a full page reload to clear all client-side state
+      window.location.href = '/';
     } catch (err) {
       console.error('Logout failed', err);
     } finally {
