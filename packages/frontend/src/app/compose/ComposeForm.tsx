@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Image as ImageIcon, Link as LinkIcon, List, Bold, Italic } from 'lucide-react';
-import { SliderCaptcha } from '../components/SliderCaptcha';
+import { SliderCaptcha } from '../../components/SliderCaptcha';
 
 export function ComposeForm({ dict }: { dict: any }) {
   const router = useRouter();
