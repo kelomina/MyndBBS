@@ -121,7 +121,8 @@
     "activeSessions": "活跃会话",
     "appearance": "外观",
     "notifications": "通知",
-    "adminDashboard": "管理员仪表盘"
+    "adminDashboard": "管理面板",
+    "commentOn": "评论于："
   },
   "settings": {
     "loadingProfile": "加载资料中...",

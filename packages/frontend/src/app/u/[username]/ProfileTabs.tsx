@@ -108,19 +108,41 @@ export function ProfileTabs({
           ) : !bookmarks || bookmarks.length === 0 ? (
             <p className="text-muted text-sm">{dict.profile?.noBookmarksYet || 'No bookmarks yet.'}</p>
           ) : (
-            bookmarks.map((post: any) => (
-              <div key={post.id} className="rounded-xl bg-card p-5 shadow-sm border border-border/50 transition-shadow hover:shadow-md cursor-pointer">
-                <Link href={`/p/${post.id}`}>
-                  <h2 className="text-lg font-bold text-foreground mb-2 hover:text-primary">{post.title}</h2>
-                </Link>
-                <p className="text-sm text-muted mb-4 line-clamp-2">{post.content}</p>
-                <div className="flex items-center text-xs text-muted gap-4">
-                  <span>{post.category?.name || dict.profile?.uncategorized || 'Uncategorized'}</span>
-                  <span>•</span>
-                  <span>{new Date(post.createdAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}</span>
+            bookmarks.map((item: any) => {
+              if (item.type === 'comment') {
+                return (
+                  <div key={`comment-${item.id}`} className="rounded-xl bg-card p-5 shadow-sm border border-border/50 transition-shadow hover:shadow-md cursor-pointer">
+                    <Link href={`/p/${item.postId}#comment-${item.id}`}>
+                      <h2 className="text-sm font-medium text-foreground mb-2 hover:text-primary">
+                        <span className="text-muted">{dict.profile?.commentOn || 'Comment on: '}</span> 
+                        {item.post?.title || 'Unknown Post'}
+                      </h2>
+                    </Link>
+                    <p className="text-sm text-muted mb-4 line-clamp-2">{item.content}</p>
+                    <div className="flex items-center text-xs text-muted gap-4">
+                      <span>{item.author?.username}</span>
+                      <span>•</span>
+                      <span>{new Date(item.createdAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}</span>
+                    </div>
+                  </div>
+                );
+              }
+              
+              // Post bookmark
+              return (
+                <div key={`post-${item.id}`} className="rounded-xl bg-card p-5 shadow-sm border border-border/50 transition-shadow hover:shadow-md cursor-pointer">
+                  <Link href={`/p/${item.id}`}>
+                    <h2 className="text-lg font-bold text-foreground mb-2 hover:text-primary">{item.title}</h2>
+                  </Link>
+                  <p className="text-sm text-muted mb-4 line-clamp-2">{item.content}</p>
+                  <div className="flex items-center text-xs text-muted gap-4">
+                    <span>{item.category?.name || dict.profile?.uncategorized || 'Uncategorized'}</span>
+                    <span>•</span>
+                    <span>{new Date(item.createdAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}</span>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )
         )}
       </div>
