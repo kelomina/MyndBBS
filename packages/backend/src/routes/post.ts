@@ -17,9 +17,9 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<v
       ]
     };
     
-    if (category && typeof category === 'string') {
+    if (category) {
       whereClause.AND.push({
-        category: { name: category }
+        category: { name: String(category) }
       });
     }
 
@@ -58,6 +58,17 @@ router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: Auth
     
     if (!title || !content || !categoryId) {
       res.status(400).json({ error: 'Title, content, and categoryId are required' });
+      return;
+    }
+
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category) {
+      res.status(404).json({ error: 'Category not found' });
+      return;
+    }
+    const currentUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+    if ((currentUser?.level || 1) < category.minLevel) {
+      res.status(403).json({ error: 'Insufficient level to post in this category' });
       return;
     }
 
@@ -377,6 +388,17 @@ router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: Au
     
     if (!title || !content || !categoryId) {
       res.status(400).json({ error: 'Title, content, and categoryId are required' });
+      return;
+    }
+
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category) {
+      res.status(404).json({ error: 'Category not found' });
+      return;
+    }
+    const currentUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+    if ((currentUser?.level || 1) < category.minLevel) {
+      res.status(403).json({ error: 'Insufficient level to post in this category' });
       return;
     }
 

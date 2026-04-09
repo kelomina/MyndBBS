@@ -10,6 +10,7 @@ import { OTP } from 'otplib';
 import QRCode from 'qrcode';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
+import { redis } from '../lib/redis';
 
 const rpName = 'MyndBBS';
 const rpID = process.env.RP_ID || 'localhost';
@@ -47,7 +48,7 @@ export const finalizeAuth = async (user: any, req: Request, res: Response) => {
   const roleName = user.role?.name || user.role || null;
 
   const accessToken = jwt.sign({ userId: user.id, role: roleName, sessionId: session.id }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ userId: user.id, role: roleName, sessionId: session.id }, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { expiresIn: '7d' });
+  const refreshToken = jwt.sign({ userId: user.id, role: roleName, sessionId: session.id }, process.env.JWT_REFRESH_SECRET as string, { expiresIn: '7d' });
 
   res.clearCookie('tempToken');
 
@@ -79,10 +80,7 @@ export const generateTotp = async (req: Request, res: Response): Promise<void> =
   const otpauth = authenticator.generateURI({ issuer: rpName, label: user.email, secret });
   const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { totpSecret: secret }
-  });
+  await redis.set(`totp_setup:${user.id}`, secret, 'EX', 300); // 5 minutes
 
   res.json({ secret, qrCodeUrl });
 };
@@ -90,12 +88,18 @@ export const generateTotp = async (req: Request, res: Response): Promise<void> =
 export const verifyTotpRegistration = async (req: Request, res: Response): Promise<void> => {
   const { code } = req.body;
   const user = await getUserFromTempToken(req);
-  if (!user || !user.totpSecret) {
-    res.status(401).json({ error: 'Unauthorized or setup not initiated' });
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
-  const result = authenticator.verifySync({ secret: user.totpSecret, token: code });
+  const pendingSecret = await redis.get(`totp_setup:${user.id}`);
+  if (!pendingSecret) {
+    res.status(401).json({ error: 'Unauthorized or setup not initiated/expired' });
+    return;
+  }
+
+  const result = authenticator.verifySync({ secret: pendingSecret, token: code });
   if (!result || !result.valid) {
     res.status(400).json({ error: 'Invalid TOTP code' });
     return;
@@ -103,8 +107,10 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { isTotpEnabled: true }
+    data: { isTotpEnabled: true, totpSecret: pendingSecret }
   });
+
+  await redis.del(`totp_setup:${user.id}`);
 
   await finalizeAuth(user, req, res);
 };
@@ -135,25 +141,31 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
     },
   });
 
+  const challengeId = crypto.randomUUID();
   // Store challenge
   await prisma.authChallenge.upsert({
-    where: { id: user.id },
+    where: { id: challengeId },
     update: { challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
-    create: { id: user.id, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
+    create: { id: challengeId, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
   });
 
-  res.json(options);
+  res.json({ ...options, challengeId });
 };
 
 export const verifyPasskeyRegistrationResponse = async (req: Request, res: Response): Promise<void> => {
-  const { response } = req.body;
+  const { response, challengeId } = req.body;
   const user = await getUserFromTempToken(req);
   if (!user) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
-  const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: user.id } });
+  if (!challengeId) {
+    res.status(400).json({ error: 'Challenge ID is required' });
+    return;
+  }
+
+  const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
   if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
     res.status(400).json({ error: 'Challenge expired or not found' });
     return;
@@ -188,7 +200,7 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
       }
     });
 
-    await prisma.authChallenge.delete({ where: { id: user.id } });
+    await prisma.authChallenge.delete({ where: { id: challengeId } });
 
     await finalizeAuth(user, req, res);
   } else {
@@ -225,23 +237,23 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
   let challengeId;
 
   if (tempToken) {
-    // 2FA flow
-    const user = await getUserFromTempToken(req, 'login');
-    if (!user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-    const userPasskeys = await prisma.passkey.findMany({ where: { userId: user.id } });
-    options = await generateAuthenticationOptions({
-      rpID,
-      allowCredentials: userPasskeys.map(passkey => ({
-        id: passkey.id,
-        transports: ['internal'],
-      })),
-      userVerification: 'preferred',
-    });
-    challengeId = user.id;
-  } else {
+      // 2FA flow
+      const user = await getUserFromTempToken(req, 'login');
+      if (!user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      const userPasskeys = await prisma.passkey.findMany({ where: { userId: user.id } });
+      options = await generateAuthenticationOptions({
+        rpID,
+        allowCredentials: userPasskeys.map(passkey => ({
+          id: passkey.id,
+          transports: ['internal'],
+        })),
+        userVerification: 'preferred',
+      });
+      challengeId = crypto.randomUUID();
+    } else {
     // Passwordless flow
     options = await generateAuthenticationOptions({
       rpID,
@@ -275,7 +287,11 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    challengeId = user.id;
+    if (!bodyChallengeId) {
+      res.status(400).json({ error: 'Challenge ID is required' });
+      return;
+    }
+    challengeId = bodyChallengeId;
   } else {
     // Passwordless flow
     if (!bodyChallengeId) {
