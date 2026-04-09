@@ -121,7 +121,8 @@
     "activeSessions": "Active Sessions",
     "appearance": "Appearance",
     "notifications": "Notifications",
-    "adminDashboard": "Admin Dashboard"
+    "adminDashboard": "Admin Dashboard",
+    "commentOn": "Comment on: "
   },
   "settings": {
     "loadingProfile": "Loading profile...",

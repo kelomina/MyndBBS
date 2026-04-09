@@ -51,7 +51,7 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
-    const bookmarks = await prisma.bookmark.findMany({
+    const postBookmarks = await prisma.bookmark.findMany({
       where: { 
         userId,
         post: accessibleBy(req.ability!).Post
@@ -67,8 +67,30 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
       }
     });
 
-    const posts = bookmarks.map(b => b.post);
-    res.json(posts);
+    const commentBookmarks = await prisma.commentBookmark.findMany({
+      where: {
+        userId,
+        comment: {
+          post: accessibleBy(req.ability!).Post
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        comment: {
+          include: {
+            author: { select: { id: true, username: true } },
+            post: { select: { id: true, title: true } }
+          }
+        }
+      }
+    });
+
+    const unifiedBookmarks = [
+      ...postBookmarks.map(b => ({ ...b.post, type: 'post', bookmarkedAt: b.createdAt })),
+      ...commentBookmarks.map(b => ({ ...b.comment, type: 'comment', bookmarkedAt: b.createdAt }))
+    ].sort((a, b) => b.bookmarkedAt.getTime() - a.bookmarkedAt.getTime());
+
+    res.json(unifiedBookmarks);
   } catch (error) {
     console.error('Error fetching bookmarks:', error);
     res.status(500).json({ error: 'Internal server error' });
