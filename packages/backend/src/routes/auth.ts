@@ -22,9 +22,14 @@ const router: Router = Router();
 const getClientIp = (req: Request): string => {
   const xForwardedFor = req.headers['x-forwarded-for'];
   if (xForwardedFor) {
-    const ips = (typeof xForwardedFor === 'string' ? xForwardedFor : xForwardedFor[0]).split(',').map(ip => ip.trim());
-    // We take the FIRST IP in the chain, which represents the original client's IP.
-    return ips[0];
+    const headerValue = typeof xForwardedFor === 'string' ? xForwardedFor : xForwardedFor[0];
+    if (headerValue) {
+      const ips = headerValue.split(',').map(ip => ip.trim());
+      // We take the FIRST IP in the chain, which represents the original client's IP.
+      if (ips.length > 0 && ips[0]) {
+        return ips[0];
+      }
+    }
   }
   return req.socket.remoteAddress || req.ip || 'unknown';
 };
