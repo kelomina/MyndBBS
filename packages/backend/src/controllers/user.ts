@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db';
+import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import { AuthRequest } from '../middleware/auth';
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
@@ -142,6 +143,33 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
+    const { currentPassword, totpCode } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (!currentPassword && !totpCode) {
+      res.status(401).json({ error: 'Current password or TOTP code required to disable 2FA' });
+      return;
+    }
+    if (currentPassword && user.password) {
+      const isValid = await argon2.verify(user.password, currentPassword);
+      if (!isValid) {
+        res.status(401).json({ error: 'Invalid current password' });
+        return;
+      }
+    }
+    if (totpCode && user.totpSecret) {
+      const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
+      if (!result || !result.valid) {
+        res.status(400).json({ error: 'Invalid TOTP code' });
+        return;
+      }
+    }
+
     await prisma.user.update({
       where: { id: userId },
       data: { isTotpEnabled: false, totpSecret: null }
@@ -164,13 +192,34 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const { email, username, password } = req.body;
+    const { email, username, password, currentPassword, totpCode } = req.body;
     
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
+    }
+
+    if (email || password) {
+      if (!currentPassword && !totpCode) {
+        res.status(401).json({ error: 'Current password or TOTP code required for sensitive changes' });
+        return;
+      }
+      if (currentPassword && user.password) {
+        const isValid = await argon2.verify(user.password, currentPassword);
+        if (!isValid) {
+          res.status(401).json({ error: 'Invalid current password' });
+          return;
+        }
+      }
+      if (totpCode && user.totpSecret) {
+        const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
+        if (!result || !result.valid) {
+          res.status(400).json({ error: 'Invalid TOTP code' });
+          return;
+        }
+      }
     }
 
     const updateData: any = {};
@@ -203,6 +252,11 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       
       if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
         res.status(400).json({ error: 'Password must contain uppercase, lowercase, number, and special character' });
+        return;
+      }
+      // Restrict to ASCII characters to prevent Unicode bypass
+      if (!/^[ -~]+$/.test(password)) {
+        res.status(400).json({ error: 'Password contains invalid characters' });
         return;
       }
       updateData.password = await argon2.hash(password);
@@ -241,10 +295,7 @@ export const generateTotp = async (req: AuthRequest, res: Response): Promise<voi
     const otpauth = authenticator.generateURI({ issuer: rpName, label: user.email, secret });
     const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { totpSecret: secret }
-    });
+    await redis.set(`totp_setup:${userId}`, secret, 'EX', 300); // 5 minutes
 
     res.json({ secret, qrCodeUrl });
   } catch (error) {
@@ -262,12 +313,18 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.totpSecret) {
-      res.status(401).json({ error: 'Unauthorized or setup not initiated' });
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    const result = authenticator.verifySync({ secret: user.totpSecret, token: code });
+    const pendingSecret = await redis.get(`totp_setup:${userId}`);
+    if (!pendingSecret) {
+      res.status(401).json({ error: 'Unauthorized or setup not initiated/expired' });
+      return;
+    }
+
+    const result = authenticator.verifySync({ secret: pendingSecret, token: code });
     if (!result || !result.valid) {
       res.status(400).json({ error: 'Invalid TOTP code' });
       return;
@@ -275,8 +332,10 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
 
     await prisma.user.update({
       where: { id: userId },
-      data: { isTotpEnabled: true }
+      data: { isTotpEnabled: true, totpSecret: pendingSecret }
     });
+
+    await redis.del(`totp_setup:${userId}`);
 
     res.json({ message: 'TOTP setup successful' });
   } catch (error) {
@@ -314,13 +373,14 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
       },
     });
 
+    const challengeId = crypto.randomUUID();
     await prisma.authChallenge.upsert({
-      where: { id: userId },
+      where: { id: challengeId },
       update: { challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
-      create: { id: userId, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
+      create: { id: challengeId, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
     });
 
-    res.json(options);
+    res.json({ ...options, challengeId });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -328,14 +388,19 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
 
 export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { response } = req.body;
+    const { response, challengeId } = req.body;
     const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: userId } });
+    if (!challengeId) {
+      res.status(400).json({ error: 'Challenge ID is required' });
+      return;
+    }
+
+    const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
     if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
       res.status(400).json({ error: 'Challenge expired or not found' });
       return;
@@ -370,7 +435,7 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
         }
       });
 
-      await prisma.authChallenge.delete({ where: { id: userId } });
+      await prisma.authChallenge.delete({ where: { id: challengeId } });
       res.json({ message: 'Passkey registered successfully' });
     } else {
       res.status(400).json({ error: 'Verification failed' });
@@ -435,6 +500,9 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     await prisma.session.delete({
       where: { id: sessionId }
     });
+
+    await redis.del(`session:${sessionId}`);
+    await redis.del(`session:${sessionId}:requires_refresh`);
 
     res.json({ message: 'Session revoked successfully' });
   } catch (error) {

@@ -75,6 +75,11 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    if (newRoleLevel > operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
+      res.status(403).json({ error: 'Forbidden: Cannot grant a role higher than your own' });
+      return;
+    }
+
     finalUser = await prisma.user.update({ 
       where: { id }, 
       data: { roleId: roleRecord.id },

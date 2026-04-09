@@ -15,17 +15,36 @@ import userRoutes from './routes/user';
 import postRoutes from './routes/post';
 import categoryRoutes from './routes/category';
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is not set. Please set it in your .env file or environment.');
+if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+  throw new Error('JWT_SECRET and JWT_REFRESH_SECRET environment variables are not set. Please set them in your .env file or environment.');
+}
+
+if (process.env.JWT_SECRET === process.env.JWT_REFRESH_SECRET) {
+  throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be different.');
 }
 
 const app = express();
 const port = process.env.PORT || 3001;
 
 // Trust the reverse proxy to ensure req.ip is correct for rate limiting
-app.set('trust proxy', 1);
+// Only trust proxy if explicitly configured (e.g. behind Nginx)
+if (process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+} else {
+  app.set('trust proxy', false);
+}
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true }));
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',');
+app.use(cors({ 
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }, 
+  credentials: true 
+}));
 app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());

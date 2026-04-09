@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db';
+import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { finalizeAuth } from './auth';
@@ -21,6 +22,11 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     // Add comprehensive strength check (uppercase, lowercase, number, special char)
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
       res.status(400).json({ error: 'Password must contain uppercase, lowercase, number, and special character' });
+      return;
+    }
+    // Restrict to ASCII characters to prevent Unicode bypass
+    if (!/^[ -~]+$/.test(password)) {
+      res.status(400).json({ error: 'Password contains invalid characters' });
       return;
     }
 
@@ -157,7 +163,7 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
     
     if (!sessionId && tokenFromCookie) {
       try {
-        const decoded = jwt.verify(tokenFromCookie, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string, { ignoreExpiration: true }) as any;
+        const decoded = jwt.verify(tokenFromCookie, process.env.JWT_REFRESH_SECRET as string, { ignoreExpiration: true }) as any;
         if (decoded.sessionId) sessionId = decoded.sessionId;
       } catch (e) {
         // ignore
@@ -168,6 +174,8 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
       await prisma.session.deleteMany({
         where: { id: sessionId }
       });
+      await redis.del(`session:${sessionId}`);
+      await redis.del(`session:${sessionId}:requires_refresh`);
     }
 
     res.clearCookie('accessToken');
@@ -189,7 +197,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string || process.env.JWT_SECRET as string) as any;
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string) as any;
 
     if (decoded.sessionId) {
       const session = await prisma.session.findUnique({ where: { id: decoded.sessionId } });

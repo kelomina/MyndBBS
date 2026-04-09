@@ -23,7 +23,11 @@ export const generateCaptcha = async (req: Request, res: Response) => {
       }
     });
 
-    // Generate SVG background to provide visual hint without sending the raw number
+    // Generate SVG background with an obfuscated path instead of explicit circle cx coordinate
+    const cx = targetPosition + 24;
+    // We use a relatively generic path that still draws a circle but without a single clear 'cx' attribute
+    const pathData = `M ${cx - 20} 64 a 20 20 0 1 0 40 0 a 20 20 0 1 0 -40 0`;
+
     const svgBackground = `
       <svg width="318" height="128" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -38,7 +42,7 @@ export const generateCaptcha = async (req: Request, res: Response) => {
         </defs>
         <rect width="318" height="128" fill="url(#bg)" rx="8" />
         <text x="159" y="30" font-family="sans-serif" font-size="12" fill="#64748b" text-anchor="middle" letter-spacing="2">SECURITY VERIFICATION</text>
-        <circle cx="${targetPosition + 24}" cy="64" r="20" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" filter="url(#glow)" stroke-dasharray="4 4" />
+        <path d="${pathData}" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" filter="url(#glow)" stroke-dasharray="4 4" />
       </svg>
     `;
     const bgBase64 = Buffer.from(svgBackground).toString('base64');
@@ -47,7 +51,7 @@ export const generateCaptcha = async (req: Request, res: Response) => {
     res.json({ captchaId: challenge.id, image: bgUrl });
   } catch (error) {
     console.error("Error generating captcha:", error);
-    res.status(500).json({ error: 'Failed to generate captcha', details: String(error) });
+    res.status(500).json({ error: 'Failed to generate captcha' });
   }
 };
 
