@@ -23,7 +23,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
   }
 
   if (!token) {
-    res.status(401).json({ error: 'Unauthorized: missing token' });
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED_MISSING_TOKEN' });
     return;
   }
   
@@ -38,7 +38,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
       if (cachedSession === 'invalid') {
         res.clearCookie('accessToken');
         res.clearCookie('refreshToken');
-        res.status(401).json({ error: 'Session revoked or invalid' });
+        res.status(401).json({ error: 'ERR_SESSION_REVOKED_OR_INVALID' });
         return;
       }
 
@@ -48,7 +48,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
           await redis.set(cacheKey, 'invalid', 'EX', 300); // Cache invalid state briefly
           res.clearCookie('accessToken');
           res.clearCookie('refreshToken');
-          res.status(401).json({ error: 'Session revoked or invalid' });
+          res.status(401).json({ error: 'ERR_SESSION_REVOKED_OR_INVALID' });
           return;
         }
         await redis.set(cacheKey, 'valid', 'EX', 3600); // Cache valid session state
@@ -87,7 +87,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
         } else if (user?.status === 'BANNED') {
           res.clearCookie('accessToken');
           res.clearCookie('refreshToken');
-          res.status(401).json({ error: 'User banned' });
+          res.status(401).json({ error: 'ERR_USER_BANNED' });
           return;
         }
       }
@@ -116,7 +116,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
   } catch (error) {
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: 'ERR_INVALID_TOKEN' });
   }
 };
 
@@ -164,7 +164,7 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
 export const requireAbility = (action: Action, subject: AppSubjects) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.ability) {
-      res.status(401).json({ error: 'Unauthorized: missing ability' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED_MISSING_ABILITY' });
       return;
     }
 
@@ -172,7 +172,7 @@ export const requireAbility = (action: Action, subject: AppSubjects) => {
       next();
     } else {
       console.log('Forbidden! user:', req.user, 'rules:', req.ability.rules, 'action:', action, 'subject:', subject);
-      res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS' });
     }
   };
 };

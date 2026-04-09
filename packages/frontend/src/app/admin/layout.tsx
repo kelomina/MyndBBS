@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { useTranslation } from '../../components/TranslationProvider';
 import { getDictionary } from '../../i18n/get-dictionary';
 import { defaultLocale, Locale } from '../../i18n/config';
 import { headers, cookies } from 'next/headers';
@@ -56,14 +57,14 @@ export default async function AdminLayout({
             className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
           >
             <Users className="h-5 w-5" />
-            <span>Users</span>
+            <span>{dict.admin?.users || "Users"}</span>
           </Link>
           <Link
             href="/admin/categories"
             className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
           >
             <FolderTree className="h-5 w-5" />
-            <span>Categories</span>
+            <span>{dict.admin?.categories || "Categories"}</span>
           </Link>
         </nav>
       </aside>

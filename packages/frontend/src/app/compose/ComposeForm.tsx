@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Image as ImageIcon, Link as LinkIcon, List, Bold, Italic } from 'lucide-react';
 import { SliderCaptcha } from '../../components/SliderCaptcha';
+import { useTranslation } from '../../components/TranslationProvider';
 
 export function ComposeForm({ dict }: { dict: any }) {
   const router = useRouter();
@@ -89,7 +90,7 @@ export function ComposeForm({ dict }: { dict: any }) {
             >
               &times;
             </button>
-            <h3 className="text-lg font-bold mb-4 text-center">Verify to Publish</h3>
+            <h3 className="text-lg font-bold mb-4 text-center">{dict.post?.verifyToPublish || "Verify to Publish"}</h3>
             <SliderCaptcha 
               onSuccess={handlePublish} 
               apiUrl={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/auth`}

@@ -66,7 +66,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
         }
       } else {
         const data = await verifyRes.json();
-        throw new Error(data.error || dict.auth.passkeyVerificationFailed);
+        throw new Error(dict.apiErrors?.[data.error] || data.error || dict.auth.passkeyVerificationFailed);
       }
     } catch (err) {
       const errorObj = err as Error;
@@ -92,7 +92,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       if (res.ok) {
         setTotpSetup(data);
       } else {
-        setError(data.error || dict.twoFactor.failedGenerateTotp);
+        setError(dict.apiErrors?.[data.error] || data.error || dict.twoFactor.failedGenerateTotp);
       }
     } catch (err) {
       setError(dict.auth.networkError);
@@ -119,7 +119,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
         }
       } else {
         const data = await res.json();
-        setError(data.error || dict.twoFactor.invalidTotpCode);
+        setError(dict.apiErrors?.[data.error] || data.error || dict.twoFactor.invalidTotpCode);
       }
     } catch (err) {
       setError(dict.auth.networkError);

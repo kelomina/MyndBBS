@@ -10,23 +10,23 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     const { email, username, password, captchaId } = req.body;
 
     if (!email || !username || !password || !captchaId) {
-      res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: 'ERR_MISSING_REQUIRED_FIELDS' });
       return;
     }
 
     if (password.length < 8 || password.length > 128) {
-      res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
+      res.status(400).json({ error: 'ERR_PASSWORD_MUST_BE_BETWEEN_8_AND_128_CHARACTERS' });
       return;
     }
     
     // Add comprehensive strength check (uppercase, lowercase, number, special char)
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
-      res.status(400).json({ error: 'Password must contain uppercase, lowercase, number, and special character' });
+      res.status(400).json({ error: 'ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER' });
       return;
     }
     // Restrict to ASCII characters to prevent Unicode bypass
     if (!/^[ -~]+$/.test(password)) {
-      res.status(400).json({ error: 'Password contains invalid characters' });
+      res.status(400).json({ error: 'ERR_PASSWORD_CONTAINS_INVALID_CHARACTERS' });
       return;
     }
 
@@ -41,12 +41,12 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
         await prisma.captchaChallenge.delete({ where: { id: captchaId } });
       }
     } catch (e) {
-      res.status(400).json({ error: 'Captcha already used or invalid' });
+      res.status(400).json({ error: 'ERR_CAPTCHA_ALREADY_USED_OR_INVALID' });
       return;
     }
 
     if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
-      res.status(400).json({ error: 'Invalid, expired, or unverified captcha' });
+      res.status(400).json({ error: 'ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA' });
       return;
     }
 
@@ -56,7 +56,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     });
 
     if (existingUser) {
-      res.status(400).json({ error: 'Email or username already in use' });
+      res.status(400).json({ error: 'ERR_EMAIL_OR_USERNAME_ALREADY_IN_USE' });
       return;
     }
 
@@ -90,7 +90,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     res.status(201).json({ message: 'User registered. Please complete 2FA.', user: { id: user.id, username: user.username, role: user.role?.name } });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -99,7 +99,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      res.status(400).json({ error: 'Email/Username and password required' });
+      res.status(400).json({ error: 'ERR_EMAIL_USERNAME_AND_PASSWORD_REQUIRED' });
       return;
     }
 
@@ -108,18 +108,18 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       include: { passkeys: true, role: true }
     });
     if (!user || !user.password) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'ERR_INVALID_CREDENTIALS' });
       return;
     }
 
     if (user.status === 'BANNED') {
-      res.status(403).json({ error: 'Account is banned' });
+      res.status(403).json({ error: 'ERR_ACCOUNT_IS_BANNED' });
       return;
     }
 
     const isValid = await argon2.verify(user.password, password);
     if (!isValid) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'ERR_INVALID_CREDENTIALS' });
       return;
     }
 
@@ -142,7 +142,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     await finalizeAuth(user, req, res);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -184,7 +184,7 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);
-    res.status(500).json({ error: 'Internal server error during logout' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR_DURING_LOGOUT' });
   }
 };
 
@@ -193,7 +193,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     const { refreshToken } = req.cookies;
 
     if (!refreshToken) {
-      res.status(401).json({ error: 'Refresh token required' });
+      res.status(401).json({ error: 'ERR_REFRESH_TOKEN_REQUIRED' });
       return;
     }
 
@@ -204,7 +204,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       if (!session) {
         res.clearCookie('accessToken');
         res.clearCookie('refreshToken');
-        res.status(401).json({ error: 'Session revoked or invalid' });
+        res.status(401).json({ error: 'ERR_SESSION_REVOKED_OR_INVALID' });
         return;
       }
     }
@@ -214,12 +214,12 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       include: { role: true }
     });
     if (!user) {
-      res.status(401).json({ error: 'Invalid refresh token' });
+      res.status(401).json({ error: 'ERR_INVALID_REFRESH_TOKEN' });
       return;
     }
 
     if (user.status === 'BANNED') {
-      res.status(403).json({ error: 'Account is banned' });
+      res.status(403).json({ error: 'ERR_ACCOUNT_IS_BANNED' });
       return;
     }
 
@@ -241,6 +241,6 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     console.error(error);
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
-    res.status(401).json({ error: 'Invalid or expired refresh token' });
+    res.status(401).json({ error: 'ERR_INVALID_OR_EXPIRED_REFRESH_TOKEN' });
   }
 };

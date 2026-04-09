@@ -48,7 +48,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
         window.location.href = '/';
       } else {
         const data = await verifyRes.json();
-        throw new Error(data.error || dict.auth.passkeyVerificationFailed);
+        throw new Error(dict.apiErrors?.[data.error] || data.error || dict.auth.passkeyVerificationFailed);
       }
     } catch (err) {
       const errorObj = err as Error;
@@ -80,7 +80,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
         window.location.href = '/';
       } else {
         const data = await res.json();
-        setError(data.error || dict.twoFactor.invalidTotpCode);
+        setError(dict.apiErrors?.[data.error] || data.error || dict.twoFactor.invalidTotpCode);
       }
     } catch (err) {
       setError(dict.auth.networkError);

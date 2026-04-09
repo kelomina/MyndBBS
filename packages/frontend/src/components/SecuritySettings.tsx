@@ -51,7 +51,7 @@ export function SecuritySettings() {
       const res = await fetch('/api/v1/user/passkey/generate-registration-options', { credentials: 'include' });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to generate passkey options');
+        throw new Error(dict.apiErrors?.[data.error] || data.error || 'Failed to generate passkey options');
       }
 
       const options = await res.json();
@@ -79,7 +79,7 @@ export function SecuritySettings() {
         fetchSecurityData(); // Refresh list
       } else {
         const verifyData = await verifyRes.json();
-        throw new Error(verifyData.error || dict.auth.passkeyVerificationFailed);
+        throw new Error((dict.apiErrors?.[verifyData.error] || verifyData.error) || dict.auth.passkeyVerificationFailed);
       }
     } catch (err) {
       const errorObj = err as Error;

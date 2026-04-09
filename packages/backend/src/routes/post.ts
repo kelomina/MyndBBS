@@ -48,7 +48,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<v
     });
     res.json(posts);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch posts' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_FETCH_POSTS' });
   }
 });
 
@@ -57,30 +57,30 @@ router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: Auth
     const { title, content, categoryId, captchaId } = req.body;
     
     if (!title || !content || !categoryId) {
-      res.status(400).json({ error: 'Title, content, and categoryId are required' });
+      res.status(400).json({ error: 'ERR_TITLE_CONTENT_AND_CATEGORYID_ARE_REQUIRED' });
       return;
     }
 
     if (!captchaId) {
-      res.status(400).json({ error: 'Captcha is required' });
+      res.status(400).json({ error: 'ERR_CAPTCHA_IS_REQUIRED' });
       return;
     }
 
     const challenge = await prisma.captchaChallenge.findUnique({ where: { id: captchaId } });
     if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
-      res.status(400).json({ error: 'Invalid or expired captcha' });
+      res.status(400).json({ error: 'ERR_INVALID_OR_EXPIRED_CAPTCHA' });
       return;
     }
     await prisma.captchaChallenge.delete({ where: { id: captchaId } });
 
     const category = await prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) {
-      res.status(404).json({ error: 'Category not found' });
+      res.status(404).json({ error: 'ERR_CATEGORY_NOT_FOUND' });
       return;
     }
     const currentUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
     if ((currentUser?.level || 1) < category.minLevel) {
-      res.status(403).json({ error: 'Insufficient level to post in this category' });
+      res.status(403).json({ error: 'ERR_INSUFFICIENT_LEVEL_TO_POST_IN_THIS_CATEGORY' });
       return;
     }
 
@@ -104,7 +104,7 @@ router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: Auth
     res.status(201).json(post);
   } catch (error) {
     console.error('Error creating post:', error);
-    res.status(500).json({ error: 'Failed to create post' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_CREATE_POST' });
   }
 });
 
@@ -133,14 +133,14 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response): Promis
     });
 
     if (!post) {
-      res.status(403).json({ error: 'Post not found or access denied' });
+      res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
       return;
     }
 
     res.json(post);
   } catch (error) {
     console.error('Error fetching post:', error);
-    res.status(500).json({ error: 'Failed to fetch post' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_FETCH_POST' });
   }
 });
 
@@ -160,7 +160,7 @@ router.get('/:id/interactions', requireAuth, async (req: AuthRequest, res: Respo
     });
 
     if (!post) {
-      res.status(403).json({ error: 'Post not found or access denied' });
+      res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
       return;
     }
 
@@ -179,7 +179,7 @@ router.get('/:id/interactions', requireAuth, async (req: AuthRequest, res: Respo
     });
   } catch (error) {
     console.error('Error fetching interactions:', error);
-    res.status(500).json({ error: 'Failed to fetch interaction status' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_FETCH_INTERACTION_STATUS' });
   }
 });
 
@@ -199,7 +199,7 @@ router.post('/:id/upvote', requireAuth, async (req: AuthRequest, res: Response):
     });
 
     if (!post) {
-      res.status(403).json({ error: 'Post not found or access denied' });
+      res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
       return;
     }
 
@@ -220,7 +220,7 @@ router.post('/:id/upvote', requireAuth, async (req: AuthRequest, res: Response):
     }
   } catch (error) {
     console.error('Error toggling upvote:', error);
-    res.status(500).json({ error: 'Failed to toggle upvote' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_UPVOTE' });
   }
 });
 
@@ -240,7 +240,7 @@ router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response
     });
 
     if (!post) {
-      res.status(403).json({ error: 'Post not found or access denied' });
+      res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
       return;
     }
 
@@ -261,7 +261,7 @@ router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response
     }
   } catch (error) {
     console.error('Error toggling bookmark:', error);
-    res.status(500).json({ error: 'Failed to toggle bookmark' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_BOOKMARK' });
   }
 });
 
@@ -281,7 +281,7 @@ router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response
     });
 
     if (!post) {
-      res.status(403).json({ error: 'Post not found or access denied' });
+      res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
       return;
     }
 
@@ -332,7 +332,7 @@ router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response
     res.json(formattedComments);
   } catch (error) {
     console.error('Error fetching comments:', error);
-    res.status(500).json({ error: 'Failed to fetch comments' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_FETCH_COMMENTS' });
   }
 });
 
@@ -343,18 +343,18 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
     const { content, parentId, captchaId } = req.body;
 
     if (!content) {
-      res.status(400).json({ error: 'Comment content is required' });
+      res.status(400).json({ error: 'ERR_COMMENT_CONTENT_IS_REQUIRED' });
       return;
     }
 
     if (!captchaId) {
-      res.status(400).json({ error: 'Captcha is required' });
+      res.status(400).json({ error: 'ERR_CAPTCHA_IS_REQUIRED' });
       return;
     }
 
     const challenge = await prisma.captchaChallenge.findUnique({ where: { id: captchaId } });
     if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
-      res.status(400).json({ error: 'Invalid or expired captcha' });
+      res.status(400).json({ error: 'ERR_INVALID_OR_EXPIRED_CAPTCHA' });
       return;
     }
     await prisma.captchaChallenge.delete({ where: { id: captchaId } });
@@ -369,14 +369,14 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
     });
 
     if (!post) {
-      res.status(403).json({ error: 'Post not found or access denied' });
+      res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
       return;
     }
 
     if (parentId) {
       const parentComment = await prisma.comment.findUnique({ where: { id: parentId } });
       if (!parentComment || parentComment.postId !== postId) {
-        res.status(400).json({ error: 'Invalid parent comment' });
+        res.status(400).json({ error: 'ERR_INVALID_PARENT_COMMENT' });
         return;
       }
     }
@@ -401,7 +401,7 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
     res.status(201).json({ ...comment, hasUpvoted: false, hasBookmarked: false });
   } catch (error) {
     console.error('Error creating comment:', error);
-    res.status(500).json({ error: 'Failed to create comment' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_CREATE_COMMENT' });
   }
 });
 
@@ -411,18 +411,18 @@ router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: Au
     const { title, content, categoryId } = req.body;
     
     if (!title || !content || !categoryId) {
-      res.status(400).json({ error: 'Title, content, and categoryId are required' });
+      res.status(400).json({ error: 'ERR_TITLE_CONTENT_AND_CATEGORYID_ARE_REQUIRED' });
       return;
     }
 
     const category = await prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) {
-      res.status(404).json({ error: 'Category not found' });
+      res.status(404).json({ error: 'ERR_CATEGORY_NOT_FOUND' });
       return;
     }
     const currentUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
     if ((currentUser?.level || 1) < category.minLevel) {
-      res.status(403).json({ error: 'Insufficient level to post in this category' });
+      res.status(403).json({ error: 'ERR_INSUFFICIENT_LEVEL_TO_POST_IN_THIS_CATEGORY' });
       return;
     }
 
@@ -432,13 +432,13 @@ router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: Au
     });
 
     if (!post) {
-      res.status(404).json({ error: 'Post not found' });
+      res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
       return;
     }
 
     // Instance-level authorization check
     if (!req.ability?.can('update', subject('Post', post as any))) {
-      res.status(403).json({ error: 'Forbidden: Insufficient permissions to edit this post' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_EDIT_THIS_POST' });
       return;
     }
 
@@ -454,7 +454,7 @@ router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: Au
     res.json(updatedPost);
   } catch (error) {
     console.error('Error updating post:', error);
-    res.status(500).json({ error: 'Failed to update post' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_POST' });
   }
 });
 
@@ -467,13 +467,13 @@ router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req:
     });
 
     if (!post) {
-      res.status(404).json({ error: 'Post not found' });
+      res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
       return;
     }
 
     // Instance-level authorization check
     if (!req.ability?.can('delete', subject('Post', post as any))) {
-      res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete this post' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_DELETE_THIS_POST' });
       return;
     }
 
@@ -483,7 +483,7 @@ router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req:
     ]);
     res.json({ message: 'Post and its comments deleted' });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete post' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_POST' });
   }
 });
 
@@ -493,7 +493,7 @@ router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Commen
     const { content } = req.body;
     
     if (!content) {
-      res.status(400).json({ error: 'Content is required' });
+      res.status(400).json({ error: 'ERR_CONTENT_IS_REQUIRED' });
       return;
     }
 
@@ -503,13 +503,13 @@ router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Commen
     });
 
     if (!comment) {
-      res.status(404).json({ error: 'Comment not found' });
+      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
       return;
     }
 
     // Instance-level authorization check
     if (!req.ability?.can('update', subject('Comment', comment as any))) {
-      res.status(403).json({ error: 'Forbidden: Insufficient permissions to edit this comment' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_EDIT_THIS_COMMENT' });
       return;
     }
 
@@ -524,7 +524,7 @@ router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Commen
 
     res.json(updatedComment);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update comment' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_COMMENT' });
   }
 });
 
@@ -538,20 +538,20 @@ router.delete('/comments/:commentId', requireAuth, requireAbility('delete', 'Com
     });
 
     if (!comment) {
-      res.status(404).json({ error: 'Comment not found' });
+      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
       return;
     }
 
     // Instance-level authorization check
     if (!req.ability?.can('delete', subject('Comment', comment as any))) {
-      res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete this comment' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_DELETE_THIS_COMMENT' });
       return;
     }
 
     await prisma.comment.update({ where: { id: commentId }, data: { deletedAt: new Date() } });
     res.json({ message: 'Comment deleted' });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete comment' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_COMMENT' });
   }
 });
 
@@ -567,13 +567,13 @@ router.post('/comments/:commentId/upvote', requireAuth, async (req: AuthRequest,
     });
 
     if (!comment) {
-      res.status(404).json({ error: 'Comment not found' });
+      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
       return;
     }
 
     // Verify user can read the post this comment belongs to
     if (!req.ability?.can('read', subject('Post', comment.post as any))) {
-      res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN' });
       return;
     }
 
@@ -594,7 +594,7 @@ router.post('/comments/:commentId/upvote', requireAuth, async (req: AuthRequest,
     }
   } catch (error) {
     console.error('Error toggling comment upvote:', error);
-    res.status(500).json({ error: 'Failed to toggle comment upvote' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_COMMENT_UPVOTE' });
   }
 });
 
@@ -610,13 +610,13 @@ router.post('/comments/:commentId/bookmark', requireAuth, async (req: AuthReques
     });
 
     if (!comment) {
-      res.status(404).json({ error: 'Comment not found' });
+      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
       return;
     }
 
     // Verify user can read the post this comment belongs to
     if (!req.ability?.can('read', subject('Post', comment.post as any))) {
-      res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN' });
       return;
     }
 
@@ -637,7 +637,7 @@ router.post('/comments/:commentId/bookmark', requireAuth, async (req: AuthReques
     }
   } catch (error) {
     console.error('Error toggling comment bookmark:', error);
-    res.status(500).json({ error: 'Failed to toggle comment bookmark' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK' });
   }
 });
 

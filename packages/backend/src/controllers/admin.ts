@@ -27,7 +27,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
   });
 
   if (!currentUser) {
-    res.status(404).json({ error: 'User not found' });
+    res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
     return;
   }
 
@@ -35,7 +35,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
 
   if (level !== undefined) {
     if (level < 1 || level > 6) {
-      res.status(400).json({ error: 'Level must be between 1 and 6' });
+      res.status(400).json({ error: 'ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6' });
       return;
     }
     finalUser = await prisma.user.update({
@@ -48,13 +48,13 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
 
   if (role) {
     if (!['USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN'].includes(role)) {
-      res.status(400).json({ error: 'Invalid role' });
+      res.status(400).json({ error: 'ERR_INVALID_ROLE' });
       return;
     }
     
     const roleRecord = await prisma.role.findUnique({ where: { name: role } });
     if (!roleRecord) {
-      res.status(400).json({ error: 'Role not found in database' });
+      res.status(400).json({ error: 'ERR_ROLE_NOT_FOUND_IN_DATABASE' });
       return;
     }
 
@@ -71,12 +71,12 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
     // Prevent managing users with equal or higher roles than the operator
     const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
     if (currentRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
-      res.status(403).json({ error: 'Forbidden: Cannot manage user with equal or higher role' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE' });
       return;
     }
 
     if (newRoleLevel > operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
-      res.status(403).json({ error: 'Forbidden: Cannot grant a role higher than your own' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_GRANT_A_ROLE_HIGHER_THAN_YOUR_OWN' });
       return;
     }
 
@@ -145,13 +145,13 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
   const operatorId = req.user?.userId || 'unknown';
 
   if (!['ACTIVE', 'BANNED', 'PENDING'].includes(status)) {
-    res.status(400).json({ error: 'Invalid status' });
+    res.status(400).json({ error: 'ERR_INVALID_STATUS' });
     return;
   }
 
   const targetUser = await prisma.user.findUnique({ where: { id }, include: { role: true } });
   if (!targetUser) {
-    res.status(404).json({ error: 'User not found' });
+    res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
     return;
   }
 
@@ -160,7 +160,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
   const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
 
   if (targetRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
-    res.status(403).json({ error: 'Forbidden: Cannot manage user with equal or higher role' });
+    res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE' });
     return;
   }
 
@@ -241,7 +241,7 @@ export const assignCategoryModerator = async (req: AuthRequest, res: Response): 
       include: { role: true }
     });
     if (!user || user.role?.name !== 'MODERATOR') {
-      res.status(400).json({ error: 'User not found or is not a MODERATOR' });
+      res.status(400).json({ error: 'ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR' });
       return;
     }
 
@@ -257,7 +257,7 @@ export const assignCategoryModerator = async (req: AuthRequest, res: Response): 
 
     res.json({ message: 'Moderator assigned', assignment });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'ERR_SERVER_ERROR' });
   }
 };
 
@@ -277,7 +277,7 @@ export const removeCategoryModerator = async (req: AuthRequest, res: Response): 
 
     res.json({ message: 'Moderator removed' });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'ERR_SERVER_ERROR' });
   }
 };
 
@@ -286,7 +286,7 @@ export const getPosts = async (req: AuthRequest, res: Response) => {
   const { accessibleBy } = await import('@casl/prisma');
   
   if (!req.ability) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
     return;
   }
 
@@ -304,19 +304,19 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
   const operatorId = req.user?.userId || 'unknown';
 
   if (!['PUBLISHED', 'HIDDEN', 'PINNED'].includes(status)) {
-    res.status(400).json({ error: 'Invalid status' });
+    res.status(400).json({ error: 'ERR_INVALID_STATUS' });
     return;
   }
 
   const existingPost = await prisma.post.findUnique({ where: { id } });
   if (!existingPost) {
-    res.status(404).json({ error: 'Post not found' });
+    res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
     return;
   }
 
   const { subject } = await import('@casl/ability');
   if (!req.ability?.can('update_status', subject('Post', existingPost as any))) {
-    res.status(403).json({ error: 'Forbidden: Insufficient permissions to manage this post' });
+    res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST' });
     return;
   }
 

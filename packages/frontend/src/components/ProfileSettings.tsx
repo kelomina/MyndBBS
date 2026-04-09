@@ -64,7 +64,7 @@ export function ProfileSettings() {
         setProfile(data.user);
         setPassword('');
       } else {
-        setError(data.error || dict.settings.failedUpdateProfile);
+        setError(dict.apiErrors?.[data.error] || data.error || dict.settings.failedUpdateProfile);
       }
     } catch (err) {
       setError(dict.auth.networkError);
