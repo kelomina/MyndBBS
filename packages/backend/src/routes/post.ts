@@ -370,6 +370,48 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
   }
 });
 
+router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const postId = req.params.id as string;
+    const { title, content, categoryId } = req.body;
+    
+    if (!title || !content || !categoryId) {
+      res.status(400).json({ error: 'Title, content, and categoryId are required' });
+      return;
+    }
+
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: { category: true }
+    });
+
+    if (!post) {
+      res.status(404).json({ error: 'Post not found' });
+      return;
+    }
+
+    // Instance-level authorization check
+    if (!req.ability?.can('update', subject('Post', post as any))) {
+      res.status(403).json({ error: 'Forbidden: Insufficient permissions to edit this post' });
+      return;
+    }
+
+    const updatedPost = await prisma.post.update({
+      where: { id: postId },
+      data: { title, content, categoryId },
+      include: {
+        author: { select: { id: true, username: true } },
+        category: { select: { id: true, name: true, description: true } }
+      }
+    });
+
+    res.json(updatedPost);
+  } catch (error) {
+    console.error('Error updating post:', error);
+    res.status(500).json({ error: 'Failed to update post' });
+  }
+});
+
 router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const postId = req.params.id as string;
@@ -393,6 +435,47 @@ router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req:
     res.json({ message: 'Post deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Comment'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const commentId = req.params.commentId as string;
+    const { content } = req.body;
+    
+    if (!content) {
+      res.status(400).json({ error: 'Content is required' });
+      return;
+    }
+
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { post: true }
+    });
+
+    if (!comment) {
+      res.status(404).json({ error: 'Comment not found' });
+      return;
+    }
+
+    // Instance-level authorization check
+    if (!req.ability?.can('update', subject('Comment', comment as any))) {
+      res.status(403).json({ error: 'Forbidden: Insufficient permissions to edit this comment' });
+      return;
+    }
+
+    const updatedComment = await prisma.comment.update({
+      where: { id: commentId },
+      data: { content },
+      include: {
+        author: { select: { id: true, username: true } },
+        _count: { select: { upvotes: true, bookmarks: true, replies: true } }
+      }
+    });
+
+    res.json(updatedComment);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update comment' });
   }
 });
 
