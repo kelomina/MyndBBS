@@ -1,24 +1,42 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowBigUp, Bookmark, Share } from 'lucide-react';
+import { ArrowBigUp, Bookmark, Share, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export function PostActions({ 
   postId, 
   initialUpvotes, 
-  initialBookmarks 
+  initialBookmarks,
+  authorUsername
 }: { 
   postId: string, 
   initialUpvotes: number, 
-  initialBookmarks: number 
+  initialBookmarks: number,
+  authorUsername: string
 }) {
   const [upvotes, setUpvotes] = useState(initialUpvotes);
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [hasBookmarked, setHasBookmarked] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
+    // Fetch current user
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentUser(data.user);
+        }
+      } catch (err) {}
+    };
+    fetchUser();
+
     // Check initial interaction status
     const checkInteractions = async () => {
       try {
@@ -92,6 +110,37 @@ export function PostActions({
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this post?')) return;
+    if (loading) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        alert('Post deleted successfully');
+        router.push('/');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete post');
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('Failed to delete post');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const canDelete = currentUser && (
+    currentUser.username === authorUsername ||
+    currentUser.role === 'ADMIN' ||
+    currentUser.role === 'SUPER_ADMIN' ||
+    currentUser.role === 'MODERATOR'
+  );
+
   return (
     <div className="flex items-center justify-between border-t border-border pt-4">
       <div className="flex items-center space-x-6 text-muted">
@@ -118,6 +167,16 @@ export function PostActions({
         >
           <Share className="h-5 w-5" />
         </button>
+        {canDelete && (
+          <button 
+            onClick={handleDelete}
+            disabled={loading}
+            className="transition-colors hover:text-red-500"
+            title="Delete Post"
+          >
+            <Trash2 className="h-5 w-5" />
+          </button>
+        )}
       </div>
     </div>
   );

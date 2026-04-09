@@ -122,7 +122,9 @@
     "appearance": "外观",
     "notifications": "通知",
     "adminDashboard": "管理面板",
-    "commentOn": "评论于："
+    "commentOn": "评论于：",
+    "commentDeleted": "此评论已被删除",
+    "postDeleted": "此帖子已被删除"
   },
   "settings": {
     "loadingProfile": "加载资料中...",

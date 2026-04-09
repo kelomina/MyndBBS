@@ -12,8 +12,23 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(initialCount);
   const [replyTo, setReplyTo] = useState<{ id: string, username: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
+    // Fetch current user
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentUser(data.user);
+        }
+      } catch (err) {}
+    };
+    fetchUser();
+    
     const fetchComments = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/comments`, {
@@ -93,9 +108,33 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     return roots;
   }, [comments]);
 
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('Are you sure you want to delete this comment?')) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/comments/${commentId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setComments(comments.map(c => c.id === commentId ? { ...c, deletedAt: new Date().toISOString() } : c));
+      } else {
+        alert('Failed to delete comment');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete comment');
+    }
+  };
+
   const renderCommentNode = (node: any, depth = 0) => (
     <div key={node.id} className={`${depth > 0 ? 'ml-8 mt-4 border-l-2 border-border pl-4' : 'mt-4'}`}>
-      <CommentItem comment={node} dict={dict} onReply={handleReply} />
+      <CommentItem 
+        comment={node} 
+        dict={dict} 
+        onReply={handleReply} 
+        onDelete={() => handleDeleteComment(node.id)}
+        currentUser={currentUser}
+      />
       {node.children && node.children.length > 0 && (
         <div className="space-y-4">
           {node.children.map((child: any) => renderCommentNode(child, depth + 1))}

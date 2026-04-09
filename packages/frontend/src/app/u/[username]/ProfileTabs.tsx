@@ -110,6 +110,19 @@ export function ProfileTabs({
           ) : (
             bookmarks.map((item: any) => {
               if (item.type === 'comment') {
+                const isDeleted = item.deletedAt != null;
+                
+                if (isDeleted) {
+                  return (
+                    <div key={`comment-${item.id}`} className="rounded-xl bg-muted/30 p-5 shadow-sm border border-border/50 opacity-70">
+                      <div className="flex flex-col py-2 text-muted">
+                        <p className="text-sm font-medium">{dict.profile?.commentDeleted || 'This comment has been deleted.'}</p>
+                        <span className="text-xs mt-2">{new Date(item.bookmarkedAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={`comment-${item.id}`} className="rounded-xl bg-card p-5 shadow-sm border border-border/50 transition-shadow hover:shadow-md cursor-pointer">
                     <Link href={`/p/${item.postId}#comment-${item.id}`}>
@@ -129,6 +142,19 @@ export function ProfileTabs({
               }
               
               // Post bookmark
+              const isDeleted = item.status === 'DELETED';
+              
+              if (isDeleted) {
+                return (
+                  <div key={`post-${item.id}`} className="rounded-xl bg-muted/30 p-5 shadow-sm border border-border/50 opacity-70">
+                    <div className="flex flex-col py-2 text-muted">
+                      <p className="text-sm font-medium">{dict.profile?.postDeleted || 'This post has been deleted.'}</p>
+                      <span className="text-xs mt-2">{new Date(item.bookmarkedAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}</span>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div key={`post-${item.id}`} className="rounded-xl bg-card p-5 shadow-sm border border-border/50 transition-shadow hover:shadow-md cursor-pointer">
                   <Link href={`/p/${item.id}`}>

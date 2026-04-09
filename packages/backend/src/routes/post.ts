@@ -263,7 +263,12 @@ router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response
     }
 
     const comments = await prisma.comment.findMany({
-      where: { postId },
+      where: {
+        AND: [
+          { postId },
+          accessibleBy(req.ability!).Comment
+        ]
+      },
       orderBy: { createdAt: 'asc' },
       include: {
         author: {
@@ -384,10 +389,37 @@ router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req:
       return;
     }
 
-    await prisma.post.delete({ where: { id: postId } });
+    await prisma.post.update({ where: { id: postId }, data: { status: 'DELETED' } });
     res.json({ message: 'Post deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+router.delete('/comments/:commentId', requireAuth, requireAbility('delete', 'Comment'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const commentId = req.params.commentId as string;
+    
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { post: true }
+    });
+
+    if (!comment) {
+      res.status(404).json({ error: 'Comment not found' });
+      return;
+    }
+
+    // Instance-level authorization check
+    if (!req.ability?.can('delete', subject('Comment', comment as any))) {
+      res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete this comment' });
+      return;
+    }
+
+    await prisma.comment.update({ where: { id: commentId }, data: { deletedAt: new Date() } });
+    res.json({ message: 'Comment deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
 

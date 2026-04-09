@@ -77,6 +77,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
               postId={post.id} 
               initialUpvotes={post._count?.upvotes || 0} 
               initialBookmarks={post._count?.bookmarks || 0} 
+              authorUsername={post.author?.username}
             />
           </article>
 

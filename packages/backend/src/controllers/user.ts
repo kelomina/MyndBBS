@@ -53,8 +53,7 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
 
     const postBookmarks = await prisma.bookmark.findMany({
       where: { 
-        userId,
-        post: accessibleBy(req.ability!).Post
+        userId
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -69,17 +68,14 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
 
     const commentBookmarks = await prisma.commentBookmark.findMany({
       where: {
-        userId,
-        comment: {
-          post: accessibleBy(req.ability!).Post
-        }
+        userId
       },
       orderBy: { createdAt: 'desc' },
       include: {
         comment: {
           include: {
             author: { select: { id: true, username: true } },
-            post: { select: { id: true, title: true } }
+            post: { select: { id: true, title: true, status: true } }
           }
         }
       }
