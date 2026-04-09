@@ -56,7 +56,12 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
                   </div>
                   <div>
                     <div className="font-medium text-foreground">{post.author?.username || 'Unknown'}</div>
-                    <div className="text-xs">{new Date(post.createdAt).toLocaleString()}</div>
+                    <div className="text-xs">
+                      {new Date(post.createdAt).toLocaleString()}
+                      {post.updatedAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 1000 && (
+                        <span className="ml-2 text-muted-foreground italic">({dict.post?.edited || 'Edited'}: {new Date(post.updatedAt).toLocaleString()})</span>
+                      )}
+                    </div>
                   </div>
                 </Link>
               </div>

@@ -531,7 +531,7 @@ export const getPublicProfile = async (req: AuthRequest, res: Response): Promise
           },
           orderBy: { createdAt: 'desc' }
         },
-        _count: { select: { posts: true } }
+        _count: { select: { posts: { where: accessibleBy(req.ability!).Post } } }
       }
     });
 
