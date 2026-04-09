@@ -16,17 +16,15 @@ import { optionalAuth } from '../middleware/auth';
 
 const router: Router = Router();
 
-// Utility to get the best possible IP address without blindly trusting the first X-Forwarded-For entry
-// X-Forwarded-For format: client, proxy1, proxy2... 
-// The most reliable IP that the proxy connected to us with is typically the last one in the chain, 
-// or req.socket.remoteAddress if no proxy is used/trusted.
+// Utility to get the best possible IP address without relying on Express's trust proxy settings.
+// In a typical proxy chain, the first IP added to X-Forwarded-For is the real client IP.
+// Format: client, proxy1, proxy2...
 const getClientIp = (req: Request): string => {
   const xForwardedFor = req.headers['x-forwarded-for'];
   if (xForwardedFor) {
     const ips = (typeof xForwardedFor === 'string' ? xForwardedFor : xForwardedFor[0]).split(',').map(ip => ip.trim());
-    // If the proxy chain is provided, we take the last IP in the chain (the one closest to our server)
-    // to prevent IP spoofing by clients providing their own X-Forwarded-For headers.
-    return ips[ips.length - 1];
+    // We take the FIRST IP in the chain, which represents the original client's IP.
+    return ips[0];
   }
   return req.socket.remoteAddress || req.ip || 'unknown';
 };
