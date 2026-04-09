@@ -66,8 +66,8 @@ export function ProfileTabs({
     e.stopPropagation();
     try {
       const endpoint = type === 'post' 
-        ? `/api/v1/post/${id}/bookmark` 
-        : `/api/v1/post/comments/${id}/bookmark`;
+        ? `/api/posts/${id}/bookmark` 
+        : `/api/posts/comments/${id}/bookmark`;
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${endpoint}`, {
         method: 'POST',
         credentials: 'include'
