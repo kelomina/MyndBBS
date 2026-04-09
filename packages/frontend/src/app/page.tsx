@@ -4,6 +4,7 @@ import { MessageSquare, ArrowBigUp } from "lucide-react";
 import { Locale, defaultLocale } from "../i18n/config";
 import { getDictionary } from "../i18n/get-dictionary";
 import Link from 'next/link';
+
 import { AutoRefresh } from "../components/AutoRefresh";
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,7 @@ export default async function Home() {
         <div className="mx-auto max-w-3xl space-y-4">
           {posts.length === 0 ? (
             <div className="text-center text-muted py-10">
-              No posts found.
+              {dict.category?.noPostsFoundGeneral || "No posts found."}
             </div>
           ) : (
             posts.map((post: any) => (
