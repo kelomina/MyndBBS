@@ -14,7 +14,7 @@ MyndBBS 目标是提供一个稳定、高性能、易扩展的论坛系统基础
 
 - 前端：Next.js 16（App Router）+ React 19 + TypeScript + i18n
 - 后端：Node.js + Express + TypeScript + Redis
-- 数据访问：Prisma（生产环境 PostgreSQL，测试/开发过渡期使用 SQLite）
+- 数据访问：Prisma（PostgreSQL）
 - 权限控制：CASL（基于属性的访问控制 ABAC）
 - 共享层：前后端共享类型、常量、校验工具（`@myndbbs/shared`）
 
@@ -139,7 +139,7 @@ MyndBBS is a modern, enterprise-oriented open-source forum (BBS) project built w
 
 - Frontend: Next.js 16 (App Router) + React 19 + TypeScript + i18n
 - Backend: Node.js + Express + TypeScript + Redis
-- Data access: Prisma (PostgreSQL for production, SQLite for dev/testing transition)
+- Data access: Prisma (PostgreSQL)
 - Access Control: CASL (Attribute-Based Access Control - ABAC)
 - Shared layer: shared types/constants/validators via `@myndbbs/shared`
 
