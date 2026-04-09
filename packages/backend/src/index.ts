@@ -4,61 +4,84 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 // Force load .env from the current backend directory explicitly, regardless of cwd
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
-
-import { APP_NAME } from '@myndbbs/shared';
-import authRoutes from './routes/auth';
-import adminRoutes from './routes/admin';
-import userRoutes from './routes/user';
-import postRoutes from './routes/post';
-import categoryRoutes from './routes/category';
-
-if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
-  throw new Error('JWT_SECRET and JWT_REFRESH_SECRET environment variables are not set. Please set them in your .env file or environment.');
+const envPath = path.resolve(__dirname, '../.env');
+if (!fs.existsSync(envPath)) {
+  fs.writeFileSync(envPath, '');
 }
-
-if (process.env.JWT_SECRET === process.env.JWT_REFRESH_SECRET) {
-  throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be different.');
-}
+dotenv.config({ path: envPath });
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Trust the reverse proxy to ensure req.ip is correct for rate limiting
-// Only trust proxy if explicitly configured (e.g. behind Nginx)
-if (process.env.TRUST_PROXY === 'true') {
-  app.set('trust proxy', 1);
-} else {
-  app.set('trust proxy', false);
-}
-
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',');
-app.use(cors({ 
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  }, 
-  credentials: true 
-}));
-app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', app: APP_NAME });
-});
+const isInstalled = process.env.INSTALL_LOCKED === 'true';
 
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/user', userRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/categories', categoryRoutes);
+if (!isInstalled) {
+  // Install Mode
+  const installModule = require('./routes/install');
+  app.use('/install', installModule.default);
+  
+  // Redirect all other requests to the installer
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/install')) return next();
+    res.redirect('/install');
+  });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+  app.listen(port, () => {
+    console.log(`Setup server running. Please visit http://localhost:${port}/install to configure the system.`);
+  });
+} else {
+  // Normal Mode
+  if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_SECRET and JWT_REFRESH_SECRET environment variables are not set. Please set them in your .env file or environment.');
+  }
+
+  if (process.env.JWT_SECRET === process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be different.');
+  }
+
+  if (process.env.TRUST_PROXY === 'true') {
+    app.set('trust proxy', 1);
+  } else {
+    app.set('trust proxy', false);
+  }
+
+  const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',');
+  app.use(cors({ 
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }, 
+    credentials: true 
+  }));
+  app.use(helmet());
+
+  const { APP_NAME } = require('@myndbbs/shared');
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', app: APP_NAME });
+  });
+
+  const authRoutes = require('./routes/auth').default;
+  const userRoutes = require('./routes/user').default;
+  const adminRoutes = require('./routes/admin').default;
+  const postRoutes = require('./routes/post').default;
+  const categoryRoutes = require('./routes/category').default;
+
+  app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/user', userRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/posts', postRoutes);
+  app.use('/api/categories', categoryRoutes);
+
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
+}
