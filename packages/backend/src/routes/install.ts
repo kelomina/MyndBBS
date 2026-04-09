@@ -15,82 +15,247 @@ let installToken = '';
 router.get('/', (req: Request, res: Response) => {
   res.send(`
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>MyndBBS Installation</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
       <style>
-        body { font-family: system-ui; max-width: 600px; margin: 40px auto; padding: 20px; background: #f9fafb; }
-        .card { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h1 { color: #111827; }
-        label { display: block; margin-top: 12px; font-weight: bold; font-size: 14px; }
-        input { width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; }
-        button { margin-top: 20px; background: #2563eb; color: white; padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; }
-        button:hover { background: #1d4ed8; }
-        .hidden { display: none; }
-        .error { color: #dc2626; margin-top: 12px; font-size: 14px; }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .step-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .step-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       </style>
     </head>
-    <body>
-      <h1>MyndBBS Setup</h1>
-      
-      <div id="step1" class="card">
-        <h2>Step 1: Environment Configuration</h2>
-        <form id="envForm">
-          <label>Database URL (PostgreSQL)</label>
-          <input type="text" id="dbUrl" placeholder="postgresql://user:pass@localhost:5432/mydb?schema=public" required>
-          
-          <label>Port</label>
-          <input type="number" id="port" value="3001" required>
-          
-          <label>Frontend URL</label>
-          <input type="url" id="frontendUrl" value="http://localhost:3000" required>
-          
-          <label>Upload Directory Path</label>
-          <input type="text" id="uploadDir" value="./uploads" required>
-          
-          <label>Website Root Directory</label>
-          <input type="text" id="webRoot" value="/" required>
-          
-          <button type="submit">Save & Initialize Database</button>
-          <div id="envError" class="error"></div>
-        </form>
-      </div>
+    <body class="min-h-screen flex items-center justify-center p-4">
+      <div class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gray-900 px-8 py-6 text-white text-center">
+          <h1 class="text-3xl font-bold tracking-tight">MyndBBS Setup</h1>
+          <p class="text-gray-400 mt-2 text-sm">Configure your new forum infrastructure</p>
+        </div>
 
-      <div id="step2" class="card hidden">
-        <h2>Step 2: Admin Account Setup</h2>
-        <p style="font-size: 14px; color: #4b5563;">A temporary root account has been created for this setup phase.</p>
-        <form id="adminForm">
-          <label>Admin Username</label>
-          <input type="text" id="adminUser" required>
-          
-          <label>Admin Email</label>
-          <input type="email" id="adminEmail" required>
-          
-          <label>Admin Password</label>
-          <input type="password" id="adminPass" required>
-          
-          <button type="submit">Create Admin & Finish</button>
-          <div id="adminError" class="error"></div>
-        </form>
+        <!-- Progress Bar -->
+        <div class="bg-gray-50 border-b border-gray-200 px-8 py-4">
+          <div class="flex items-center justify-between relative">
+            <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-gray-200 rounded"></div>
+            <div id="progress-bar" class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-blue-600 rounded transition-all duration-300" style="width: 0%"></div>
+            
+            <div class="relative z-10 flex flex-col items-center">
+              <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm border-4 border-white">1</div>
+              <span class="text-xs font-medium text-gray-900 mt-1">Welcome</span>
+            </div>
+            <div class="relative z-10 flex flex-col items-center">
+              <div id="indicator-2" class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold text-sm border-4 border-white transition-colors duration-300">2</div>
+              <span id="label-2" class="text-xs font-medium text-gray-500 mt-1 transition-colors duration-300">Database</span>
+            </div>
+            <div class="relative z-10 flex flex-col items-center">
+              <div id="indicator-3" class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold text-sm border-4 border-white transition-colors duration-300">3</div>
+              <span id="label-3" class="text-xs font-medium text-gray-500 mt-1 transition-colors duration-300">App</span>
+            </div>
+            <div class="relative z-10 flex flex-col items-center">
+              <div id="indicator-4" class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold text-sm border-4 border-white transition-colors duration-300">4</div>
+              <span id="label-4" class="text-xs font-medium text-gray-500 mt-1 transition-colors duration-300">Admin</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-8 py-8">
+          <!-- Step 1: Welcome -->
+          <div id="step-1" class="step-content active">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Welcome to MyndBBS</h2>
+            <p class="text-gray-600 mb-6 leading-relaxed">This installation wizard will guide you through setting up your PostgreSQL database, configuring application environments, and creating your initial super admin account.</p>
+            <button onclick="nextStep(2)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">Start Installation</button>
+          </div>
+
+          <!-- Step 2: Database -->
+          <div id="step-2" class="step-content">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Database Configuration</h2>
+            <form id="dbForm" onsubmit="handleDbSubmit(event)">
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Host / IP</label>
+                  <input type="text" id="dbHost" value="localhost" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                  <input type="number" id="dbPort" value="5432" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                </div>
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Database Name</label>
+                <input type="text" id="dbName" value="myndbbs" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+              </div>
+              <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <input type="text" id="dbUser" value="postgres" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input type="password" id="dbPass" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                </div>
+              </div>
+              <div class="flex justify-between items-center">
+                <button type="button" onclick="prevStep(1)" class="text-gray-600 hover:text-gray-900 font-medium py-2 px-4">Back</button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors">Next Step</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 3: Application Settings -->
+          <div id="step-3" class="step-content">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Application Settings</h2>
+            <form id="appForm" onsubmit="handleAppSubmit(event)">
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Backend Port</label>
+                  <input type="number" id="appPort" value="3001" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Frontend URL</label>
+                  <input type="url" id="frontendUrl" value="http://localhost:3000" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                </div>
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Directory Path</label>
+                <input type="text" id="uploadDir" value="./uploads" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+              </div>
+              <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Website Root Directory</label>
+                <input type="text" id="webRoot" value="/" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+              </div>
+              <div id="initError" class="text-red-600 text-sm mb-4 hidden bg-red-50 p-3 rounded-lg border border-red-200"></div>
+              <div class="flex justify-between items-center">
+                <button type="button" onclick="prevStep(2)" class="text-gray-600 hover:text-gray-900 font-medium py-2 px-4">Back</button>
+                <button type="submit" id="initBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center justify-center min-w-[160px]">
+                  <span id="initBtnText">Initialize Database</span>
+                  <svg id="initBtnSpinner" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 4: Admin Account -->
+          <div id="step-4" class="step-content">
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Super Admin Setup</h2>
+            <p class="text-sm text-gray-500 mb-6">Database initialized successfully! Now create your administrator account.</p>
+            <form id="adminForm" onsubmit="handleAdminSubmit(event)">
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input type="text" id="adminUser" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="adminEmail" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+              </div>
+              <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" id="adminPass" required minlength="8" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+              </div>
+              <div id="adminError" class="text-red-600 text-sm mb-4 hidden bg-red-50 p-3 rounded-lg border border-red-200"></div>
+              <div class="flex justify-end items-center">
+                <button type="submit" id="adminBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center justify-center min-w-[160px]">
+                  <span id="adminBtnText">Finish Installation</span>
+                  <svg id="adminBtnSpinner" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 5: Complete -->
+          <div id="step-5" class="step-content text-center py-8">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Installation Complete!</h2>
+            <p class="text-gray-600 mb-6">The system has been configured and the backend is restarting. You can now close this page and visit your frontend.</p>
+            <a href="http://localhost:3000" id="goFrontend" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg transition-colors">Go to Forum</a>
+          </div>
+        </div>
       </div>
 
       <script>
-        let token = '';
+        let dbConfig = {};
+        let appConfig = {};
+        let installToken = '';
 
-        document.getElementById('envForm').addEventListener('submit', async (e) => {
+        function updateProgress(step) {
+          const progressMap = {1: '0%', 2: '33%', 3: '66%', 4: '100%'};
+          document.getElementById('progress-bar').style.width = progressMap[step];
+          
+          for(let i=2; i<=4; i++) {
+            const ind = document.getElementById('indicator-'+i);
+            const lbl = document.getElementById('label-'+i);
+            if (step >= i) {
+              ind.classList.remove('bg-gray-200', 'text-gray-500');
+              ind.classList.add('bg-blue-600', 'text-white');
+              lbl.classList.remove('text-gray-500');
+              lbl.classList.add('text-gray-900');
+            } else {
+              ind.classList.add('bg-gray-200', 'text-gray-500');
+              ind.classList.remove('bg-blue-600', 'text-white');
+              lbl.classList.add('text-gray-500');
+              lbl.classList.remove('text-gray-900');
+            }
+          }
+        }
+
+        function showStep(step) {
+          document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+          document.getElementById('step-' + step).classList.add('active');
+          if (step <= 4) updateProgress(step);
+        }
+
+        function nextStep(step) { showStep(step); }
+        function prevStep(step) { showStep(step); }
+
+        function handleDbSubmit(e) {
           e.preventDefault();
-          const btn = e.target.querySelector('button');
-          btn.textContent = 'Initializing... Please wait';
-          btn.disabled = true;
-          document.getElementById('envError').textContent = '';
+          dbConfig = {
+            host: document.getElementById('dbHost').value,
+            port: document.getElementById('dbPort').value,
+            name: document.getElementById('dbName').value,
+            user: document.getElementById('dbUser').value,
+            pass: document.getElementById('dbPass').value
+          };
+          nextStep(3);
+        }
+
+        async function handleAppSubmit(e) {
+          e.preventDefault();
+          appConfig = {
+            port: document.getElementById('appPort').value,
+            frontendUrl: document.getElementById('frontendUrl').value,
+            uploadDir: document.getElementById('uploadDir').value,
+            webRoot: document.getElementById('webRoot').value
+          };
+
+          // Construct DB URL securely
+          const { user, pass, host, port: dbPort, name } = dbConfig;
+          const encodedUser = encodeURIComponent(user);
+          const encodedPass = encodeURIComponent(pass);
+          const dbUrl = \`postgresql://\${encodedUser}:\${encodedPass}@\${host}:\${dbPort}/\${name}?schema=public\`;
 
           const payload = {
-            DATABASE_URL: document.getElementById('dbUrl').value,
-            PORT: document.getElementById('port').value,
-            FRONTEND_URL: document.getElementById('frontendUrl').value,
-            UPLOAD_DIR: document.getElementById('uploadDir').value,
-            WEB_ROOT: document.getElementById('webRoot').value
+            DATABASE_URL: dbUrl,
+            PORT: appConfig.port,
+            FRONTEND_URL: appConfig.frontendUrl,
+            UPLOAD_DIR: appConfig.uploadDir,
+            WEB_ROOT: appConfig.webRoot
           };
+
+          const btn = document.getElementById('initBtn');
+          const btnText = document.getElementById('initBtnText');
+          const spinner = document.getElementById('initBtnSpinner');
+          const errBox = document.getElementById('initError');
+
+          btn.disabled = true;
+          btnText.textContent = 'Initializing...';
+          spinner.classList.remove('hidden');
+          errBox.classList.add('hidden');
 
           try {
             const res = await fetch('/install/api/env', {
@@ -101,58 +266,74 @@ router.get('/', (req: Request, res: Response) => {
             const data = await res.json();
             
             if (res.ok) {
-              token = data.token;
-              document.getElementById('step1').classList.add('hidden');
-              document.getElementById('step2').classList.remove('hidden');
+              installToken = data.token;
+              document.getElementById('goFrontend').href = appConfig.frontendUrl;
+              nextStep(4);
             } else {
-              document.getElementById('envError').textContent = data.error || 'Failed to initialize';
-              btn.textContent = 'Save & Initialize Database';
+              errBox.textContent = data.error || 'Failed to initialize database';
+              errBox.classList.remove('hidden');
               btn.disabled = false;
+              btnText.textContent = 'Initialize Database';
+              spinner.classList.add('hidden');
             }
           } catch (err) {
-            document.getElementById('envError').textContent = err.message;
-            btn.textContent = 'Save & Initialize Database';
+            errBox.textContent = err.message;
+            errBox.classList.remove('hidden');
             btn.disabled = false;
-          }
-        });
+            btnText.textContent = 'Initialize Database';
+            spinner.classList.add('hidden');
+          } 
+        }
 
-        document.getElementById('adminForm').addEventListener('submit', async (e) => {
+        async function handleAdminSubmit(e) {
           e.preventDefault();
-          const btn = e.target.querySelector('button');
-          btn.textContent = 'Finishing...';
-          btn.disabled = true;
-          document.getElementById('adminError').textContent = '';
-
+          
           const payload = {
             username: document.getElementById('adminUser').value,
             email: document.getElementById('adminEmail').value,
             password: document.getElementById('adminPass').value
           };
 
+          const btn = document.getElementById('adminBtn');
+          const btnText = document.getElementById('adminBtnText');
+          const spinner = document.getElementById('adminBtnSpinner');
+          const errBox = document.getElementById('adminError');
+
+          btn.disabled = true;
+          btnText.textContent = 'Finishing...';
+          spinner.classList.remove('hidden');
+          errBox.classList.add('hidden');
+
+          let resOk = false;
           try {
             const res = await fetch('/install/api/admin', {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
+                'Authorization': 'Bearer ' + installToken
               },
               body: JSON.stringify(payload)
             });
             const data = await res.json();
             
             if (res.ok) {
-              document.getElementById('step2').innerHTML = '<h2>Installation Complete!</h2><p>The backend will now restart. You can close this page and start using the app.</p>';
+              resOk = true;
+              nextStep(5);
             } else {
-              document.getElementById('adminError').textContent = data.error || 'Failed to create admin';
-              btn.textContent = 'Create Admin & Finish';
-              btn.disabled = false;
+              errBox.textContent = data.error || 'Failed to create admin';
+              errBox.classList.remove('hidden');
             }
           } catch (err) {
-            document.getElementById('adminError').textContent = err.message;
-            btn.textContent = 'Create Admin & Finish';
-            btn.disabled = false;
+            errBox.textContent = err.message;
+            errBox.classList.remove('hidden');
+          } finally {
+            if (!resOk) {
+              btn.disabled = false;
+              btnText.textContent = 'Finish Installation';
+              spinner.classList.add('hidden');
+            }
           }
-        });
+        }
       </script>
     </body>
     </html>
@@ -190,7 +371,7 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
     exec('npx prisma db push', { cwd: path.resolve(__dirname, '../../') }, async (error, stdout, stderr) => {
       if (error) {
         console.error('Prisma Error:', stderr || error.message);
-        res.status(500).json({ error: 'Database initialization failed. Please check your DATABASE_URL.' });
+        res.status(500).json({ error: 'Database initialization failed. Please check your DATABASE credentials and ensure PostgreSQL is running.' });
         return;
       }
 
@@ -287,7 +468,7 @@ router.post('/api/admin', async (req: Request, res: Response): Promise<void> => 
 
   } catch (err: any) {
     console.error('Admin Creation Error:', err);
-    res.status(500).json({ error: 'Failed to create admin account. It may already exist.' });
+    res.status(500).json({ error: 'Failed to create admin account. Username or email may already exist.' });
   } finally {
     await prisma.$disconnect();
   }
