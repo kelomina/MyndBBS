@@ -218,15 +218,22 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
   res.json(category);
 };
 
-export const deleteCategory = async (req: AuthRequest, res: Response) => {
-  const id = req.params.id as string;
-  const operatorId = req.user?.userId || 'unknown';
+export const deleteCategory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const operatorId = req.user?.userId || 'unknown';
 
-  await prisma.category.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.post.deleteMany({ where: { categoryId: id } }),
+      prisma.category.delete({ where: { id } })
+    ]);
 
-  await logAudit(operatorId, 'DELETE_CATEGORY', `Category:${id}`);
+    await logAudit(operatorId, 'DELETE_CATEGORY', `Category:${id}`);
 
-  res.json({ message: 'Category deleted' });
+    res.json({ message: 'Category deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_CATEGORY' });
+  }
 };
 
 export const assignCategoryModerator = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -325,4 +332,173 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
   await logAudit(operatorId, 'UPDATE_POST_STATUS', `Post:${id} to ${status}`);
 
   res.json({ message: 'Post status updated', post });
+};
+
+// Recycle Bin
+export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
+  const { accessibleBy } = await import('@casl/prisma');
+  if (!req.ability) {
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+    return;
+  }
+  const posts = await prisma.post.findMany({
+    where: {
+      AND: [
+        accessibleBy(req.ability, 'manage').Post,
+        { status: 'DELETED' }
+      ]
+    },
+    include: { author: { select: { username: true } }, category: { select: { name: true } } },
+    orderBy: { updatedAt: 'desc' }
+  });
+  res.json(posts);
+};
+
+export const getDeletedComments = async (req: AuthRequest, res: Response) => {
+  const { accessibleBy } = await import('@casl/prisma');
+  if (!req.ability) {
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+    return;
+  }
+  const comments = await prisma.comment.findMany({
+    where: {
+      AND: [
+        accessibleBy(req.ability, 'manage').Comment,
+        { deletedAt: { not: null } }
+      ]
+    },
+    include: { author: { select: { username: true } }, post: { select: { id: true, title: true, category: { select: { name: true } } } } },
+    orderBy: { deletedAt: 'desc' }
+  });
+  res.json(comments);
+};
+
+export const restorePost = async (req: AuthRequest, res: Response): Promise<void> => {
+  const id = req.params.id as string;
+  const operatorId = req.user?.userId || 'unknown';
+  
+  const existingPost = await prisma.post.findUnique({ where: { id } });
+  if (!existingPost) {
+    res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
+    return;
+  }
+
+  const { subject } = await import('@casl/ability');
+  if (!req.ability?.can('manage', subject('Post', existingPost as any))) {
+    res.status(403).json({ error: 'ERR_FORBIDDEN' });
+    return;
+  }
+
+  await prisma.post.update({ where: { id }, data: { status: 'PUBLISHED' } });
+  await logAudit(operatorId, 'RESTORE_POST', `Post:${id}`);
+  res.json({ message: 'Post restored' });
+};
+
+export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<void> => {
+  const id = req.params.id as string;
+  const operatorId = req.user?.userId || 'unknown';
+  
+  const existingPost = await prisma.post.findUnique({ where: { id } });
+  if (!existingPost) {
+    res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
+    return;
+  }
+
+  const { subject } = await import('@casl/ability');
+  if (!req.ability?.can('manage', subject('Post', existingPost as any))) {
+    res.status(403).json({ error: 'ERR_FORBIDDEN' });
+    return;
+  }
+
+  await prisma.post.delete({ where: { id } });
+  await logAudit(operatorId, 'HARD_DELETE_POST', `Post:${id}`);
+  res.json({ message: 'Post permanently deleted' });
+};
+
+export const restoreComment = async (req: AuthRequest, res: Response): Promise<void> => {
+  const id = req.params.id as string;
+  const operatorId = req.user?.userId || 'unknown';
+  
+  const existingComment = await prisma.comment.findUnique({ where: { id }, include: { post: true } });
+  if (!existingComment) {
+    res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
+    return;
+  }
+
+  const { subject } = await import('@casl/ability');
+  if (!req.ability?.can('manage', subject('Comment', existingComment as any))) {
+    res.status(403).json({ error: 'ERR_FORBIDDEN' });
+    return;
+  }
+
+  await prisma.comment.update({ where: { id }, data: { deletedAt: null } });
+  await logAudit(operatorId, 'RESTORE_COMMENT', `Comment:${id}`);
+  res.json({ message: 'Comment restored' });
+};
+
+export const hardDeleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
+  const id = req.params.id as string;
+  const operatorId = req.user?.userId || 'unknown';
+  
+  const existingComment = await prisma.comment.findUnique({ where: { id }, include: { post: true } });
+  if (!existingComment) {
+    res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
+    return;
+  }
+
+  const { subject } = await import('@casl/ability');
+  if (!req.ability?.can('manage', subject('Comment', existingComment as any))) {
+    res.status(403).json({ error: 'ERR_FORBIDDEN' });
+    return;
+  }
+
+  await prisma.comment.delete({ where: { id } });
+  await logAudit(operatorId, 'HARD_DELETE_COMMENT', `Comment:${id}`);
+  res.json({ message: 'Comment permanently deleted' });
+};
+
+// Database Config
+import fs from 'fs/promises';
+import path from 'path';
+
+const DB_CONFIG_PATH = path.join(process.cwd(), 'db_config.json');
+
+export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
+  if (req.user?.role !== 'SUPER_ADMIN') {
+    res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
+    return;
+  }
+  
+  try {
+    const data = await fs.readFile(DB_CONFIG_PATH, 'utf-8');
+    res.json(JSON.parse(data));
+  } catch (error) {
+    // If file doesn't exist, return default empty config
+    res.json({
+      host: 'localhost',
+      port: 3306,
+      username: 'root',
+      password: '',
+      database: 'myndbbs'
+    });
+  }
+};
+
+export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
+  if (req.user?.role !== 'SUPER_ADMIN') {
+    res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
+    return;
+  }
+
+  const { host, port, username, password, database } = req.body;
+  const operatorId = req.user?.userId || 'unknown';
+
+  try {
+    const config = { host, port, username, password, database };
+    await fs.writeFile(DB_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+    await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'MySQL config updated');
+    res.json({ message: 'Database configuration updated successfully', config });
+  } catch (error) {
+    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_DB_CONFIG' });
+  }
 };

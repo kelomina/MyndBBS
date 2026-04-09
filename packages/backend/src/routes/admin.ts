@@ -4,7 +4,9 @@ import {
   getUsers, updateUserRole, updateUserStatus,
   getCategories, createCategory, updateCategory, deleteCategory,
   assignCategoryModerator, removeCategoryModerator,
-  getPosts, updatePostStatus
+  getPosts, updatePostStatus,
+  getDeletedPosts, getDeletedComments, restorePost, hardDeletePost, restoreComment, hardDeleteComment,
+  getDbConfig, updateDbConfig
 } from '../controllers/admin';
 
 const router: Router = Router();
@@ -27,5 +29,17 @@ router.delete('/categories/:categoryId/moderators/:userId', requireAbility('mana
 router.get('/categories', requireAbility('read', 'AdminPanel'), getCategories);
 router.get('/posts', requireAbility('read', 'AdminPanel'), getPosts);
 router.patch('/posts/:id/status', requireAbility('update_status', 'Post'), updatePostStatus);
+
+// Recycle Bin routes
+router.get('/recycle/posts', requireAbility('read', 'AdminPanel'), getDeletedPosts);
+router.get('/recycle/comments', requireAbility('read', 'AdminPanel'), getDeletedComments);
+router.post('/recycle/posts/:id/restore', requireAbility('read', 'AdminPanel'), restorePost);
+router.delete('/recycle/posts/:id', requireAbility('read', 'AdminPanel'), hardDeletePost);
+router.post('/recycle/comments/:id/restore', requireAbility('read', 'AdminPanel'), restoreComment);
+router.delete('/recycle/comments/:id', requireAbility('read', 'AdminPanel'), hardDeleteComment);
+
+// Database Config routes (SUPER_ADMIN only)
+router.get('/db-config', getDbConfig);
+router.post('/db-config', updateDbConfig);
 
 export default router;

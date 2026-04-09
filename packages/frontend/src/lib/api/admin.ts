@@ -28,6 +28,26 @@ export const updateUserStatus = (id: string, status: string) =>
     body: JSON.stringify({ status }),
   });
 
+export const updatePostStatus = (id: string, status: string) =>
+  fetcher(`/api/admin/posts/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+
+export const getDeletedPosts = () => fetcher('/api/admin/recycle/posts');
+export const getDeletedComments = () => fetcher('/api/admin/recycle/comments');
+export const restorePost = (id: string) => fetcher(`/api/admin/recycle/posts/${id}/restore`, { method: 'POST' });
+export const hardDeletePost = (id: string) => fetcher(`/api/admin/recycle/posts/${id}`, { method: 'DELETE' });
+export const restoreComment = (id: string) => fetcher(`/api/admin/recycle/comments/${id}/restore`, { method: 'POST' });
+export const hardDeleteComment = (id: string) => fetcher(`/api/admin/recycle/comments/${id}`, { method: 'DELETE' });
+
+export const getDbConfig = () => fetcher('/api/admin/db-config');
+export const updateDbConfig = (data: any) =>
+  fetcher('/api/admin/db-config', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
 export const getCategories = () => fetcher('/api/admin/categories');
 
 export const createCategory = (data: { name: string; description?: string; order?: number }) =>

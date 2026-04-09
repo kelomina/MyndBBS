@@ -5,10 +5,13 @@ import Link from 'next/link';
 import { Settings, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-export function OwnerSettingsButton({ username, label }: { username: string, label: string }) {
+import { useTranslation } from '../../../components/TranslationProvider';
+
+export function OwnerSettingsButton({ username }: { username: string }) {
   const [isOwner, setIsOwner] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
+  const dict = useTranslation();
 
   useEffect(() => {
     const checkOwner = async () => {
@@ -54,7 +57,7 @@ export function OwnerSettingsButton({ username, label }: { username: string, lab
         className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
       >
         <Settings className="h-4 w-4" />
-        {label}
+        {dict.nav?.settings || 'Settings'}
       </Link>
       <button 
         onClick={handleLogout}
@@ -62,7 +65,7 @@ export function OwnerSettingsButton({ username, label }: { username: string, lab
         className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/80 transition-colors"
       >
         <LogOut className="h-4 w-4" />
-        {isLoggingOut ? '...' : 'Logout'}
+        {isLoggingOut ? '...' : dict.nav?.logout || 'Logout'}
       </button>
     </div>
   );
