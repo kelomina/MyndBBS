@@ -7,21 +7,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+  PENDING
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  HIDDEN
+  PINNED
+  DELETED
+}
+
 model User {
-  id                 String   @id @default(uuid())
-  email              String   @unique
-  username           String   @unique
+  id                 String     @id @default(uuid()) @db.Uuid
+  email              String     @unique
+  username           String     @unique
   password           String? // Argon2 handles salt internally
-  roleId             String?
-  role               Role?    @relation(fields: [roleId], references: [id], onDelete: SetNull)
-  status             String   @default("ACTIVE")
-  level              Int      @default(1)
-  registeredIp       String?
-  isPasskeyMandatory Boolean  @default(false)
+  roleId             String?    @db.Uuid
+  role               Role?      @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  status             UserStatus @default(ACTIVE)
+  level              Int        @default(1)
+  registeredIp       String?    @db.Inet
+  isPasskeyMandatory Boolean    @default(false)
   totpSecret         String?
-  isTotpEnabled      Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  isTotpEnabled      Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   passkeys            Passkey[]
   posts               Post[]
@@ -32,40 +49,52 @@ model User {
   bookmarks           Bookmark[]
   commentUpvotes      CommentUpvote[]
   commentBookmarks    CommentBookmark[]
+
+  @@index([roleId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Session {
-  id        String   @id @default(uuid())
-  userId    String
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ipAddress String?
+  ipAddress String?  @db.Inet
   userAgent String?
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Passkey {
-  id             String   @id // CredentialID
+  id             String   @id // CredentialID, usually base64url encoded string
   publicKey      Bytes
-  userId         String
+  userId         String   @db.Uuid
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   webAuthnUserID String
   counter        BigInt
   deviceType     String
   backedUp       Boolean
   createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([webAuthnUserID])
 }
 
 model CaptchaChallenge {
-  id             String   @id @default(uuid())
+  id             String   @id @default(uuid()) @db.Uuid
   targetPosition Int
   verified       Boolean  @default(false)
   expiresAt      DateTime
   createdAt      DateTime @default(now())
+
+  @@index([expiresAt])
 }
 
 model Category {
-  id          String              @id @default(uuid())
+  id          String              @id @default(uuid()) @db.Uuid
   name        String              @unique
   description String?
   sortOrder   Int                 @default(0)
@@ -74,41 +103,49 @@ model Category {
   updatedAt   DateTime            @updatedAt
   posts       Post[]
   moderators  CategoryModerator[]
+
+  @@index([sortOrder])
 }
 
 model CategoryModerator {
-  categoryId String
-  userId     String
+  categoryId String   @db.Uuid
+  userId     String   @db.Uuid
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([categoryId, userId])
+  @@index([userId]) // categoryId 已被复合主键的最左前缀覆盖
 }
 
 model Post {
-  id         String     @id @default(uuid())
+  id         String     @id @default(uuid()) @db.Uuid
   title      String
   content    String
-  authorId   String
+  authorId   String     @db.Uuid
   author     User       @relation(fields: [authorId], references: [id])
-  categoryId String
+  categoryId String     @db.Uuid
   category   Category   @relation(fields: [categoryId], references: [id])
-  status     String     @default("PUBLISHED")
+  status     PostStatus @default(PUBLISHED)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   comments   Comment[]
   upvotes    Upvote[]
   bookmarks  Bookmark[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Comment {
-  id        String            @id @default(uuid())
+  id        String            @id @default(uuid()) @db.Uuid
   content   String
-  postId    String
+  postId    String            @db.Uuid
   post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorId  String
+  authorId  String            @db.Uuid
   author    User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parentId  String?
+  parentId  String?           @db.Uuid
   parent    Comment?          @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Comment[]         @relation("CommentToComment")
   createdAt DateTime          @default(now())
@@ -116,68 +153,83 @@ model Comment {
   deletedAt DateTime?
   upvotes   CommentUpvote[]
   bookmarks CommentBookmark[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt])
 }
 
 model CommentUpvote {
-  id        String   @id @default(uuid())
-  userId    String
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  commentId String
+  commentId String   @db.Uuid
   comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, commentId])
+  @@index([commentId])
 }
 
 model CommentBookmark {
-  id        String   @id @default(uuid())
-  userId    String
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  commentId String
+  commentId String   @db.Uuid
   comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, commentId])
+  @@index([commentId])
 }
 
 model Upvote {
-  id        String   @id @default(uuid())
-  userId    String
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  postId    String
+  postId    String   @db.Uuid
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, postId])
+  @@index([postId])
 }
 
 model Bookmark {
-  id        String   @id @default(uuid())
-  userId    String
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  postId    String
+  postId    String   @db.Uuid
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, postId])
+  @@index([postId])
 }
 
 model AuthChallenge {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @db.Uuid
   challenge String
   expiresAt DateTime
+
+  @@index([expiresAt])
 }
 
 model AuditLog {
-  id     String   @id @default(uuid())
+  id     String   @id @default(uuid()) @db.Uuid
   who    String
   when   DateTime @default(now())
   target String
   action String
+
+  @@index([who])
+  @@index([action])
+  @@index([when])
 }
 
 model Role {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @db.Uuid
   name        String   @unique
   description String?
   createdAt   DateTime @default(now())
@@ -188,7 +240,7 @@ model Role {
 }
 
 model Permission {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @db.Uuid
   action      String   @unique
   description String?
   createdAt   DateTime @default(now())
@@ -198,11 +250,12 @@ model Permission {
 }
 
 model RolePermission {
-  roleId       String
-  permissionId String
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
 
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
+  @@index([permissionId])
 }

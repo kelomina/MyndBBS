@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db';
+import { UserStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
@@ -112,7 +113,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (user.status === 'BANNED') {
+    if (user.status === UserStatus.BANNED) {
       res.status(403).json({ error: 'ERR_ACCOUNT_IS_BANNED' });
       return;
     }
@@ -218,7 +219,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    if (user.status === 'BANNED') {
+    if (user.status === UserStatus.BANNED) {
       res.status(403).json({ error: 'ERR_ACCOUNT_IS_BANNED' });
       return;
     }

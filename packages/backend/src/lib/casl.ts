@@ -1,6 +1,6 @@
 import { AbilityBuilder, PureAbility } from '@casl/ability';
 import { createPrismaAbility, PrismaQuery, Subjects } from '@casl/prisma';
-import { User, Post, Category, Role, Permission, Comment } from '@prisma/client';
+import { User, Post, Category, Role, Permission, Comment, UserStatus, PostStatus } from '@prisma/client';
 
 export type Action = 'manage' | 'create' | 'read' | 'update' | 'delete' | 'update_status';
 
@@ -32,8 +32,8 @@ export function defineAbilityFor(user?: AbilityUser) {
 
   if (!user) {
     // Guest can read published posts and categories that allow guests (minLevel 0)
-    can('read', 'Post', { status: 'PUBLISHED', category: { is: { minLevel: 0 } } } as any);
-    can('read', 'Post', { status: 'PINNED', category: { is: { minLevel: 0 } } } as any);
+    can('read', 'Post', { status: PostStatus.PUBLISHED, category: { is: { minLevel: 0 } } } as any);
+    can('read', 'Post', { status: PostStatus.PINNED, category: { is: { minLevel: 0 } } } as any);
     can('read', 'Category', { minLevel: 0 });
     can('read', 'Comment', { deletedAt: null, post: { is: { category: { is: { minLevel: 0 } } } } } as any);
     return build();
@@ -41,8 +41,8 @@ export function defineAbilityFor(user?: AbilityUser) {
 
   // Baseline permissions for all authenticated users
   can('read', 'Category', { minLevel: { lte: userLevel } });
-  can('read', 'Post', { status: 'PUBLISHED', category: { is: { minLevel: { lte: userLevel } } } } as any);
-  can('read', 'Post', { status: 'PINNED', category: { is: { minLevel: { lte: userLevel } } } } as any);
+  can('read', 'Post', { status: PostStatus.PUBLISHED, category: { is: { minLevel: { lte: userLevel } } } } as any);
+  can('read', 'Post', { status: PostStatus.PINNED, category: { is: { minLevel: { lte: userLevel } } } } as any);
   // Author can read their own DELETED/HIDDEN posts
   can('read', 'Post', { authorId: user.id });
   

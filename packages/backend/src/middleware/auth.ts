@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { User, Session, UserStatus } from '@prisma/client';
 import { prisma } from '../db';
 import { redis } from '../lib/redis';
 import { defineAbilityFor, AppAbility, Action, AppSubjects } from '../lib/casl';
@@ -63,7 +64,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
           include: { role: true }
         });
 
-        if (user && user.status !== 'BANNED') {
+        if (user && user.status !== UserStatus.BANNED) {
           const roleName = user.role?.name || 'USER';
           
           const newAccessToken = jwt.sign(
@@ -84,7 +85,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
           // Instead of deleting immediately, keep it for 1 minute to allow
           // concurrent requests or SSR -> CSR transitions to also refresh
           await redis.expire(refreshKey, 60);
-        } else if (user?.status === 'BANNED') {
+        } else if (user?.status === UserStatus.BANNED) {
           res.clearCookie('accessToken');
           res.clearCookie('refreshToken');
           res.status(401).json({ error: 'ERR_USER_BANNED' });

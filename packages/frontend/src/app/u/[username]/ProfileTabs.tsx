@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from '../../../components/TranslationProvider';
 import Link from 'next/link';
+import { PostStatus } from '@prisma/client';
 import { BookmarkMinus } from 'lucide-react';
 
 export function ProfileTabs({ 
@@ -177,7 +178,7 @@ export function ProfileTabs({
               }
               
               // Post bookmark
-              const isDeleted = item.status === 'DELETED';
+              const isDeleted = item.status === PostStatus.DELETED;
               
               if (isDeleted) {
                 return (
