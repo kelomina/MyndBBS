@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowBigUp, Bookmark, Share, Trash2 } from 'lucide-react';
+import { ArrowBigUp, Bookmark, Share, Trash2, Edit2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export function PostActions({ 
@@ -168,14 +168,24 @@ export function PostActions({
           <Share className="h-5 w-5" />
         </button>
         {canDelete && (
-          <button 
-            onClick={handleDelete}
-            disabled={loading}
-            className="transition-colors hover:text-red-500"
-            title="Delete Post"
-          >
-            <Trash2 className="h-5 w-5" />
-          </button>
+          <>
+            <button 
+              onClick={() => router.push(`/p/${postId}/edit`)}
+              disabled={loading}
+              className="transition-colors hover:text-primary"
+              title="Edit Post"
+            >
+              <Edit2 className="h-5 w-5" />
+            </button>
+            <button 
+              onClick={handleDelete}
+              disabled={loading}
+              className="transition-colors hover:text-red-500"
+              title="Delete Post"
+            >
+              <Trash2 className="h-5 w-5" />
+            </button>
+          </>
         )}
       </div>
     </div>
