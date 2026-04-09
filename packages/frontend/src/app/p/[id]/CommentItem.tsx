@@ -1,4 +1,5 @@
 'use client';
+import { useTranslation } from '../../../components/TranslationProvider';
 
 import { useState } from 'react';
 import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2, Edit2, X, Check } from 'lucide-react';
@@ -214,14 +215,14 @@ export function CommentItem({
                 <button 
                   onClick={() => setIsEditing(!isEditing)}
                   className="flex items-center gap-1 transition-colors hover:text-primary"
-                  title="Edit Comment"
+                  title={dict.post?.editComment || "Edit Comment"}
                 >
                   <Edit2 className="h-4 w-4" />
                 </button>
                 <button 
                   onClick={onDelete}
                   className="flex items-center gap-1 transition-colors hover:text-red-500"
-                  title="Delete Comment"
+                  title={dict.post?.deleteComment || "Delete Comment"}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
