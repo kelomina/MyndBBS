@@ -49,7 +49,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
             </div>
           </div>
           <div className="pb-2">
-            <OwnerSettingsButton username={user.username} label={(dict.nav as any)?.settings || 'Settings'} />
+            <OwnerSettingsButton username={user.username} />
           </div>
         </div>
 
