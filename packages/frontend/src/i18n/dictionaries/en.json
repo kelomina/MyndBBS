@@ -122,7 +122,9 @@
     "appearance": "Appearance",
     "notifications": "Notifications",
     "adminDashboard": "Admin Dashboard",
-    "commentOn": "Comment on: "
+    "commentOn": "Comment on: ",
+    "commentDeleted": "This comment has been deleted",
+    "postDeleted": "This post has been deleted"
   },
   "settings": {
     "loadingProfile": "Loading profile...",

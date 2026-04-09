@@ -113,6 +113,7 @@ model Comment {
   replies   Comment[]         @relation("CommentToComment")
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
+  deletedAt DateTime?
   upvotes   CommentUpvote[]
   bookmarks CommentBookmark[]
 }

@@ -1,16 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowBigUp, Bookmark, Share, MessageSquare } from 'lucide-react';
+import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2 } from 'lucide-react';
 
 export function CommentItem({ 
   comment, 
   dict, 
-  onReply 
+  onReply,
+  onDelete,
+  currentUser
 }: { 
   comment: any; 
   dict: any; 
   onReply: (parentId: string) => void;
+  onDelete?: () => void;
+  currentUser?: any;
 }) {
   const [upvotes, setUpvotes] = useState(comment._count?.upvotes || 0);
   const [hasUpvoted, setHasUpvoted] = useState(comment.hasUpvoted || false);
@@ -75,6 +79,25 @@ export function CommentItem({
     }
   };
 
+  const canDelete = currentUser && (
+    currentUser.username === comment.author?.username ||
+    currentUser.role === 'ADMIN' ||
+    currentUser.role === 'SUPER_ADMIN' ||
+    currentUser.role === 'MODERATOR'
+  );
+
+  const isDeleted = comment.deletedAt != null;
+
+  if (isDeleted) {
+    return (
+      <div id={`comment-${comment.id}`} className="rounded-xl bg-muted/30 p-5 shadow-sm border border-border/50 opacity-70">
+        <div className="flex flex-col py-2 text-muted">
+          <p className="text-sm font-medium">{dict.profile?.commentDeleted || 'This comment has been deleted.'}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div id={`comment-${comment.id}`} className="rounded-xl bg-card p-5 shadow-sm border border-border/50">
       <div className="flex space-x-3">
@@ -116,6 +139,15 @@ export function CommentItem({
             >
               <Share className="h-4 w-4" /> {dict.post?.share || 'Share'}
             </button>
+            {canDelete && (
+              <button 
+                onClick={onDelete}
+                className="flex items-center gap-1 transition-colors hover:text-red-500"
+                title="Delete Comment"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
