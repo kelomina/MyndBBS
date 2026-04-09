@@ -11,7 +11,9 @@
     "toggleTheme": "Toggle Theme",
     "loading": "Loading...",
     "cancel": "Cancel",
-    "close": "Close"
+    "close": "Close",
+    "settings": "Settings",
+    "logout": "Logout"
   },
   "nav": {
     "home": "Home",
@@ -139,7 +141,8 @@
     "appearance": "Appearance",
     "notifications": "Notifications",
     "adminDashboard": "Admin Dashboard",
-    "removeBookmark": "Remove bookmark"
+    "removeBookmark": "Remove bookmark",
+    "bookmarks": "Bookmarks"
   },
   "settings": {
     "loadingProfile": "Loading profile...",
@@ -313,5 +316,11 @@
     "ERR_FORBIDDEN": "Forbidden",
     "ERR_FAILED_TO_TOGGLE_COMMENT_UPVOTE": "Failed to toggle comment upvote",
     "ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK": "Failed to toggle comment bookmark"
+  },
+  "category": {
+    "postsTitle": "Posts",
+    "showingPostsFor": "Showing posts for category: ",
+    "noPostsFound": "No posts found in this category.",
+    "noPostsFoundGeneral": "No posts found."
   }
 }

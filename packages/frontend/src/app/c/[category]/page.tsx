@@ -1,3 +1,4 @@
+
 import { headers } from "next/headers";
 import { Sidebar } from "../../../components/layout/Sidebar";
 import { MessageSquare, ArrowBigUp } from "lucide-react";
@@ -39,13 +40,13 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
       <div className="flex-1 py-6 md:pl-8">
         <div className="mx-auto max-w-3xl space-y-4">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground capitalize">{categoryTitle} Posts</h1>
-            <p className="text-sm text-muted">Showing posts for category: {categoryTitle}</p>
+            <h1 className="text-2xl font-bold text-foreground capitalize">{categoryTitle} {dict.category?.postsTitle}</h1>
+            <p className="text-sm text-muted">{dict.category?.showingPostsFor}{categoryTitle}</p>
           </div>
 
           {posts.length === 0 ? (
             <div className="text-center text-muted py-10">
-              No posts found in this category.
+              {dict.category?.noPostsFound}
             </div>
           ) : (
             posts.map((post: any) => (

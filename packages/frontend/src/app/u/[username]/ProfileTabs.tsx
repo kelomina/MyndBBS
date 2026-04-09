@@ -96,7 +96,7 @@ export function ProfileTabs({
               onClick={() => handleTabChange('bookmarks')}
               className={`${activeTab === 'bookmarks' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-foreground hover:border-border'} whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
             >
-              {dict.profile?.bookmarks || 'Bookmarks'}
+              {dict.profile?.bookmarks}
             </button>
           )}
         </nav>
