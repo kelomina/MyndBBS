@@ -54,12 +54,24 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<v
 
 router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { title, content, categoryId } = req.body;
+    const { title, content, categoryId, captchaId } = req.body;
     
     if (!title || !content || !categoryId) {
       res.status(400).json({ error: 'Title, content, and categoryId are required' });
       return;
     }
+
+    if (!captchaId) {
+      res.status(400).json({ error: 'Captcha is required' });
+      return;
+    }
+
+    const challenge = await prisma.captchaChallenge.findUnique({ where: { id: captchaId } });
+    if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
+      res.status(400).json({ error: 'Invalid or expired captcha' });
+      return;
+    }
+    await prisma.captchaChallenge.delete({ where: { id: captchaId } });
 
     const category = await prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) {
@@ -328,12 +340,24 @@ router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response
 router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const postId = req.params.id as string;
-    const { content, parentId } = req.body;
+    const { content, parentId, captchaId } = req.body;
 
     if (!content) {
       res.status(400).json({ error: 'Comment content is required' });
       return;
     }
+
+    if (!captchaId) {
+      res.status(400).json({ error: 'Captcha is required' });
+      return;
+    }
+
+    const challenge = await prisma.captchaChallenge.findUnique({ where: { id: captchaId } });
+    if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
+      res.status(400).json({ error: 'Invalid or expired captcha' });
+      return;
+    }
+    await prisma.captchaChallenge.delete({ where: { id: captchaId } });
 
     const post = await prisma.post.findFirst({
       where: {
@@ -453,8 +477,11 @@ router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req:
       return;
     }
 
-    await prisma.post.update({ where: { id: postId }, data: { status: 'DELETED' } });
-    res.json({ message: 'Post deleted' });
+    await prisma.$transaction([
+      prisma.post.update({ where: { id: postId }, data: { status: 'DELETED' } }),
+      prisma.comment.updateMany({ where: { postId: postId }, data: { deletedAt: new Date() } })
+    ]);
+    res.json({ message: 'Post and its comments deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete post' });
   }

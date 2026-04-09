@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { MessageSquare, ArrowBigUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { CommentItem } from './CommentItem';
+import { SliderCaptcha } from '../../../components/SliderCaptcha';
 
 export function CommentsSection({ postId, dict, initialCount }: { postId: string, dict: any, initialCount: number }) {
   const router = useRouter();
@@ -13,6 +14,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   const [count, setCount] = useState(initialCount);
   const [replyTo, setReplyTo] = useState<{ id: string, username: string } | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showCaptcha, setShowCaptcha] = useState(false);
 
   useEffect(() => {
     // Fetch current user
@@ -46,9 +48,13 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     fetchComments();
   }, [postId]);
 
-  const handleSubmit = async () => {
+  const handlePreSubmit = () => {
     if (!newComment.trim()) return;
+    setShowCaptcha(true);
+  };
 
+  const handleSubmit = async (captchaId: string) => {
+    setShowCaptcha(false);
     setLoading(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/comments`, {
@@ -56,7 +62,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content: newComment, parentId: replyTo?.id }),
+        body: JSON.stringify({ content: newComment, parentId: replyTo?.id, captchaId }),
         credentials: 'include'
       });
 
@@ -147,6 +153,24 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     <div className="space-y-4" id="comment-input-area">
       <h3 className="text-lg font-bold text-foreground mb-4">{dict.post?.comments || 'Comments'} ({count})</h3>
       
+      {showCaptcha && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card p-6 rounded-2xl shadow-xl relative">
+            <button 
+              onClick={() => setShowCaptcha(false)}
+              className="absolute top-2 right-2 text-muted hover:text-foreground"
+            >
+              &times;
+            </button>
+            <h3 className="text-lg font-bold mb-4 text-center">Verify to Post Comment</h3>
+            <SliderCaptcha 
+              onSuccess={handleSubmit} 
+              apiUrl={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/auth`}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Comment Input */}
       <div className="rounded-xl bg-card p-4 shadow-sm border border-border/50 flex gap-4 flex-col">
         {replyTo && (
@@ -166,7 +190,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
             ></textarea>
             <div className="flex justify-end">
               <button 
-                onClick={handleSubmit}
+                onClick={handlePreSubmit}
                 disabled={loading || !newComment.trim()}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >

@@ -25,6 +25,7 @@ export function CommentItem({
   const [editContent, setEditContent] = useState(comment.content);
   const [content, setContent] = useState(comment.content);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState(comment.updatedAt);
 
   const handleUpvote = async () => {
     if (loadingUpvote) return;
@@ -96,6 +97,7 @@ export function CommentItem({
       if (res.ok) {
         const data = await res.json();
         setContent(data.content);
+        setUpdatedAt(data.updatedAt);
         setIsEditing(false);
       } else {
         const data = await res.json();
@@ -137,7 +139,12 @@ export function CommentItem({
         <div className="flex-1">
           <div className="flex items-baseline space-x-2">
             <span className="font-medium text-foreground text-sm">{comment.author?.username || 'Unknown'}</span>
-            <span className="text-xs text-muted">{new Date(comment.createdAt).toLocaleString()}</span>
+            <span className="text-xs text-muted">
+              {new Date(comment.createdAt).toLocaleString()}
+              {updatedAt && new Date(updatedAt).getTime() - new Date(comment.createdAt).getTime() > 1000 && (
+                <span className="ml-2 italic">({dict.post?.edited || 'Edited'}: {new Date(updatedAt).toLocaleString()})</span>
+              )}
+            </span>
           </div>
           
           {isEditing ? (
