@@ -1,3 +1,4 @@
+import { PrismaClient, UserStatus, PostStatus } from '@prisma/client';
 import { defineAbilityFor } from './src/lib/casl';
 import { subject } from '@casl/ability';
 
@@ -17,6 +18,6 @@ console.log('ADMIN can read Category minLevel 6:', adminAbility.can('read', subj
 
 
 console.log('--- Guest Post ---');
-console.log('Guest read Post in minLevel 0:', guestAbility.can('read', subject('Post', { status: 'PUBLISHED', category: { minLevel: 0 } } as any)));
-console.log('Guest read Post in minLevel 1:', guestAbility.can('read', subject('Post', { status: 'PUBLISHED', category: { minLevel: 1 } } as any)));
+console.log('Guest read Post in minLevel 0:', guestAbility.can('read', subject('Post', { status: PostStatus.PUBLISHED, category: { minLevel: 0 } } as any)));
+console.log('Guest read Post in minLevel 1:', guestAbility.can('read', subject('Post', { status: PostStatus.PUBLISHED, category: { minLevel: 1 } } as any)));
 

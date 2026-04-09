@@ -1,5 +1,6 @@
 import { Router, Response, Request } from 'express';
 import { requireAuth, requireAbility, optionalAuth, AuthRequest } from '../middleware/auth';
+import { PostStatus } from '@prisma/client';
 import { prisma } from '../db';
 import { subject } from '@casl/ability';
 import { accessibleBy } from '@casl/prisma';
@@ -478,7 +479,7 @@ router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req:
     }
 
     await prisma.$transaction([
-      prisma.post.update({ where: { id: postId }, data: { status: 'DELETED' } }),
+      prisma.post.update({ where: { id: postId }, data: { status: PostStatus.DELETED } }),
       prisma.comment.updateMany({ where: { postId: postId }, data: { deletedAt: new Date() } })
     ]);
     res.json({ message: 'Post and its comments deleted' });

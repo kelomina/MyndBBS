@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, UserStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
@@ -48,7 +48,7 @@ async function main() {
     if (existingRoot) {
       await prisma.user.update({
         where: { id: existingRoot.id },
-        data: { roleId: superAdminRole.id, status: 'ACTIVE' }
+        data: { roleId: superAdminRole.id, status: UserStatus.ACTIVE }
       });
       console.log('Root account existed but was updated to SUPER_ADMIN');
     } else {
@@ -59,7 +59,7 @@ async function main() {
           email: 'root@localhost',
           password: hashedPassword,
           roleId: superAdminRole.id,
-          status: 'ACTIVE'
+          status: UserStatus.ACTIVE
         }
       });
       console.log('Root account created successfully: username "root", password "root"');

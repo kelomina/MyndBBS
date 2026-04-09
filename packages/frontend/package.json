@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@myndbbs/shared": "workspace:*",
+    "@prisma/client": "5.22.0",
     "@simplewebauthn/browser": "^13.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

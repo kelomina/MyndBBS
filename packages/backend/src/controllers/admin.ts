@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db';
+import { UserStatus, PostStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
 import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
@@ -112,12 +113,12 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
     // Auto-disable root if another user gets SUPER_ADMIN role
     if (role === 'SUPER_ADMIN' && finalUser.username !== 'root') {
       const rootUser = await prisma.user.findFirst({
-        where: { username: 'root', status: { not: 'BANNED' } }
+        where: { username: 'root', status: { not: UserStatus.BANNED } }
       });
       if (rootUser) {
         await prisma.user.update({
           where: { id: rootUser.id },
-          data: { status: 'BANNED' }
+          data: { status: UserStatus.BANNED }
         });
         // Revoke root sessions
         const rootSessions = await prisma.session.findMany({ where: { userId: rootUser.id } });
@@ -144,7 +145,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
   const { status } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  if (!['ACTIVE', 'BANNED', 'PENDING'].includes(status)) {
+  if (!([UserStatus.ACTIVE, UserStatus.BANNED, UserStatus.PENDING] as UserStatus[]).includes(status as UserStatus)) {
     res.status(400).json({ error: 'ERR_INVALID_STATUS' });
     return;
   }
@@ -166,7 +167,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
 
   const user = await prisma.user.update({ where: { id }, data: { status } });
 
-  if (status === 'BANNED') {
+  if (status === UserStatus.BANNED) {
     // Revoke sessions on ban
     const sessions = await prisma.session.findMany({ where: { userId: id } });
     if (sessions.length > 0) {
@@ -310,7 +311,7 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
   const { status } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  if (!['PUBLISHED', 'HIDDEN', 'PINNED'].includes(status)) {
+  if (!([PostStatus.PUBLISHED, PostStatus.HIDDEN, PostStatus.PINNED] as PostStatus[]).includes(status as PostStatus)) {
     res.status(400).json({ error: 'ERR_INVALID_STATUS' });
     return;
   }
@@ -345,7 +346,7 @@ export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
     where: {
       AND: [
         accessibleBy(req.ability, 'manage').Post,
-        { status: 'DELETED' }
+        { status: PostStatus.DELETED }
       ]
     },
     include: { author: { select: { username: true } }, category: { select: { name: true } } },
@@ -387,11 +388,10 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
   if (!req.ability?.can('manage', subject('Post', existingPost as any))) {
     res.status(403).json({ error: 'ERR_FORBIDDEN' });
     return;
-  }
-
-  await prisma.post.update({ where: { id }, data: { status: 'PUBLISHED' } });
+ const post = await prisma.post.update({ where: { id }, data: { status: PostStatus.PUBLISHED } });
   await logAudit(operatorId, 'RESTORE_POST', `Post:${id}`);
   res.json({ message: 'Post restored' });
+}
 };
 
 export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<void> => {
