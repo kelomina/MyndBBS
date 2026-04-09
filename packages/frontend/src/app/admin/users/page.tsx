@@ -1,4 +1,5 @@
 'use client';
+import { useTranslation } from '../../../components/TranslationProvider';
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -21,6 +22,7 @@ interface User {
 }
 
 export default function UsersPage() {
+  const dict = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -60,26 +62,26 @@ export default function UsersPage() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-muted">Loading...</div>;
+  if (loading) return <div className="p-8 text-center text-muted">{dict.common?.loading || "Loading..."}</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
-        <p className="text-muted">Manage system users, their roles and statuses.</p>
+        <h1 className="text-2xl font-bold tracking-tight">{dict.admin?.userManagement || "User Management"}</h1>
+        <p className="text-muted">{dict.admin?.userDesc || "Manage system users, their roles and statuses."}</p>
       </div>
 
       <div className="rounded-md border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Username</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Registered</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead>{dict.admin?.username || "Username"}</TableHead>
+              <TableHead>{dict.admin?.email || "Email"}</TableHead>
+              <TableHead>{dict.admin?.role || "Role"}</TableHead>
+              <TableHead>{dict.admin?.status || "Status"}</TableHead>
+              <TableHead>{dict.admin?.registered || "Registered"}</TableHead>
+              <TableHead>{dict.admin?.actions || "Actions"}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -93,9 +95,9 @@ export default function UsersPage() {
                     onChange={(e) => handleRoleChange(user.id, e.target.value)}
                     className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="USER">USER</option>
-                    <option value="MODERATOR">MODERATOR</option>
-                    <option value="ADMIN">ADMIN</option>
+                    <option value="USER">{dict.admin?.roleUser || "USER"}</option>
+                    <option value="MODERATOR">{dict.admin?.roleModerator || "MODERATOR"}</option>
+                    <option value="ADMIN">{dict.admin?.roleAdmin || "ADMIN"}</option>
                     <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   </select>
                 </TableCell>

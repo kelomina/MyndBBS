@@ -38,10 +38,10 @@ export function LoginClient({ dict }: { dict: any }) {
           window.location.href = '/';
         }
       } else {
-        setError(data.error || 'Login failed');
+        setError(dict.apiErrors?.[data.error] || data.error || dict.auth.loginFailed);
       }
     } catch {
-      setError('Network error');
+      setError(dict.auth.networkError);
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export function LoginClient({ dict }: { dict: any }) {
       const optionsData = await optionsRes.json();
 
       if (!optionsRes.ok) {
-        throw new Error(optionsData.error || 'Failed to generate passkey options');
+        throw new Error((dict.apiErrors?.[optionsData.error] || optionsData.error) || dict.auth.passkeyError);
       }
 
       const { challengeId, ...options } = optionsData;
@@ -90,7 +90,7 @@ export function LoginClient({ dict }: { dict: any }) {
       if (verifyRes.ok) {
         window.location.href = '/';
       } else {
-        setError(verifyData.error || dict.auth.passkeyVerificationFailed);
+        setError((dict.apiErrors?.[verifyData.error] || verifyData.error) || dict.auth.passkeyVerificationFailed);
       }
     } catch (err) {
       if (err instanceof Error) {
@@ -160,7 +160,7 @@ export function LoginClient({ dict }: { dict: any }) {
           disabled={loading}
           className="flex w-full justify-center rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
         >
-          {loading ? 'Signing in...' : dict.auth.signIn}
+          {loading ? dict.auth.signingIn : dict.auth.signIn}
         </button>
       </form>
 

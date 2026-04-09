@@ -4,6 +4,7 @@ import { MessageSquare, ArrowBigUp } from "lucide-react";
 import { Locale, defaultLocale } from "../../i18n/config";
 import { getDictionary } from "../../i18n/get-dictionary";
 import Link from 'next/link';
+import { useTranslation } from '../../components/TranslationProvider';
 import { AutoRefresh } from "../../components/AutoRefresh";
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,7 @@ export default async function RecentPage() {
         <div className="mx-auto max-w-3xl space-y-4">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground">{dict.nav?.recent || 'Recent Posts'}</h1>
-            <p className="text-sm text-muted">Showing the newest posts on the platform</p>
+            <p className="text-sm text-muted">{dict.home?.recentDesc || "Showing the newest posts on the platform"}</p>
           </div>
 
           {posts.length === 0 ? (

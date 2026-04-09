@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from '../../../components/TranslationProvider';
 import Link from 'next/link';
 import { BookmarkMinus } from 'lucide-react';
 
@@ -124,7 +125,7 @@ export function ProfileTabs({
 
         {activeTab === 'bookmarks' && (
           loading ? (
-            <p className="text-muted text-sm">Loading...</p>
+            <p className="text-muted text-sm">{dict.common?.loading || "Loading..."}</p>
           ) : !bookmarks || bookmarks.length === 0 ? (
             <p className="text-muted text-sm">{dict.profile?.noBookmarksYet || 'No bookmarks yet.'}</p>
           ) : (

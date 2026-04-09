@@ -51,7 +51,7 @@ export const generateCaptcha = async (req: Request, res: Response) => {
     res.json({ captchaId: challenge.id, image: bgUrl });
   } catch (error) {
     console.error("Error generating captcha:", error);
-    res.status(500).json({ error: 'Failed to generate captcha' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_GENERATE_CAPTCHA' });
   }
 };
 
@@ -60,7 +60,7 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
     const { captchaId, dragPath, totalDragTime, finalPosition } = req.body;
 
     if (!captchaId || !dragPath || !totalDragTime || finalPosition === undefined) {
-      res.status(400).json({ success: false, error: 'Missing parameters' });
+      res.status(400).json({ success: false, error: 'ERR_MISSING_PARAMETERS' });
       return;
     }
 
@@ -69,19 +69,19 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
     });
 
     if (!challenge) {
-      res.status(404).json({ success: false, error: 'Challenge not found' });
+      res.status(404).json({ success: false, error: 'ERR_CHALLENGE_NOT_FOUND' });
       return;
     }
 
     if (challenge.expiresAt < new Date()) {
       await prisma.captchaChallenge.delete({ where: { id: captchaId } }).catch(() => {});
-      res.status(400).json({ success: false, error: 'Challenge expired' });
+      res.status(400).json({ success: false, error: 'ERR_CHALLENGE_EXPIRED' });
       return;
     }
 
     // Automation Check 1 & 2
     if (totalDragTime < 200 || totalDragTime > 10000 || dragPath.length < 10) {
-      res.status(400).json({ success: false, error: 'Automation detected (Speed/Points)' });
+      res.status(400).json({ success: false, error: 'ERR_AUTOMATION_DETECTED_SPEED_POINTS' });
       return;
     }
 
@@ -104,7 +104,7 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
 
     // Humans rarely drag perfectly straight. If variance in Y is exactly 0 and X speeds are too uniform, flag it.
     if (stdDev < 1.5 && yVariance === 0) {
-      res.status(400).json({ success: false, error: 'Automation detected (Linear trajectory)' });
+      res.status(400).json({ success: false, error: 'ERR_AUTOMATION_DETECTED_LINEAR_TRAJECTORY' });
       return;
     }
 
@@ -119,7 +119,7 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
     const centerOffset = Math.abs(sliderCenter - targetCenter);
 
     if (centerOffset > VALIDATION_TOLERANCE) {
-      res.status(400).json({ success: false, error: 'Position mismatch' });
+      res.status(400).json({ success: false, error: 'ERR_POSITION_MISMATCH' });
       return;
     }
 
@@ -131,6 +131,6 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
 
     res.json({ success: true, message: 'Verification passed' });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Server error during verification' });
+    res.status(500).json({ success: false, error: 'ERR_SERVER_ERROR_DURING_VERIFICATION' });
   }
 };

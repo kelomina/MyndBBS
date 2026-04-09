@@ -1,4 +1,5 @@
 'use client';
+import { useTranslation } from '../../../components/TranslationProvider';
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -44,6 +45,7 @@ interface User {
 }
 
 export default function CategoriesPage() {
+  const dict = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,28 +129,28 @@ export default function CategoriesPage() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-muted">Loading...</div>;
+  if (loading) return <div className="p-8 text-center text-muted">{dict.common?.loading || "Loading..."}</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Category Management</h1>
-          <p className="text-muted">Create and manage forum categories and moderators.</p>
+          <h1 className="text-2xl font-bold tracking-tight">{dict.admin?.categoryManagement || "Category Management"}</h1>
+          <p className="text-muted">{dict.admin?.categoryDesc || "Create and manage forum categories and moderators."}</p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>Create Category</Button>
+        <Button onClick={() => setIsCreateModalOpen(true)}>{dict.admin?.createCategory || "Create Category"}</Button>
       </div>
 
       <div className="rounded-md border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Order</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Moderators</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{dict.admin?.order || "Order"}</TableHead>
+              <TableHead>{dict.admin?.name || "Name"}</TableHead>
+              <TableHead>{dict.admin?.description || "Description"}</TableHead>
+              <TableHead>{dict.admin?.moderators || "Moderators"}</TableHead>
+              <TableHead className="text-right">{dict.admin?.actions || "Actions"}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -219,7 +221,7 @@ export default function CategoriesPage() {
       >
         <form onSubmit={handleCreate} className="space-y-4 pt-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Name</label>
+            <label className="text-sm font-medium">{dict.admin?.name || "Name"}</label>
             <input
               required
               type="text"
@@ -229,7 +231,7 @@ export default function CategoriesPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Description</label>
+            <label className="text-sm font-medium">{dict.admin?.description || "Description"}</label>
             <textarea
               value={createData.description}
               onChange={(e) => setCreateData({ ...createData, description: e.target.value })}
@@ -238,7 +240,7 @@ export default function CategoriesPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Sort Order</label>
+            <label className="text-sm font-medium">{dict.admin?.sortOrder || "Sort Order"}</label>
             <input
               type="number"
               value={createData.sortOrder}
@@ -250,7 +252,7 @@ export default function CategoriesPage() {
             <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Create</Button>
+            <Button type="submit">{dict.admin?.create || "Create"}</Button>
           </div>
         </form>
       </Modal>
@@ -263,7 +265,7 @@ export default function CategoriesPage() {
       >
         <form onSubmit={handleAssignModerator} className="space-y-4 pt-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Select User</label>
+            <label className="text-sm font-medium">{dict.admin?.selectUser || "Select User"}</label>
             <select
               required
               value={assignData.userId}

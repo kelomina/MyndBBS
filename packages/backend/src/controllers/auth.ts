@@ -72,7 +72,7 @@ export const finalizeAuth = async (user: any, req: Request, res: Response) => {
 export const generateTotp = async (req: Request, res: Response): Promise<void> => {
   const user = await getUserFromTempToken(req);
   if (!user) {
-    res.status(401).json({ error: 'Unauthorized or token expired' });
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED_OR_TOKEN_EXPIRED' });
     return;
   }
 
@@ -89,19 +89,19 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
   const { code } = req.body;
   const user = await getUserFromTempToken(req);
   if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
     return;
   }
 
   const pendingSecret = await redis.get(`totp_setup:${user.id}`);
   if (!pendingSecret) {
-    res.status(401).json({ error: 'Unauthorized or setup not initiated/expired' });
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED' });
     return;
   }
 
   const result = authenticator.verifySync({ secret: pendingSecret, token: code });
   if (!result || !result.valid) {
-    res.status(400).json({ error: 'Invalid TOTP code' });
+    res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
     return;
   }
 
@@ -118,7 +118,7 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
 export const generatePasskeyRegistrationOptions = async (req: Request, res: Response): Promise<void> => {
   const user = await getUserFromTempToken(req);
   if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
     return;
   }
 
@@ -156,18 +156,18 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
   const { response, challengeId } = req.body;
   const user = await getUserFromTempToken(req);
   if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
     return;
   }
 
   if (!challengeId) {
-    res.status(400).json({ error: 'Challenge ID is required' });
+    res.status(400).json({ error: 'ERR_CHALLENGE_ID_IS_REQUIRED' });
     return;
   }
 
   const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
   if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
-    res.status(400).json({ error: 'Challenge expired or not found' });
+    res.status(400).json({ error: 'ERR_CHALLENGE_EXPIRED_OR_NOT_FOUND' });
     return;
   }
 
@@ -204,7 +204,7 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
 
     await finalizeAuth(user, req, res);
   } else {
-    res.status(400).json({ error: 'Verification failed' });
+    res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });
   }
 };
 
@@ -217,13 +217,13 @@ export const verifyTotpLogin = async (req: Request, res: Response): Promise<void
   const user = await getUserFromTempToken(req, 'login');
   
   if (!user || !user.isTotpEnabled || !user.totpSecret) {
-    res.status(401).json({ error: 'Unauthorized or TOTP not enabled' });
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED_OR_TOTP_NOT_ENABLED' });
     return;
   }
 
   const result = authenticator.verifySync({ secret: user.totpSecret, token: code });
   if (!result || !result.valid) {
-    res.status(400).json({ error: 'Invalid TOTP code' });
+    res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
     return;
   }
 
@@ -240,7 +240,7 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
       // 2FA flow
       const user = await getUserFromTempToken(req, 'login');
       if (!user) {
-        res.status(401).json({ error: 'Unauthorized' });
+        res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
         return;
       }
       const userPasskeys = await prisma.passkey.findMany({ where: { userId: user.id } });
@@ -284,18 +284,18 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
     // 2FA flow
     user = await getUserFromTempToken(req, 'login');
     if (!user) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
     if (!bodyChallengeId) {
-      res.status(400).json({ error: 'Challenge ID is required' });
+      res.status(400).json({ error: 'ERR_CHALLENGE_ID_IS_REQUIRED' });
       return;
     }
     challengeId = bodyChallengeId;
   } else {
     // Passwordless flow
     if (!bodyChallengeId) {
-      res.status(400).json({ error: 'Challenge ID is required for passwordless login' });
+      res.status(400).json({ error: 'ERR_CHALLENGE_ID_IS_REQUIRED_FOR_PASSWORDLESS_LOGIN' });
       return;
     }
     challengeId = bodyChallengeId;
@@ -303,18 +303,18 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
 
   const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
   if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
-    res.status(400).json({ error: 'Challenge expired or not found' });
+    res.status(400).json({ error: 'ERR_CHALLENGE_EXPIRED_OR_NOT_FOUND' });
     return;
   }
 
   const passkey = await prisma.passkey.findUnique({ where: { id: response.id } });
   if (!passkey) {
-    res.status(400).json({ error: 'Passkey not found' });
+    res.status(400).json({ error: 'ERR_PASSKEY_NOT_FOUND' });
     return;
   }
 
   if (tempToken && passkey.userId !== user?.id) {
-    res.status(400).json({ error: 'Passkey does not belong to user' });
+    res.status(400).json({ error: 'ERR_PASSKEY_DOES_NOT_BELONG_TO_USER' });
     return;
   }
 
@@ -325,7 +325,7 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
       include: { role: true }
     });
     if (!user) {
-      res.status(400).json({ error: 'User not found for this passkey' });
+      res.status(400).json({ error: 'ERR_USER_NOT_FOUND_FOR_THIS_PASSKEY' });
       return;
     }
   }
@@ -359,12 +359,12 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
     await prisma.authChallenge.delete({ where: { id: challengeId } });
 
     if (!user) {
-      res.status(400).json({ error: 'User not found' });
+      res.status(400).json({ error: 'ERR_USER_NOT_FOUND' });
       return;
     }
 
     await finalizeAuth(user, req, res);
   } else {
-    res.status(400).json({ error: 'Verification failed' });
+    res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });
   }
 };

@@ -40,7 +40,7 @@ const authLimiter = rateLimit({
   max: 100, // Limit each IP to 100 requests per window
   keyGenerator: getClientIp,
   validate: { xForwardedForHeader: false }, // Disable x-forwarded-for validation as we handle it manually
-  message: { error: 'Too many requests from this IP, please try again later.' }
+  message: { error: 'ERR_TOO_MANY_REQUESTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
 });
 
 const loginLimiter = rateLimit({
@@ -49,7 +49,7 @@ const loginLimiter = rateLimit({
   skipSuccessfulRequests: true,
   keyGenerator: getClientIp,
   validate: { xForwardedForHeader: false },
-  message: { error: 'Too many failed login attempts from this IP, please try again later.' }
+  message: { error: 'ERR_TOO_MANY_FAILED_LOGIN_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
 });
 
 const registerLimiter = rateLimit({
@@ -57,7 +57,7 @@ const registerLimiter = rateLimit({
   max: 5, // Strict limit for registration
   keyGenerator: getClientIp,
   validate: { xForwardedForHeader: false },
-  message: { error: 'Too many registration attempts from this IP, please try again later.' }
+  message: { error: 'ERR_TOO_MANY_REGISTRATION_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
 });
 
 const strict2FALimiter = rateLimit({
@@ -66,7 +66,7 @@ const strict2FALimiter = rateLimit({
   skipSuccessfulRequests: true,
   keyGenerator: getClientIp,
   validate: { xForwardedForHeader: false },
-  message: { error: 'Too many failed 2FA attempts from this IP, please try again later.' }
+  message: { error: 'ERR_TOO_MANY_FAILED_2FA_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
 });
 
 router.use(authLimiter);

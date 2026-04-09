@@ -17,7 +17,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
@@ -33,14 +33,14 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
     });
 
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
       return;
     }
 
     res.json({ user: { ...user, role: user.role?.name || null } });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -48,7 +48,7 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
@@ -90,7 +90,7 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
     res.json(unifiedBookmarks);
   } catch (error) {
     console.error('Error fetching bookmarks:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -98,7 +98,7 @@ export const getPasskeys = async (req: AuthRequest, res: Response): Promise<void
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
@@ -110,7 +110,7 @@ export const getPasskeys = async (req: AuthRequest, res: Response): Promise<void
     res.json({ passkeys });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -120,7 +120,7 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
     const passkeyId = req.params.id as string;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
@@ -131,7 +131,7 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
     res.json({ message: 'Passkey deleted successfully' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -139,7 +139,7 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
@@ -147,25 +147,25 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
       return;
     }
 
     if (!currentPassword && !totpCode) {
-      res.status(401).json({ error: 'Current password or TOTP code required to disable 2FA' });
+      res.status(401).json({ error: 'ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_TO_DISABLE_2FA' });
       return;
     }
     if (currentPassword && user.password) {
       const isValid = await argon2.verify(user.password, currentPassword);
       if (!isValid) {
-        res.status(401).json({ error: 'Invalid current password' });
+        res.status(401).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
         return;
       }
     }
     if (totpCode && user.totpSecret) {
       const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
       if (!result || !result.valid) {
-        res.status(400).json({ error: 'Invalid TOTP code' });
+        res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
         return;
       }
     }
@@ -178,7 +178,7 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
     res.json({ message: 'TOTP disabled successfully' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -188,7 +188,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
@@ -197,26 +197,26 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
       return;
     }
 
     if (email || password) {
       if (!currentPassword && !totpCode) {
-        res.status(401).json({ error: 'Current password or TOTP code required for sensitive changes' });
+        res.status(401).json({ error: 'ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES' });
         return;
       }
       if (currentPassword && user.password) {
         const isValid = await argon2.verify(user.password, currentPassword);
         if (!isValid) {
-          res.status(401).json({ error: 'Invalid current password' });
+          res.status(401).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
           return;
         }
       }
       if (totpCode && user.totpSecret) {
         const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
         if (!result || !result.valid) {
-          res.status(400).json({ error: 'Invalid TOTP code' });
+          res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
           return;
         }
       }
@@ -228,7 +228,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       // check if email is taken
       const existingEmail = await prisma.user.findUnique({ where: { email } });
       if (existingEmail) {
-        res.status(400).json({ error: 'Email already in use' });
+        res.status(400).json({ error: 'ERR_EMAIL_ALREADY_IN_USE' });
         return;
       }
       updateData.email = email;
@@ -238,7 +238,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       // check if username is taken
       const existingUsername = await prisma.user.findUnique({ where: { username } });
       if (existingUsername) {
-        res.status(400).json({ error: 'Username already in use' });
+        res.status(400).json({ error: 'ERR_USERNAME_ALREADY_IN_USE' });
         return;
       }
       updateData.username = username;
@@ -246,24 +246,24 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
 
     if (password) {
       if (password.length < 8 || password.length > 128) {
-        res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
+        res.status(400).json({ error: 'ERR_PASSWORD_MUST_BE_BETWEEN_8_AND_128_CHARACTERS' });
         return;
       }
       
       if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
-        res.status(400).json({ error: 'Password must contain uppercase, lowercase, number, and special character' });
+        res.status(400).json({ error: 'ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER' });
         return;
       }
       // Restrict to ASCII characters to prevent Unicode bypass
       if (!/^[ -~]+$/.test(password)) {
-        res.status(400).json({ error: 'Password contains invalid characters' });
+        res.status(400).json({ error: 'ERR_PASSWORD_CONTAINS_INVALID_CHARACTERS' });
         return;
       }
       updateData.password = await argon2.hash(password);
     }
 
     if (Object.keys(updateData).length === 0) {
-      res.status(400).json({ error: 'No fields to update' });
+      res.status(400).json({ error: 'ERR_NO_FIELDS_TO_UPDATE' });
       return;
     }
 
@@ -276,7 +276,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: updatedUser.role?.name || null } });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -284,7 +284,7 @@ export const generateTotp = async (req: AuthRequest, res: Response): Promise<voi
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
@@ -299,7 +299,7 @@ export const generateTotp = async (req: AuthRequest, res: Response): Promise<voi
 
     res.json({ secret, qrCodeUrl });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -308,25 +308,25 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
     const { code } = req.body;
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
     const pendingSecret = await redis.get(`totp_setup:${userId}`);
     if (!pendingSecret) {
-      res.status(401).json({ error: 'Unauthorized or setup not initiated/expired' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED' });
       return;
     }
 
     const result = authenticator.verifySync({ secret: pendingSecret, token: code });
     if (!result || !result.valid) {
-      res.status(400).json({ error: 'Invalid TOTP code' });
+      res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
       return;
     }
 
@@ -339,7 +339,7 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
 
     res.json({ message: 'TOTP setup successful' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -347,7 +347,7 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
@@ -382,7 +382,7 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
 
     res.json({ ...options, challengeId });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -391,18 +391,18 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
     const { response, challengeId } = req.body;
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
     if (!challengeId) {
-      res.status(400).json({ error: 'Challenge ID is required' });
+      res.status(400).json({ error: 'ERR_CHALLENGE_ID_IS_REQUIRED' });
       return;
     }
 
     const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
     if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
-      res.status(400).json({ error: 'Challenge expired or not found' });
+      res.status(400).json({ error: 'ERR_CHALLENGE_EXPIRED_OR_NOT_FOUND' });
       return;
     }
 
@@ -438,10 +438,10 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
       await prisma.authChallenge.delete({ where: { id: challengeId } });
       res.json({ message: 'Passkey registered successfully' });
     } else {
-      res.status(400).json({ error: 'Verification failed' });
+      res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -449,7 +449,7 @@ export const getSessions = async (req: AuthRequest, res: Response): Promise<void
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
@@ -468,7 +468,7 @@ export const getSessions = async (req: AuthRequest, res: Response): Promise<void
     res.json({ sessions });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -478,12 +478,12 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     const sessionId = req.params.sessionId as string;
 
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
 
     if (!sessionId) {
-      res.status(400).json({ error: 'Session ID is required' });
+      res.status(400).json({ error: 'ERR_SESSION_ID_IS_REQUIRED' });
       return;
     }
 
@@ -493,7 +493,7 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     if (!session) {
-      res.status(404).json({ error: 'Session not found or unauthorized' });
+      res.status(404).json({ error: 'ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED' });
       return;
     }
 
@@ -507,7 +507,7 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     res.json({ message: 'Session revoked successfully' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -536,13 +536,13 @@ export const getPublicProfile = async (req: AuthRequest, res: Response): Promise
     });
 
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
       return;
     }
 
     res.json({ user: { ...user, role: user.role?.name || null } });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };

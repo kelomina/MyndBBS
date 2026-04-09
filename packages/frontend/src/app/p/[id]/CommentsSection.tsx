@@ -5,6 +5,7 @@ import { MessageSquare, ArrowBigUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { CommentItem } from './CommentItem';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
+import { useTranslation } from '../../../components/TranslationProvider';
 
 export function CommentsSection({ postId, dict, initialCount }: { postId: string, dict: any, initialCount: number }) {
   const router = useRouter();
@@ -162,7 +163,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
             >
               &times;
             </button>
-            <h3 className="text-lg font-bold mb-4 text-center">Verify to Post Comment</h3>
+            <h3 className="text-lg font-bold mb-4 text-center">{dict.post?.verifyToPostComment || "Verify to Post Comment"}</h3>
             <SliderCaptcha 
               onSuccess={handleSubmit} 
               apiUrl={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/auth`}
@@ -175,8 +176,8 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       <div className="rounded-xl bg-card p-4 shadow-sm border border-border/50 flex gap-4 flex-col">
         {replyTo && (
           <div className="flex items-center justify-between text-sm text-muted bg-background p-2 rounded-lg border border-border">
-            <span>Replying to <span className="font-medium text-foreground">{replyTo.username}</span></span>
-            <button onClick={() => setReplyTo(null)} className="hover:text-foreground">Cancel</button>
+            <span>{dict.post?.replyingTo || "Replying to"} <span className="font-medium text-foreground">{replyTo.username}</span></span>
+            <button onClick={() => setReplyTo(null)} className="hover:text-foreground">{dict.common?.cancel || "Cancel"}</button>
           </div>
         )}
         <div className="flex gap-4">
