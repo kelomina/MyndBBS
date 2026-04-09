@@ -106,6 +106,22 @@ pnpm --filter frontend dev
 
 ## 开发与规范
 
+### 代码风格与约定
+
+本项目采用严格的代码格式化与代码质量控制，以保证前后端代码的统一性与可维护性：
+
+- **格式化 (Prettier)**：使用无分号（`semi: false`）、单引号（`singleQuote: true`）、尾随逗号（`trailingComma: 'all'`），缩进 2 个空格，单行最大 100 字符。
+- **代码检查 (ESLint)**：采用 Flat Config 配置，继承 `@eslint/js` 和 `typescript-eslint` 推荐规则。严格禁止使用 `any`，并对代码复杂度进行限制（单函数圈复杂度最高 10，代码最多 50 行）。
+- **TypeScript 严格模式**：全栈启用 `"strict": true`。后端开启了严格属性校验（`exactOptionalPropertyTypes`）与索引校验（`noUncheckedIndexedAccess`）。
+- **前端开发规范**：
+  - 全面使用 Next.js App Router 架构，优先采用服务端组件（RSC）。
+  - 涉及状态管理或浏览器 API 的组件，需在文件顶部显式声明 `'use client'`。
+  - UI 样式全面采用 Tailwind CSS 与语义化 CSS 变量。
+- **后端设计模式**：
+  - 基于 Express，采用路由（Route）与控制器（Controller）职责分离的架构。
+  - 数据库交互统一使用强类型 ORM（Prisma）。
+- **命名规范**：React 组件文件与函数名使用大驼峰（PascalCase），普通函数与变量使用小驼峰（camelCase），全局常量使用全大写加下划线（UPPER_SNAKE_CASE）。
+
 ### Lint / Format
 
 ```bash
@@ -214,6 +230,22 @@ Default URL:
 - http://localhost:3000
 
 ## Development & Conventions
+
+### Code Style & Conventions
+
+This project adopts strict formatting and code quality controls to ensure consistency and maintainability across the full stack:
+
+- **Formatting (Prettier)**: No semicolons (`semi: false`), single quotes (`singleQuote: true`), trailing commas (`trailingComma: 'all'`), 2-space indentation, and a maximum of 100 characters per line.
+- **Linting (ESLint)**: Uses Flat Config extending `@eslint/js` and `typescript-eslint` recommended rules. Strict prohibition of `any` types, with function complexity limits (max cyclomatic complexity of 10, max 50 lines per function).
+- **TypeScript Strictness**: `"strict": true` is enabled globally. The backend enforces extra safety with `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`.
+- **Frontend Paradigms**:
+  - Fully leverages Next.js App Router architecture, prioritizing React Server Components (RSC).
+  - Client-side components requiring state or browser APIs explicitly declare `'use client'` at the top.
+  - Comprehensive usage of Tailwind CSS paired with semantic CSS variables for UI styling.
+- **Backend Patterns**:
+  - Express-based with a clear separation of Route and Controller responsibilities.
+  - Strongly-typed ORM (Prisma) for all database interactions.
+- **Naming Conventions**: PascalCase for React component files and names, camelCase for regular functions and variables, and UPPER_SNAKE_CASE for global constants.
 
 ### Lint / Format
 
