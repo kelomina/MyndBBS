@@ -12,18 +12,21 @@ const envPath = path.resolve(__dirname, '../../.env');
 // Temporary in-memory token for the install session
 let installToken = '';
 
+router.get('/tailwind.js', (req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, 'tailwind.js'));
+});
+
 router.get('/', (req: Request, res: Response) => {
   res.send(`
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang="zh-CN">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>MyndBBS Installation</title>
-      <script src="https://cdn.tailwindcss.com"></script>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+      <title>MyndBBS 安装</title>
+      <script src="/install/tailwind.js"></script>
       <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f3f4f6; }
         .step-content { display: none; animation: fadeIn 0.3s ease-in-out; }
         .step-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -33,8 +36,8 @@ router.get('/', (req: Request, res: Response) => {
       <div class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         <!-- Header -->
         <div class="bg-gray-900 px-8 py-6 text-white text-center">
-          <h1 class="text-3xl font-bold tracking-tight">MyndBBS Setup</h1>
-          <p class="text-gray-400 mt-2 text-sm">Configure your new forum infrastructure</p>
+          <h1 class="text-3xl font-bold tracking-tight">MyndBBS 安装向导</h1>
+          <p class="text-gray-400 mt-2 text-sm">配置您的全新论坛基础设施</p>
         </div>
 
         <!-- Progress Bar -->
@@ -45,19 +48,19 @@ router.get('/', (req: Request, res: Response) => {
             
             <div class="relative z-10 flex flex-col items-center">
               <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm border-4 border-white">1</div>
-              <span class="text-xs font-medium text-gray-900 mt-1">Welcome</span>
+              <span class="text-xs font-medium text-gray-900 mt-1">欢迎</span>
             </div>
             <div class="relative z-10 flex flex-col items-center">
               <div id="indicator-2" class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold text-sm border-4 border-white transition-colors duration-300">2</div>
-              <span id="label-2" class="text-xs font-medium text-gray-500 mt-1 transition-colors duration-300">Database</span>
+              <span id="label-2" class="text-xs font-medium text-gray-500 mt-1 transition-colors duration-300">数据库</span>
             </div>
             <div class="relative z-10 flex flex-col items-center">
               <div id="indicator-3" class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold text-sm border-4 border-white transition-colors duration-300">3</div>
-              <span id="label-3" class="text-xs font-medium text-gray-500 mt-1 transition-colors duration-300">App</span>
+              <span id="label-3" class="text-xs font-medium text-gray-500 mt-1 transition-colors duration-300">应用</span>
             </div>
             <div class="relative z-10 flex flex-col items-center">
               <div id="indicator-4" class="w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold text-sm border-4 border-white transition-colors duration-300">4</div>
-              <span id="label-4" class="text-xs font-medium text-gray-500 mt-1 transition-colors duration-300">Admin</span>
+              <span id="label-4" class="text-xs font-medium text-gray-500 mt-1 transition-colors duration-300">管理员</span>
             </div>
           </div>
         </div>
@@ -65,73 +68,73 @@ router.get('/', (req: Request, res: Response) => {
         <div class="px-8 py-8">
           <!-- Step 1: Welcome -->
           <div id="step-1" class="step-content active">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">Welcome to MyndBBS</h2>
-            <p class="text-gray-600 mb-6 leading-relaxed">This installation wizard will guide you through setting up your PostgreSQL database, configuring application environments, and creating your initial super admin account.</p>
-            <button onclick="nextStep(2)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">Start Installation</button>
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">欢迎安装 MyndBBS</h2>
+            <p class="text-gray-600 mb-6 leading-relaxed">本安装向导将引导您设置 PostgreSQL 数据库、配置应用程序环境，并创建您的初始超级管理员账户。</p>
+            <button onclick="nextStep(2)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">开始安装</button>
           </div>
 
           <!-- Step 2: Database -->
           <div id="step-2" class="step-content">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">Database Configuration</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">数据库配置</h2>
             <form id="dbForm" onsubmit="handleDbSubmit(event)">
               <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Host / IP</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">数据库域名或IP</label>
                   <input type="text" id="dbHost" value="localhost" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">数据库端口</label>
                   <input type="number" id="dbPort" value="5432" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
                 </div>
               </div>
               <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Database Name</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">数据库名称</label>
                 <input type="text" id="dbName" value="myndbbs" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
               </div>
               <div class="grid grid-cols-2 gap-4 mb-6">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">数据库用户名</label>
                   <input type="text" id="dbUser" value="postgres" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">数据库密码</label>
                   <input type="password" id="dbPass" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
                 </div>
               </div>
               <div class="flex justify-between items-center">
-                <button type="button" onclick="prevStep(1)" class="text-gray-600 hover:text-gray-900 font-medium py-2 px-4">Back</button>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors">Next Step</button>
+                <button type="button" onclick="prevStep(1)" class="text-gray-600 hover:text-gray-900 font-medium py-2 px-4">上一步</button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors">下一步</button>
               </div>
             </form>
           </div>
 
           <!-- Step 3: Application Settings -->
           <div id="step-3" class="step-content">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">Application Settings</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">应用程序设置</h2>
             <form id="appForm" onsubmit="handleAppSubmit(event)">
               <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Backend Port</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">后端端口</label>
                   <input type="number" id="appPort" value="3001" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Frontend URL</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">前端地址</label>
                   <input type="url" id="frontendUrl" value="http://localhost:3000" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
                 </div>
               </div>
               <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Directory Path</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">上传目录路径</label>
                 <input type="text" id="uploadDir" value="./uploads" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
               </div>
               <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Website Root Directory</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">网站根目录</label>
                 <input type="text" id="webRoot" value="/" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
               </div>
               <div id="initError" class="text-red-600 text-sm mb-4 hidden bg-red-50 p-3 rounded-lg border border-red-200"></div>
               <div class="flex justify-between items-center">
-                <button type="button" onclick="prevStep(2)" class="text-gray-600 hover:text-gray-900 font-medium py-2 px-4">Back</button>
+                <button type="button" onclick="prevStep(2)" class="text-gray-600 hover:text-gray-900 font-medium py-2 px-4">上一步</button>
                 <button type="submit" id="initBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center justify-center min-w-[160px]">
-                  <span id="initBtnText">Initialize Database</span>
+                  <span id="initBtnText">初始化数据库</span>
                   <svg id="initBtnSpinner" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 </button>
               </div>
@@ -140,25 +143,25 @@ router.get('/', (req: Request, res: Response) => {
 
           <!-- Step 4: Admin Account -->
           <div id="step-4" class="step-content">
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Super Admin Setup</h2>
-            <p class="text-sm text-gray-500 mb-6">Database initialized successfully! Now create your administrator account.</p>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">超级管理员设置</h2>
+            <p class="text-sm text-gray-500 mb-6">数据库初始化成功！现在请创建您的管理员账户。</p>
             <form id="adminForm" onsubmit="handleAdminSubmit(event)">
               <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
                 <input type="text" id="adminUser" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
               </div>
               <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
                 <input type="email" id="adminEmail" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
               </div>
               <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
                 <input type="password" id="adminPass" required minlength="8" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
               </div>
               <div id="adminError" class="text-red-600 text-sm mb-4 hidden bg-red-50 p-3 rounded-lg border border-red-200"></div>
               <div class="flex justify-end items-center">
                 <button type="submit" id="adminBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center justify-center min-w-[160px]">
-                  <span id="adminBtnText">Finish Installation</span>
+                  <span id="adminBtnText">完成安装</span>
                   <svg id="adminBtnSpinner" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 </button>
               </div>
@@ -170,9 +173,9 @@ router.get('/', (req: Request, res: Response) => {
             <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
             </div>
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Installation Complete!</h2>
-            <p class="text-gray-600 mb-6">The system has been configured and the backend is restarting. You can now close this page and visit your frontend.</p>
-            <a href="http://localhost:3000" id="goFrontend" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg transition-colors">Go to Forum</a>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">安装完成！</h2>
+            <p class="text-gray-600 mb-6">系统已配置完毕，后端正在重启。您现在可以关闭此页面并访问前端。</p>
+            <a href="http://localhost:3000" id="goFrontend" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg transition-colors">前往论坛</a>
           </div>
         </div>
       </div>
@@ -253,7 +256,7 @@ router.get('/', (req: Request, res: Response) => {
           const errBox = document.getElementById('initError');
 
           btn.disabled = true;
-          btnText.textContent = 'Initializing...';
+          btnText.textContent = '初始化中...';
           spinner.classList.remove('hidden');
           errBox.classList.add('hidden');
 
@@ -270,17 +273,17 @@ router.get('/', (req: Request, res: Response) => {
               document.getElementById('goFrontend').href = appConfig.frontendUrl;
               nextStep(4);
             } else {
-              errBox.textContent = data.error || 'Failed to initialize database';
+              errBox.textContent = data.error || '初始化数据库失败';
               errBox.classList.remove('hidden');
               btn.disabled = false;
-              btnText.textContent = 'Initialize Database';
+              btnText.textContent = '初始化数据库';
               spinner.classList.add('hidden');
             }
           } catch (err) {
             errBox.textContent = err.message;
             errBox.classList.remove('hidden');
             btn.disabled = false;
-            btnText.textContent = 'Initialize Database';
+            btnText.textContent = '初始化数据库';
             spinner.classList.add('hidden');
           } 
         }
@@ -300,7 +303,7 @@ router.get('/', (req: Request, res: Response) => {
           const errBox = document.getElementById('adminError');
 
           btn.disabled = true;
-          btnText.textContent = 'Finishing...';
+          btnText.textContent = '正在完成...';
           spinner.classList.remove('hidden');
           errBox.classList.add('hidden');
 
@@ -320,7 +323,7 @@ router.get('/', (req: Request, res: Response) => {
               resOk = true;
               nextStep(5);
             } else {
-              errBox.textContent = data.error || 'Failed to create admin';
+              errBox.textContent = data.error || '创建管理员失败';
               errBox.classList.remove('hidden');
             }
           } catch (err) {
@@ -329,7 +332,7 @@ router.get('/', (req: Request, res: Response) => {
           } finally {
             if (!resOk) {
               btn.disabled = false;
-              btnText.textContent = 'Finish Installation';
+              btnText.textContent = '完成安装';
               spinner.classList.add('hidden');
             }
           }
@@ -345,7 +348,7 @@ router.post('/api/env', async (req: Request, res: Response): Promise<void> => {
     const { DATABASE_URL, PORT, FRONTEND_URL, UPLOAD_DIR, WEB_ROOT } = req.body;
     
     if (!DATABASE_URL) {
-      res.status(400).json({ error: 'DATABASE_URL is required' });
+      res.status(400).json({ error: '缺少 DATABASE_URL' });
       return;
     }
 
@@ -371,7 +374,7 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
     exec('npx prisma db push', { cwd: path.resolve(__dirname, '../../') }, async (error, stdout, stderr) => {
       if (error) {
         console.error('Prisma Error:', stderr || error.message);
-        res.status(500).json({ error: 'Database initialization failed. Please check your DATABASE credentials and ensure PostgreSQL is running.' });
+        res.status(500).json({ error: '数据库初始化失败，请检查您的数据库凭据并确保 PostgreSQL 正在运行。' });
         return;
       }
 
@@ -402,7 +405,7 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
         });
       } catch (dbErr) {
         console.error('DB Seed Error:', dbErr);
-        res.status(500).json({ error: 'Failed to create temporary root account.' });
+        res.status(500).json({ error: '创建临时管理员账户失败。' });
         return;
       } finally {
         await prisma.$disconnect();
@@ -411,20 +414,20 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
       res.json({ success: true, token: installToken });
     });
   } catch (err) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: '内部服务器错误' });
   }
 });
 
 router.post('/api/admin', async (req: Request, res: Response): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader || authHeader !== `Bearer ${installToken}`) {
-    res.status(401).json({ error: 'Unauthorized. Invalid install token.' });
+    res.status(401).json({ error: '未授权，无效的安装令牌。' });
     return;
   }
 
   const { username, email, password } = req.body;
   if (!username || !email || !password) {
-    res.status(400).json({ error: 'Username, email, and password are required' });
+    res.status(400).json({ error: '用户名、邮箱和密码是必填项' });
     return;
   }
 
@@ -432,7 +435,7 @@ router.post('/api/admin', async (req: Request, res: Response): Promise<void> => 
   try {
     const role = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
     if (!role) {
-      res.status(500).json({ error: 'SUPER_ADMIN role not found' });
+      res.status(500).json({ error: '未找到 SUPER_ADMIN 角色' });
       return;
     }
 
@@ -463,12 +466,19 @@ router.post('/api/admin', async (req: Request, res: Response): Promise<void> => 
     // Restart the backend after a short delay
     setTimeout(() => {
       console.log('Installation complete. Restarting server...');
-      process.exit(0); // Assuming nodemon or pm2 will restart it
+      // Touch index.ts to trigger nodemon restart cleanly
+      const indexPath = path.resolve(__dirname, '../index.ts');
+      const time = new Date();
+      try {
+        fs.utimesSync(indexPath, time, time);
+      } catch (err) {
+        fs.closeSync(fs.openSync(indexPath, 'w'));
+      }
     }, 1000);
 
   } catch (err: any) {
     console.error('Admin Creation Error:', err);
-    res.status(500).json({ error: 'Failed to create admin account. Username or email may already exist.' });
+    res.status(500).json({ error: '创建管理员账户失败。用户名或邮箱可能已存在。' });
   } finally {
     await prisma.$disconnect();
   }
