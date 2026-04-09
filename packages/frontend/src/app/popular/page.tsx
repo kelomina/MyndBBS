@@ -70,11 +70,11 @@ export default async function PopularPage() {
                 <div className="flex items-center space-x-4 text-sm font-medium text-muted">
                   <button className="flex items-center space-x-1 transition-colors hover:text-primary">
                     <ArrowBigUp className="h-5 w-5" />
-                    <span>0</span>
+                    <span>{post._count?.upvotes || 0}</span>
                   </button>
                   <button className="flex items-center space-x-1 transition-colors hover:text-primary">
                     <MessageSquare className="h-4 w-4" />
-                    <span>0</span>
+                    <span>{post._count?.comments || 0}</span>
                   </button>
                 </div>
               </article>

@@ -40,6 +40,9 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<v
         },
         category: {
           select: { id: true, name: true, description: true }
+        },
+        _count: {
+          select: { comments: true, upvotes: true }
         }
       }
     });
