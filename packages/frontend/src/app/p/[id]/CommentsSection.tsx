@@ -16,7 +16,9 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/comments`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/comments`, {
+          credentials: 'include'
+        });
         if (res.ok) {
           const data = await res.json();
           setComments(data);
