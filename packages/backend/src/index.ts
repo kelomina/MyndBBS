@@ -75,6 +75,7 @@ if (!isInstalled) {
   const postRoutes = require('./routes/post').default;
   const categoryRoutes = require('./routes/category').default;
   const notificationRoutes = require('./routes/notification').default;
+  const messageRoutes = require('./routes/message').default;
 
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/user', userRoutes);
@@ -82,6 +83,7 @@ if (!isInstalled) {
   app.use('/api/posts', postRoutes);
   app.use('/api/categories', categoryRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
+  app.use('/api/v1/messages', messageRoutes);
 
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
