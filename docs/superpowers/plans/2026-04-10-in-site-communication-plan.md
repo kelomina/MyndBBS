@@ -47,26 +47,30 @@ model Notification {
 }
 
 model UserKey {
-  id                  String   @id @default(uuid()) @db.Uuid
-  userId              String   @unique @db.Uuid
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  publicKey           String   @db.Text
-  encryptedPrivateKey String   @db.Text
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                       String   @id @default(uuid()) @db.Uuid
+  userId                   String   @unique @db.Uuid
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheme                   String   @default("P521_ONLY") // Or "X_WING_HYBRID"
+  publicKey                String   @db.Text
+  encryptedPrivateKey      String   @db.Text
+  mlKemPublicKey           String?  @db.Text
+  encryptedMlKemPrivateKey String?  @db.Text
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 model PrivateMessage {
-  id                 String   @id @default(uuid()) @db.Uuid
-  senderId           String   @db.Uuid
-  sender             User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiverId         String   @db.Uuid
-  receiver           User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  ephemeralPublicKey String   @db.Text
-  encryptedContent   String   @db.Text
-  isRead             Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                       String   @id @default(uuid()) @db.Uuid
+  senderId                 String   @db.Uuid
+  sender                   User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId               String   @db.Uuid
+  receiver                 User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  ephemeralPublicKey       String   @db.Text
+  ephemeralMlKemCiphertext String?  @db.Text
+  encryptedContent         String   @db.Text
+  isRead                   Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   @@index([senderId])
   @@index([receiverId])
@@ -268,13 +272,18 @@ export const uploadKeys = async (req: AuthRequest, res: Response): Promise<void>
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.level < 2) { res.status(403).json({ error: 'ERR_LEVEL_TOO_LOW' }); return; }
 
-  const { publicKey, encryptedPrivateKey } = req.body;
+  const { scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey } = req.body;
   if (!publicKey || !encryptedPrivateKey) { res.status(400).json({ error: 'ERR_MISSING_KEYS' }); return; }
+  
+  if (scheme === 'X_WING_HYBRID' && user.level < 4) {
+    res.status(403).json({ error: 'ERR_LEVEL_TOO_LOW_FOR_X_WING' });
+    return;
+  }
 
   await prisma.userKey.upsert({
     where: { userId },
-    update: { publicKey, encryptedPrivateKey },
-    create: { userId, publicKey, encryptedPrivateKey }
+    update: { scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey },
+    create: { userId, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey }
   });
 
   res.json({ success: true });
@@ -304,13 +313,13 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   const senderId = req.user?.userId;
   if (!senderId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const { receiverId, ephemeralPublicKey, encryptedContent } = req.body;
+  const { receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent } = req.body;
   
   const sender = await prisma.user.findUnique({ where: { id: senderId } });
   if (!sender || sender.level < 2) { res.status(403).json({ error: 'ERR_LEVEL_TOO_LOW' }); return; }
 
   const msg = await prisma.privateMessage.create({
-    data: { senderId, receiverId, ephemeralPublicKey, encryptedContent }
+    data: { senderId, receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent }
   });
 
   res.json({ success: true, message: msg });
@@ -474,7 +483,16 @@ export const encryptMessage = async (text: string, myPrivateKey: CryptoKey, thei
   return btoa(String.fromCharCode(...combined));
 };
 
-export const decryptMessage = async (encryptedBase64: string, myPrivateKey: CryptoKey, theirPublicKey: CryptoKey): Promise<string> => {
+export const generateMlKem1024KeyPair = async () => { /* Web Crypto API extension or polyfill for ML-KEM */ };
+export const encapsulateMlKem1024 = async (publicKey: CryptoKey) => { /* derive sharedSecret2 and ciphertext */ };
+export const decapsulateMlKem1024 = async (ciphertext: Uint8Array, privateKey: CryptoKey) => { /* reconstruct sharedSecret2 */ };
+
+// Update HKDF step to accept an array of secrets to combine
+const deriveAesGcmKey = async (sharedSecrets: CryptoKey[]): Promise<CryptoKey> => {
+  // If multiple secrets (X-Wing), combine them via HKDF. Otherwise just use the P-521 secret.
+};
+
+export const decryptMessage = async (encryptedBase64: string, myPrivateKey: CryptoKey, theirPublicKey: CryptoKey, mlKemSharedSecret?: CryptoKey): Promise<string> => {
   const aesKey = await deriveAesGcmKey(myPrivateKey, theirPublicKey);
   const binaryString = atob(encryptedBase64);
   const combined = new Uint8Array(binaryString.length);
