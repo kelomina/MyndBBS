@@ -436,6 +436,12 @@
     "conversationWith": "Conversation with",
     "sendError": "Failed to send message",
     "initError": "Failed to initialize keys",
-    "burnAfterReading": "Enable Burn-after-reading (Do not keep decryptable sent records on server)"
+    "burnAfterReading": "Enable Burn-after-reading (Do not keep decryptable sent records on server)",
+    "recoveryPasswordTitle": "Secure Messaging Recovery Password",
+    "createRecoveryPasswordDesc": "Your authenticator does not support the PRF extension natively.\n\nPlease create a Secure Messaging Recovery Password to encrypt your keys. You will need this password to read your messages on other devices.",
+    "enterRecoveryPasswordDesc": "Please enter your Secure Messaging Recovery Password to unlock your inbox:",
+    "enterPasswordPlaceholder": "Enter password...",
+    "setupCancelled": "Setup cancelled. A recovery password is required when PRF is unavailable.",
+    "unlockCancelled": "Unlock cancelled."
   }
 }

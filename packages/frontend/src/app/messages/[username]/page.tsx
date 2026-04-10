@@ -50,6 +50,13 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const [targetUserId, setTargetUserId] = useState('');
   const [myUserId, setMyUserId] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [passwordPrompt, setPasswordPrompt] = useState<{ isOpen: boolean; message: string; resolve: (value: string | null) => void } | null>(null);
+  
+  const requestPassword = (message: string): Promise<string | null> => {
+    return new Promise((resolve) => {
+      setPasswordPrompt({ isOpen: true, message, resolve });
+    });
+  };
 
   useEffect(() => {
     params.then(p => {
@@ -156,8 +163,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
       if (!prfResults) {
         // Fallback Mechanism
-        const fallbackPassword = prompt('Please enter your Secure Messaging Recovery Password to unlock your inbox:');
-        if (!fallbackPassword) throw new Error('Unlock cancelled.');
+        const fallbackPassword = await requestPassword(dict.messages.enterRecoveryPasswordDesc || 'Please enter your Secure Messaging Recovery Password to unlock your inbox:');
+        if (!fallbackPassword) throw new Error(dict.messages.unlockCancelled || 'Unlock cancelled.');
         
         const enc = new TextEncoder();
         const keyMaterial = await window.crypto.subtle.importKey(
@@ -391,6 +398,51 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
           </div>
         </div>
       )}
+
+      {passwordPrompt?.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-card p-6 shadow-lg border border-border">
+            <h3 className="text-lg font-bold mb-2">{dict.messages.recoveryPasswordTitle || 'Secure Messaging Recovery Password'}</h3>
+            <p className="text-sm text-muted-foreground mb-4 whitespace-pre-wrap">{passwordPrompt.message}</p>
+            <input
+              type="password"
+              id="recovery-password-input"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder={dict.messages.enterPasswordPlaceholder || 'Enter password...'}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = e.currentTarget.value;
+                  passwordPrompt.resolve(val);
+                  setPasswordPrompt(null);
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  passwordPrompt.resolve(null);
+                  setPasswordPrompt(null);
+                }}
+                className="px-4 py-2 rounded-md hover:bg-accent text-sm font-medium transition-colors"
+              >
+                {dict.common?.cancel || 'Cancel'}
+              </button>
+              <button
+                onClick={() => {
+                  const val = (document.getElementById('recovery-password-input') as HTMLInputElement).value;
+                  passwordPrompt.resolve(val);
+                  setPasswordPrompt(null);
+                }}
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                {dict.common?.confirm || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
