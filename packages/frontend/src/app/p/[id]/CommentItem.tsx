@@ -38,7 +38,7 @@ export function CommentItem({
       setUpvotes((prev: number) => data.upvoted ? prev + 1 : prev - 1);
     } catch (error: any) {
       console.error('Upvote failed:', error);
-      if (error.message?.includes('login') || error.message?.includes('401')) {
+      if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('login') || error.message?.includes('401')) {
         alert(dict.auth?.pleaseLogin || 'Please login to upvote.');
       }
     } finally {
@@ -54,7 +54,7 @@ export function CommentItem({
       setHasBookmarked(data.bookmarked);
     } catch (error: any) {
       console.error('Bookmark failed:', error);
-      if (error.message?.includes('login') || error.message?.includes('401')) {
+      if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('login') || error.message?.includes('401')) {
         alert(dict.auth?.pleaseLogin || 'Please login to bookmark.');
       }
     } finally {
