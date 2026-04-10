@@ -61,7 +61,8 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
             const isCancel = err?.name === 'NotAllowedError' || err?.message?.includes('timed out or was not allowed');
             if (!isCancel) setError(err.message || dict.reauth?.verificationFailed || dict.reauth?.verificationFailed || 'Verification failed');
             setLoading(false);
-          }
+          },
+          { type: 'passkey' }
         );
         return; // executePasskeyFlow handles its own loading state
       }
@@ -105,7 +106,8 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
         const isCancel = err?.name === 'NotAllowedError' || err?.message?.includes('timed out or was not allowed');
         if (!isCancel) setError(err.message || dict.reauth?.verificationFailed || dict.reauth?.verificationFailed || 'Verification failed');
         setLoading(false);
-      }
+      },
+      { type: 'passkey' }
     );
   };
 
