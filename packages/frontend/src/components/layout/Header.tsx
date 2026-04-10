@@ -36,7 +36,7 @@ export async function Header({ locale }: { locale: Locale }) {
           <ThemeToggle />
           <LanguageSwitcher currentLocale={locale} />
           <NotificationsDropdown />
-          <UserNav title={dict.common.account} newPostText={dict.common.newPost} />
+          <UserNav title={dict.common.account} newPostText={dict.common.newPost} messagesText={dict.messages.title} />
         </div>
       </div>
     </header>

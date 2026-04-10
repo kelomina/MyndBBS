@@ -160,7 +160,8 @@
     "adminDashboard": "Admin Dashboard",
     "removeBookmark": "Remove bookmark",
     "bookmarks": "Bookmarks",
-    "noBookmarksYet": "No bookmarks yet."
+    "noBookmarksYet": "No bookmarks yet.",
+    "notificationSettings": "Notification Settings"
   },
   "settings": {
     "loadingProfile": "Loading profile...",
