@@ -1,24 +1,10 @@
-import { Router, Request, Response } from 'express';
-import fs from 'fs';
-import path from 'path';
-import { exec } from 'child_process';
-import crypto from 'crypto';
-import * as argon2 from 'argon2';
-import { PrismaClient, UserStatus } from '@prisma/client';
+const fs = require('fs');
+const path = require('path');
 
-const router: import('express').Router = Router();
-const envPath = path.resolve(__dirname, '../../.env');
+const installTsPath = path.join(__dirname, 'packages/backend/src/routes/install.ts');
+let content = fs.readFileSync(installTsPath, 'utf8');
 
-// Temporary in-memory token for the install session
-let installToken = '';
-
-router.get('/tailwind.js', (req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, 'tailwind.js'));
-});
-
-router.get('/', (req: Request, res: Response) => {
-  res.send(`
-<!DOCTYPE html>
+const newHtml = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -592,149 +578,27 @@ router.get('/', (req: Request, res: Response) => {
     }
   </script>
 </body>
-</html>
-  `);
-});
+</html>`;
 
-router.post('/api/env', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { DATABASE_URL, PORT, FRONTEND_URL, UPLOAD_DIR, WEB_ROOT } = req.body;
-    
-    if (!DATABASE_URL) {
-      res.status(400).json({ error: '缺少 DATABASE_URL' });
-      return;
-    }
+const startTag = 'res.send(`';
+const endTag = '`);\n});\n\nrouter.post';
 
-    const jwtSecret = crypto.randomBytes(32).toString('hex');
-    const jwtRefreshSecret = crypto.randomBytes(32).toString('hex');
+const startIndex = content.indexOf(startTag);
+const endIndex = content.indexOf(endTag);
 
-    const envContent = `
-DATABASE_URL="${DATABASE_URL}"
-PORT=${PORT || 3001}
-FRONTEND_URL="${FRONTEND_URL || 'http://localhost:3000'}"
-UPLOAD_DIR="${UPLOAD_DIR || './uploads'}"
-WEB_ROOT="${WEB_ROOT || '/'}"
-JWT_SECRET="${jwtSecret}"
-JWT_REFRESH_SECRET="${jwtRefreshSecret}"
-`.trim();
+if (startIndex !== -1 && endIndex !== -1) {
+  const before = content.slice(0, startIndex + startTag.length);
+  const after = content.slice(endIndex);
+  
+  // Escape nested template literals to avoid TS compilation errors
+  let safeHtml = newHtml;
+  safeHtml = safeHtml.replace(/(?<!\\)`/g, '\\`');
+  safeHtml = safeHtml.replace(/(?<!\\)\$\{/g, '\\${');
 
-    fs.writeFileSync(envPath, envContent);
-
-    // Update process.env for Prisma in current runtime
-    process.env.DATABASE_URL = DATABASE_URL;
-
-    // Run Prisma DB Push to initialize schema
-    exec('npx prisma db push', { cwd: path.resolve(__dirname, '../../') }, async (error, stdout, stderr) => {
-      if (error) {
-        console.error('Prisma Error:', stderr || error.message);
-        res.status(500).json({ error: '数据库初始化失败，请检查您的数据库凭据并确保 PostgreSQL 正在运行。' });
-        return;
-      }
-
-      // Generate a temporary root token
-      installToken = crypto.randomBytes(16).toString('hex');
-
-      // Create a temporary root user in DB
-      const prisma = new PrismaClient();
-      try {
-        let role = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
-        if (!role) {
-          role = await prisma.role.create({ data: { name: 'SUPER_ADMIN', description: 'System Administrator' } });
-        }
-
-        const hashedPass = await argon2.hash(crypto.randomBytes(16).toString('hex'));
-        
-        // Upsert temp root user
-        await prisma.user.upsert({
-          where: { username: 'temp_root_install' },
-          update: { roleId: role.id, status: UserStatus.ACTIVE, password: hashedPass },
-          create: {
-            username: 'temp_root_install',
-            email: 'temp_root@install.local',
-            password: hashedPass,
-            roleId: role.id,
-            status: UserStatus.ACTIVE
-          }
-        });
-      } catch (dbErr) {
-        console.error('DB Seed Error:', dbErr);
-        res.status(500).json({ error: '创建临时管理员账户失败。' });
-        return;
-      } finally {
-        await prisma.$disconnect();
-      }
-
-      res.json({ success: true, token: installToken });
-    });
-  } catch (err) {
-    res.status(500).json({ error: '内部服务器错误' });
-  }
-});
-
-router.post('/api/admin', async (req: Request, res: Response): Promise<void> => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== `Bearer ${installToken}`) {
-    res.status(401).json({ error: '未授权，无效的安装令牌。' });
-    return;
-  }
-
-  const { username, email, password } = req.body;
-  if (!username || !email || !password) {
-    res.status(400).json({ error: '用户名、邮箱和密码是必填项' });
-    return;
-  }
-
-  const prisma = new PrismaClient();
-  try {
-    const role = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
-    if (!role) {
-      res.status(500).json({ error: '未找到 SUPER_ADMIN 角色' });
-      return;
-    }
-
-    const hashedPass = await argon2.hash(password);
-
-    // Create the real admin user
-    await prisma.user.create({
-      data: {
-        username,
-        email,
-        password: hashedPass,
-        roleId: role.id,
-        status: UserStatus.ACTIVE
-      }
-    });
-
-    // Disable (ban) the temporary root account
-    await prisma.user.updateMany({
-      where: { username: 'temp_root_install' },
-      data: { status: UserStatus.BANNED }
-    });
-
-    // Lock the installation in .env
-    fs.appendFileSync(envPath, '\nINSTALL_LOCKED=true\n');
-
-    res.json({ success: true });
-
-    // Restart the backend after a short delay
-    setTimeout(() => {
-      console.log('Installation complete. Restarting server...');
-      // Touch index.ts to trigger nodemon restart cleanly
-      const indexPath = path.resolve(__dirname, '../index.ts');
-      const time = new Date();
-      try {
-        fs.utimesSync(indexPath, time, time);
-      } catch (err) {
-        fs.closeSync(fs.openSync(indexPath, 'w'));
-      }
-    }, 1000);
-
-  } catch (err: any) {
-    console.error('Admin Creation Error:', err);
-    res.status(500).json({ error: '创建管理员账户失败。用户名或邮箱可能已存在。' });
-  } finally {
-    await prisma.$disconnect();
-  }
-});
-
-export default router;
+  const newContent = before + '\n' + safeHtml + '\n  ' + after;
+  fs.writeFileSync(installTsPath, newContent);
+  console.log('Successfully replaced HTML content with new minimal design');
+} else {
+  console.error('Could not find start/end tags');
+  process.exit(1);
+}
