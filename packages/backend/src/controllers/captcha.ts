@@ -55,6 +55,23 @@ export const generateCaptcha = async (req: Request, res: Response) => {
   }
 };
 
+export const verifyAndConsumeCaptcha = async (captchaId: string): Promise<boolean> => {
+  try {
+    const challenge = await prisma.captchaChallenge.findUnique({
+      where: { id: captchaId }
+    });
+
+    if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
+      return false;
+    }
+
+    await prisma.captchaChallenge.delete({ where: { id: captchaId } });
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 export const verifyCaptcha = async (req: Request, res: Response): Promise<void> => {
   try {
     const { captchaId, dragPath, totalDragTime, finalPosition } = req.body;

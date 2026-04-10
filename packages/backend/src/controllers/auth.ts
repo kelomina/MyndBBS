@@ -11,8 +11,9 @@ import QRCode from 'qrcode';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 import { redis } from '../lib/redis';
+import { APP_NAME } from '@myndbbs/shared';
 
-const rpName = 'MyndBBS';
+const rpName = APP_NAME;
 const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 

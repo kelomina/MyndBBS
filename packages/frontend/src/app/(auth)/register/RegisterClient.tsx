@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
 import { TwoFactorSetup } from '../../../components/TwoFactorSetup';
+import { isValidPassword } from '@myndbbs/shared';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function RegisterClient({ dict }: { dict: any }) {
@@ -31,7 +32,7 @@ export function RegisterClient({ dict }: { dict: any }) {
       return;
     }
     
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
+    if (!isValidPassword(password)) {
       setError(dict.auth.passwordComplexityError);
       return;
     }

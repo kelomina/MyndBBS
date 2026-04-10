@@ -5,6 +5,8 @@ import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { finalizeAuth } from './auth';
+import { verifyAndConsumeCaptcha } from './captcha';
+import { isValidPassword } from '@myndbbs/shared';
 
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -21,7 +23,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     }
     
     // Add comprehensive strength check (uppercase, lowercase, number, special char)
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
+    if (!isValidPassword(password)) {
       res.status(400).json({ error: 'ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER' });
       return;
     }
@@ -32,21 +34,8 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     }
 
     // Verify Captcha
-    const challenge = await prisma.captchaChallenge.findUnique({
-      where: { id: captchaId }
-    });
-
-    try {
-      // Immediately delete the captcha to prevent replay attacks and race conditions, and to cleanup expired records
-      if (challenge) {
-        await prisma.captchaChallenge.delete({ where: { id: captchaId } });
-      }
-    } catch (e) {
-      res.status(400).json({ error: 'ERR_CAPTCHA_ALREADY_USED_OR_INVALID' });
-      return;
-    }
-
-    if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
+    const isCaptchaValid = await verifyAndConsumeCaptcha(captchaId);
+    if (!isCaptchaValid) {
       res.status(400).json({ error: 'ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA' });
       return;
     }
