@@ -374,87 +374,71 @@ export const getDeletedComments = async (req: AuthRequest, res: Response) => {
   res.json(comments);
 };
 
-export const restorePost = async (req: AuthRequest, res: Response): Promise<void> => {
+
+// Helper for admin actions on entities
+const handleAdminAction = async (
+  req: AuthRequest,
+  res: Response,
+  modelName: 'Post' | 'Comment',
+  actionType: 'RESTORE' | 'HARD_DELETE',
+  findUniqueFn: (id: string) => Promise<any>,
+  operationFn: (id: string) => Promise<any>,
+  successMessage: string
+): Promise<void> => {
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
-  
-  const existingPost = await prisma.post.findUnique({ where: { id } });
-  if (!existingPost) {
-    res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
+
+  const entity = await findUniqueFn(id);
+  if (!entity) {
+    res.status(404).json({ error: `ERR_${modelName.toUpperCase()}_NOT_FOUND` });
     return;
   }
 
   const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Post', existingPost as any))) {
+  if (!req.ability?.can('manage', subject(modelName, entity as any))) {
     res.status(403).json({ error: 'ERR_FORBIDDEN' });
     return;
- const post = await prisma.post.update({ where: { id }, data: { status: PostStatus.PUBLISHED } });
-  await logAudit(operatorId, 'RESTORE_POST', `Post:${id}`);
-  res.json({ message: 'Post restored' });
-}
+  }
+
+  await operationFn(id);
+  await logAudit(operatorId, `${actionType}_${modelName.toUpperCase()}`, `${modelName}:${id}`);
+  res.json({ message: successMessage });
+};
+
+export const restorePost = async (req: AuthRequest, res: Response): Promise<void> => {
+  return handleAdminAction(
+    req, res, 'Post', 'RESTORE',
+    (id) => prisma.post.findUnique({ where: { id } }),
+    (id) => prisma.post.update({ where: { id }, data: { status: PostStatus.PUBLISHED } }),
+    'Post restored'
+  );
 };
 
 export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<void> => {
-  const id = req.params.id as string;
-  const operatorId = req.user?.userId || 'unknown';
-  
-  const existingPost = await prisma.post.findUnique({ where: { id } });
-  if (!existingPost) {
-    res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
-    return;
-  }
-
-  const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Post', existingPost as any))) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN' });
-    return;
-  }
-
-  await prisma.post.delete({ where: { id } });
-  await logAudit(operatorId, 'HARD_DELETE_POST', `Post:${id}`);
-  res.json({ message: 'Post permanently deleted' });
+  return handleAdminAction(
+    req, res, 'Post', 'HARD_DELETE',
+    (id) => prisma.post.findUnique({ where: { id } }),
+    (id) => prisma.post.delete({ where: { id } }),
+    'Post permanently deleted'
+  );
 };
 
 export const restoreComment = async (req: AuthRequest, res: Response): Promise<void> => {
-  const id = req.params.id as string;
-  const operatorId = req.user?.userId || 'unknown';
-  
-  const existingComment = await prisma.comment.findUnique({ where: { id }, include: { post: true } });
-  if (!existingComment) {
-    res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
-    return;
-  }
-
-  const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Comment', existingComment as any))) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN' });
-    return;
-  }
-
-  await prisma.comment.update({ where: { id }, data: { deletedAt: null } });
-  await logAudit(operatorId, 'RESTORE_COMMENT', `Comment:${id}`);
-  res.json({ message: 'Comment restored' });
+  return handleAdminAction(
+    req, res, 'Comment', 'RESTORE',
+    (id) => prisma.comment.findUnique({ where: { id }, include: { post: true } }),
+    (id) => prisma.comment.update({ where: { id }, data: { deletedAt: null } }),
+    'Comment restored'
+  );
 };
 
 export const hardDeleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
-  const id = req.params.id as string;
-  const operatorId = req.user?.userId || 'unknown';
-  
-  const existingComment = await prisma.comment.findUnique({ where: { id }, include: { post: true } });
-  if (!existingComment) {
-    res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
-    return;
-  }
-
-  const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Comment', existingComment as any))) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN' });
-    return;
-  }
-
-  await prisma.comment.delete({ where: { id } });
-  await logAudit(operatorId, 'HARD_DELETE_COMMENT', `Comment:${id}`);
-  res.json({ message: 'Comment permanently deleted' });
+  return handleAdminAction(
+    req, res, 'Comment', 'HARD_DELETE',
+    (id) => prisma.comment.findUnique({ where: { id }, include: { post: true } }),
+    (id) => prisma.comment.delete({ where: { id } }),
+    'Comment permanently deleted'
+  );
 };
 
 // Database Config

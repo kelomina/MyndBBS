@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Fingerprint } from 'lucide-react';
-import { startAuthentication } from '@simplewebauthn/browser';
+import { usePasskey } from '../../../lib/hooks/usePasskey';
 import { TwoFactorLogin } from '../../../components/TwoFactorLogin';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,6 +14,7 @@ export function LoginClient({ dict }: { dict: any }) {
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorMethods, setTwoFactorMethods] = useState<string[]>([]);
+  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,59 +49,13 @@ export function LoginClient({ dict }: { dict: any }) {
   };
 
   const handlePasskeyLogin = async () => {
-    setError('');
-    setLoading(true);
-
-    try {
-      // 1. Get options from server
-      const optionsRes = await fetch('/api/v1/auth/passkey/generate-authentication-options');
-      const optionsData = await optionsRes.json();
-
-      if (!optionsRes.ok) {
-        throw new Error((dict.apiErrors?.[optionsData.error] || optionsData.error) || dict.auth.passkeyError);
-      }
-
-      const { challengeId, ...options } = optionsData;
-
-      // 2. Invoke WebAuthn
-      let authResponse;
-      try {
-        authResponse = await startAuthentication(options);
-      } catch (err) {
-        const errorObj = err as Error;
-        const errorMessage = errorObj?.message || '';
-        if (errorObj?.name === 'NotAllowedError' || errorMessage.includes('timed out or was not allowed')) {
-          setError(dict.auth.passkeyCancelled);
-        } else {
-          setError(errorMessage || dict.auth.passkeyFailed);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // 3. Verify response
-      const verifyRes = await fetch('/api/v1/auth/passkey/verify-authentication', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: authResponse, challengeId })
-      });
-
-      const verifyData = await verifyRes.json();
-
-      if (verifyRes.ok) {
-        window.location.href = '/';
-      } else {
-        setError((dict.apiErrors?.[verifyData.error] || verifyData.error) || dict.auth.passkeyVerificationFailed);
-      }
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message || dict.auth.passkeyError);
-      } else {
-        setError(dict.auth.passkeyError);
-      }
-    } finally {
-      setLoading(false);
-    }
+    executePasskeyFlow(
+      'login',
+      '/api/v1/auth/passkey/generate-authentication-options',
+      '/api/v1/auth/passkey/verify-authentication',
+      dict,
+      () => { window.location.href = '/'; }
+    );
   };
 
   if (requires2FA) {
@@ -114,7 +69,12 @@ export function LoginClient({ dict }: { dict: any }) {
         <p className="mt-2 text-sm text-muted">{dict.auth.signInToAccount}</p>
       </div>
 
-      {error && (
+      {(error || passkeyError) && (
+        <div className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
+          {error || passkeyError}
+        </div>
+      )}
+      {false && (
         <div className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
           {error}
         </div>

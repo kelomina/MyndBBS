@@ -3,6 +3,7 @@ import { useTranslation } from '../../../components/TranslationProvider';
 
 import { useState, useEffect } from 'react';
 import { ArrowBigUp, Bookmark, Share, Trash2, Edit2 } from 'lucide-react';
+import { useCurrentUser } from '../../../lib/hooks';
 import { useRouter } from 'next/navigation';
 
 export function PostActions({ 
@@ -21,7 +22,7 @@ export function PostActions({
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [hasBookmarked, setHasBookmarked] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { user: currentUser } = useCurrentUser();
   const router = useRouter();
 
   useEffect(() => {
