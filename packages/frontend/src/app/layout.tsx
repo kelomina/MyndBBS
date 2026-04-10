@@ -6,6 +6,7 @@ import { Locale, defaultLocale } from "../i18n/config";
 import { getDictionary } from "../i18n/get-dictionary";
 import { ThemeProvider } from "../components/ThemeProvider";
 import { TranslationProvider } from "../components/TranslationProvider";
+import { PasskeyBanner } from "../components/PasskeyBanner";
 
 export const metadata: Metadata = {
   title: "MyndBBS - Modern Community",
@@ -26,6 +27,7 @@ export default async function RootLayout({
       <body className="min-h-screen flex flex-col bg-background transition-colors duration-300">
         <ThemeProvider>
           <TranslationProvider dict={dict}>
+            <PasskeyBanner />
             <Header locale={locale} />
             <div className="flex-1">
               {children}

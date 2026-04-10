@@ -27,8 +27,10 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
         id: true,
         email: true,
         username: true,
+        level: true,
         role: { select: { name: true } },
         isTotpEnabled: true,
+        _count: { select: { passkeys: true } }
       }
     });
 

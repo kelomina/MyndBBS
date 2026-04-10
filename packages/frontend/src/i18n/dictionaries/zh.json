@@ -13,7 +13,9 @@
     "cancel": "取消",
     "close": "关闭",
     "settings": "设置",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "passkeyBannerText": "为了您的账号安全，系统要求所有用户绑定通行密钥（Passkey）。您当前未绑定通行密钥，账号权限将被永久限制为 Level 1，且无法获得任何等级提升（包括系统自动提升）。",
+    "passkeyBannerLink": "立即前往绑定"
   },
   "nav": {
     "home": "首页",

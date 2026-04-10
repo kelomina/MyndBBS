@@ -13,7 +13,9 @@
     "cancel": "Cancel",
     "close": "Close",
     "settings": "Settings",
-    "logout": "Logout"
+    "logout": "Logout",
+    "passkeyBannerText": "For account security, binding a Passkey is required. You have not bound a Passkey, so your account is permanently restricted to Level 1 and cannot receive any level promotions (including automatic ones).",
+    "passkeyBannerLink": "Bind Passkey Now"
   },
   "nav": {
     "home": "Home",
