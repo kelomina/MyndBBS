@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
 import { clearModerationCache } from '../lib/moderation';
+import { sendNotification } from '../lib/notification';
 
 export const getModeratedWords = async (req: AuthRequest, res: Response): Promise<void> => {
     const userId = req.user!.userId;
@@ -138,10 +139,19 @@ export const getPendingPosts = async (req: AuthRequest, res: Response): Promise<
 export const approvePendingPost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {
-    await prisma.post.update({
+    const post = await prisma.post.update({
       where: { id },
       data: { status: 'PUBLISHED' }
     });
+    
+    await sendNotification({
+      userId: post.authorId,
+      type: 'POST_APPROVED',
+      title: 'Post Approved',
+      content: `Your post "${post.title}" has been approved.`,
+      relatedId: post.id
+    });
+    
     res.json({ message: 'Post approved' });
   } catch (error) {
     res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
@@ -150,11 +160,21 @@ export const approvePendingPost = async (req: AuthRequest, res: Response): Promi
 
 export const rejectPendingPost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
+  const { reason } = req.body;
   try {
-    await prisma.post.update({
+    const post = await prisma.post.update({
       where: { id },
       data: { status: 'DELETED' }
     });
+    
+    await sendNotification({
+      userId: post.authorId,
+      type: 'POST_REJECTED',
+      title: 'Post Rejected',
+      content: `Your post "${post.title}" has been rejected. Reason: ${reason || 'N/A'}`,
+      relatedId: post.id
+    });
+    
     res.json({ message: 'Post rejected' });
   } catch (error) {
     res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
