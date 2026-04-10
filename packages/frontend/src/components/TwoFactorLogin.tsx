@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { startAuthentication } from '@simplewebauthn/browser';
+import { usePasskey } from '../lib/hooks/usePasskey';
 import { useTranslation } from './TranslationProvider';
 
 interface TwoFactorLoginProps {
@@ -13,6 +13,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [totpCode, setTotpCode] = useState('');
+  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
   const [currentMethod, setCurrentMethod] = useState<'passkey' | 'totp' | null>(
     methods.includes('passkey') ? 'passkey' : 'totp'
   );
@@ -24,45 +25,25 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
   }, [currentMethod]);
 
   const tryPasskeyLogin = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const optionsRes = await fetch('/api/v1/auth/passkey/generate-authentication-options', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!optionsRes.ok) {
-        throw new Error('Failed to generate passkey options');
-      }
-      const options = await optionsRes.json();
-
-      const attResp = await startAuthentication({ optionsJSON: options });
-
-      const verifyRes = await fetch('/api/v1/auth/passkey/verify-authentication', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: attResp }),
-      });
-
-      if (verifyRes.ok) {
+    setPasskeyError('');
+    executePasskeyFlow(
+      'login',
+      '/api/v1/auth/passkey/generate-authentication-options',
+      '/api/v1/auth/passkey/verify-authentication',
+      dict,
+      () => {
         window.location.href = '/';
-      } else {
-        const data = await verifyRes.json();
-        throw new Error(dict.apiErrors?.[data.error] || data.error || dict.auth.passkeyVerificationFailed);
+      },
+      (err) => {
+        const isCancel = err?.name === 'NotAllowedError' || err?.message?.includes('timed out or was not allowed');
+        if (!isCancel) {
+          setError(err.message || dict.auth.passkeyFailed);
+        }
+        if (methods.includes('totp')) {
+          setCurrentMethod('totp');
+        }
       }
-    } catch (err) {
-      const errorObj = err as Error;
-      console.error('Passkey login failed:', err);
-      const isCancel = errorObj?.name === 'NotAllowedError' || errorObj?.message?.includes('timed out or was not allowed');
-      if (!isCancel) {
-        setError(errorObj.message || dict.auth.passkeyFailed);
-      }
-      if (methods.includes('totp')) {
-        setCurrentMethod('totp');
-      }
-    } finally {
-      setLoading(false);
-    }
+    );
   };
 
   const verifyTotp = async (e: React.FormEvent) => {

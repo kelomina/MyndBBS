@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Fingerprint, Smartphone, Trash2 } from 'lucide-react';
-import { startRegistration } from '@simplewebauthn/browser';
+import { usePasskey } from '../lib/hooks/usePasskey';
 import { TwoFactorSetup } from './TwoFactorSetup';
 import { useTranslation } from './TranslationProvider';
 
@@ -14,6 +14,7 @@ export function SecuritySettings() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [showTotpSetup, setShowTotpSetup] = useState(false);
+  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
 
   useEffect(() => {
     fetchSecurityData();
@@ -45,46 +46,17 @@ export function SecuritySettings() {
   const handleAddPasskey = async () => {
     setError('');
     setMessage('');
-    try {
-      // Temporarily use auth routes for passkey since the endpoints are in auth.ts
-      // In a real app we might want to expose a specific endpoint for user center
-      const res = await fetch('/api/v1/user/passkey/generate-registration-options', { credentials: 'include' });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(dict.apiErrors?.[data.error] || data.error || 'Failed to generate passkey options');
-      }
-
-      const options = await res.json();
-      let attResp;
-      try {
-        attResp = await startRegistration({ optionsJSON: options });
-      } catch (err) {
-        const errorObj = err as Error;
-        const isCancel = errorObj?.name === 'NotAllowedError' || errorObj?.message?.includes('timed out or was not allowed');
-        if (isCancel) {
-          return; // User canceled
-        }
-        throw err;
-      }
-
-      const verifyRes = await fetch('/api/v1/user/passkey/verify-registration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ response: attResp }),
-      });
-
-      if (verifyRes.ok) {
+    setPasskeyError('');
+    executePasskeyFlow(
+      'register',
+      '/api/v1/user/passkey/generate-registration-options',
+      '/api/v1/user/passkey/verify-registration',
+      dict,
+      () => {
         setMessage(dict.settings.passkeyAdded);
-        fetchSecurityData(); // Refresh list
-      } else {
-        const verifyData = await verifyRes.json();
-        throw new Error((dict.apiErrors?.[verifyData.error] || verifyData.error) || dict.auth.passkeyVerificationFailed);
+        fetchSecurityData();
       }
-    } catch (err) {
-      const errorObj = err as Error;
-      setError(errorObj.message || dict.auth.passkeyError);
-    }
+    );
   };
 
   const handleDeletePasskey = async (id: string) => {
@@ -133,7 +105,7 @@ export function SecuritySettings() {
       <p className="text-sm text-muted mb-6">{dict.settings.manageSecurity}</p>
 
       {message && <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-600 dark:bg-green-900/30 dark:text-green-400">{message}</div>}
-      {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">{error}</div>}
+      {(error || passkeyError) && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">{error || passkeyError}</div>}
 
       <div className="space-y-8">
         {/* Passkeys */}
