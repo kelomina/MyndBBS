@@ -1,4 +1,3 @@
-import { revokeUserSessions } from '../lib/session';
 import { Request, Response } from 'express';
 import { prisma } from '../db';
 import { UserStatus, PostStatus } from '@prisma/client';
@@ -7,16 +6,6 @@ import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
 
 // Users
-
-// Role levels
-export const ROLE_LEVELS: Record<string, number> = {
-  'SUPER_ADMIN': 4,
-  'ADMIN': 3,
-  'MODERATOR': 2,
-  'USER': 1
-};
-
-
 export const getUsers = async (req: Request, res: Response) => {
   const users = await prisma.user.findMany({
     select: { id: true, username: true, email: true, role: { select: { name: true } }, status: true, createdAt: true }
@@ -50,6 +39,14 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       res.status(400).json({ error: 'ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6' });
       return;
     }
+
+    if (level > 1) {
+      const passkeys = await prisma.passkey.findMany({ where: { userId: id } });
+      if (passkeys.length === 0) {
+        res.status(400).json({ error: 'ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY' });
+        return;
+      }
+    }
     finalUser = await prisma.user.update({
       where: { id },
       data: { level },
@@ -70,13 +67,18 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    
+    const roleLevels: Record<string, number> = {
+      'SUPER_ADMIN': 4,
+      'ADMIN': 3,
+      'MODERATOR': 2,
+      'USER': 1
+    };
 
-    const currentRoleLevel = ROLE_LEVELS[currentUser.role?.name || 'USER'] || 1;
-    const newRoleLevel = ROLE_LEVELS[role] || 1;
+    const currentRoleLevel = roleLevels[currentUser.role?.name || 'USER'] || 1;
+    const newRoleLevel = roleLevels[role] || 1;
 
     // Prevent managing users with equal or higher roles than the operator
-    const operatorRoleLevel = ROLE_LEVELS[req.user?.role || 'USER'] || 1;
+    const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
     if (currentRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
       res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE' });
       return;
@@ -95,7 +97,15 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
 
     if (newRoleLevel < currentRoleLevel) {
       // Revoke sessions on downgrade
-      await revokeUserSessions(id);
+      const sessions = await prisma.session.findMany({ where: { userId: id } });
+      if (sessions.length > 0) {
+        const pipeline = redis.pipeline();
+        for (const session of sessions) {
+          pipeline.del(`session:${session.id}`);
+        }
+        await pipeline.exec();
+        await prisma.session.deleteMany({ where: { userId: id } });
+      }
     } else if (newRoleLevel > currentRoleLevel) {
       // Mark sessions for refresh on promotion
       const sessions = await prisma.session.findMany({ where: { userId: id } });
@@ -119,7 +129,15 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
           data: { status: UserStatus.BANNED }
         });
         // Revoke root sessions
-        await revokeUserSessions(rootUser.id);
+        const rootSessions = await prisma.session.findMany({ where: { userId: rootUser.id } });
+        if (rootSessions.length > 0) {
+          const pipeline = redis.pipeline();
+          for (const session of rootSessions) {
+            pipeline.del(`session:${session.id}`);
+          }
+          await pipeline.exec();
+          await prisma.session.deleteMany({ where: { userId: rootUser.id } });
+        }
         await logAudit('system', 'AUTO_DISABLE_ROOT', 'root');
       }
     }
@@ -146,9 +164,9 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  
-  const targetRoleLevel = ROLE_LEVELS[targetUser.role?.name || 'USER'] || 1;
-  const operatorRoleLevel = ROLE_LEVELS[req.user?.role || 'USER'] || 1;
+  const roleLevels: Record<string, number> = { 'SUPER_ADMIN': 4, 'ADMIN': 3, 'MODERATOR': 2, 'USER': 1 };
+  const targetRoleLevel = roleLevels[targetUser.role?.name || 'USER'] || 1;
+  const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
 
   if (targetRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
     res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE' });
@@ -159,7 +177,15 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
 
   if (status === UserStatus.BANNED) {
     // Revoke sessions on ban
-    await revokeUserSessions(id);
+    const sessions = await prisma.session.findMany({ where: { userId: id } });
+    if (sessions.length > 0) {
+      const pipeline = redis.pipeline();
+      for (const session of sessions) {
+        pipeline.del(`session:${session.id}`);
+      }
+      await pipeline.exec();
+      await prisma.session.deleteMany({ where: { userId: id } });
+    }
   }
 
   await logAudit(operatorId, 'UPDATE_USER_STATUS', `User:${id} to ${status}`);
@@ -425,34 +451,25 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
 
 // Database Config
 import fs from 'fs/promises';
-import fsSync from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
 
-const ENV_PATH = path.join(process.cwd(), '.env');
+const DB_CONFIG_PATH = path.join(process.cwd(), 'db_config.json');
 
 export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
   if (req.user?.role !== 'SUPER_ADMIN') {
     res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
     return;
   }
-
+  
   try {
-    const dbUrl = process.env.DATABASE_URL || '';
-    if (!dbUrl) throw new Error('No DB URL');
-    const parsed = new URL(dbUrl);
-    res.json({
-      host: parsed.hostname,
-      port: parsed.port ? parseInt(parsed.port, 10) : 5432,
-      username: decodeURIComponent(parsed.username),
-      password: decodeURIComponent(parsed.password),
-      database: parsed.pathname.substring(1) // remove leading '/'
-    });
+    const data = await fs.readFile(DB_CONFIG_PATH, 'utf-8');
+    res.json(JSON.parse(data));
   } catch (error) {
+    // If file doesn't exist, return default empty config
     res.json({
       host: 'localhost',
-      port: 5432,
-      username: 'postgres',
+      port: 3306,
+      username: 'root',
       password: '',
       database: 'myndbbs'
     });
@@ -468,56 +485,12 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
   const { host, port, username, password, database } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  const encodedUser = encodeURIComponent(username);
-  const encodedPass = encodeURIComponent(password);
-  const newDbUrl = `postgresql://${encodedUser}:${encodedPass}@${host}:${port}/${database}?schema=public`;
-
-  exec('npx prisma db push', { 
-    cwd: path.resolve(__dirname, '../../'),
-    env: { ...process.env, DATABASE_URL: newDbUrl }
-  }, async (error, stdout, stderr) => {
-    if (error) {
-      console.error('Prisma Error:', stderr || error.message);
-      res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED', details: stderr || error.message });
-      return;
-    }
-
-    try {
-      let envContent = '';
-      try {
-        envContent = await fs.readFile(ENV_PATH, 'utf-8');
-      } catch (err) {
-        // .env might not exist
-      }
-
-      if (envContent.includes('DATABASE_URL=')) {
-        envContent = envContent.replace(/DATABASE_URL=.*/g, `DATABASE_URL="${newDbUrl}"`);
-      } else {
-        envContent += `\nDATABASE_URL="${newDbUrl}"\n`;
-      }
-
-      await fs.writeFile(ENV_PATH, envContent, 'utf-8');
-      process.env.DATABASE_URL = newDbUrl;
-
-      await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated');
-      
-      res.json({ message: 'Database configuration updated successfully', config: { host, port, username, database } });
-
-      // Restart backend
-      setTimeout(() => {
-        const indexPath = path.resolve(__dirname, '../index.ts');
-        const time = new Date();
-        try {
-          fsSync.utimesSync(indexPath, time, time);
-        } catch (err) {
-          const fd = fsSync.openSync(indexPath, 'w');
-          fsSync.closeSync(fd);
-        }
-      }, 1000);
-
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_DB_CONFIG' });
-    }
-  });
+  try {
+    const config = { host, port, username, password, database };
+    await fs.writeFile(DB_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+    await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'MySQL config updated');
+    res.json({ message: 'Database configuration updated successfully', config });
+  } catch (error) {
+    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_DB_CONFIG' });
+  }
 };

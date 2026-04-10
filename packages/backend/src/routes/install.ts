@@ -5,6 +5,7 @@ import { exec } from 'child_process';
 import crypto from 'crypto';
 import * as argon2 from 'argon2';
 import { PrismaClient, UserStatus } from '@prisma/client';
+import jwt from 'jsonwebtoken';
 
 const router: import('express').Router = Router();
 const envPath = path.resolve(__dirname, '../../.env');
@@ -574,7 +575,11 @@ router.get('/', (req: Request, res: Response) => {
 
         if (res.ok) {
           resOk = true;
-          goToStep(5);
+          btnText.textContent = '正在重启并前往安全设置...';
+          setTimeout(() => {
+            window.location.href = appConfig.frontendUrl + '/admin-setup';
+          }, 3000);
+          return;
         } else {
           errBox.textContent = data.error || '创建失败';
           errBox.classList.remove('hidden');
@@ -695,7 +700,7 @@ router.post('/api/admin', async (req: Request, res: Response): Promise<void> => 
     const hashedPass = await argon2.hash(password);
 
     // Create the real admin user
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         username,
         email,
@@ -713,6 +718,14 @@ router.post('/api/admin', async (req: Request, res: Response): Promise<void> => 
 
     // Lock the installation in .env
     fs.appendFileSync(envPath, '\nINSTALL_LOCKED=true\n');
+
+    const tempToken = jwt.sign({ userId: user.id, type: 'registration' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+    res.cookie('tempToken', tempToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 1000
+    });
 
     res.json({ success: true });
 
