@@ -50,7 +50,10 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       const options = await optionsRes.json();
 
       // 2. Start registration in browser
-      const attResp = await startRegistration({ optionsJSON: options });
+      const authOptions = options;
+      if (!authOptions.extensions) authOptions.extensions = {};
+      authOptions.extensions.prf = {};
+      const attResp = await startRegistration({ optionsJSON: authOptions });
 
       // 3. Verify on server
       const verifyRes = await fetch(getEndpoint('/passkey/verify-registration'), {

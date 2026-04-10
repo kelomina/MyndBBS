@@ -49,6 +49,7 @@ export default function MessagesPage() {
       if (profileRes.ok) {
         const profileData = await profileRes.json();
         setUserLevel(profileData.user.level);
+        setCurrentUser(profileData.user);
       }
 
       if (keyRes.ok) {
@@ -133,12 +134,23 @@ export default function MessagesPage() {
       const privateKeyBase64 = await exportKeyToBase64(keyPair.privateKey);
 
       // 2. Start Auth for PRF
-      const optionsRes = await fetch('/api/v1/auth/passkey/generate-authentication-options', { credentials: 'include' });
+      const [optionsRes, passkeysRes] = await Promise.all([
+        fetch('/api/v1/auth/passkey/generate-authentication-options', { credentials: 'include' }),
+        fetch('/api/v1/user/passkeys', { credentials: 'include' })
+      ]);
       if (!optionsRes.ok) throw new Error('Failed to get auth options');
       const optionsData = await optionsRes.json();
+      const passkeysData = passkeysRes.ok ? await passkeysRes.json() : { passkeys: [] };
 
       // Ensure we request PRF extension
       const authOptions = optionsData;
+      if (passkeysData.passkeys && passkeysData.passkeys.length > 0) {
+        authOptions.allowCredentials = passkeysData.passkeys.map((pk: any) => ({
+          id: pk.id,
+          type: 'public-key',
+          transports: ['internal', 'usb', 'ble', 'nfc']
+        }));
+      }
       if (!authOptions.extensions) authOptions.extensions = {};
       authOptions.extensions.prf = {
         eval: {
