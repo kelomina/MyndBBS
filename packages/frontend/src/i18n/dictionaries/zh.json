@@ -51,7 +51,17 @@
     "passkeyFailed": "Passkey 身份验证失败。请确保您的设备支持。",
     "passkeyVerificationFailed": "Passkey 验证失败",
     "passkeyError": "Passkey 登录时发生错误",
-    "registrationFailed": "注册失败"
+    "registrationFailed": "注册失败",
+    "adminSetupTitle": "管理员安全设置",
+    "adminSetupDesc": "超级管理员必须绑定通行密钥（Passkey）与身份验证器（TOTP）。",
+    "step1Passkey": "第一步：绑定通行密钥",
+    "step1Desc": "使用您的指纹、面容或屏幕锁注册通行密钥。",
+    "skipPasskey": "暂不绑定（设备不支持）",
+    "step2Totp": "第二步：绑定身份验证器",
+    "step2Desc": "使用 Google Authenticator 或 Authy 扫描下方二维码。",
+    "enter6Digit": "请输入6位验证码",
+    "setupComplete": "设置完成！",
+    "redirectingAdmin": "正在为您跳转至后台管理界面..."
   },
   "home": {
     "mockPosts": [
@@ -230,7 +240,6 @@
     "title": "标题",
     "author": "作者",
     "category": "分类",
-    "actions": "操作",
     "content": "内容",
     "post": "帖子",
     "database": "数据库配置",
