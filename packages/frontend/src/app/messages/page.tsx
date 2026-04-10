@@ -33,6 +33,7 @@ export default function MessagesPage() {
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const [error, setError] = useState('');
   const [userLevel, setUserLevel] = useState(1);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     checkStatus();
@@ -141,7 +142,7 @@ export default function MessagesPage() {
       if (!authOptions.extensions) authOptions.extensions = {};
       authOptions.extensions.prf = {
         eval: {
-          first: new Uint8Array(32) // 32 bytes of zeros or random for salt
+          first: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' // 32 bytes of zeros base64url encoded
         }
       };
 
@@ -155,14 +156,35 @@ export default function MessagesPage() {
       // Extract PRF
       // @ts-ignore
       const prfResults = authResponse.clientExtensionResults?.prf?.results?.first;
+      
+      let aesKey: CryptoKey;
+      
       if (!prfResults) {
-        throw new Error('Your authenticator does not support the PRF extension required for secure messaging.');
+        // Fallback Mechanism for authenticators without PRF support
+        const fallbackPassword = prompt('Your authenticator does not support the PRF extension natively. \n\nPlease create a Secure Messaging Recovery Password to encrypt your keys. You will need this password to read your messages on other devices.');
+        if (!fallbackPassword) throw new Error('Setup cancelled. A recovery password is required when PRF is unavailable.');
+        
+        // Derive AES key from password using PBKDF2
+        const enc = new TextEncoder();
+        const keyMaterial = await window.crypto.subtle.importKey(
+          'raw', enc.encode(fallbackPassword), 'PBKDF2', false, ['deriveKey']
+        );
+        aesKey = await window.crypto.subtle.deriveKey(
+          {
+            name: 'PBKDF2',
+            salt: enc.encode(currentUser.username + 'MyndBBS'), // Fixed salt based on username
+            iterations: 100000,
+            hash: 'SHA-256'
+          },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt']
+        );
+      } else {
+        const prfBytes = new Uint8Array(prfResults);
+        aesKey = await getAesKeyFromPrf(prfBytes);
       }
-
-      const prfBytes = new Uint8Array(prfResults);
-
-      // 3. Derive AES Key
-      const aesKey = await getAesKeyFromPrf(prfBytes);
 
       // 4. Encrypt Private Key
       const encryptedPrivateKey = await encryptPrivateKey(privateKeyBase64, aesKey);

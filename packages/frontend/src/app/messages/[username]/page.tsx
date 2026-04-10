@@ -46,6 +46,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const [theirPublicKey, setTheirPublicKey] = useState<CryptoKey | null>(null);
   const [targetUserId, setTargetUserId] = useState('');
   const [myUserId, setMyUserId] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     params.then(p => {
@@ -74,6 +75,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       if (profileRes.ok) {
         const profileData = await profileRes.json();
         setMyUserId(profileData.user.id);
+      setCurrentUser(profileData.user);
       }
 
       if (targetKeyRes.ok) {
@@ -135,12 +137,34 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       // Extract PRF
       // @ts-ignore
       const prfResults = authResponse.clientExtensionResults?.prf?.results?.first;
-      if (!prfResults) {
-        throw new Error('Your authenticator does not support the PRF extension required for secure messaging.');
-      }
+      
+      let aesKey: CryptoKey;
 
-      const prfBytes = new Uint8Array(prfResults);
-      const aesKey = await getAesKeyFromPrf(prfBytes);
+      if (!prfResults) {
+        // Fallback Mechanism
+        const fallbackPassword = prompt('Please enter your Secure Messaging Recovery Password to unlock your inbox:');
+        if (!fallbackPassword) throw new Error('Unlock cancelled.');
+        
+        const enc = new TextEncoder();
+        const keyMaterial = await window.crypto.subtle.importKey(
+          'raw', enc.encode(fallbackPassword), 'PBKDF2', false, ['deriveKey']
+        );
+        aesKey = await window.crypto.subtle.deriveKey(
+          {
+            name: 'PBKDF2',
+            salt: enc.encode(currentUser.username + 'MyndBBS'), // Must match initialization salt
+            iterations: 100000,
+            hash: 'SHA-256'
+          },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt']
+        );
+      } else {
+        const prfBytes = new Uint8Array(prfResults);
+        aesKey = await getAesKeyFromPrf(prfBytes);
+      }
 
       // Decrypt private key
       const privateKeyBase64 = await decryptPrivateKey(myKeyData.key.encryptedPrivateKey, aesKey);
