@@ -191,8 +191,10 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   };
 
   const decryptAllMessages = async () => {
+    let needsUpdate = false;
     const updatedMessages = await Promise.all(messages.map(async (msg) => {
       if (msg.plaintext) return msg; // Already decrypted
+      needsUpdate = true;
       try {
         if (msg.senderId === myUserId) {
           // We are the sender. We used an ephemeral private key to encrypt this, which we didn't save.
