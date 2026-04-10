@@ -147,31 +147,16 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const { currentPassword, totpCode } = req.body;
-
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
       return;
     }
 
-    if (!currentPassword && !totpCode) {
-      res.status(401).json({ error: 'ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_TO_DISABLE_2FA' });
+    const isSudo = await redis.get(`sudo:${req.user!.sessionId}`);
+    if (isSudo !== 'true') {
+      res.status(403).json({ error: 'ERR_SUDO_REQUIRED' });
       return;
-    }
-    if (currentPassword && user.password) {
-      const isValid = await argon2.verify(user.password, currentPassword);
-      if (!isValid) {
-        res.status(401).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
-        return;
-      }
-    }
-    if (totpCode && user.totpSecret) {
-      const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
-      if (!result || !result.valid) {
-        res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
-        return;
-      }
     }
 
     await prisma.user.update({
