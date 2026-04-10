@@ -8,7 +8,7 @@ export default function DatabaseConfigPage() {
   const dict = useTranslation();
   const [config, setConfig] = useState({
     host: '',
-    port: 3306,
+    port: 5432,
     username: '',
     password: '',
     database: ''
@@ -42,9 +42,10 @@ export default function DatabaseConfigPage() {
       setError('');
       setSuccess('');
       await updateDbConfig(config);
-      setSuccess(dict.admin?.dbSaveSuccess || 'Database configuration saved successfully.');
+      setSuccess(dict.admin?.dbSaveSuccess || "Database configuration saved. The server is restarting to apply changes.");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save database config');
+      const msg = err instanceof Error ? err.message : 'Failed to save database config';
+      setError((dict.apiErrors as any)?.[msg] || msg);
     } finally {
       setSaving(false);
     }
@@ -56,7 +57,7 @@ export default function DatabaseConfigPage() {
     <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{dict.admin?.database || "Database Config"}</h1>
-        <p className="text-muted">{dict.admin?.dbConfigDesc || "Configure MySQL database connection settings. Only SUPER_ADMIN can access this."}</p>
+        <p className="text-muted">{dict.admin?.dbConfigDesc || "Configure PostgreSQL database connection settings. The system will test the connection and restart upon saving. Only SUPER_ADMIN can access this."}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-md border border-border bg-card p-6">
