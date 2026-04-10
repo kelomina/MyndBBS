@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useCategories } from '../../lib/hooks';
 import { useRouter } from 'next/navigation';
 import { PostEditor } from '../../components/PostEditor';
 import { SliderCaptcha } from '../../components/SliderCaptcha';

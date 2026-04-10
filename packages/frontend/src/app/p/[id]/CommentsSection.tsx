@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { MessageSquare, ArrowBigUp } from 'lucide-react';
+import { useCurrentUser } from '../../../lib/hooks';
 import { useRouter } from 'next/navigation';
 import { CommentItem } from './CommentItem';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
@@ -14,24 +15,10 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(initialCount);
   const [replyTo, setReplyTo] = useState<{ id: string, username: string } | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { user: currentUser } = useCurrentUser();
   const [showCaptcha, setShowCaptcha] = useState(false);
 
   useEffect(() => {
-    // Fetch current user
-    const fetchUser = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
-          credentials: 'include'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setCurrentUser(data.user);
-        }
-      } catch (err) {}
-    };
-    fetchUser();
-    
     const fetchComments = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/comments`, {
