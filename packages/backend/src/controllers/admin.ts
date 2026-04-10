@@ -1,3 +1,4 @@
+import { revokeUserSessions } from '../lib/session';
 import { Request, Response } from 'express';
 import { prisma } from '../db';
 import { UserStatus, PostStatus } from '@prisma/client';
@@ -15,18 +16,6 @@ export const ROLE_LEVELS: Record<string, number> = {
   'USER': 1
 };
 
-// Helper to revoke user sessions
-const revokeUserSessions = async (userId: string) => {
-  const sessions = await prisma.session.findMany({ where: { userId } });
-  if (sessions.length > 0) {
-    const pipeline = redis.pipeline();
-    for (const session of sessions) {
-      pipeline.del(`session:${session.id}`);
-    }
-    await pipeline.exec();
-    await prisma.session.deleteMany({ where: { userId } });
-  }
-};
 
 export const getUsers = async (req: Request, res: Response) => {
   const users = await prisma.user.findMany({
