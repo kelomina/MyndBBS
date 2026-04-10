@@ -5,6 +5,7 @@ import { exec } from 'child_process';
 import crypto from 'crypto';
 import * as argon2 from 'argon2';
 import { PrismaClient, UserStatus } from '@prisma/client';
+import jwt from 'jsonwebtoken';
 
 const router: import('express').Router = Router();
 const envPath = path.resolve(__dirname, '../../.env');
@@ -574,7 +575,11 @@ router.get('/', (req: Request, res: Response) => {
 
         if (res.ok) {
           resOk = true;
-          goToStep(5);
+          btnText.textContent = '正在重启并前往安全设置...';
+          setTimeout(() => {
+            window.location.href = appConfig.frontendUrl + '/admin-setup';
+          }, 3000);
+          return;
         } else {
           errBox.textContent = data.error || '创建失败';
           errBox.classList.remove('hidden');

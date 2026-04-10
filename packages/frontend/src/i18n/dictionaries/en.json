@@ -51,7 +51,17 @@
     "passkeyFailed": "Failed to authenticate with passkey. Ensure your device supports it.",
     "passkeyVerificationFailed": "Passkey verification failed",
     "passkeyError": "An error occurred during passkey login",
-    "registrationFailed": "Registration failed"
+    "registrationFailed": "Registration failed",
+    "adminSetupTitle": "Admin Security Setup",
+    "adminSetupDesc": "Super Admins are required to bind both Passkey and Authenticator App.",
+    "step1Passkey": "Step 1: Setup Passkey",
+    "step1Desc": "Use your fingerprint, face, or screen lock to register a passkey.",
+    "skipPasskey": "Skip for now (Device not supported)",
+    "step2Totp": "Step 2: Setup Authenticator App",
+    "step2Desc": "Scan the QR code with Google Authenticator or Authy.",
+    "enter6Digit": "Enter 6-digit code",
+    "setupComplete": "Setup Complete!",
+    "redirectingAdmin": "Redirecting to Admin Panel..."
   },
   "home": {
     "mockPosts": [
@@ -219,7 +229,6 @@
     "name": "Name",
     "description": "Description",
     "moderators": "Moderators",
-    "actions": "Actions",
     "sortOrder": "Sort Order",
     "create": "Create",
     "selectUser": "Select User",
