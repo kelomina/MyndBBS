@@ -435,6 +435,7 @@
     "unlocked": "Messages Unlocked",
     "conversationWith": "Conversation with",
     "sendError": "Failed to send message",
-    "initError": "Failed to initialize keys"
+    "initError": "Failed to initialize keys",
+    "burnAfterReading": "Enable Burn-after-reading (Do not keep decryptable sent records on server)"
   }
 }

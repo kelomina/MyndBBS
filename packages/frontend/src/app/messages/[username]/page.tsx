@@ -13,7 +13,7 @@ import {
   exportKeyToBase64
 } from '../../../lib/crypto/e2ee';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { Shield, Loader2, Send, Lock, ArrowLeft } from 'lucide-react';
+import { Shield, Loader2, Send, Lock, ArrowLeft, Flame } from 'lucide-react';
 import Link from 'next/link';
 
 interface Message {
@@ -22,6 +22,7 @@ interface Message {
   receiverId: string;
   ephemeralPublicKey: string;
   encryptedContent: string;
+  senderEncryptedContent?: string;
   createdAt: string;
   isRead: boolean;
   plaintext?: string;
@@ -43,6 +44,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
   // Keys
   const [myPrivateKey, setMyPrivateKey] = useState<CryptoKey | null>(null);
+  const [myPublicKey, setMyPublicKey] = useState<CryptoKey | null>(null);
+  const [burnAfterReading, setBurnAfterReading] = useState(false);
   const [theirPublicKey, setTheirPublicKey] = useState<CryptoKey | null>(null);
   const [targetUserId, setTargetUserId] = useState('');
   const [myUserId, setMyUserId] = useState('');
@@ -197,9 +200,12 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       needsUpdate = true;
       try {
         if (msg.senderId === myUserId) {
-          // We are the sender. We used an ephemeral private key to encrypt this, which we didn't save.
-          // Therefore, we cannot decrypt our own sent messages from the server's ciphertext.
-          return { ...msg, plaintext: '[Sent Encrypted Message]' };
+          if (msg.senderEncryptedContent && myPrivateKey) {
+             const ephemeralPublicKey = await importPublicKeyFromBase64(msg.ephemeralPublicKey);
+             const decrypted = await decryptMessage(msg.senderEncryptedContent, myPrivateKey, ephemeralPublicKey);
+             return { ...msg, plaintext: decrypted };
+          }
+          return { ...msg, plaintext: '[阅后即焚消息 / Burn-after-reading message]' };
         } else {
           // We are the receiver. We use our static private key and the sender's ephemeral public key.
           const ephemeralPublicKey = await importPublicKeyFromBase64(msg.ephemeralPublicKey);
@@ -231,12 +237,19 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       
       // We encrypt using ephemeral private key and their public key
       const encryptedContent = await encryptMessage(inputText, ephemeralKeyPair.privateKey, theirPublicKey);
+      
+      let senderEncryptedContent = null;
+      if (!burnAfterReading && myPublicKey) {
+        // Encrypt a copy for ourselves using the same ephemeral private key but OUR public key
+        senderEncryptedContent = await encryptMessage(inputText, ephemeralKeyPair.privateKey, myPublicKey);
+      }
 
       const res = await fetch('/api/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          senderEncryptedContent,
           receiverId: targetUserId,
           ephemeralPublicKey: ephemeralPublicKeyBase64,
           encryptedContent
@@ -344,6 +357,18 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
           </div>
 
           <div className="p-4 border-t border-border bg-background/50">
+            <div className="flex items-center justify-between mb-2">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={burnAfterReading}
+                  onChange={(e) => setBurnAfterReading(e.target.checked)}
+                  className="rounded border-border text-primary focus:ring-primary"
+                />
+                <Flame className="h-3 w-3 text-orange-500" />
+                {dict.messages?.burnAfterReading || '阅后即焚 (Burn after reading)'}
+              </label>
+            </div>
             <form onSubmit={handleSend} className="flex gap-2">
               <input
                 type="text"

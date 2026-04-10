@@ -46,13 +46,13 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   const senderId = req.user?.userId;
   if (!senderId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const { receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent } = req.body;
+  const { receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent, senderEncryptedContent } = req.body;
   
   const sender = await prisma.user.findUnique({ where: { id: senderId } });
   if (!sender || sender.level < 2) { res.status(403).json({ error: 'ERR_LEVEL_TOO_LOW' }); return; }
 
   const msg = await prisma.privateMessage.create({
-    data: { senderId, receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent }
+    data: { senderId, receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent, senderEncryptedContent }
   });
 
   res.json({ success: true, message: msg });
