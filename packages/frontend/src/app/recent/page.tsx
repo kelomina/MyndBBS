@@ -38,7 +38,7 @@ export default async function RecentPage() {
             <p className="text-sm text-muted">{dict.home?.recentDesc || "Showing the newest posts on the platform"}</p>
           </div>
 
-          <PostList posts={posts} emptyMessage={"No recent posts found."} />
+          <PostList posts={posts} emptyMessage={"No recent posts found."} dict={dict} />
         </div>
       </div>
     </main>

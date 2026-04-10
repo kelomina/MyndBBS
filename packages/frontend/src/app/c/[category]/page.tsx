@@ -6,6 +6,7 @@ import { getDictionary } from "../../../i18n/get-dictionary";
 
 import { PostList } from '../../../components/PostList';
 import { AutoRefresh } from "../../../components/AutoRefresh";
+import { getCategoryTranslation } from '../../../lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,11 +15,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;
   const dict = await getDictionary(locale);
   const resolvedParams = await params;
-  const category = resolvedParams.category;
+  const rawCategory = resolvedParams.category;
+  const decodedCategory = decodeURIComponent(rawCategory);
 
   let posts = [];
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts?category=${category}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts?category=${encodeURIComponent(decodedCategory)}`, {
       cache: 'no-store'
     });
     if (res.ok) {
@@ -29,7 +31,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
   }
 
   // Capitalize category name for display
-  const categoryTitle = dict.common[`category${category.charAt(0).toUpperCase() + category.slice(1)}` as keyof typeof dict.common] || category;
+  const categoryTitle = getCategoryTranslation(decodedCategory, dict);
 
   return (
     <main className="mx-auto flex max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -44,7 +46,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
             <p className="text-sm text-muted">{dict.category?.showingPostsFor}{categoryTitle}</p>
           </div>
 
-          <PostList posts={posts} emptyMessage={dict.category?.noPostsFound || "No posts found."} />
+          <PostList posts={posts} emptyMessage={dict.category?.noPostsFound || "No posts found."} dict={dict} />
         </div>
       </div>
     </main>

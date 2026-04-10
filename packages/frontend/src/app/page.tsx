@@ -34,7 +34,7 @@ export default async function Home() {
       {/* Main Feed Area */}
       <div className="flex-1 py-6 md:pl-8">
         <div className="mx-auto max-w-3xl space-y-4">
-          <PostList posts={posts} emptyMessage={dict.category?.noPostsFoundGeneral || "No posts found."} />
+          <PostList posts={posts} emptyMessage={dict.category?.noPostsFoundGeneral || "No posts found."} dict={dict} />
         </div>
       </div>
     </main>

@@ -47,11 +47,11 @@ export function Sidebar({ dict }: { dict: any }) {
               categories.map((category) => (
                 <Link
                   key={category.id}
-                  href={`/c/${category.name.toLowerCase()}`}
+                  href={`/c/${encodeURIComponent(category.name)}`}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-white hover:text-foreground hover:shadow-sm"
                 >
                   <Hash className="h-4 w-4 opacity-50" />
-                  {category.name}
+                  {dict.common[`category${category.name.charAt(0).toUpperCase() + category.name.slice(1)}` as keyof typeof dict.common] || category.name}
                 </Link>
               ))
             )}
