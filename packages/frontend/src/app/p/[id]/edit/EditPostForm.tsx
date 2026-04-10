@@ -10,23 +10,8 @@ export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: an
   const [title, setTitle] = useState(initialPost.title);
   const [content, setContent] = useState(initialPost.content);
   const [categoryId, setCategoryId] = useState(initialPost.categoryId);
-  const [categories, setCategories] = useState<{ id: string; name: string; description: string }[]>([]);
+  const { categories } = useCategories();
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/categories`);
-        if (res.ok) {
-          const data = await res.json();
-          setCategories(data);
-        }
-      } catch (err) {
-        console.error('Failed to load categories', err);
-      }
-    };
-    fetchCategories();
-  }, []);
 
   const handlePublish = async () => {
     if (!title || !content || !categoryId) {

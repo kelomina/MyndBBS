@@ -12,24 +12,9 @@ export function ComposeForm({ dict }: { dict: any }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [categories, setCategories] = useState<{ id: string; name: string; description: string }[]>([]);
+  const { categories } = useCategories();
   const [loading, setLoading] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/categories`);
-        if (res.ok) {
-          const data = await res.json();
-          setCategories(data);
-        }
-      } catch (err) {
-        console.error('Failed to load categories', err);
-      }
-    };
-    fetchCategories();
-  }, []);
 
   const handlePrePublish = () => {
     if (!title || !content || !categoryId) {
