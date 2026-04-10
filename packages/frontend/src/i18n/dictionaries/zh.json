@@ -436,6 +436,12 @@
     "conversationWith": "与 {username} 的对话",
     "sendError": "发送消息失败",
     "initError": "初始化密钥失败",
-    "burnAfterReading": "开启阅后即焚（不在服务器留存可解密的发送记录）"
+    "burnAfterReading": "开启阅后即焚（不在服务器留存可解密的发送记录）",
+    "recoveryPasswordTitle": "安全通信恢复密码",
+    "createRecoveryPasswordDesc": "您的设备不支持原生的 PRF 扩展。\n\n请创建一个安全通信恢复密码以加密您的密钥。在其他设备上查看私信时需要此密码。",
+    "enterRecoveryPasswordDesc": "请确认输入您的安全通信恢复密码以解锁私信：",
+    "enterPasswordPlaceholder": "请输入密码...",
+    "setupCancelled": "已取消。不支持 PRF 时必须设置恢复密码。",
+    "unlockCancelled": "解锁已取消。"
   }
 }
