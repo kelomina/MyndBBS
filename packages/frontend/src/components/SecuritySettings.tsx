@@ -188,9 +188,10 @@ export function SecuritySettings() {
               </div>
               <button 
                 onClick={() => executeWithSudo(handleDisableTotp)}
-                className="text-sm font-medium text-red-600 hover:text-red-700 bg-white dark:bg-black px-3 py-1.5 rounded-md border border-red-200 dark:border-red-900/50"
+                className="p-2 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                title={dict.settings.disable || "Disable"}
               >
-                Disable
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           ) : (
