@@ -35,7 +35,7 @@ export function defineAbilityFor(user?: AbilityUser) {
     can('read', 'Post', { status: PostStatus.PUBLISHED, category: { is: { minLevel: 0 } } } as any);
     can('read', 'Post', { status: PostStatus.PINNED, category: { is: { minLevel: 0 } } } as any);
     can('read', 'Category', { minLevel: 0 });
-    can('read', 'Comment', { deletedAt: null, post: { is: { category: { is: { minLevel: 0 } } } } } as any);
+    can('read', 'Comment', { deletedAt: null, isPending: false, post: { is: { category: { is: { minLevel: 0 } } } } } as any);
     return build();
   }
 
@@ -46,7 +46,7 @@ export function defineAbilityFor(user?: AbilityUser) {
   // Author can read their own DELETED/HIDDEN posts
   can('read', 'Post', { authorId: user.id });
   
-  can('read', 'Comment', { deletedAt: null, post: { is: { category: { is: { minLevel: { lte: userLevel } } } } } } as any);
+  can('read', 'Comment', { deletedAt: null, isPending: false, post: { is: { category: { is: { minLevel: { lte: userLevel } } } } } } as any);
   // Author can read their own DELETED comments
   can('read', 'Comment', { authorId: user.id });
   

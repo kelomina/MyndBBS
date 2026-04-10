@@ -231,7 +231,7 @@
     "dbSaveSuccess": "数据库配置已成功保存。",
     "title": "标题",
     "author": "作者",
-    "category": "分类",
+    "category": "指定板块 (可选)",
     "content": "内容",
     "post": "帖子",
     "database": "数据库配置",
@@ -244,7 +244,21 @@
     "removeModerator": "移除版主",
     "assignModerator": "分配版主",
     "confirmDeletion": "确认删除",
-    "confirmRemoveModerator": "确定要移除该版主吗？"
+    "confirmRemoveModerator": "确定要移除该版主吗？",
+    "moderation": "内容审核",
+    "pendingPosts": "待审帖子",
+    "pendingComments": "待审评论",
+    "moderatedWords": "审核词配置",
+    "word": "审核词",
+    "scope": "作用域",
+    "globalWord": "全局共享 (所有板块)",
+    "addWord": "添加审核词",
+    "noWords": "暂未配置审核词",
+    "noPendingPosts": "暂无待审帖子",
+    "noPendingComments": "暂无待审评论",
+    "inPost": "所属帖子",
+    "approve": "通过",
+    "reject": "拒绝 (删除)"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "用户未找到",
@@ -340,7 +354,8 @@
     "ERR_FAILED_TO_DELETE_COMMENT": "Failed to delete comment",
     "ERR_FORBIDDEN": "禁止访问",
     "ERR_FAILED_TO_TOGGLE_COMMENT_UPVOTE": "Failed to toggle comment upvote",
-    "ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK": "Failed to toggle comment bookmark"
+    "ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK": "Failed to toggle comment bookmark",
+    "ERR_PENDING_MODERATION": "您的内容包含审核词，已提交至人工审核队列。"
   },
   "category": {
     "postsTitle": "帖子",

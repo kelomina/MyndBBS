@@ -30,9 +30,14 @@ export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: an
         credentials: 'include'
       });
       
+      const data = await res.json();
       if (res.ok) {
-        router.push(`/p/${initialPost.id}`);
-        router.refresh();
+        if (data.message === 'ERR_PENDING_MODERATION') {
+          alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
+          router.push('/');
+        } else {
+          router.push(`/p/${initialPost.id}`);
+        }
       } else {
         const data = await res.json();
         alert(data.error || 'Failed to publish post');

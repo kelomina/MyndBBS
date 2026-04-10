@@ -211,7 +211,7 @@
     "dbSaveSuccess": "Database configuration saved successfully.",
     "title": "Title",
     "author": "Author",
-    "category": "Category",
+    "category": "Category (Optional)",
     "actions": "Actions",
     "content": "Content",
     "post": "Post",
@@ -244,7 +244,21 @@
     "removeModerator": "Remove moderator",
     "assignModerator": "Assign Moderator",
     "confirmDeletion": "Confirm Deletion",
-    "confirmRemoveModerator": "Are you sure you want to remove this moderator?"
+    "confirmRemoveModerator": "Are you sure you want to remove this moderator?",
+    "moderation": "Moderation",
+    "pendingPosts": "Pending Posts",
+    "pendingComments": "Pending Comments",
+    "moderatedWords": "Moderated Words",
+    "word": "Word",
+    "scope": "Scope",
+    "globalWord": "Global (All Categories)",
+    "addWord": "Add Word",
+    "noWords": "No moderated words configured",
+    "noPendingPosts": "No pending posts",
+    "noPendingComments": "No pending comments",
+    "inPost": "In Post",
+    "approve": "Approve",
+    "reject": "Reject"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "User not found",
@@ -340,7 +354,8 @@
     "ERR_FAILED_TO_DELETE_COMMENT": "Failed to delete comment",
     "ERR_FORBIDDEN": "Forbidden",
     "ERR_FAILED_TO_TOGGLE_COMMENT_UPVOTE": "Failed to toggle comment upvote",
-    "ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK": "Failed to toggle comment bookmark"
+    "ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK": "Failed to toggle comment bookmark",
+    "ERR_PENDING_MODERATION": "Your content contains moderated words and has been submitted for manual review."
   },
   "category": {
     "postsTitle": "Posts",

@@ -22,6 +22,7 @@ enum PostStatus {
   HIDDEN
   PINNED
   DELETED
+  PENDING
 }
 
 model User {
@@ -103,6 +104,7 @@ model Category {
   updatedAt   DateTime            @updatedAt
   posts       Post[]
   moderators  CategoryModerator[]
+  moderatedWords ModeratedWord[]
 
   @@index([sortOrder])
 }
@@ -151,6 +153,7 @@ model Comment {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
   deletedAt DateTime?
+  isPending Boolean           @default(false)
   upvotes   CommentUpvote[]
   bookmarks CommentBookmark[]
 
@@ -158,6 +161,7 @@ model Comment {
   @@index([authorId])
   @@index([parentId])
   @@index([createdAt])
+  @@index([isPending])
 }
 
 model CommentUpvote {
@@ -258,4 +262,15 @@ model RolePermission {
 
   @@id([roleId, permissionId])
   @@index([permissionId])
+}
+
+model ModeratedWord {
+  id         String    @id @default(uuid()) @db.Uuid
+  word       String
+  categoryId String?   @db.Uuid
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@unique([word, categoryId])
+  @@index([categoryId])
 }

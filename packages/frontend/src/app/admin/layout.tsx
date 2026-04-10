@@ -5,7 +5,7 @@ import { getDictionary } from '../../i18n/get-dictionary';
 import { defaultLocale, Locale } from '../../i18n/config';
 import { headers, cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { Users, FolderTree, LayoutDashboard, Trash2, Database } from 'lucide-react';
+import { Users, FolderTree, LayoutDashboard, Trash2, Database, ShieldAlert } from 'lucide-react';
 
 export default async function AdminLayout({
   children,
@@ -62,6 +62,13 @@ export default async function AdminLayout({
             >
               <FolderTree className="h-5 w-5" />
               <span>{dict.admin?.categories || "Categories"}</span>
+            </Link>
+            <Link
+              href="/admin/moderation"
+              className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <ShieldAlert className="h-5 w-5" />
+              <span>{dict.admin?.moderation || "Moderation"}</span>
             </Link>
             <Link
               href="/admin/recycle"
