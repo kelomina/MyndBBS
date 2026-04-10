@@ -6,7 +6,7 @@ import { getDictionary } from "../../../i18n/get-dictionary";
 
 import { PostList } from '../../../components/PostList';
 import { AutoRefresh } from "../../../components/AutoRefresh";
-import { getCategoryTranslation } from '../../../lib/utils';
+import { getCategoryTranslation, getPostListEmptyMessage } from '../../../lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
             <p className="text-sm text-muted">{dict.category?.showingPostsFor}{categoryTitle}</p>
           </div>
 
-          <PostList posts={posts} emptyMessage={dict.category?.noPostsFound || "No posts found."} dict={dict} />
+          <PostList posts={posts} emptyMessage={getPostListEmptyMessage('category', dict)} dict={dict} />
         </div>
       </div>
     </main>

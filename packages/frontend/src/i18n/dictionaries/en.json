@@ -366,6 +366,8 @@
     "postsTitle": "Posts",
     "showingPostsFor": "Showing posts for category: ",
     "noPostsFound": "No posts found in this category.",
+    "noRecentPostsFound": "No recent posts found.",
+    "noPopularPostsFound": "No popular posts found.",
     "noPostsFoundGeneral": "No posts found.",
     "noCategories": "No categories available."
   },

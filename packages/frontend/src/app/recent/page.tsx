@@ -6,6 +6,7 @@ import { getDictionary } from "../../i18n/get-dictionary";
 import { PostList } from '../../components/PostList';
 
 import { AutoRefresh } from "../../components/AutoRefresh";
+import { getPostListEmptyMessage } from "../../lib/utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +39,7 @@ export default async function RecentPage() {
             <p className="text-sm text-muted">{dict.home?.recentDesc || "Showing the newest posts on the platform"}</p>
           </div>
 
-          <PostList posts={posts} emptyMessage={"No recent posts found."} dict={dict} />
+          <PostList posts={posts} emptyMessage={getPostListEmptyMessage('recent', dict)} dict={dict} />
         </div>
       </div>
     </main>
