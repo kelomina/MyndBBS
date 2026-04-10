@@ -24,7 +24,8 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/comments`, {
           credentials: 'include'
         });
-        if (res.ok) {
+        const data = await res.json();
+      if (res.ok) {
           const data = await res.json();
           setComments(data);
           setCount(data.length);
@@ -54,6 +55,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
         credentials: 'include'
       });
 
+      const data = await res.json();
       if (res.ok) {
         const comment = await res.json();
         setComments([...comments, comment]);
@@ -62,7 +64,6 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
         setReplyTo(null);
         router.refresh();
       } else {
-        const data = await res.json();
         alert(data.error || 'Failed to post comment');
       }
     } catch (err) {
@@ -109,6 +110,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
         method: 'DELETE',
         credentials: 'include'
       });
+      const data = await res.json();
       if (res.ok) {
         setComments(comments.map(c => c.id === commentId ? { ...c, deletedAt: new Date().toISOString() } : c));
       } else {

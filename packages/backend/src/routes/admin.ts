@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import { requireAuth, requireAbility } from '../middleware/auth';
 import {
+  getModeratedWords, addModeratedWord, deleteModeratedWord,
+  getPendingPosts, approvePendingPost, rejectPendingPost,
+  getPendingComments, approvePendingComment, rejectPendingComment
+} from '../controllers/moderation';
+import {
   getUsers, updateUserRole, updateUserStatus,
   getCategories, createCategory, updateCategory, deleteCategory,
   assignCategoryModerator, removeCategoryModerator,
@@ -41,5 +46,19 @@ router.delete('/recycle/comments/:id', requireAbility('read', 'AdminPanel'), har
 // Database Config routes (SUPER_ADMIN only)
 router.get('/db-config', getDbConfig);
 router.post('/db-config', updateDbConfig);
+
+
+// Moderation routes
+router.get('/moderation/words', requireAbility('manage', 'AdminPanel'), getModeratedWords);
+router.post('/moderation/words', requireAbility('manage', 'AdminPanel'), addModeratedWord);
+router.delete('/moderation/words/:id', requireAbility('manage', 'AdminPanel'), deleteModeratedWord);
+
+router.get('/moderation/posts', requireAbility('read', 'AdminPanel'), getPendingPosts);
+router.post('/moderation/posts/:id/approve', requireAbility('update_status', 'Post'), approvePendingPost);
+router.post('/moderation/posts/:id/reject', requireAbility('update_status', 'Post'), rejectPendingPost);
+
+router.get('/moderation/comments', requireAbility('read', 'AdminPanel'), getPendingComments);
+router.post('/moderation/comments/:id/approve', requireAbility('update_status', 'Post'), approvePendingComment);
+router.post('/moderation/comments/:id/reject', requireAbility('update_status', 'Post'), rejectPendingComment);
 
 export default router;

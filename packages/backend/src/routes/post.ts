@@ -2,6 +2,7 @@ import { Router, Response, Request } from 'express';
 import { requireAuth, requireAbility, optionalAuth, AuthRequest } from '../middleware/auth';
 import { PostStatus } from '@prisma/client';
 import { prisma } from '../db';
+import { containsModeratedWord } from '../lib/moderation';
 import { subject } from '@casl/ability';
 import { accessibleBy } from '@casl/prisma';
 
@@ -139,12 +140,17 @@ router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: Auth
       return;
     }
 
+    
+    const isModerated = await containsModeratedWord(title + ' ' + content, categoryId);
+    const status = isModerated ? 'PENDING' : 'PUBLISHED';
+
     const post = await prisma.post.create({
       data: {
         title,
         content,
         categoryId,
-        authorId: req.user!.userId
+        authorId: req.user!.userId,
+        status,
       },
       include: {
         author: {
@@ -155,6 +161,11 @@ router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: Auth
         }
       }
     });
+
+    if (isModerated) {
+      res.status(201).json({ message: 'ERR_PENDING_MODERATION', post });
+      return;
+    }
 
     res.status(201).json(post);
   } catch (error) {
@@ -445,14 +456,40 @@ router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: Au
       return;
     }
 
+    
+    let isModerated = false;
+    let newStatus = post.status;
+    if (title || content) {
+      const checkTitle = title || post.title;
+      const checkContent = content || post.content;
+      isModerated = await containsModeratedWord(checkTitle + ' ' + checkContent, post.categoryId);
+      if (isModerated) {
+        newStatus = 'PENDING';
+      }
+    }
+
     const updatedPost = await prisma.post.update({
       where: { id: postId },
-      data: { title, content, categoryId },
+      data: {
+        title,
+        content,
+        categoryId,
+        status: newStatus
+      },
       include: {
-        author: { select: { id: true, username: true } },
-        category: { select: { id: true, name: true, description: true } }
+        author: {
+          select: { id: true, username: true }
+        },
+        category: {
+          select: { id: true, name: true, description: true }
+        }
       }
     });
+
+    if (isModerated) {
+      res.json({ message: 'ERR_PENDING_MODERATION', post: updatedPost });
+      return;
+    }
 
     res.json(updatedPost);
   } catch (error) {
@@ -513,14 +550,26 @@ router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Commen
       return;
     }
 
+    
+    const isModerated = await containsModeratedWord(content, comment.post.categoryId);
+
     const updatedComment = await prisma.comment.update({
       where: { id: commentId },
-      data: { content },
+      data: {
+        content,
+        isPending: isModerated
+      },
       include: {
-        author: { select: { id: true, username: true } },
-        _count: { select: { upvotes: true, bookmarks: true, replies: true } }
+        author: {
+          select: { id: true, username: true }
+        }
       }
     });
+
+    if (isModerated) {
+      res.json({ message: 'ERR_PENDING_MODERATION', comment: updatedComment });
+      return;
+    }
 
     res.json(updatedComment);
   } catch (error) {

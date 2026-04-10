@@ -37,11 +37,15 @@ export function ComposeForm({ dict }: { dict: any }) {
         credentials: 'include'
       });
       
+      const data = await res.json();
       if (res.ok) {
-        router.push('/');
-        router.refresh();
+        if (data.message === 'ERR_PENDING_MODERATION') {
+          alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
+          router.push('/'); // Redirect to home since post is not visible
+        } else {
+          router.push(`/p/${data.id}`);
+        }
       } else {
-        const data = await res.json();
         alert(data.error || 'Failed to publish post');
       }
     } catch (err) {

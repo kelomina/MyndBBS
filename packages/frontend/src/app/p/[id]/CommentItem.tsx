@@ -36,6 +36,7 @@ export function CommentItem({
         method: 'POST',
         credentials: 'include'
       });
+      const data = await res.json();
       if (res.ok) {
         const data = await res.json();
         setHasUpvoted(data.upvoted);
@@ -58,6 +59,7 @@ export function CommentItem({
         method: 'POST',
         credentials: 'include'
       });
+      const data = await res.json();
       if (res.ok) {
         const data = await res.json();
         setHasBookmarked(data.bookmarked);
@@ -95,13 +97,13 @@ export function CommentItem({
         body: JSON.stringify({ content: editContent }),
         credentials: 'include'
       });
+      const data = await res.json();
       if (res.ok) {
         const data = await res.json();
         setContent(data.content);
         setUpdatedAt(data.updatedAt);
         setIsEditing(false);
       } else {
-        const data = await res.json();
         alert(data.error || 'Failed to update comment');
       }
     } catch (error) {
