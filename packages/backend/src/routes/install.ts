@@ -425,7 +425,7 @@ router.get('/', (req: Request, res: Response) => {
       const { user, pass, host, port: dbPort, name } = dbConfig;
       const encodedUser = encodeURIComponent(user);
       const encodedPass = encodeURIComponent(pass);
-      const dbUrl = `postgresql://${encodedUser}:${encodedPass}@${host}:${dbPort}/${name}?schema=public`;
+      const dbUrl = \`postgresql://\${encodedUser}:\${encodedPass}@\${host}:\${dbPort}/\${name}?schema=public\`;
 
       const payload = {
         DATABASE_URL: dbUrl,
