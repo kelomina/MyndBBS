@@ -142,7 +142,8 @@
     "notifications": "通知",
     "adminDashboard": "管理员仪表盘",
     "removeBookmark": "移除书签",
-    "bookmarks": "书签"
+    "bookmarks": "书签",
+    "noBookmarksYet": "暂无书签。"
   },
   "settings": {
     "loadingProfile": "加载资料中...",

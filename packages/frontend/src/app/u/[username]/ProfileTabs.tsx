@@ -105,7 +105,7 @@ export function ProfileTabs({
 
       <div className="space-y-4">
         {activeTab === 'posts' && (
-          user.posts.length === 0 ? (
+          !user.posts || user.posts.length === 0 ? (
             <p className="text-muted text-sm">{dict.profile?.noPostsYet || 'No posts yet.'}</p>
           ) : (
             user.posts.map((post: any) => (
