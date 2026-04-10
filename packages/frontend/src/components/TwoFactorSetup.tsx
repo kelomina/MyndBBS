@@ -59,7 +59,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       const verifyRes = await fetch(getEndpoint('/passkey/verify-registration'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: attResp }),
+        body: JSON.stringify({ response: attResp, challengeId: options.challengeId }),
       });
 
       if (verifyRes.ok) {
