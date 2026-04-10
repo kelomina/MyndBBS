@@ -442,6 +442,7 @@
     "enterRecoveryPasswordDesc": "请确认输入您的安全通信恢复密码以解锁私信：",
     "enterPasswordPlaceholder": "请输入密码...",
     "setupCancelled": "已取消。不支持 PRF 时必须设置恢复密码。",
-    "unlockCancelled": "解锁已取消。"
+    "unlockCancelled": "解锁已取消。",
+    "legalWarning": "安全提示：请遵守当地法律法规\n严禁发送违法违规内容"
   }
 }

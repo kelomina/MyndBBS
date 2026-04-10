@@ -41,11 +41,16 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const [unlocking, setUnlocking] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
 
   // Keys
   const [myPrivateKey, setMyPrivateKey] = useState<CryptoKey | null>(null);
   const [myPublicKey, setMyPublicKey] = useState<CryptoKey | null>(null);
   const [burnAfterReading, setBurnAfterReading] = useState(false);
+  const [isCoolingDown, setIsCoolingDown] = useState(false);
   const [theirPublicKey, setTheirPublicKey] = useState<CryptoKey | null>(null);
   const [targetUserId, setTargetUserId] = useState('');
   const [myUserId, setMyUserId] = useState('');
@@ -95,10 +100,12 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
         setTheirPublicKey(importedTheirKey);
 
         // Load messages history
-        const inboxRes = await fetch(`/api/v1/messages/inbox?withUserId=${targetData.userId}`, { credentials: 'include' });
+        const inboxRes = await fetch(`/api/v1/messages/inbox?withUserId=${targetData.userId}&limit=20`, { credentials: 'include' });
         if (inboxRes.ok) {
           const inboxData = await inboxRes.json();
           setMessages(inboxData.messages);
+          setNextCursor(inboxData.nextCursor || null);
+          setHasMore(inboxData.hasMore || false);
           scrollToBottom();
         }
       } else {
@@ -236,9 +243,35 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     }
   };
 
+
+  const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop < 50 && !isLoadingOlder && hasMore && nextCursor) {
+      setIsLoadingOlder(true);
+      const previousScrollHeight = scrollContainerRef.current?.scrollHeight || 0;
+      
+      try {
+        const res = await fetch(`/api/v1/messages/inbox?withUserId=${targetUserId}&limit=20&cursor=${nextCursor}`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(prev => [...data.messages, ...prev]);
+          setNextCursor(data.nextCursor || null);
+          setHasMore(data.hasMore || false);
+          
+          requestAnimationFrame(() => {
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight - previousScrollHeight;
+            }
+          });
+        }
+      } finally {
+        setIsLoadingOlder(false);
+      }
+    }
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !unlocked || !myPrivateKey || !theirPublicKey) return;
+    if (!inputText.trim() || !unlocked || !myPrivateKey || !theirPublicKey || isCoolingDown) return;
 
     setSending(true);
     try {
@@ -282,6 +315,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       setError(err.message || dict.messages.sendError);
     } finally {
       setSending(false);
+      setIsCoolingDown(true);
+      setTimeout(() => setIsCoolingDown(false), 2000);
     }
   };
 
@@ -341,8 +376,15 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
       {unlocked && (
         <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 ? (
+          <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4 relative">
+            <div className="pointer-events-none fixed inset-0 flex items-center justify-center opacity-10 select-none z-0">
+              <p className="text-2xl font-bold text-center transform -rotate-12 text-foreground whitespace-pre-wrap">
+                {dict.messages?.legalWarning || 'Safety Tip: Please abide by local laws.\nSending illegal content is strictly prohibited.'}
+              </p>
+            </div>
+            <div className="relative z-10 space-y-4">
+              {isLoadingOlder && <div className="text-center p-2"><Loader2 className="h-4 w-4 animate-spin inline text-muted-foreground" /></div>}
+              {messages.length === 0 ? (
               <div className="h-full flex items-center justify-center text-muted">
                 {dict.messages.noMessages}
               </div>
@@ -367,7 +409,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
                 );
               })
             )}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="relative z-10" />
+            </div>
           </div>
 
           <div className="p-4 border-t border-border bg-background/50">

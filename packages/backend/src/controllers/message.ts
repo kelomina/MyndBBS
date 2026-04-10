@@ -63,6 +63,9 @@ export const getInbox = async (req: AuthRequest, res: Response): Promise<void> =
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
   const withUserId = req.query.withUserId as string | undefined;
+  
+  const limit = parseInt(req.query.limit as string) || 20;
+  const cursor = req.query.cursor as string | undefined;
 
   let whereClause: any = {
     OR: [ { senderId: userId }, { receiverId: userId } ]
@@ -79,9 +82,29 @@ export const getInbox = async (req: AuthRequest, res: Response): Promise<void> =
 
   const messages = await prisma.privateMessage.findMany({
     where: whereClause,
-    orderBy: { createdAt: 'asc' },
+    take: limit + 1,
+    ...(cursor && {
+      skip: 1,
+      cursor: { id: cursor },
+    }),
+    orderBy: [
+      { createdAt: 'desc' },
+      { id: 'desc' }
+    ],
     include: { sender: { select: { username: true } }, receiver: { select: { username: true } } }
   });
 
-  res.json({ messages });
+  let nextCursor: string | undefined = undefined;
+  if (messages.length > limit) {
+    const nextItem = messages.pop();
+    nextCursor = nextItem?.id;
+  }
+
+  const resultMessages = messages.reverse();
+
+  res.json({ 
+    messages: resultMessages,
+    nextCursor,
+    hasMore: nextCursor !== undefined
+  });
 };
