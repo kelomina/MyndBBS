@@ -50,6 +50,10 @@ model User {
   bookmarks           Bookmark[]
   commentUpvotes      CommentUpvote[]
   commentBookmarks    CommentBookmark[]
+  notifications       Notification[]
+  userKey             UserKey?
+  sentMessages        PrivateMessage[] @relation("SentMessages")
+  receivedMessages    PrivateMessage[] @relation("ReceivedMessages")
 
   @@index([roleId])
   @@index([status])
@@ -273,4 +277,59 @@ model ModeratedWord {
 
   @@unique([word, categoryId])
   @@index([categoryId])
+}
+
+enum NotificationType {
+  POST_APPROVED
+  POST_REJECTED
+  POST_REPLIED
+  COMMENT_REPLIED
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  content   String           @db.Text
+  relatedId String?          @db.Uuid
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model UserKey {
+  id                       String   @id @default(uuid()) @db.Uuid
+  userId                   String   @unique @db.Uuid
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheme                   String   @default("P521_ONLY") // Or "X_WING_HYBRID"
+  publicKey                String   @db.Text
+  encryptedPrivateKey      String   @db.Text
+  mlKemPublicKey           String?  @db.Text
+  encryptedMlKemPrivateKey String?  @db.Text
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model PrivateMessage {
+  id                       String   @id @default(uuid()) @db.Uuid
+  senderId                 String   @db.Uuid
+  sender                   User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId               String   @db.Uuid
+  receiver                 User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  ephemeralPublicKey       String   @db.Text
+  ephemeralMlKemCiphertext String?  @db.Text
+  encryptedContent         String   @db.Text
+  isRead                   Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
 }
