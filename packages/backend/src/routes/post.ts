@@ -5,6 +5,28 @@ import { prisma } from '../db';
 import { subject } from '@casl/ability';
 import { accessibleBy } from '@casl/prisma';
 
+import { verifyAndConsumeCaptcha } from '../controllers/captcha';
+import { AppAbility } from '../lib/casl';
+
+const getAccessiblePost = async (postId: string, ability: AppAbility) => {
+  return prisma.post.findFirst({
+    where: {
+      AND: [
+        { id: postId },
+        accessibleBy(ability).Post
+      ]
+    }
+  });
+};
+
+
+const getCommentWithPost = async (commentId: string) => {
+  return prisma.comment.findUnique({
+    where: { id: commentId },
+    include: { post: true }
+  });
+};
+
 const router: Router = Router();
 
 router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -67,12 +89,11 @@ router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: Auth
       return;
     }
 
-    const challenge = await prisma.captchaChallenge.findUnique({ where: { id: captchaId } });
-    if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
+    const isCaptchaValid = await verifyAndConsumeCaptcha(captchaId);
+    if (!isCaptchaValid) {
       res.status(400).json({ error: 'ERR_INVALID_OR_EXPIRED_CAPTCHA' });
       return;
     }
-    await prisma.captchaChallenge.delete({ where: { id: captchaId } });
 
     const category = await prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) {
@@ -151,14 +172,7 @@ router.get('/:id/interactions', requireAuth, async (req: AuthRequest, res: Respo
     const postId = req.params.id as string;
     const userId = req.user!.userId;
 
-    const post = await prisma.post.findFirst({
-      where: {
-        AND: [
-          { id: postId },
-          accessibleBy(req.ability!).Post
-        ]
-      }
-    });
+    const post = await getAccessiblePost(postId, req.ability!);
 
     if (!post) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
@@ -190,14 +204,7 @@ router.post('/:id/upvote', requireAuth, async (req: AuthRequest, res: Response):
     const postId = req.params.id as string;
     const userId = req.user!.userId;
 
-    const post = await prisma.post.findFirst({
-      where: {
-        AND: [
-          { id: postId },
-          accessibleBy(req.ability!).Post
-        ]
-      }
-    });
+    const post = await getAccessiblePost(postId, req.ability!);
 
     if (!post) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
@@ -231,14 +238,7 @@ router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response
     const postId = req.params.id as string;
     const userId = req.user!.userId;
 
-    const post = await prisma.post.findFirst({
-      where: {
-        AND: [
-          { id: postId },
-          accessibleBy(req.ability!).Post
-        ]
-      }
-    });
+    const post = await getAccessiblePost(postId, req.ability!);
 
     if (!post) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
@@ -272,14 +272,7 @@ router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response
     const postId = req.params.id as string;
     
     // Verify user can read the post
-    const post = await prisma.post.findFirst({
-      where: {
-        AND: [
-          { id: postId },
-          accessibleBy(req.ability!).Post
-        ]
-      }
-    });
+    const post = await getAccessiblePost(postId, req.ability!);
 
     if (!post) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
@@ -353,21 +346,13 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
       return;
     }
 
-    const challenge = await prisma.captchaChallenge.findUnique({ where: { id: captchaId } });
-    if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
+    const isCaptchaValid = await verifyAndConsumeCaptcha(captchaId);
+    if (!isCaptchaValid) {
       res.status(400).json({ error: 'ERR_INVALID_OR_EXPIRED_CAPTCHA' });
       return;
     }
-    await prisma.captchaChallenge.delete({ where: { id: captchaId } });
 
-    const post = await prisma.post.findFirst({
-      where: {
-        AND: [
-          { id: postId },
-          accessibleBy(req.ability!).Post
-        ]
-      }
-    });
+    const post = await getAccessiblePost(postId, req.ability!);
 
     if (!post) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
@@ -498,10 +483,7 @@ router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Commen
       return;
     }
 
-    const comment = await prisma.comment.findUnique({
-      where: { id: commentId },
-      include: { post: true }
-    });
+    const comment = await getCommentWithPost(commentId);
 
     if (!comment) {
       res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
@@ -533,10 +515,7 @@ router.delete('/comments/:commentId', requireAuth, requireAbility('delete', 'Com
   try {
     const commentId = req.params.commentId as string;
     
-    const comment = await prisma.comment.findUnique({
-      where: { id: commentId },
-      include: { post: true }
-    });
+    const comment = await getCommentWithPost(commentId);
 
     if (!comment) {
       res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
@@ -562,10 +541,7 @@ router.post('/comments/:commentId/upvote', requireAuth, async (req: AuthRequest,
     const commentId = req.params.commentId as string;
     const userId = req.user!.userId;
 
-    const comment = await prisma.comment.findUnique({
-      where: { id: commentId },
-      include: { post: true }
-    });
+    const comment = await getCommentWithPost(commentId);
 
     if (!comment) {
       res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
@@ -605,10 +581,7 @@ router.post('/comments/:commentId/bookmark', requireAuth, async (req: AuthReques
     const commentId = req.params.commentId as string;
     const userId = req.user!.userId;
 
-    const comment = await prisma.comment.findUnique({
-      where: { id: commentId },
-      include: { post: true }
-    });
+    const comment = await getCommentWithPost(commentId);
 
     if (!comment) {
       res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
