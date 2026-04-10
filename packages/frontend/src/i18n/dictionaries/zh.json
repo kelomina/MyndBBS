@@ -147,6 +147,7 @@
   },
   "settings": {
     "loadingProfile": "加载资料中...",
+    "failedLoadProfile": "加载资料失败",
     "manageProfile": "管理您的公开资料和登录详情。",
     "username": "用户名",
     "email": "邮箱",

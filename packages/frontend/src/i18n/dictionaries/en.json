@@ -147,6 +147,7 @@
   },
   "settings": {
     "loadingProfile": "Loading profile...",
+    "failedLoadProfile": "Failed to load profile",
     "manageProfile": "Manage your public profile and login details.",
     "username": "Username",
     "email": "Email",
