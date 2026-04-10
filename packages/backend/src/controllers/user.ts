@@ -368,7 +368,7 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
     const userPasskeys = await prisma.passkey.findMany({ where: { userId } });
 
     const options = await generateRegistrationOptions({
-      rpName,
+        rpName,
       rpID,
       userID: new Uint8Array(Buffer.from(userId)),
       userName: user.email,
