@@ -5,8 +5,6 @@ import { getDictionary } from '../../i18n/get-dictionary';
 import { defaultLocale, Locale } from '../../i18n/config';
 import { headers, cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { ThemeToggle } from '../../components/ThemeToggle';
-import { UserNav } from '../../components/layout/UserNav';
 import { Users, FolderTree, LayoutDashboard, Trash2, Database } from 'lucide-react';
 
 export default async function AdminLayout({
@@ -86,18 +84,14 @@ export default async function AdminLayout({
 
         <div className="flex flex-1 flex-col">
           {/* Header */}
-          <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-md">
+          <header className="sticky top-0 z-40 flex h-16 items-center border-b border-border bg-background/80 px-6 backdrop-blur-md">
             <div className="flex items-center sm:hidden">
               <Link href="/admin" className="text-lg font-bold text-primary">
                 Admin
               </Link>
             </div>
             <div className="hidden sm:block text-sm font-medium text-muted-foreground">
-              Dashboard
-            </div>
-            <div className="flex items-center space-x-4">
-              <ThemeToggle />
-              <UserNav title={dict.common.account} />
+              {dict.admin?.dashboard || "Dashboard"}
             </div>
           </header>
 
