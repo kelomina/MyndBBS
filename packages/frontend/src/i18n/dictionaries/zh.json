@@ -435,6 +435,7 @@
     "unlocked": "私信已解锁",
     "conversationWith": "与 {username} 的对话",
     "sendError": "发送消息失败",
-    "initError": "初始化密钥失败"
+    "initError": "初始化密钥失败",
+    "burnAfterReading": "开启阅后即焚（不在服务器留存可解密的发送记录）"
   }
 }
