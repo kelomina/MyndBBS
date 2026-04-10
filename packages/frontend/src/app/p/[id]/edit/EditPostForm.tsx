@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useCategories } from '../../../../lib/hooks';
+import { fetcher } from '../../../../lib/api/fetcher';
 import { useRouter } from 'next/navigation';
 import { PostEditor } from '../../../../components/PostEditor';
 
@@ -15,36 +16,26 @@ export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: an
 
   const handlePublish = async () => {
     if (!title || !content || !categoryId) {
-      alert('Please fill out all fields');
+      alert(dict.common?.pleaseFillAllFields || 'Please fill out all fields');
       return;
     }
-    
+
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${initialPost.id}`, {
+      const data = await fetcher(`/api/posts/${initialPost.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ title, content, categoryId }),
-        credentials: 'include'
+        body: JSON.stringify({ title, content, categoryId })
       });
-      
-      const data = await res.json();
-      if (res.ok) {
-        if (data.message === 'ERR_PENDING_MODERATION') {
-          alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
-          router.push('/');
-        } else {
-          router.push(`/p/${initialPost.id}`);
-        }
+
+      if (data.message === 'ERR_PENDING_MODERATION') {
+        alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
+        router.push('/');
       } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to publish post');
+        router.push(`/p/${initialPost.id}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to publish post');
+      alert(err.message || dict.apiErrors?.ERR_FAILED_TO_UPDATE || 'Failed to update post');
     } finally {
       setLoading(false);
     }

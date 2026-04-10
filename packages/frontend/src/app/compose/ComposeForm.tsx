@@ -5,6 +5,7 @@ import { useCategories } from '../../lib/hooks';
 import { useRouter } from 'next/navigation';
 import { PostEditor } from '../../components/PostEditor';
 import { SliderCaptcha } from '../../components/SliderCaptcha';
+import { fetcher } from '../../lib/api/fetcher';
 import { useTranslation } from '../../components/TranslationProvider';
 
 export function ComposeForm({ dict }: { dict: any }) {
@@ -28,29 +29,20 @@ export function ComposeForm({ dict }: { dict: any }) {
     setShowCaptcha(false);
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts`, {
+      const data = await fetcher('/api/posts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ title, content, categoryId, captchaId }),
-        credentials: 'include'
+        body: JSON.stringify({ title, content, categoryId, captchaId })
       });
-      
-      const data = await res.json();
-      if (res.ok) {
-        if (data.message === 'ERR_PENDING_MODERATION') {
-          alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
-          router.push('/'); // Redirect to home since post is not visible
-        } else {
-          router.push(`/p/${data.id}`);
-        }
+
+      if (data.message === 'ERR_PENDING_MODERATION') {
+        alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
+        router.push('/');
       } else {
-        alert(data.error || 'Failed to publish post');
+        router.push(`/p/${data.id}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to publish post');
+      alert(err.message || dict.apiErrors?.ERR_FAILED_TO_PUBLISH || 'Failed to publish post');
     } finally {
       setLoading(false);
     }

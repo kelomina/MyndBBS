@@ -6,6 +6,7 @@ import { useCurrentUser } from '../../../lib/hooks';
 import { useRouter } from 'next/navigation';
 import { CommentItem } from './CommentItem';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
+import { fetcher } from '../../../lib/api/fetcher';
 
 
 export function CommentsSection({ postId, dict, initialCount }: { postId: string, dict: any, initialCount: number }) {
@@ -21,15 +22,9 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/comments`, {
-          credentials: 'include'
-        });
-        const data = await res.json();
-      if (res.ok) {
-          const data = await res.json();
-          setComments(data);
-          setCount(data.length);
-        }
+        const data = await fetcher(`/api/posts/${postId}/comments`);
+        setComments(data);
+        setCount(data.length);
       } catch (err) {
         console.error('Failed to load comments', err);
       }
@@ -46,29 +41,26 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     setShowCaptcha(false);
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/comments`, {
+      const data = await fetcher(`/api/posts/${postId}/comments`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content: newComment, parentId: replyTo?.id, captchaId }),
-        credentials: 'include'
+        body: JSON.stringify({ content: newComment, parentId: replyTo?.id, captchaId })
       });
-
-      const data = await res.json();
-      if (res.ok) {
-        const comment = await res.json();
-        setComments([...comments, comment]);
-        setCount(count + 1);
+      
+      if (data.message === 'ERR_PENDING_MODERATION') {
+        alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
         setNewComment('');
         setReplyTo(null);
-        router.refresh();
-      } else {
-        alert(data.error || 'Failed to post comment');
+        return;
       }
-    } catch (err) {
+      
+      setComments([...comments, data]);
+      setCount(count + 1);
+      setNewComment('');
+      setReplyTo(null);
+      router.refresh();
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to post comment');
+      alert(err.message || dict.apiErrors?.ERR_FAILED_TO_POST_COMMENT || 'Failed to post comment');
     } finally {
       setLoading(false);
     }
@@ -106,19 +98,11 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   const handleDeleteComment = async (commentId: string) => {
     if (!confirm(dict.post?.confirmDeleteComment || 'Are you sure you want to delete this comment?')) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/comments/${commentId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setComments(comments.map(c => c.id === commentId ? { ...c, deletedAt: new Date().toISOString() } : c));
-      } else {
-        alert('Failed to delete comment');
-      }
-    } catch (err) {
+      await fetcher(`/api/posts/comments/${commentId}`, { method: 'DELETE' });
+      setComments(comments.map(c => c.id === commentId ? { ...c, deletedAt: new Date().toISOString() } : c));
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to delete comment');
+      alert(err.message || dict.apiErrors?.ERR_FAILED_TO_DELETE_COMMENT || 'Failed to delete comment');
     }
   };
 
