@@ -27,28 +27,38 @@ export function PostActions({
   const router = useRouter();
 
   useEffect(() => {
+    if (!currentUser) return;
     // Check initial interaction status
     const checkInteractions = async () => {
       try {
         const data = await fetcher(`/api/posts/${postId}/interactions`);
         setHasUpvoted(data.upvoted);
         setHasBookmarked(data.bookmarked);
-      } catch (error) {
-        console.error('Failed to load interactions status:', error);
+      } catch (error: any) {
+        if (!error.message?.includes('UNAUTHORIZED')) {
+          console.error('Failed to load interactions status:', error);
+        }
       }
     };
     checkInteractions();
-  }, [postId]);
+  }, [postId, currentUser]);
 
   const handleUpvote = async () => {
     if (loading) return;
+    if (!currentUser) {
+      alert(dict.auth?.pleaseLogin || 'Please login to upvote.');
+      return;
+    }
     setLoading(true);
     try {
       const data = await fetcher(`/api/posts/${postId}/upvote`, { method: 'POST' });
       setHasUpvoted(data.upvoted);
       setUpvotes(prev => data.upvoted ? prev + 1 : prev - 1);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upvote failed:', error);
+      if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('login')) {
+        alert(dict.auth?.pleaseLogin || 'Please login to upvote.');
+      }
     } finally {
       setLoading(false);
     }
@@ -56,12 +66,19 @@ export function PostActions({
 
   const handleBookmark = async () => {
     if (loading) return;
+    if (!currentUser) {
+      alert(dict.auth?.pleaseLogin || 'Please login to bookmark.');
+      return;
+    }
     setLoading(true);
     try {
       const data = await fetcher(`/api/posts/${postId}/bookmark`, { method: 'POST' });
       setHasBookmarked(data.bookmarked);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Bookmark failed:', error);
+      if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('login')) {
+        alert(dict.auth?.pleaseLogin || 'Please login to bookmark.');
+      }
     } finally {
       setLoading(false);
     }
