@@ -345,7 +345,8 @@
     "postsTitle": "帖子",
     "showingPostsFor": "显示分类下的帖子：",
     "noPostsFound": "该分类下暂无帖子。",
-    "noPostsFoundGeneral": "暂无帖子。"
+    "noPostsFoundGeneral": "暂无帖子。",
+    "noCategories": "暂无分类节点。"
   },
   "reauth": {
     "verifyIdentity": "验证您的身份",

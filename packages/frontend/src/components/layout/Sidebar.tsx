@@ -1,5 +1,8 @@
+"use client";
+
 import Link from 'next/link';
 import { Home, TrendingUp, Clock, Hash } from 'lucide-react';
+import { useCategories } from '../../lib/hooks';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function Sidebar({ dict }: { dict: any }) {
@@ -9,11 +12,7 @@ export function Sidebar({ dict }: { dict: any }) {
     { name: dict.nav.recent, href: '/recent', icon: Clock },
   ];
 
-  const CATEGORIES = [
-    { name: dict.common.categoryTech, href: '/c/tech' },
-    { name: dict.common.categoryLife, href: '/c/life' },
-    { name: dict.common.categoryQA, href: '/c/qa' },
-  ];
+  const { categories, loading } = useCategories();
 
   return (
     <aside className="hidden w-64 shrink-0 md:block">
@@ -40,16 +39,22 @@ export function Sidebar({ dict }: { dict: any }) {
             {dict.common.categories}
           </h3>
           <nav className="flex flex-col gap-1">
-            {CATEGORIES.map((category) => (
-              <Link
-                key={category.name}
-                href={category.href}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-white hover:text-foreground hover:shadow-sm"
-              >
-                <Hash className="h-4 w-4 opacity-50" />
-                {category.name}
-              </Link>
-            ))}
+            {loading ? (
+              <div className="px-3 py-2 text-sm text-muted">{dict.common.loading}</div>
+            ) : categories.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-muted">{dict.category.noCategories || 'No categories available.'}</div>
+            ) : (
+              categories.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/c/${category.name.toLowerCase()}`}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-white hover:text-foreground hover:shadow-sm"
+                >
+                  <Hash className="h-4 w-4 opacity-50" />
+                  {category.name}
+                </Link>
+              ))
+            )}
           </nav>
         </div>
         
