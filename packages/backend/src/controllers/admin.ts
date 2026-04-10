@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db';
+import { PrismaClient } from '@prisma/client';
 import { UserStatus, PostStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
 import { logAudit } from '../lib/audit';
@@ -452,28 +453,38 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
 // Database Config
 import fs from 'fs/promises';
 import path from 'path';
-
-const DB_CONFIG_PATH = path.join(process.cwd(), 'db_config.json');
+import { exec } from 'child_process';
 
 export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
   if (req.user?.role !== 'SUPER_ADMIN') {
     res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
     return;
   }
-  
-  try {
-    const data = await fs.readFile(DB_CONFIG_PATH, 'utf-8');
-    res.json(JSON.parse(data));
-  } catch (error) {
-    // If file doesn't exist, return default empty config
-    res.json({
-      host: 'localhost',
-      port: 3306,
-      username: 'root',
-      password: '',
-      database: 'myndbbs'
-    });
+
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl) {
+    try {
+      const url = new URL(dbUrl);
+      res.json({
+        host: url.hostname,
+        port: url.port ? parseInt(url.port) : 5432,
+        username: url.username,
+        password: decodeURIComponent(url.password),
+        database: url.pathname.slice(1)
+      });
+      return;
+    } catch (e) {
+      // Ignore parsing errors and fallback
+    }
   }
+
+  res.json({
+    host: 'localhost',
+    port: 5432,
+    username: 'postgres',
+    password: '',
+    database: 'myndbbs'
+  });
 };
 
 export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -485,12 +496,41 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
   const { host, port, username, password, database } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
+  const newDbUrl = `postgresql://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}?schema=public`;
+
   try {
-    const config = { host, port, username, password, database };
-    await fs.writeFile(DB_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
-    await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'MySQL config updated');
-    res.json({ message: 'Database configuration updated successfully', config });
+    const tempPrisma = new PrismaClient({ datasources: { db: { url: newDbUrl } } });
+    await tempPrisma.$connect();
+    await tempPrisma.$disconnect();
+
+    const envPath = path.resolve(process.cwd(), '../../.env');
+    let envContent = await fs.readFile(envPath, 'utf8').catch(() => '');
+    
+    if (envContent.includes('DATABASE_URL=')) {
+      envContent = envContent.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL="${newDbUrl}"`);
+    } else {
+      envContent += `\nDATABASE_URL="${newDbUrl}"`;
+    }
+    
+    await fs.writeFile(envPath, envContent);
+    process.env.DATABASE_URL = newDbUrl;
+
+    exec('npx prisma db push', { cwd: process.cwd() }, async (err, stdout, stderr) => {
+      if (err) {
+        console.error('Prisma Error on DB Update:', stderr || err.message);
+        res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });
+        return;
+      }
+
+      await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
+      res.json({ message: 'Database configuration updated successfully', config: { host, port, username, password, database } });
+
+      setTimeout(() => {
+        process.exit(0);
+      }, 1000);
+    });
   } catch (error) {
-    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_DB_CONFIG' });
+    console.error('DB Connection Test Failed:', error);
+    res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED' });
   }
 };
