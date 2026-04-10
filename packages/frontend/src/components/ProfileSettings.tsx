@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Lock } from 'lucide-react';
 import { useTranslation } from './TranslationProvider';
+import { isValidPassword } from '@myndbbs/shared';
 import { ReauthModal } from './ReauthModal';
 
 export function ProfileSettings() {
@@ -67,6 +68,11 @@ export function ProfileSettings() {
     e.preventDefault();
     setMessage('');
     setError('');
+
+    if (password && !isValidPassword(password)) {
+      setError(dict.auth.passwordComplexityError);
+      return;
+    }
 
     const updateData: { email?: string; username?: string; password?: string } = {};
     if (email !== profile?.email) updateData.email = email;
