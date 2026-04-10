@@ -7,6 +7,9 @@ import { notFound } from "next/navigation";
 import { CommentsSection } from "./CommentsSection";
 import { PostActions } from "./PostActions";
 import Link from "next/link";
+import { getCategoryTranslation } from '../../../lib/utils';
+
+export const dynamic = 'force-dynamic';
 
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -66,7 +69,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
                 </Link>
               </div>
               <span className="rounded-full bg-background px-3 py-1 font-medium border border-border">
-                {post.category?.name || 'Uncategorized'}
+                {getCategoryTranslation(post.category?.name, dict)}
               </span>
             </div>
             

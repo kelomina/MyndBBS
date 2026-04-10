@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { PostStatus } from '@prisma/client';
 import { BookmarkMinus } from 'lucide-react';
 
+import { getCategoryTranslation } from '../../../lib/utils';
+
 export function ProfileTabs({ 
   user, 
   dict, 
@@ -115,7 +117,7 @@ export function ProfileTabs({
                 </Link>
                 <p className="text-sm text-muted mb-4 line-clamp-2">{post.content}</p>
                 <div className="flex items-center text-xs text-muted gap-4">
-                  <span>{post.category?.name || dict.profile?.uncategorized || 'Uncategorized'}</span>
+                  <span>{getCategoryTranslation(post.category?.name, dict)}</span>
                   <span>•</span>
                   <span>{new Date(post.createdAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}</span>
                 </div>
@@ -203,8 +205,8 @@ export function ProfileTabs({
                   <Link href={`/p/${item.id}`} className="block">
                     <h2 className="text-lg font-bold text-foreground mb-2 group-hover:text-primary pr-8">{item.title}</h2>
                     <p className="text-sm text-muted mb-4 line-clamp-2 pr-8">{item.content}</p>
-                    <div className="flex items-center text-xs text-muted gap-4">
-                      <span>{item.category?.name || dict.profile?.uncategorized || 'Uncategorized'}</span>
+                    <div className="flex items-center text-xs text-muted gap-4 mt-4">
+                      <span>{getCategoryTranslation(item.category?.name, dict)}</span>
                       <span>•</span>
                       <span>{new Date(item.createdAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}</span>
                     </div>

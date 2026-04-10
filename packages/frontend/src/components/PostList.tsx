@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { MessageSquare, ArrowBigUp } from 'lucide-react';
+import { getCategoryTranslation } from '../lib/utils';
 
 interface PostListProps {
   posts: any[];
   emptyMessage?: string;
+  dict?: any;
 }
 
-export function PostList({ posts, emptyMessage = "No posts found." }: PostListProps) {
+export function PostList({ posts, emptyMessage = "No posts found.", dict }: PostListProps) {
   if (posts.length === 0) {
     return (
       <div className="text-center text-muted py-10">
@@ -31,7 +33,7 @@ export function PostList({ posts, emptyMessage = "No posts found." }: PostListPr
               <span>{new Date(post.createdAt).toLocaleDateString()}</span>
             </div>
             <span className="rounded-full bg-background px-2.5 py-0.5 font-medium">
-              {post.category?.name || 'Uncategorized'}
+              {getCategoryTranslation(post.category?.name, dict)}
             </span>
           </div>
           

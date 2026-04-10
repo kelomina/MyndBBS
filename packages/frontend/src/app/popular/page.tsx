@@ -38,7 +38,7 @@ export default async function PopularPage() {
             <p className="text-sm text-muted">{dict.home?.popularDesc || "Showing the most popular posts on the platform"}</p>
           </div>
 
-          <PostList posts={posts} emptyMessage={"No popular posts found."} />
+          <PostList posts={posts} emptyMessage={"No popular posts found."} dict={dict} />
         </div>
       </div>
     </main>
