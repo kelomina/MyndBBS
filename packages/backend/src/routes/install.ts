@@ -55,10 +55,13 @@ router.get('/', (req: Request, res: Response) => {
     }
   </script>
   <style>
-    body { 
+    body, html { 
       background-color: #FAFAFA; 
       color: #1a1a24;
       overflow-x: hidden;
+      width: 100%;
+      margin: 0;
+      padding: 0;
     }
     .step-container {
       display: none;
@@ -144,11 +147,11 @@ router.get('/', (req: Request, res: Response) => {
     .blob-3 { top: 40%; left: 50%; width: 250px; height: 250px; background: #ec4899; }
   </style>
 </head>
-<body class="antialiased selection:bg-brand-900 selection:text-white">
-  <div class="flex min-h-screen w-full">
+<body class="antialiased selection:bg-brand-900 selection:text-white w-full m-0 p-0">
+  <div class="flex flex-col lg:flex-row min-h-screen w-full m-0 p-0">
     
     <!-- Left Panel -->
-    <div class="hidden lg:flex w-5/12 xl:w-1/3 bg-abstract text-white flex-col justify-between p-12 relative min-h-screen">
+    <div class="hidden lg:flex lg:w-5/12 xl:w-1/3 bg-abstract text-white flex-col justify-between p-12 relative min-h-screen shrink-0">
       <div class="bg-blob blob-1 animate-pulse-slow"></div>
       <div class="bg-blob blob-2 animate-pulse-slow" style="animation-delay: 1s;"></div>
       <div class="bg-blob blob-3 animate-pulse-slow" style="animation-delay: 2s;"></div>
@@ -193,7 +196,7 @@ router.get('/', (req: Request, res: Response) => {
     </div>
 
     <!-- Right Panel -->
-    <div class="w-full flex-1 flex items-center justify-center p-6 sm:p-12 lg:p-24 relative min-h-screen bg-white">
+    <div class="w-full flex-1 flex items-center justify-center p-6 sm:p-12 lg:p-24 relative min-h-screen bg-white m-0">
       <!-- Mobile header -->
       <div class="absolute top-8 left-8 lg:hidden flex items-center gap-2">
         <div class="w-8 h-8 rounded-lg bg-brand-900 flex items-center justify-center">
