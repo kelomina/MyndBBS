@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { startRegistration } from '@simplewebauthn/browser';
+import { usePasskey } from '../lib/hooks/usePasskey';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from './TranslationProvider';
 
@@ -12,6 +12,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
   const [totpSetup, setTotpSetup] = useState<{ secret: string; qrCodeUrl: string } | null>(null);
   const [totpCode, setTotpCode] = useState('');
   const [setupMethod, setSetupMethod] = useState<'passkey' | 'totp' | null>(null);
+  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
 
   useEffect(() => {
     initiateSetup();
@@ -38,45 +39,24 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
   };
 
   const tryPasskeyRegistration = async () => {
-    try {
-      // 1. Get options from server
-      const optionsRes = await fetch(getEndpoint('/passkey/generate-registration-options'), {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!optionsRes.ok) {
-        throw new Error('Failed to generate passkey options');
-      }
-      const options = await optionsRes.json();
-
-      // 2. Start registration in browser
-      const attResp = await startRegistration({ optionsJSON: options });
-
-      // 3. Verify on server
-      const verifyRes = await fetch(getEndpoint('/passkey/verify-registration'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: attResp }),
-      });
-
-      if (verifyRes.ok) {
+    setPasskeyError('');
+    executePasskeyFlow(
+      'register',
+      getEndpoint('/passkey/generate-registration-options'),
+      getEndpoint('/passkey/verify-registration'),
+      dict,
+      () => {
         if (onComplete) onComplete();
-        else {
-          window.location.href = '/';
+        else window.location.href = '/';
+      },
+      (err) => {
+        const isCancel = err?.name === 'NotAllowedError' || err?.message?.includes('timed out or was not allowed');
+        if (!isCancel) {
+          setError(err.message || dict.twoFactor.passkeySetupFailed);
         }
-      } else {
-        const data = await verifyRes.json();
-        throw new Error(dict.apiErrors?.[data.error] || data.error || dict.auth.passkeyVerificationFailed);
+        fallbackToTotp();
       }
-    } catch (err) {
-      const errorObj = err as Error;
-      console.error('Passkey registration failed:', err);
-      const isCancel = errorObj?.name === 'NotAllowedError' || errorObj?.message?.includes('timed out or was not allowed');
-      if (!isCancel) {
-        setError(errorObj.message || dict.twoFactor.passkeySetupFailed);
-      }
-      await fallbackToTotp();
-    }
+    );
   };
 
   const fallbackToTotp = async () => {

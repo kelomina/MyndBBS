@@ -10,13 +10,14 @@ export function usePasskey() {
     generateEndpoint: string,
     verifyEndpoint: string,
     dict: any,
-    onSuccess: () => void
+    onSuccess: () => void,
+    onError?: (err: Error) => void
   ) => {
     setError('');
     setLoading(true);
 
     try {
-      const optionsRes = await fetch(generateEndpoint);
+      const optionsRes = await fetch(generateEndpoint, { credentials: 'include' });
       const optionsData = await optionsRes.json();
 
       if (!optionsRes.ok) {
@@ -28,9 +29,9 @@ export function usePasskey() {
       let authResponse;
       try {
         if (type === 'login') {
-          authResponse = await startAuthentication(options);
+          authResponse = await startAuthentication({ optionsJSON: options });
         } else {
-          authResponse = await startRegistration(options);
+          authResponse = await startRegistration({ optionsJSON: options });
         }
       } catch (err) {
         const errorObj = err as Error;
@@ -41,12 +42,14 @@ export function usePasskey() {
           setError(errorMessage || dict.auth.passkeyFailed);
         }
         setLoading(false);
+        if (onError) onError(errorObj);
         return;
       }
 
       const verifyRes = await fetch(verifyEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ response: authResponse, challengeId })
       });
 
@@ -55,7 +58,7 @@ export function usePasskey() {
       if (verifyRes.ok) {
         onSuccess();
       } else {
-        setError((dict.apiErrors?.[verifyData.error] || verifyData.error) || dict.auth.passkeyVerificationFailed);
+        throw new Error((dict.apiErrors?.[verifyData.error] || verifyData.error) || dict.auth.passkeyVerificationFailed);
       }
     } catch (err) {
       if (err instanceof Error) {
@@ -63,6 +66,7 @@ export function usePasskey() {
       } else {
         setError(dict.auth.passkeyError);
       }
+      if (onError) onError(err as Error);
     } finally {
       setLoading(false);
     }
