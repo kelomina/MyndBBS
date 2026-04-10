@@ -15,7 +15,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
   const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [availableMethods, setAvailableMethods] = useState<{ hasTotp: boolean, hasPasskey: boolean }>({ hasTotp: false, hasPasskey: false });
+  const [availableMethods, setAvailableMethods] = useState<{ hasTotp: boolean, hasPasskey: boolean, hasPassword: boolean }>({ hasTotp: false, hasPasskey: false, hasPassword: true });
   const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
 
   useEffect(() => {
@@ -29,7 +29,11 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
         .then(res => res.json())
         .then(data => {
           if (data.user) {
-            setAvailableMethods({ hasTotp: data.user.isTotpEnabled, hasPasskey: data.user._count?.passkeys > 0 });
+            setAvailableMethods({ hasTotp: data.user.isTotpEnabled, hasPasskey: data.user._count?.passkeys > 0, hasPassword: data.user.hasPassword !== false });
+            if (data.user.hasPassword === false) {
+              if (data.user._count?.passkeys > 0) setMethod('passkey');
+              else if (data.user.isTotpEnabled) setMethod('totp');
+            }
           }
         })
         .catch(() => {});
@@ -118,10 +122,12 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
         )}
 
         <div className="flex gap-2 mb-6">
-          <button 
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${method === 'password' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-            onClick={() => setMethod('password')}
-          >{dict.reauth?.password || 'Password'}</button>
+          {availableMethods.hasPassword && (
+            <button 
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${method === 'password' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+              onClick={() => setMethod('password')}
+            >{dict.reauth?.password || 'Password'}</button>
+          )}
           {availableMethods.hasTotp && (
             <button 
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${method === 'totp' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
