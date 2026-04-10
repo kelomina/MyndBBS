@@ -345,7 +345,8 @@
     "postsTitle": "Posts",
     "showingPostsFor": "Showing posts for category: ",
     "noPostsFound": "No posts found in this category.",
-    "noPostsFoundGeneral": "No posts found."
+    "noPostsFoundGeneral": "No posts found.",
+    "noCategories": "No categories available."
   },
   "reauth": {
     "verifyIdentity": "Verify it's you",
