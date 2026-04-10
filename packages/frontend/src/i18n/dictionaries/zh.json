@@ -406,5 +406,34 @@
     "cancel": "取消",
     "networkError": "网络错误",
     "verificationFailed": "验证失败"
+  },
+  "notifications": {
+    "title": "通知",
+    "unread": "未读",
+    "markAllRead": "全部标为已读",
+    "empty": "暂无通知",
+    "POST_APPROVED": "帖子已通过",
+    "POST_REJECTED": "帖子被拒绝",
+    "POST_REPLIED": "收到新回复",
+    "COMMENT_REPLIED": "评论收到回复",
+    "SYSTEM": "系统通知"
+  },
+  "messages": {
+    "title": "私信",
+    "inbox": "收件箱",
+    "initSecure": "初始化安全通信",
+    "initSecureDesc": "为了使用端到端加密私信，您必须生成密钥并使用 Passkey 保护它们。",
+    "initializing": "初始化中...",
+    "noMessages": "暂无私信",
+    "typeMessage": "输入消息...",
+    "send": "发送",
+    "decrypting": "解密中...",
+    "encrypting": "加密中...",
+    "authRequired": "需要 Passkey 验证来解锁您的私钥。",
+    "unlockMessages": "解锁私信",
+    "unlocked": "私信已解锁",
+    "conversationWith": "与 {username} 的对话",
+    "sendError": "发送消息失败",
+    "initError": "初始化密钥失败"
   }
 }
