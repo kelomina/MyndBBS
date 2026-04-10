@@ -218,8 +218,10 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       }
     }));
     
-    setMessages(updatedMessages);
-    scrollToBottom();
+    if (needsUpdate) {
+      setMessages(updatedMessages);
+      scrollToBottom();
+    }
   };
 
   const handleSend = async (e: React.FormEvent) => {
