@@ -57,7 +57,7 @@ export function OwnerSettingsButton({ username }: { username: string }) {
         className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
       >
         <Settings className="h-4 w-4" />
-        {dict.nav?.settings || 'Settings'}
+        {dict.common?.settings || 'Settings'}
       </Link>
       <button 
         onClick={handleLogout}
@@ -65,7 +65,7 @@ export function OwnerSettingsButton({ username }: { username: string }) {
         className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/80 transition-colors"
       >
         <LogOut className="h-4 w-4" />
-        {isLoggingOut ? '...' : dict.nav?.logout || 'Logout'}
+        {isLoggingOut ? '...' : dict.common?.logout || 'Logout'}
       </button>
     </div>
   );
