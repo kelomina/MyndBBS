@@ -6,6 +6,7 @@ import { getDictionary } from "../i18n/get-dictionary";
 import { PostList } from '../components/PostList';
 
 import { AutoRefresh } from "../components/AutoRefresh";
+import { getPostListEmptyMessage } from "../lib/utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ export default async function Home() {
       {/* Main Feed Area */}
       <div className="flex-1 py-6 md:pl-8">
         <div className="mx-auto max-w-3xl space-y-4">
-          <PostList posts={posts} emptyMessage={dict.category?.noPostsFoundGeneral || "No posts found."} dict={dict} />
+          <PostList posts={posts} emptyMessage={getPostListEmptyMessage('general', dict)} dict={dict} />
         </div>
       </div>
     </main>
