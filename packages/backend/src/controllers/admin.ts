@@ -425,25 +425,34 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
 
 // Database Config
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
+import { exec } from 'child_process';
 
-const DB_CONFIG_PATH = path.join(process.cwd(), 'db_config.json');
+const ENV_PATH = path.join(process.cwd(), '.env');
 
 export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
   if (req.user?.role !== 'SUPER_ADMIN') {
     res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
     return;
   }
-  
+
   try {
-    const data = await fs.readFile(DB_CONFIG_PATH, 'utf-8');
-    res.json(JSON.parse(data));
+    const dbUrl = process.env.DATABASE_URL || '';
+    if (!dbUrl) throw new Error('No DB URL');
+    const parsed = new URL(dbUrl);
+    res.json({
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 5432,
+      username: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      database: parsed.pathname.substring(1) // remove leading '/'
+    });
   } catch (error) {
-    // If file doesn't exist, return default empty config
     res.json({
       host: 'localhost',
-      port: 3306,
-      username: 'root',
+      port: 5432,
+      username: 'postgres',
       password: '',
       database: 'myndbbs'
     });
@@ -459,12 +468,56 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
   const { host, port, username, password, database } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  try {
-    const config = { host, port, username, password, database };
-    await fs.writeFile(DB_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
-    await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'MySQL config updated');
-    res.json({ message: 'Database configuration updated successfully', config });
-  } catch (error) {
-    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_DB_CONFIG' });
-  }
+  const encodedUser = encodeURIComponent(username);
+  const encodedPass = encodeURIComponent(password);
+  const newDbUrl = `postgresql://${encodedUser}:${encodedPass}@${host}:${port}/${database}?schema=public`;
+
+  exec('npx prisma db push', { 
+    cwd: path.resolve(__dirname, '../../'),
+    env: { ...process.env, DATABASE_URL: newDbUrl }
+  }, async (error, stdout, stderr) => {
+    if (error) {
+      console.error('Prisma Error:', stderr || error.message);
+      res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED', details: stderr || error.message });
+      return;
+    }
+
+    try {
+      let envContent = '';
+      try {
+        envContent = await fs.readFile(ENV_PATH, 'utf-8');
+      } catch (err) {
+        // .env might not exist
+      }
+
+      if (envContent.includes('DATABASE_URL=')) {
+        envContent = envContent.replace(/DATABASE_URL=.*/g, `DATABASE_URL="${newDbUrl}"`);
+      } else {
+        envContent += `\nDATABASE_URL="${newDbUrl}"\n`;
+      }
+
+      await fs.writeFile(ENV_PATH, envContent, 'utf-8');
+      process.env.DATABASE_URL = newDbUrl;
+
+      await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated');
+      
+      res.json({ message: 'Database configuration updated successfully', config: { host, port, username, database } });
+
+      // Restart backend
+      setTimeout(() => {
+        const indexPath = path.resolve(__dirname, '../index.ts');
+        const time = new Date();
+        try {
+          fsSync.utimesSync(indexPath, time, time);
+        } catch (err) {
+          const fd = fsSync.openSync(indexPath, 'w');
+          fsSync.closeSync(fd);
+        }
+      }, 1000);
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_DB_CONFIG' });
+    }
+  });
 };

@@ -224,13 +224,13 @@
     "permanentDelete": "永久删除",
     "confirmRestore": "确定要恢复此项吗？",
     "confirmHardDelete": "确定要永久删除此项吗？此操作无法撤销。",
-    "dbConfigDesc": "配置 MySQL 数据库连接设置。仅 SUPER_ADMIN 可访问。",
+    "dbConfigDesc": "配置 PostgreSQL 数据库连接设置。保存后系统将测试连接并重启。仅 SUPER_ADMIN 可访问。",
     "dbHost": "主机名",
     "dbPort": "端口",
     "dbUser": "用户名",
     "dbPass": "密码",
     "dbName": "数据库名",
-    "dbSaveSuccess": "数据库配置已成功保存。",
+    "dbSaveSuccess": "数据库配置已保存，服务器正在重启以应用更改。",
     "title": "标题",
     "author": "作者",
     "category": "指定板块 (可选)",
@@ -364,7 +364,8 @@
     "ERR_NOT_MODERATOR_OF_CATEGORY": "您不是该板块的版主，无权操作。",
     "ERR_FAILED_TO_POST_COMMENT": "发表评论失败",
     "ERR_FAILED_TO_PUBLISH": "发布帖子失败",
-    "ERR_FAILED_TO_UPDATE": "更新帖子失败"
+    "ERR_FAILED_TO_UPDATE": "更新帖子失败",
+    "ERR_DB_CONNECTION_FAILED": "数据库连接测试失败。请检查您的凭据并确保 PostgreSQL 正在运行。"
   },
   "category": {
     "postsTitle": "帖子",

@@ -204,13 +204,13 @@
     "permanentDelete": "Delete Permanently",
     "confirmRestore": "Are you sure you want to restore this item?",
     "confirmHardDelete": "Are you sure you want to permanently delete this item? This action cannot be undone.",
-    "dbConfigDesc": "Configure MySQL database connection settings. Only SUPER_ADMIN can access this.",
+    "dbConfigDesc": "Configure PostgreSQL database connection settings. The system will test the connection and restart upon saving. Only SUPER_ADMIN can access this.",
     "dbHost": "Host",
     "dbPort": "Port",
     "dbUser": "Username",
     "dbPass": "Password",
     "dbName": "Database Name",
-    "dbSaveSuccess": "Database configuration saved successfully.",
+    "dbSaveSuccess": "Database configuration saved. The server is restarting to apply changes.",
     "title": "Title",
     "author": "Author",
     "category": "Category (Optional)",
@@ -364,7 +364,8 @@
     "ERR_NOT_MODERATOR_OF_CATEGORY": "You are not a moderator for this category.",
     "ERR_FAILED_TO_POST_COMMENT": "Failed to post comment",
     "ERR_FAILED_TO_PUBLISH": "Failed to publish post",
-    "ERR_FAILED_TO_UPDATE": "Failed to update post"
+    "ERR_FAILED_TO_UPDATE": "Failed to update post",
+    "ERR_DB_CONNECTION_FAILED": "Database connection test failed. Please check your credentials and ensure PostgreSQL is running."
   },
   "category": {
     "postsTitle": "Posts",
