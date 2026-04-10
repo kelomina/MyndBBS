@@ -32,7 +32,10 @@ export function usePasskey() {
         if (type === 'login') {
           authResponse = await startAuthentication({ optionsJSON: options });
         } else {
-          authResponse = await startRegistration({ optionsJSON: options });
+          const authOptions = options;
+          if (!authOptions.extensions) authOptions.extensions = {};
+          authOptions.extensions.prf = {};
+          authResponse = await startRegistration({ optionsJSON: authOptions });
         }
       } catch (err) {
         const errorObj = err as Error;

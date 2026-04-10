@@ -115,11 +115,22 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       }
 
       // Start auth for PRF
-      const optionsRes = await fetch('/api/v1/auth/passkey/generate-authentication-options', { credentials: 'include' });
+      const [optionsRes, passkeysRes] = await Promise.all([
+        fetch('/api/v1/auth/passkey/generate-authentication-options', { credentials: 'include' }),
+        fetch('/api/v1/user/passkeys', { credentials: 'include' })
+      ]);
       if (!optionsRes.ok) throw new Error('Failed to get auth options');
       const optionsData = await optionsRes.json();
+      const passkeysData = passkeysRes.ok ? await passkeysRes.json() : { passkeys: [] };
 
       const authOptions = optionsData;
+      if (passkeysData.passkeys && passkeysData.passkeys.length > 0) {
+        authOptions.allowCredentials = passkeysData.passkeys.map((pk: any) => ({
+          id: pk.id,
+          type: 'public-key',
+          transports: ['internal', 'usb', 'ble', 'nfc']
+        }));
+      }
       if (!authOptions.extensions) authOptions.extensions = {};
       authOptions.extensions.prf = {
         eval: {

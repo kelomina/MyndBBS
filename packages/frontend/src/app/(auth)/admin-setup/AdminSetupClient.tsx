@@ -22,7 +22,10 @@ export function AdminSetupClient() {
     setError('');
     try {
       const options = await fetcher('/api/v1/auth/passkey/generate-registration-options');
-      const attResp = await startRegistration({ optionsJSON: options });
+      const authOptions = options;
+      if (!authOptions.extensions) authOptions.extensions = {};
+      authOptions.extensions.prf = {};
+      const attResp = await startRegistration({ optionsJSON: authOptions });
       await fetcher('/api/v1/auth/passkey/verify-registration', {
         method: 'POST',
         body: JSON.stringify({ response: attResp, challengeId: options.challengeId })
