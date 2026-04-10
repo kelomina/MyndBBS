@@ -63,7 +63,11 @@
     "step2Desc": "Scan the QR code with Google Authenticator or Authy.",
     "enter6Digit": "Enter 6-digit code",
     "setupComplete": "Setup Complete!",
-    "redirectingAdmin": "Redirecting to Admin Panel..."
+    "redirectingAdmin": "Redirecting to Admin Panel...",
+    "registerPasskey": "Register Passkey",
+    "verifyTotp": "Verify",
+    "retry": "Retry",
+    "failedLoadTotp": "Failed to load Authenticator setup. The server might be restarting, please try again."
   },
   "home": {
     "mockPosts": [

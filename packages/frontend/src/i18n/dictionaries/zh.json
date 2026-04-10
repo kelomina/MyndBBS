@@ -63,7 +63,11 @@
     "step2Desc": "使用 Google Authenticator 或 Authy 扫描下方二维码。",
     "enter6Digit": "请输入6位验证码",
     "setupComplete": "设置完成！",
-    "redirectingAdmin": "正在为您跳转至后台管理界面..."
+    "redirectingAdmin": "正在为您跳转至后台管理界面...",
+    "registerPasskey": "注册通行密钥",
+    "verifyTotp": "验证",
+    "retry": "重试",
+    "failedLoadTotp": "加载身份验证器配置失败。可能服务器正在重启，请稍后重试。"
   },
   "home": {
     "mockPosts": [
