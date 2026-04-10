@@ -55,7 +55,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
           },
           (err) => {
             const isCancel = err?.name === 'NotAllowedError' || err?.message?.includes('timed out or was not allowed');
-            if (!isCancel) setError(err.message || 'Passkey verification failed');
+            if (!isCancel) setError(err.message || dict.reauth?.verificationFailed || dict.reauth?.verificationFailed || 'Verification failed');
             setLoading(false);
           }
         );
@@ -73,10 +73,10 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
         onSuccess();
       } else {
         const data = await res.json();
-        setError(dict.apiErrors?.[data.error] || data.error || 'Verification failed');
+        setError(dict.apiErrors?.[data.error] || data.error || dict.reauth?.verificationFailed || 'Verification failed');
       }
     } catch (err) {
-      setError('Network error');
+      setError(dict.reauth?.networkError || 'Network error');
     } finally {
       if (method !== 'passkey') {
         setLoading(false);
@@ -99,7 +99,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
       },
       (err) => {
         const isCancel = err?.name === 'NotAllowedError' || err?.message?.includes('timed out or was not allowed');
-        if (!isCancel) setError(err.message || 'Passkey verification failed');
+        if (!isCancel) setError(err.message || dict.reauth?.verificationFailed || dict.reauth?.verificationFailed || 'Verification failed');
         setLoading(false);
       }
     );
@@ -108,8 +108,8 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl border border-border/50">
-        <h3 className="text-xl font-bold text-foreground mb-2">Verify it&apos;s you</h3>
-        <p className="text-sm text-muted mb-6">Please confirm your identity to continue.</p>
+        <h3 className="text-xl font-bold text-foreground mb-2">{dict.reauth?.verifyIdentity || "Verify it's you"}</h3>
+        <p className="text-sm text-muted mb-6">{dict.reauth?.confirmIdentity || 'Please confirm your identity to continue.'}</p>
 
         {(error || passkeyError) && (
           <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
@@ -121,31 +121,25 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
           <button 
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${method === 'password' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
             onClick={() => setMethod('password')}
-          >
-            Password
-          </button>
+          >{dict.reauth?.password || 'Password'}</button>
           {availableMethods.hasTotp && (
             <button 
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${method === 'totp' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
               onClick={() => setMethod('totp')}
-            >
-              Authenticator App
-            </button>
+            >{dict.reauth?.authenticatorApp || 'Authenticator App'}</button>
           )}
           {availableMethods.hasPasskey && (
             <button 
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${method === 'passkey' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
               onClick={handlePasskeyClick}
-            >
-              Passkey
-            </button>
+            >{dict.reauth?.passkey || 'Passkey'}</button>
           )}
         </div>
 
         {method === 'password' && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Password</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{dict.reauth?.password || 'Password'}</label>
               <input
                 type="password"
                 required
@@ -155,9 +149,9 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
               />
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground">Cancel</button>
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground">{dict.reauth?.cancel || 'Cancel'}</button>
               <button type="submit" disabled={loading || !password} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-                {loading ? 'Verifying...' : 'Verify'}
+                {loading ? dict.reauth?.verifying || 'Verifying...' : dict.reauth?.verify || 'Verify'}
               </button>
             </div>
           </form>
@@ -166,7 +160,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
         {method === 'totp' && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">6-digit Code</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{dict.reauth?.sixDigitCode || '6-digit Code'}</label>
               <input
                 type="text"
                 required
@@ -177,9 +171,9 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
               />
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground">Cancel</button>
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground">{dict.reauth?.cancel || 'Cancel'}</button>
               <button type="submit" disabled={loading || totpCode.length < 6} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-                {loading ? 'Verifying...' : 'Verify'}
+                {loading ? dict.reauth?.verifying || 'Verifying...' : dict.reauth?.verify || 'Verify'}
               </button>
             </div>
           </form>
@@ -187,9 +181,9 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
 
         {method === 'passkey' && (
           <div className="text-center py-4 space-y-4">
-            <p className="text-sm text-muted">Waiting for passkey verification...</p>
+            <p className="text-sm text-muted">{dict.reauth?.waitingPasskey || 'Waiting for passkey verification...'}</p>
             <div className="flex justify-end gap-3 mt-6">
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground">Cancel</button>
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground">{dict.reauth?.cancel || 'Cancel'}</button>
             </div>
           </div>
         )}
