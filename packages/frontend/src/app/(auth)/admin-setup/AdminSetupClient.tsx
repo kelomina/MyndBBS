@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { startRegistration } from '@simplewebauthn/browser';
-import { QRCodeSVG } from 'qrcode.react';
+
 import { useTranslation } from '../../../components/TranslationProvider';
 import { fetcher } from '../../../lib/api/fetcher';
 
@@ -22,7 +22,7 @@ export function AdminSetupClient() {
     setError('');
     try {
       const options = await fetcher('/api/v1/auth/passkey/generate-registration-options');
-      const attResp = await startRegistration(options);
+      const attResp = await startRegistration({ optionsJSON: options });
       await fetcher('/api/v1/auth/passkey/verify-registration', {
         method: 'POST',
         body: JSON.stringify({ response: attResp, challengeId: options.challengeId })
@@ -115,13 +115,25 @@ export function AdminSetupClient() {
               disabled={loading}
               className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
             >
-              {loading ? dict.common?.loading || 'Loading...' : dict.settings?.registerPasskey || 'Register Passkey'}
+              {loading ? dict.common?.loading || 'Loading...' : dict.auth?.registerPasskey || 'Register Passkey'}
             </button>
             <div className="text-center">
               <button onClick={skipPasskey} className="text-sm text-muted hover:text-foreground underline">
                 {dict.auth?.skipPasskey || 'Skip for now (Device not supported)'}
               </button>
             </div>
+          </div>
+        )}
+
+        {step === 'totp' && !totpSetup && !loading && (
+          <div className="space-y-6 text-center">
+            <p className="text-sm text-muted">{error || dict.auth?.failedLoadTotp || 'Failed to load Authenticator setup.'}</p>
+            <button
+              onClick={() => loadTotp(true)}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
+            >
+              Retry
+            </button>
           </div>
         )}
 
@@ -132,7 +144,7 @@ export function AdminSetupClient() {
               <p className="text-sm text-muted mt-1">{dict.auth?.step2Desc || 'Scan the QR code with Google Authenticator or Authy.'}</p>
             </div>
             <div className="flex justify-center bg-white p-4 rounded-lg">
-              <QRCodeSVG value={totpSetup.qrCodeUrl} size={200} />
+              <img src={totpSetup.qrCodeUrl} alt="TOTP QR Code" className="w-48 h-48" />
             </div>
             <div className="text-center mt-2">
               <p className="text-xs text-muted font-mono">{totpSetup.secret}</p>
@@ -152,7 +164,7 @@ export function AdminSetupClient() {
               disabled={loading || totpCode.length !== 6}
               className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             >
-              {loading ? dict.common?.loading || 'Verifying...' : dict.settings?.verifyTotp || 'Verify'}
+              {loading ? dict.common?.loading || 'Verifying...' : dict.auth?.verifyTotp || 'Verify'}
             </button>
           </div>
         )}
