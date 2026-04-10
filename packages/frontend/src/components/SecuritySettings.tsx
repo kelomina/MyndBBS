@@ -5,6 +5,7 @@ import { Fingerprint, Smartphone, Trash2 } from 'lucide-react';
 import { usePasskey } from '../lib/hooks/usePasskey';
 import { TwoFactorSetup } from './TwoFactorSetup';
 import { useTranslation } from './TranslationProvider';
+import { ReauthModal } from './ReauthModal';
 
 export function SecuritySettings() {
   const dict = useTranslation();
@@ -14,6 +15,8 @@ export function SecuritySettings() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [showTotpSetup, setShowTotpSetup] = useState(false);
+  const [showReauth, setShowReauth] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
 
   useEffect(() => {
@@ -40,6 +43,21 @@ export function SecuritySettings() {
       console.error('Failed to fetch security data', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const executeWithSudo = async (action: () => void) => {
+    try {
+      const res = await fetch('/api/v1/user/sudo/check', { credentials: 'include' });
+      const data = await res.json();
+      if (data.isSudo) {
+        action();
+      } else {
+        setPendingAction(() => action);
+        setShowReauth(true);
+      }
+    } catch (err) {
+      setError('Network error');
     }
   };
 
@@ -100,7 +118,16 @@ export function SecuritySettings() {
   if (loading) return <div className="text-sm text-muted">{dict.settings.loadingSecurity}</div>;
 
   return (
-    <div className="rounded-xl bg-card p-6 shadow-sm border border-border/50">
+    <>
+      <ReauthModal 
+        isOpen={showReauth} 
+        onClose={() => setShowReauth(false)} 
+        onSuccess={() => {
+          setShowReauth(false);
+          if (pendingAction) pendingAction();
+        }} 
+      />
+      <div className="rounded-xl bg-card p-6 shadow-sm border border-border/50">
       <h2 className="text-xl font-bold text-foreground mb-1">{dict.profile.securityPasskeys}</h2>
       <p className="text-sm text-muted mb-6">{dict.settings.manageSecurity}</p>
 
@@ -127,7 +154,7 @@ export function SecuritySettings() {
                     </div>
                   </div>
                   <button 
-                    onClick={() => handleDeletePasskey(pk.id)}
+                    onClick={() => executeWithSudo(() => handleDeletePasskey(pk.id))}
                     className="p-2 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
                     title={dict.settings.removePasskey}
                   >
@@ -139,7 +166,7 @@ export function SecuritySettings() {
           </div>
 
           <button 
-            onClick={handleAddPasskey}
+            onClick={() => executeWithSudo(handleAddPasskey)}
             className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors"
           >
             <Fingerprint className="h-4 w-4" /> {dict.settings.addNewPasskey}
@@ -160,7 +187,7 @@ export function SecuritySettings() {
                 </div>
               </div>
               <button 
-                onClick={handleDisableTotp}
+                onClick={() => executeWithSudo(handleDisableTotp)}
                 className="text-sm font-medium text-red-600 hover:text-red-700 bg-white dark:bg-black px-3 py-1.5 rounded-md border border-red-200 dark:border-red-900/50"
               >
                 Disable
@@ -170,7 +197,7 @@ export function SecuritySettings() {
             <div>
               {!showTotpSetup ? (
                 <button 
-                  onClick={() => setShowTotpSetup(true)}
+                  onClick={() => executeWithSudo(() => setShowTotpSetup(true))}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors"
                 >
                   <Smartphone className="h-4 w-4" /> {dict.settings.enableTotp}
@@ -195,5 +222,6 @@ export function SecuritySettings() {
         </div>
       </div>
     </div>
+    </>
   );
 }

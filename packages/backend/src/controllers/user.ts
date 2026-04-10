@@ -253,6 +253,21 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
         res.status(400).json({ error: 'ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER' });
         return;
       }
+      
+      const isSudo = await redis.get(`sudo:${req.user!.sessionId}`);
+      
+      if (isSudo !== 'true') {
+        if (!currentPassword || !user.password) {
+          res.status(403).json({ error: 'ERR_SUDO_REQUIRED' });
+          return;
+        }
+        const isValid = await argon2.verify(user.password, currentPassword);
+        if (!isValid) {
+          res.status(400).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
+          return;
+        }
+      }
+
       updateData.password = await argon2.hash(password);
     }
 
