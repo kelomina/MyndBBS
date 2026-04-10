@@ -40,7 +40,9 @@ export const getSudoPasskeyOptions = async (req: AuthRequest, res: Response): Pr
 };
 
 export const verifySudo = async (req: AuthRequest, res: Response): Promise<void> => {
-  const { type, password, totpCode, passkeyResponse, challengeId } = req.body;
+  const { type, password, totpCode, passkeyResponse, response, challengeId } = req.body;
+  const actualPasskeyResponse = passkeyResponse || response;
+  const actualType = type || (actualPasskeyResponse ? 'passkey' : undefined);
   const userId = req.user!.userId;
   const sessionId = req.user!.sessionId;
 
@@ -53,13 +55,13 @@ export const verifySudo = async (req: AuthRequest, res: Response): Promise<void>
   let isValid = false;
 
   try {
-    if (type === 'password') {
+    if (actualType === 'password') {
       if (!password || !user.password) {
         res.status(400).json({ error: 'ERR_INVALID_CREDENTIALS' });
         return;
       }
       isValid = await argon2.verify(user.password, password);
-    } else if (type === 'totp') {
+    } else if (actualType === 'totp') {
       if (!totpCode || !user.totpSecret) {
         res.status(400).json({ error: 'ERR_INVALID_TOTP' });
         return;
@@ -68,8 +70,8 @@ export const verifySudo = async (req: AuthRequest, res: Response): Promise<void>
       const authenticator = new OTP({ strategy: 'totp' });
       const result = authenticator.verifySync({ token: totpCode, secret: user.totpSecret });
       isValid = result && result.valid;
-    } else if (type === 'passkey') {
-      if (!passkeyResponse || !challengeId) {
+    } else if (actualType === 'passkey') {
+      if (!actualPasskeyResponse || !challengeId) {
         res.status(400).json({ error: 'ERR_CHALLENGE_ID_IS_REQUIRED' });
         return;
       }
@@ -80,14 +82,14 @@ export const verifySudo = async (req: AuthRequest, res: Response): Promise<void>
         return;
       }
 
-      const passkey = await prisma.passkey.findUnique({ where: { id: passkeyResponse.id } });
+      const passkey = await prisma.passkey.findUnique({ where: { id: actualPasskeyResponse.id } });
       if (!passkey || passkey.userId !== userId) {
         res.status(400).json({ error: 'ERR_INVALID_PASSKEY' });
         return;
       }
 
       const verification = await verifyAuthenticationResponse({
-        response: passkeyResponse,
+        response: actualPasskeyResponse,
         expectedChallenge: expectedChallenge.challenge,
         expectedOrigin: origin,
         expectedRPID: rpID,

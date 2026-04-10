@@ -11,7 +11,8 @@ export function usePasskey() {
     verifyEndpoint: string,
     dict: any,
     onSuccess: () => void,
-    onError?: (err: Error) => void
+    onError?: (err: Error) => void,
+    extraPayload?: Record<string, any>
   ) => {
     setError('');
     setLoading(true);
@@ -50,7 +51,7 @@ export function usePasskey() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ response: authResponse, challengeId })
+        body: JSON.stringify({ response: authResponse, challengeId, ...extraPayload })
       });
 
       const verifyData = await verifyRes.json();
