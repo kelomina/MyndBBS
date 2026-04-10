@@ -196,7 +196,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const { email, username, password, currentPassword, totpCode } = req.body;
+    const { email, username, password } = req.body;
     
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -205,24 +205,11 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    if (email || password) {
-      if (!currentPassword && !totpCode) {
-        res.status(401).json({ error: 'ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES' });
+    if ((email && email !== user.email) || password) {
+      const isSudo = await redis.get(`sudo:${req.user!.sessionId}`);
+      if (isSudo !== 'true') {
+        res.status(403).json({ error: 'ERR_SUDO_REQUIRED' });
         return;
-      }
-      if (currentPassword && user.password) {
-        const isValid = await argon2.verify(user.password, currentPassword);
-        if (!isValid) {
-          res.status(401).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
-          return;
-        }
-      }
-      if (totpCode && user.totpSecret) {
-        const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
-        if (!result || !result.valid) {
-          res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
-          return;
-        }
       }
     }
 
@@ -254,20 +241,6 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
         return;
       }
       
-      const isSudo = await redis.get(`sudo:${req.user!.sessionId}`);
-      
-      if (isSudo !== 'true') {
-        if (!currentPassword || !user.password) {
-          res.status(403).json({ error: 'ERR_SUDO_REQUIRED' });
-          return;
-        }
-        const isValid = await argon2.verify(user.password, currentPassword);
-        if (!isValid) {
-          res.status(400).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
-          return;
-        }
-      }
-
       updateData.password = await argon2.hash(password);
     }
 
