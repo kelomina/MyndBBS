@@ -160,7 +160,8 @@
     "adminDashboard": "管理员仪表盘",
     "removeBookmark": "移除书签",
     "bookmarks": "书签",
-    "noBookmarksYet": "暂无书签。"
+    "noBookmarksYet": "暂无书签。",
+    "notificationSettings": "通知设置"
   },
   "settings": {
     "loadingProfile": "加载资料中...",

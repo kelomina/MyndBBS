@@ -7,8 +7,10 @@ import { useRouter } from 'next/navigation';
 
 import { useTranslation } from '../../../components/TranslationProvider';
 
+import { Mail } from 'lucide-react';
 export function OwnerSettingsButton({ username }: { username: string }) {
-  const [isOwner, setIsOwner] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
   const dict = useTranslation();
@@ -21,9 +23,7 @@ export function OwnerSettingsButton({ username }: { username: string }) {
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.user?.username === username) {
-            setIsOwner(true);
-          }
+          setCurrentUser(data.user);
         }
       } catch (err) {
         // ignore
@@ -48,10 +48,21 @@ export function OwnerSettingsButton({ username }: { username: string }) {
     }
   };
 
-  if (!isOwner) return null;
+  if (!currentUser) return null;
+  const isOwner = currentUser.username === username;
 
   return (
     <div className="flex gap-2">
+      {!isOwner && currentUser.level >= 2 && (
+        <Link
+          href={`/messages/${username}`}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          <Mail className="h-4 w-4" />
+          {dict.messages?.title || 'Send Message'}
+        </Link>
+      )}
+      {isOwner && (<>
       <Link 
         href="/u/settings" 
         className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
@@ -67,6 +78,7 @@ export function OwnerSettingsButton({ username }: { username: string }) {
         <LogOut className="h-4 w-4" />
         {isLoggingOut ? '...' : dict.common?.logout || 'Logout'}
       </button>
+      </>)}
     </div>
   );
 }

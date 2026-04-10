@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { User, Loader2, PenSquare } from 'lucide-react';
+import { User, Loader2, PenSquare, Mail } from 'lucide-react';
 
-export function UserNav({ title, newPostText }: { title: string; newPostText?: string }) {
+export function UserNav({ title, newPostText, messagesText }: { title: string; newPostText?: string; messagesText?: string }) {
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +47,13 @@ export function UserNav({ title, newPostText }: { title: string; newPostText?: s
             {newPostText}
           </Link>
         )}
+        <Link
+          href="/messages"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted transition-colors hover:bg-background hover:text-foreground"
+          title={messagesText || 'Messages'}
+        >
+          <Mail className="h-5 w-5" />
+        </Link>
         <Link
           href={`/u/${user.username}`}
           className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground transition-transform hover:scale-105 uppercase font-bold text-sm"
