@@ -51,7 +51,17 @@
     "passkeyFailed": "Failed to authenticate with passkey. Ensure your device supports it.",
     "passkeyVerificationFailed": "Passkey verification failed",
     "passkeyError": "An error occurred during passkey login",
-    "registrationFailed": "Registration failed"
+    "registrationFailed": "Registration failed",
+    "adminSetupTitle": "Admin Security Setup",
+    "adminSetupDesc": "Super Admins are required to bind both Passkey and Authenticator App.",
+    "step1Passkey": "Step 1: Setup Passkey",
+    "step1Desc": "Use your fingerprint, face, or screen lock to register a passkey.",
+    "skipPasskey": "Skip for now (Device not supported)",
+    "step2Totp": "Step 2: Setup Authenticator App",
+    "step2Desc": "Scan the QR code with Google Authenticator or Authy.",
+    "enter6Digit": "Enter 6-digit code",
+    "setupComplete": "Setup Complete!",
+    "redirectingAdmin": "Redirecting to Admin Panel..."
   },
   "home": {
     "mockPosts": [
@@ -365,7 +375,8 @@
     "ERR_FAILED_TO_POST_COMMENT": "Failed to post comment",
     "ERR_FAILED_TO_PUBLISH": "Failed to publish post",
     "ERR_FAILED_TO_UPDATE": "Failed to update post",
-    "ERR_DB_CONNECTION_FAILED": "Database connection test failed. Please check your credentials and ensure PostgreSQL is running."
+    "ERR_DB_CONNECTION_FAILED": "Database connection test failed. Please check your credentials and ensure PostgreSQL is running.",
+    "ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY": "Cannot promote user level without a bound Passkey."
   },
   "category": {
     "postsTitle": "Posts",

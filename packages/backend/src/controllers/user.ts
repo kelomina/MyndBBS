@@ -6,11 +6,6 @@ import { AuthRequest } from '../middleware/auth';
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 import { OTP } from 'otplib';
 import QRCode from 'qrcode';
-import crypto from 'crypto';
-import { isValidPassword } from '@myndbbs/shared';
-import { revokeUserSessions } from '../lib/session';
-import { accessibleBy } from '@casl/prisma';
-
 
 const rpName = 'MyndBBS';
 const rpID = process.env.RP_ID || 'localhost';
@@ -34,8 +29,6 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
         username: true,
         role: { select: { name: true } },
         isTotpEnabled: true,
-        password: true,
-        _count: { select: { passkeys: true } }
       }
     });
 
@@ -44,10 +37,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const hasPassword = !!user.password;
-    delete (user as any).password;
-
-    res.json({ user: { ...user, role: user.role?.name || null, hasPassword } });
+    res.json({ user: { ...user, role: user.role?.name || null } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -138,6 +128,15 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
       where: { id: passkeyId, userId }
     });
 
+    // Check remaining passkeys. If 0, force level to 1
+    const remaining = await prisma.passkey.count({ where: { userId } });
+    if (remaining === 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { level: 1 }
+      });
+    }
+
     res.json({ message: 'Passkey deleted successfully' });
   } catch (error) {
     console.error(error);
@@ -153,16 +152,31 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
+    const { currentPassword, totpCode } = req.body;
+
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
       return;
     }
 
-    const isSudo = await redis.get(`sudo:${req.user!.sessionId}`);
-    if (isSudo !== 'true') {
-      res.status(403).json({ error: 'ERR_SUDO_REQUIRED' });
+    if (!currentPassword && !totpCode) {
+      res.status(401).json({ error: 'ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_TO_DISABLE_2FA' });
       return;
+    }
+    if (currentPassword && user.password) {
+      const isValid = await argon2.verify(user.password, currentPassword);
+      if (!isValid) {
+        res.status(401).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
+        return;
+      }
+    }
+    if (totpCode && user.totpSecret) {
+      const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
+      if (!result || !result.valid) {
+        res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
+        return;
+      }
     }
 
     await prisma.user.update({
@@ -177,7 +191,7 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-
+import { accessibleBy } from '@casl/prisma';
 
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -187,7 +201,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const { email, username, password } = req.body;
+    const { email, username, password, currentPassword, totpCode } = req.body;
     
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -196,11 +210,24 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    if ((email && email !== user.email) || password) {
-      const isSudo = await redis.get(`sudo:${req.user!.sessionId}`);
-      if (isSudo !== 'true') {
-        res.status(403).json({ error: 'ERR_SUDO_REQUIRED' });
+    if (email || password) {
+      if (!currentPassword && !totpCode) {
+        res.status(401).json({ error: 'ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES' });
         return;
+      }
+      if (currentPassword && user.password) {
+        const isValid = await argon2.verify(user.password, currentPassword);
+        if (!isValid) {
+          res.status(401).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
+          return;
+        }
+      }
+      if (totpCode && user.totpSecret) {
+        const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
+        if (!result || !result.valid) {
+          res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
+          return;
+        }
       }
     }
 
@@ -227,11 +254,20 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     if (password) {
-      if (!isValidPassword(password)) {
-        res.status(400).json({ error: 'ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER' });
+      if (password.length < 8 || password.length > 128) {
+        res.status(400).json({ error: 'ERR_PASSWORD_MUST_BE_BETWEEN_8_AND_128_CHARACTERS' });
         return;
       }
       
+      if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
+        res.status(400).json({ error: 'ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER' });
+        return;
+      }
+      // Restrict to ASCII characters to prevent Unicode bypass
+      if (!/^[ -~]+$/.test(password)) {
+        res.status(400).json({ error: 'ERR_PASSWORD_CONTAINS_INVALID_CHARACTERS' });
+        return;
+      }
       updateData.password = await argon2.hash(password);
     }
 
@@ -243,23 +279,10 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
-      select: { id: true, email: true, username: true, role: { select: { name: true } }, isTotpEnabled: true, password: true, _count: { select: { passkeys: true } } }
+      select: { id: true, email: true, username: true, role: { select: { name: true } } } // Don't return password or sensitive data
     });
 
-    const hasPassword = !!updatedUser.password;
-    delete (updatedUser as any).password;
-    
-    let passwordChanged = false;
-    if (updateData.password) {
-      await revokeUserSessions(userId);
-      passwordChanged = true;
-    }
-
-    res.json({ 
-      message: 'Profile updated successfully', 
-      user: { ...updatedUser, role: updatedUser.role?.name || null, hasPassword },
-      passwordChanged
-    });
+    res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: updatedUser.role?.name || null } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -422,6 +445,12 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
       });
 
       await prisma.authChallenge.delete({ where: { id: challengeId } });
+
+      const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (dbUser && dbUser.level === 1) {
+        await prisma.user.update({ where: { id: userId }, data: { level: 2 } });
+      }
+
       res.json({ message: 'Passkey registered successfully' });
     } else {
       res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });

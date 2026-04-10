@@ -203,6 +203,15 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
 
     await prisma.authChallenge.delete({ where: { id: challengeId } });
 
+    if (user.level === 1) {
+      await prisma.user.update({ where: { id: user.id }, data: { level: 2 } });
+    }
+
+    if (!user.isTotpEnabled) {
+      res.json({ message: 'Passkey registered successfully. Please proceed to setup TOTP.' });
+      return;
+    }
+
     await finalizeAuth(user, req, res);
   } else {
     res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });
