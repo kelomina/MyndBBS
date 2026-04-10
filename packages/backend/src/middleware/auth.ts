@@ -9,6 +9,7 @@ export interface AuthRequest extends Request {
   user?: {
     userId: string;
     role: string;
+    sessionId: string;
   };
   ability?: AppAbility;
 }
@@ -94,7 +95,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
       }
     }
     
-    req.user = { userId: decoded.userId, role: decoded.role };
+    req.user = { userId: decoded.userId, role: decoded.role, sessionId: decoded.sessionId };
 
     let moderatedCategories: { categoryId: string }[] = [];
     if (decoded.role === 'MODERATOR') {
@@ -138,7 +139,7 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
-    req.user = { userId: decoded.userId, role: decoded.role };
+    req.user = { userId: decoded.userId, role: decoded.role, sessionId: decoded.sessionId };
 
     let moderatedCategories: { categoryId: string }[] = [];
     if (decoded.role === 'MODERATOR') {
@@ -160,6 +161,19 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
     req.ability = defineAbilityFor(undefined);
   }
   next();
+};
+
+export const requireSudo = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  if (!req.user || !req.user.sessionId) {
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+    return;
+  }
+  const isSudo = await redis.get(`sudo:${req.user.sessionId}`);
+  if (isSudo === 'true') {
+    next();
+  } else {
+    res.status(403).json({ error: 'ERR_SUDO_REQUIRED', message: 'Re-authentication required for this action' });
+  }
 };
 
 export const requireAbility = (action: Action, subject: AppSubjects) => {

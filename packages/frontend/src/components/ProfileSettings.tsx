@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Lock } from 'lucide-react';
 import { useTranslation } from './TranslationProvider';
+import { ReauthModal } from './ReauthModal';
 
 export function ProfileSettings() {
   const dict = useTranslation();
@@ -14,6 +15,8 @@ export function ProfileSettings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showReauth, setShowReauth] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState<any>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -35,23 +38,8 @@ export function ProfileSettings() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setMessage('');
-    setError('');
-
-    try {
-      const updateData: { email?: string; username?: string; password?: string } = {};
-      if (email !== profile?.email) updateData.email = email;
-      if (username !== profile?.username) updateData.username = username;
-      if (password) updateData.password = password;
-
-      if (Object.keys(updateData).length === 0) {
-        setSaving(false);
-        return;
-      }
-
+  const executeUpdate = async (updateData: any) => {
+      setSaving(true);
       const res = await fetch('/api/v1/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -59,6 +47,12 @@ export function ProfileSettings() {
         body: JSON.stringify(updateData)
       });
       const data = await res.json();
+      if (res.status === 403 && data.error === 'ERR_SUDO_REQUIRED') {
+        setPendingUpdate(updateData);
+        setShowReauth(true);
+        setSaving(false);
+        return;
+      }
       if (res.ok) {
         setMessage(dict.settings.profileUpdated);
         setProfile(data.user);
@@ -66,16 +60,34 @@ export function ProfileSettings() {
       } else {
         setError(dict.apiErrors?.[data.error] || data.error || dict.settings.failedUpdateProfile);
       }
-    } catch (err) {
-      setError(dict.auth.networkError);
-    } finally {
       setSaving(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage('');
+    setError('');
+
+    const updateData: { email?: string; username?: string; password?: string } = {};
+    if (email !== profile?.email) updateData.email = email;
+    if (username !== profile?.username) updateData.username = username;
+    if (password) updateData.password = password;
+
+    if (Object.keys(updateData).length === 0) {
+      return;
     }
+
+    await executeUpdate(updateData);
   };
 
   if (loading) return <div className="text-sm text-muted">{dict.settings.loadingProfile}</div>;
 
   return (
+    <>
+      <ReauthModal isOpen={showReauth} onClose={() => setShowReauth(false)} onSuccess={() => {
+        setShowReauth(false);
+        if (pendingUpdate) executeUpdate(pendingUpdate);
+      }} />
     <div className="rounded-xl bg-card p-6 shadow-sm border border-border/50">
       <h2 className="text-xl font-bold text-foreground mb-1">{dict.profile.basicProfile}</h2>
       <p className="text-sm text-muted mb-6">{dict.settings.manageProfile}</p>
@@ -140,5 +152,6 @@ export function ProfileSettings() {
         </button>
       </form>
     </div>
+    </>
   );
 }
