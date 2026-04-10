@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { containsModeratedWord } from '../lib/moderation';
 import { subject } from '@casl/ability';
 import { accessibleBy } from '@casl/prisma';
+import { sendNotification } from '../lib/notification';
 
 import { verifyAndConsumeCaptcha } from '../controllers/captcha';
 import { AppAbility } from '../lib/casl';
@@ -411,6 +412,29 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
         }
       }
     });
+
+    const postObj = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true, title: true } });
+    if (postObj && postObj.authorId !== req.user!.userId) {
+      await sendNotification({
+        userId: postObj.authorId,
+        type: 'POST_REPLIED',
+        title: 'New Reply to Your Post',
+        content: `Someone replied to your post "${postObj.title}".`,
+        relatedId: postId
+      });
+    }
+    if (parentId) {
+      const parentComment = await prisma.comment.findUnique({ where: { id: parentId }, select: { authorId: true } });
+      if (parentComment && parentComment.authorId !== req.user!.userId) {
+        await sendNotification({
+          userId: parentComment.authorId,
+          type: 'COMMENT_REPLIED',
+          title: 'New Reply to Your Comment',
+          content: `Someone replied to your comment on a post.`,
+          relatedId: postId
+        });
+      }
+    }
 
     res.status(201).json({ ...comment, hasUpvoted: false, hasBookmarked: false });
   } catch (error) {
