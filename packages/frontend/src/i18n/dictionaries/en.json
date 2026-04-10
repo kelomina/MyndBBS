@@ -406,5 +406,34 @@
     "cancel": "Cancel",
     "networkError": "Network error",
     "verificationFailed": "Verification failed"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "unread": "Unread",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications",
+    "POST_APPROVED": "Post Approved",
+    "POST_REJECTED": "Post Rejected",
+    "POST_REPLIED": "New Reply",
+    "COMMENT_REPLIED": "Comment Replied",
+    "SYSTEM": "System Notification"
+  },
+  "messages": {
+    "title": "Messages",
+    "inbox": "Inbox",
+    "initSecure": "Initialize Secure Messaging",
+    "initSecureDesc": "To use end-to-end encrypted messaging, you must generate your keys and secure them with a Passkey.",
+    "initializing": "Initializing...",
+    "noMessages": "No messages yet",
+    "typeMessage": "Type a message...",
+    "send": "Send",
+    "decrypting": "Decrypting...",
+    "encrypting": "Encrypting...",
+    "authRequired": "Passkey authentication is required to unlock your private key.",
+    "unlockMessages": "Unlock Messages",
+    "unlocked": "Messages Unlocked",
+    "conversationWith": "Conversation with",
+    "sendError": "Failed to send message",
+    "initError": "Failed to initialize keys"
   }
 }
