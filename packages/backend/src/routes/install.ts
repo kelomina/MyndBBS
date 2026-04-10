@@ -197,7 +197,7 @@ router.get('/', (req: Request, res: Response) => {
       <!-- Mobile header -->
       <div class="absolute top-8 left-8 lg:hidden flex items-center gap-2">
         <div class="w-8 h-8 rounded-lg bg-brand-900 flex items-center justify-center">
-          <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-22.5M18 18l2-1v-2.5" /></svg>
+          <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" /></svg>
         </div>
         <span class="text-xl font-bold tracking-tight text-brand-900">MyndBBS</span>
       </div>
