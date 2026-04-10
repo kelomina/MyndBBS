@@ -5,6 +5,7 @@ import { User, Mail, Lock } from 'lucide-react';
 import { useTranslation } from './TranslationProvider';
 import { isValidPassword } from '@myndbbs/shared';
 import { ReauthModal } from './ReauthModal';
+import { fetcher } from '../lib/api/fetcher';
 
 export function ProfileSettings() {
   const dict = useTranslation();
@@ -19,25 +20,27 @@ export function ProfileSettings() {
   const [showReauth, setShowReauth] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<any>(null);
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
   const fetchProfile = async () => {
     try {
-      const res = await fetch('/api/v1/user/profile', { credentials: 'include' });
-      const data = await res.json();
-      if (res.ok && data.user) {
+      const data = await fetcher('/api/v1/user/profile');
+      if (data.user) {
         setProfile(data.user);
         setEmail(data.user.email);
         setUsername(data.user.username);
+      } else {
+        setError(dict.settings.failedLoadProfile);
       }
     } catch (err) {
-      console.error('Failed to fetch profile', err);
+      const errorKey = err instanceof Error ? err.message : '';
+      setError(dict.apiErrors?.[errorKey] || dict.settings.failedLoadProfile);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
   const executeUpdate = async (updateData: any) => {
       setSaving(true);
