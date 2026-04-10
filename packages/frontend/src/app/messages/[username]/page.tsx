@@ -191,6 +191,11 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       const privateKeyBase64 = await decryptPrivateKey(myKeyData.key.encryptedPrivateKey, aesKey);
       const privateKey = await importPrivateKeyFromBase64(privateKeyBase64);
       
+      if (myKeyData.key.publicKey) {
+        const pubKey = await importPublicKeyFromBase64(myKeyData.key.publicKey);
+        setMyPublicKey(pubKey);
+      }
+
       setMyPrivateKey(privateKey);
       setUnlocked(true);
     } catch (err: any) {
