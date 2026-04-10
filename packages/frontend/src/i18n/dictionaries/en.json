@@ -442,6 +442,7 @@
     "enterRecoveryPasswordDesc": "Please enter your Secure Messaging Recovery Password to unlock your inbox:",
     "enterPasswordPlaceholder": "Enter password...",
     "setupCancelled": "Setup cancelled. A recovery password is required when PRF is unavailable.",
-    "unlockCancelled": "Unlock cancelled."
+    "unlockCancelled": "Unlock cancelled.",
+    "legalWarning": "Safety Tip: Please abide by local laws and regulations.\nSending illegal content is strictly prohibited."
   }
 }
