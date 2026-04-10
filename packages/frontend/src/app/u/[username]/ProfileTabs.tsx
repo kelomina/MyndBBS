@@ -7,6 +7,7 @@ import { PostStatus } from '@prisma/client';
 import { BookmarkMinus } from 'lucide-react';
 
 import { getCategoryTranslation } from '../../../lib/utils';
+import { fetcher } from '../../../lib/api/fetcher';
 
 export function ProfileTabs({ 
   user, 
@@ -26,14 +27,9 @@ export function ProfileTabs({
     // Check if the logged-in user is the owner of this profile
     const checkOwner = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
-          credentials: 'include'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user?.username === user.username) {
-            setIsOwner(true);
-          }
+        const data = await fetcher('/api/v1/user/profile');
+        if (data.user?.username === user.username) {
+          setIsOwner(true);
         }
       } catch (err) {
         // ignore
@@ -47,15 +43,8 @@ export function ProfileTabs({
     if (tab === 'bookmarks' && bookmarks === null) {
       setLoading(true);
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/bookmarks`, {
-          credentials: 'include'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setBookmarks(data);
-        } else {
-          setBookmarks([]);
-        }
+        const data = await fetcher('/api/v1/user/bookmarks');
+        setBookmarks(data);
       } catch (err) {
         console.error('Failed to fetch bookmarks', err);
         setBookmarks([]);
@@ -72,13 +61,8 @@ export function ProfileTabs({
       const endpoint = type === 'post' 
         ? `/api/posts/${id}/bookmark` 
         : `/api/posts/comments/${id}/bookmark`;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${endpoint}`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (res.ok) {
-        setBookmarks(prev => prev ? prev.filter(b => !(b.type === type && b.id === id)) : []);
-      }
+      await fetcher(endpoint, { method: 'POST' });
+      setBookmarks(prev => prev ? prev.filter(b => !(b.type === type && b.id === id)) : []);
     } catch (err) {
       console.error('Failed to remove bookmark', err);
     }

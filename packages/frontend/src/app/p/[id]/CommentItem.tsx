@@ -2,6 +2,7 @@
 import { useTranslation } from '../../../components/TranslationProvider';
 
 import { useState } from 'react';
+import { fetcher } from '../../../lib/api/fetcher';
 import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2, Edit2, X, Check } from 'lucide-react';
 
 export function CommentItem({ 
@@ -32,20 +33,14 @@ export function CommentItem({
     if (loadingUpvote) return;
     setLoadingUpvote(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/comments/${comment.id}/upvote`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      const data = await res.json();
-      if (res.ok) {
-        const data = await res.json();
-        setHasUpvoted(data.upvoted);
-        setUpvotes((prev: number) => data.upvoted ? prev + 1 : prev - 1);
-      } else if (res.status === 401) {
-        alert('Please login to upvote.');
-      }
-    } catch (error) {
+      const data = await fetcher(`/api/posts/comments/${comment.id}/upvote`, { method: 'POST' });
+      setHasUpvoted(data.upvoted);
+      setUpvotes((prev: number) => data.upvoted ? prev + 1 : prev - 1);
+    } catch (error: any) {
       console.error('Upvote failed:', error);
+      if (error.message?.includes('login') || error.message?.includes('401')) {
+        alert(dict.auth?.pleaseLogin || 'Please login to upvote.');
+      }
     } finally {
       setLoadingUpvote(false);
     }
@@ -55,19 +50,13 @@ export function CommentItem({
     if (loadingBookmark) return;
     setLoadingBookmark(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/comments/${comment.id}/bookmark`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      const data = await res.json();
-      if (res.ok) {
-        const data = await res.json();
-        setHasBookmarked(data.bookmarked);
-      } else if (res.status === 401) {
-        alert('Please login to bookmark.');
-      }
-    } catch (error) {
+      const data = await fetcher(`/api/posts/comments/${comment.id}/bookmark`, { method: 'POST' });
+      setHasBookmarked(data.bookmarked);
+    } catch (error: any) {
       console.error('Bookmark failed:', error);
+      if (error.message?.includes('login') || error.message?.includes('401')) {
+        alert(dict.auth?.pleaseLogin || 'Please login to bookmark.');
+      }
     } finally {
       setLoadingBookmark(false);
     }
@@ -91,24 +80,24 @@ export function CommentItem({
     if (!editContent.trim() || isUpdating) return;
     setIsUpdating(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/comments/${comment.id}`, {
+      const data = await fetcher(`/api/posts/comments/${comment.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: editContent }),
-        credentials: 'include'
+        body: JSON.stringify({ content: editContent })
       });
-      const data = await res.json();
-      if (res.ok) {
-        const data = await res.json();
-        setContent(data.content);
-        setUpdatedAt(data.updatedAt);
+      
+      if (data.message === 'ERR_PENDING_MODERATION') {
+        alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
         setIsEditing(false);
-      } else {
-        alert(data.error || 'Failed to update comment');
+        setContent(editContent);
+        return;
       }
-    } catch (error) {
+      
+      setContent(data.content);
+      setUpdatedAt(data.updatedAt);
+      setIsEditing(false);
+    } catch (error: any) {
       console.error('Update failed:', error);
-      alert('Failed to update comment');
+      alert(error.message || dict.apiErrors?.ERR_FAILED_TO_UPDATE_COMMENT || 'Failed to update comment');
     } finally {
       setIsUpdating(false);
     }

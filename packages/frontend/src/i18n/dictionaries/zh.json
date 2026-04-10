@@ -126,8 +126,9 @@
     "deleteComment": "删除评论",
     "editPost": "编辑帖子",
     "deletePost": "删除帖子",
-    "confirmDeletePost": "确定要删除此帖子吗？此操作无法撤销。",
-    "confirmDeleteComment": "确定要删除此评论吗？此操作无法撤销。"
+    "confirmDeletePost": "您确定要删除这篇帖子吗？",
+    "confirmDeleteComment": "您确定要删除这条评论吗？",
+    "postDeletedSuccessfully": "帖子删除成功"
   },
   "profile": {
     "joined": "加入于",
@@ -360,7 +361,10 @@
     "ERR_PENDING_MODERATION": "您的内容包含审核词，已提交至人工审核队列。",
     "ERR_WORD_ALREADY_EXISTS": "该审核词已存在于当前作用域中。",
     "ERR_CANNOT_ADD_GLOBAL_WORD": "版主仅能为自己管辖的板块添加审核词。",
-    "ERR_NOT_MODERATOR_OF_CATEGORY": "您不是该板块的版主，无权操作。"
+    "ERR_NOT_MODERATOR_OF_CATEGORY": "您不是该板块的版主，无权操作。",
+    "ERR_FAILED_TO_POST_COMMENT": "发表评论失败",
+    "ERR_FAILED_TO_PUBLISH": "发布帖子失败",
+    "ERR_FAILED_TO_UPDATE": "更新帖子失败"
   },
   "category": {
     "postsTitle": "帖子",

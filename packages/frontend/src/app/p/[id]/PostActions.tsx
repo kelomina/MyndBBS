@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { ArrowBigUp, Bookmark, Share, Trash2, Edit2 } from 'lucide-react';
 import { useCurrentUser } from '../../../lib/hooks';
 import { useRouter } from 'next/navigation';
+import { fetcher } from '../../../lib/api/fetcher';
 
 export function PostActions({ 
   postId, 
@@ -29,14 +30,9 @@ export function PostActions({
     // Check initial interaction status
     const checkInteractions = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/interactions`, {
-          credentials: 'include'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setHasUpvoted(data.upvoted);
-          setHasBookmarked(data.bookmarked);
-        }
+        const data = await fetcher(`/api/posts/${postId}/interactions`);
+        setHasUpvoted(data.upvoted);
+        setHasBookmarked(data.bookmarked);
       } catch (error) {
         console.error('Failed to load interactions status:', error);
       }
@@ -48,17 +44,9 @@ export function PostActions({
     if (loading) return;
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/upvote`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setHasUpvoted(data.upvoted);
-        setUpvotes(prev => data.upvoted ? prev + 1 : prev - 1);
-      } else {
-        if (res.status === 401) alert('Please login to upvote.');
-      }
+      const data = await fetcher(`/api/posts/${postId}/upvote`, { method: 'POST' });
+      setHasUpvoted(data.upvoted);
+      setUpvotes(prev => data.upvoted ? prev + 1 : prev - 1);
     } catch (error) {
       console.error('Upvote failed:', error);
     } finally {
@@ -70,16 +58,8 @@ export function PostActions({
     if (loading) return;
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/bookmark`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setHasBookmarked(data.bookmarked);
-      } else {
-        if (res.status === 401) alert('Please login to bookmark.');
-      }
+      const data = await fetcher(`/api/posts/${postId}/bookmark`, { method: 'POST' });
+      setHasBookmarked(data.bookmarked);
     } catch (error) {
       console.error('Bookmark failed:', error);
     } finally {
@@ -104,20 +84,12 @@ export function PostActions({
     if (loading) return;
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      if (res.ok) {
-        alert('Post deleted successfully');
-        router.push('/');
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to delete post');
-      }
-    } catch (error) {
+      await fetcher(`/api/posts/${postId}`, { method: 'DELETE' });
+      alert(dict.post?.postDeletedSuccessfully || 'Post deleted successfully');
+      router.push('/');
+    } catch (error: any) {
       console.error('Delete failed:', error);
-      alert('Failed to delete post');
+      alert(error.message || dict.apiErrors?.ERR_FAILED_TO_DELETE_POST || 'Failed to delete post');
     } finally {
       setLoading(false);
     }
