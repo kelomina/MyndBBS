@@ -258,7 +258,8 @@
     "noPendingComments": "No pending comments",
     "inPost": "In Post",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "failedToAddWord": "Failed to add word"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "User not found",
@@ -320,7 +321,7 @@
     "ERR_USER_BANNED": "User banned",
     "ERR_INVALID_TOKEN": "Invalid token",
     "ERR_UNAUTHORIZED_MISSING_ABILITY": "Unauthorized: missing ability",
-    "ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS": "Forbidden: Insufficient permissions",
+    "ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS": "Insufficient permissions.",
     "ERR_TOO_MANY_REQUESTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER": "Too many requests from this IP, please try again later.",
     "ERR_TOO_MANY_FAILED_LOGIN_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER": "Too many failed login attempts from this IP, please try again later.",
     "ERR_TOO_MANY_REGISTRATION_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER": "Too many registration attempts from this IP, please try again later.",
@@ -355,7 +356,10 @@
     "ERR_FORBIDDEN": "Forbidden",
     "ERR_FAILED_TO_TOGGLE_COMMENT_UPVOTE": "Failed to toggle comment upvote",
     "ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK": "Failed to toggle comment bookmark",
-    "ERR_PENDING_MODERATION": "Your content contains moderated words and has been submitted for manual review."
+    "ERR_PENDING_MODERATION": "Your content contains moderated words and has been submitted for manual review.",
+    "ERR_WORD_ALREADY_EXISTS": "This word is already configured in the selected scope.",
+    "ERR_CANNOT_ADD_GLOBAL_WORD": "Moderators can only add words to their assigned categories.",
+    "ERR_NOT_MODERATOR_OF_CATEGORY": "You are not a moderator for this category."
   },
   "category": {
     "postsTitle": "Posts",
