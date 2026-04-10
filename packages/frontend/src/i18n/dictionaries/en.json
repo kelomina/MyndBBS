@@ -219,7 +219,6 @@
     "name": "Name",
     "description": "Description",
     "moderators": "Moderators",
-    "actions": "Actions",
     "sortOrder": "Sort Order",
     "create": "Create",
     "selectUser": "Select User",
@@ -346,5 +345,19 @@
     "showingPostsFor": "Showing posts for category: ",
     "noPostsFound": "No posts found in this category.",
     "noPostsFoundGeneral": "No posts found."
+  },
+  "reauth": {
+    "verifyIdentity": "Verify it's you",
+    "confirmIdentity": "Please confirm your identity to continue.",
+    "password": "Password",
+    "authenticatorApp": "Authenticator App",
+    "passkey": "Passkey",
+    "sixDigitCode": "6-digit Code",
+    "waitingPasskey": "Waiting for passkey verification...",
+    "verifying": "Verifying...",
+    "verify": "Verify",
+    "cancel": "Cancel",
+    "networkError": "Network error",
+    "verificationFailed": "Verification failed"
   }
 }
