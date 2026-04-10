@@ -6,6 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
     "predev": "pnpm run generate",
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "build": "pnpm run generate && tsc",
