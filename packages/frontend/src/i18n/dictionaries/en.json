@@ -187,7 +187,8 @@
     "confirmRevokeSession": "Are you sure you want to sign out of this session?",
     "sessionRevoked": "Session revoked successfully",
     "failedFetchSessions": "Error loading sessions",
-    "failedRevokeSession": "Failed to revoke session"
+    "failedRevokeSession": "Failed to revoke session",
+    "passwordChangedRelogin": "Password changed successfully. Please log in again. Redirecting in 3 seconds..."
   },
   "admin": {
     "categoryManagement": "Category Management",

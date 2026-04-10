@@ -8,6 +8,7 @@ import { OTP } from 'otplib';
 import QRCode from 'qrcode';
 import crypto from 'crypto';
 import { isValidPassword } from '@myndbbs/shared';
+import { revokeUserSessions } from '../lib/session';
 import { accessibleBy } from '@casl/prisma';
 
 
@@ -247,8 +248,18 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
 
     const hasPassword = !!updatedUser.password;
     delete (updatedUser as any).password;
+    
+    let passwordChanged = false;
+    if (updateData.password) {
+      await revokeUserSessions(userId);
+      passwordChanged = true;
+    }
 
-    res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: updatedUser.role?.name || null, hasPassword } });
+    res.json({ 
+      message: 'Profile updated successfully', 
+      user: { ...updatedUser, role: updatedUser.role?.name || null, hasPassword },
+      passwordChanged
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
