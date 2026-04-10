@@ -627,6 +627,8 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
 
     // Update process.env for Prisma in current runtime
     process.env.DATABASE_URL = DATABASE_URL;
+    process.env.JWT_SECRET = jwtSecret;
+    process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
 
     // Run Prisma DB Push to initialize schema
     exec('npx prisma db push', { cwd: path.resolve(__dirname, '../../') }, async (error, stdout, stderr) => {
@@ -699,16 +701,33 @@ router.post('/api/admin', async (req: Request, res: Response): Promise<void> => 
 
     const hashedPass = await argon2.hash(password);
 
-    // Create the real admin user
-    const user = await prisma.user.create({
-      data: {
-        username,
-        email,
-        password: hashedPass,
-        roleId: role.id,
-        status: UserStatus.ACTIVE
+      // Check if user already exists (e.g. from a previous failed install attempt)
+      let user = await prisma.user.findFirst({
+        where: { OR: [{ username }, { email }] }
+      });
+
+      if (user) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            username,
+            email,
+            password: hashedPass,
+            roleId: role.id,
+            status: UserStatus.ACTIVE
+          }
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            username,
+            email,
+            password: hashedPass,
+            roleId: role.id,
+            status: UserStatus.ACTIVE
+          }
+        });
       }
-    });
 
     // Disable (ban) the temporary root account
     await prisma.user.updateMany({
@@ -744,7 +763,7 @@ router.post('/api/admin', async (req: Request, res: Response): Promise<void> => 
 
   } catch (err: any) {
     console.error('Admin Creation Error:', err);
-    res.status(500).json({ error: '创建管理员账户失败。用户名或邮箱可能已存在。' });
+    res.status(500).json({ error: '创建管理员账户失败，请检查日志。' });
   } finally {
     await prisma.$disconnect();
   }
