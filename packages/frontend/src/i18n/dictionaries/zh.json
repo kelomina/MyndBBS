@@ -258,7 +258,8 @@
     "noPendingComments": "暂无待审评论",
     "inPost": "所属帖子",
     "approve": "通过",
-    "reject": "拒绝 (删除)"
+    "reject": "拒绝 (删除)",
+    "failedToAddWord": "添加审核词失败"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "用户未找到",
@@ -320,7 +321,7 @@
     "ERR_USER_BANNED": "User banned",
     "ERR_INVALID_TOKEN": "Invalid token",
     "ERR_UNAUTHORIZED_MISSING_ABILITY": "未授权: missing ability",
-    "ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS": "禁止访问: Insufficient permissions",
+    "ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS": "权限不足，拒绝访问。",
     "ERR_TOO_MANY_REQUESTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER": "请求过多 from this IP, 请稍后再试.",
     "ERR_TOO_MANY_FAILED_LOGIN_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER": "Too many failed login attempts from this IP, 请稍后再试.",
     "ERR_TOO_MANY_REGISTRATION_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER": "Too many registration attempts from this IP, 请稍后再试.",
@@ -355,7 +356,10 @@
     "ERR_FORBIDDEN": "禁止访问",
     "ERR_FAILED_TO_TOGGLE_COMMENT_UPVOTE": "Failed to toggle comment upvote",
     "ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK": "Failed to toggle comment bookmark",
-    "ERR_PENDING_MODERATION": "您的内容包含审核词，已提交至人工审核队列。"
+    "ERR_PENDING_MODERATION": "您的内容包含审核词，已提交至人工审核队列。",
+    "ERR_WORD_ALREADY_EXISTS": "该审核词已存在于当前作用域中。",
+    "ERR_CANNOT_ADD_GLOBAL_WORD": "版主仅能为自己管辖的板块添加审核词。",
+    "ERR_NOT_MODERATOR_OF_CATEGORY": "您不是该板块的版主，无权操作。"
   },
   "category": {
     "postsTitle": "帖子",

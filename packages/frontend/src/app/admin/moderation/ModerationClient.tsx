@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCategories } from '../../../lib/hooks';
+import { fetcher } from '../../../lib/api/fetcher';
 import { Trash2, Check, X, ShieldAlert } from 'lucide-react';
 
 export default function ModerationClient({ dict }: { dict: any }) {
@@ -19,23 +20,14 @@ export default function ModerationClient({ dict }: { dict: any }) {
     setLoading(true);
     try {
       if (activeTab === 'posts') {
-        const res = await fetch('/api/v1/admin/moderation/posts', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setPosts(data.posts);
-        }
+        const data = await fetcher('/api/admin/moderation/posts');
+        setPosts(data.posts);
       } else if (activeTab === 'comments') {
-        const res = await fetch('/api/v1/admin/moderation/comments', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setComments(data.comments);
-        }
+        const data = await fetcher('/api/admin/moderation/comments');
+        setComments(data.comments);
       } else if (activeTab === 'words') {
-        const res = await fetch('/api/v1/admin/moderation/words', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setWords(data.words);
-        }
+        const data = await fetcher('/api/admin/moderation/words');
+        setWords(data.words);
       }
     } catch (e) {
       console.error(e);
@@ -48,47 +40,64 @@ export default function ModerationClient({ dict }: { dict: any }) {
   }, [activeTab]);
 
   const handleApprovePost = async (id: string) => {
-    await fetch(`/api/v1/admin/moderation/posts/${id}/approve`, { method: 'POST', credentials: 'include' });
-    fetchQueue();
+    try {
+      await fetcher(`/api/admin/moderation/posts/${id}/approve`, { method: 'POST' });
+      fetchQueue();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleRejectPost = async (id: string) => {
-    await fetch(`/api/v1/admin/moderation/posts/${id}/reject`, { method: 'POST', credentials: 'include' });
-    fetchQueue();
+    try {
+      await fetcher(`/api/admin/moderation/posts/${id}/reject`, { method: 'POST' });
+      fetchQueue();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleApproveComment = async (id: string) => {
-    await fetch(`/api/v1/admin/moderation/comments/${id}/approve`, { method: 'POST', credentials: 'include' });
-    fetchQueue();
+    try {
+      await fetcher(`/api/admin/moderation/comments/${id}/approve`, { method: 'POST' });
+      fetchQueue();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleRejectComment = async (id: string) => {
-    await fetch(`/api/v1/admin/moderation/comments/${id}/reject`, { method: 'POST', credentials: 'include' });
-    fetchQueue();
+    try {
+      await fetcher(`/api/admin/moderation/comments/${id}/reject`, { method: 'POST' });
+      fetchQueue();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleAddWord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWord.trim()) return;
-    const res = await fetch('/api/v1/admin/moderation/words', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ word: newWord.trim(), categoryId: selectedCategory || null })
-    });
-    if (res.ok) {
+    try {
+      await fetcher('/api/admin/moderation/words', {
+        method: 'POST',
+        body: JSON.stringify({ word: newWord.trim(), categoryId: selectedCategory || null })
+      });
       setNewWord('');
       setSelectedCategory('');
       fetchQueue();
-    } else {
-      const err = await res.json();
-      alert(err.error || 'Failed to add word');
+    } catch (err: any) {
+      alert(dict.apiErrors?.[err.message] || err.message || dict.admin?.failedToAddWord || 'Failed to add word');
     }
   };
 
   const handleDeleteWord = async (id: string) => {
-    await fetch(`/api/v1/admin/moderation/words/${id}`, { method: 'DELETE', credentials: 'include' });
-    fetchQueue();
+    try {
+      await fetcher(`/api/admin/moderation/words/${id}`, { method: 'DELETE' });
+      fetchQueue();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
