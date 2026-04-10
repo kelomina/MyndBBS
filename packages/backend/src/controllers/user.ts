@@ -8,6 +8,7 @@ import { OTP } from 'otplib';
 import QRCode from 'qrcode';
 import crypto from 'crypto';
 import { isValidPassword } from '@myndbbs/shared';
+import { accessibleBy } from '@casl/prisma';
 
 
 const rpName = 'MyndBBS';
