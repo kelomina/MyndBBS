@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { MessageSquare, ArrowBigUp } from 'lucide-react';
+
 import { useCurrentUser } from '../../../lib/hooks';
 import { useRouter } from 'next/navigation';
 import { CommentItem } from './CommentItem';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
-import { useTranslation } from '../../../components/TranslationProvider';
+
 
 export function CommentsSection({ postId, dict, initialCount }: { postId: string, dict: any, initialCount: number }) {
   const router = useRouter();

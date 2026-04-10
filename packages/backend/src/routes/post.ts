@@ -27,6 +27,39 @@ const getCommentWithPost = async (commentId: string) => {
   });
 };
 
+
+// Helper for interaction toggles
+const toggleInteraction = async (
+  req: AuthRequest,
+  res: Response,
+  modelDelegate: any,
+  whereCondition: any,
+  createData: any,
+  statusKey: string,
+  errorMessage: string
+) => {
+  try {
+    const existing = await modelDelegate.findUnique({
+      where: whereCondition
+    });
+
+    if (existing) {
+      await modelDelegate.delete({
+        where: whereCondition
+      });
+      res.json({ [statusKey]: false });
+    } else {
+      await modelDelegate.create({
+        data: createData
+      });
+      res.json({ [statusKey]: true });
+    }
+  } catch (error) {
+    console.error(`Error toggling ${statusKey}:`, error);
+    res.status(500).json({ error: errorMessage });
+  }
+};
+
 const router: Router = Router();
 
 router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -211,21 +244,13 @@ router.post('/:id/upvote', requireAuth, async (req: AuthRequest, res: Response):
       return;
     }
 
-    const existingUpvote = await prisma.upvote.findUnique({
-      where: { userId_postId: { userId, postId } }
-    });
-
-    if (existingUpvote) {
-      await prisma.upvote.delete({
-        where: { userId_postId: { userId, postId } }
-      });
-      res.json({ upvoted: false });
-    } else {
-      await prisma.upvote.create({
-        data: { userId, postId }
-      });
-      res.json({ upvoted: true });
-    }
+    return toggleInteraction(
+      req, res, prisma.upvote,
+      { userId_postId: { userId, postId } },
+      { userId, postId },
+      'upvoted',
+      'ERR_FAILED_TO_TOGGLE_UPVOTE'
+    );
   } catch (error) {
     console.error('Error toggling upvote:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_UPVOTE' });
@@ -245,21 +270,13 @@ router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response
       return;
     }
 
-    const existingBookmark = await prisma.bookmark.findUnique({
-      where: { userId_postId: { userId, postId } }
-    });
-
-    if (existingBookmark) {
-      await prisma.bookmark.delete({
-        where: { userId_postId: { userId, postId } }
-      });
-      res.json({ bookmarked: false });
-    } else {
-      await prisma.bookmark.create({
-        data: { userId, postId }
-      });
-      res.json({ bookmarked: true });
-    }
+    return toggleInteraction(
+      req, res, prisma.bookmark,
+      { userId_postId: { userId, postId } },
+      { userId, postId },
+      'bookmarked',
+      'ERR_FAILED_TO_TOGGLE_BOOKMARK'
+    );
   } catch (error) {
     console.error('Error toggling bookmark:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_BOOKMARK' });

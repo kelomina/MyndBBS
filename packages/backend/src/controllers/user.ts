@@ -6,6 +6,9 @@ import { AuthRequest } from '../middleware/auth';
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 import { OTP } from 'otplib';
 import QRCode from 'qrcode';
+import crypto from 'crypto';
+import { isValidPassword } from '@myndbbs/shared';
+
 
 const rpName = 'MyndBBS';
 const rpID = process.env.RP_ID || 'localhost';
@@ -182,7 +185,7 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-import { accessibleBy } from '@casl/prisma';
+
 
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -245,18 +248,8 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     if (password) {
-      if (password.length < 8 || password.length > 128) {
-        res.status(400).json({ error: 'ERR_PASSWORD_MUST_BE_BETWEEN_8_AND_128_CHARACTERS' });
-        return;
-      }
-      
-      if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
+      if (!isValidPassword(password)) {
         res.status(400).json({ error: 'ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER' });
-        return;
-      }
-      // Restrict to ASCII characters to prevent Unicode bypass
-      if (!/^[ -~]+$/.test(password)) {
-        res.status(400).json({ error: 'ERR_PASSWORD_CONTAINS_INVALID_CHARACTERS' });
         return;
       }
       updateData.password = await argon2.hash(password);

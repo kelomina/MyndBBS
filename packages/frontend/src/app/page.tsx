@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Locale, defaultLocale } from "../i18n/config";
 import { getDictionary } from "../i18n/get-dictionary";
-import Link from 'next/link';
+
 import { PostList } from '../components/PostList';
 
 import { AutoRefresh } from "../components/AutoRefresh";

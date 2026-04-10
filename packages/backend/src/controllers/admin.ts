@@ -6,6 +6,28 @@ import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
 
 // Users
+
+// Role levels
+export const ROLE_LEVELS: Record<string, number> = {
+  'SUPER_ADMIN': 4,
+  'ADMIN': 3,
+  'MODERATOR': 2,
+  'USER': 1
+};
+
+// Helper to revoke user sessions
+const revokeUserSessions = async (userId: string) => {
+  const sessions = await prisma.session.findMany({ where: { userId } });
+  if (sessions.length > 0) {
+    const pipeline = redis.pipeline();
+    for (const session of sessions) {
+      pipeline.del(`session:${session.id}`);
+    }
+    await pipeline.exec();
+    await prisma.session.deleteMany({ where: { userId } });
+  }
+};
+
 export const getUsers = async (req: Request, res: Response) => {
   const users = await prisma.user.findMany({
     select: { id: true, username: true, email: true, role: { select: { name: true } }, status: true, createdAt: true }
@@ -59,18 +81,13 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const roleLevels: Record<string, number> = {
-      'SUPER_ADMIN': 4,
-      'ADMIN': 3,
-      'MODERATOR': 2,
-      'USER': 1
-    };
+    
 
-    const currentRoleLevel = roleLevels[currentUser.role?.name || 'USER'] || 1;
-    const newRoleLevel = roleLevels[role] || 1;
+    const currentRoleLevel = ROLE_LEVELS[currentUser.role?.name || 'USER'] || 1;
+    const newRoleLevel = ROLE_LEVELS[role] || 1;
 
     // Prevent managing users with equal or higher roles than the operator
-    const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
+    const operatorRoleLevel = ROLE_LEVELS[req.user?.role || 'USER'] || 1;
     if (currentRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
       res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE' });
       return;
@@ -89,15 +106,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
 
     if (newRoleLevel < currentRoleLevel) {
       // Revoke sessions on downgrade
-      const sessions = await prisma.session.findMany({ where: { userId: id } });
-      if (sessions.length > 0) {
-        const pipeline = redis.pipeline();
-        for (const session of sessions) {
-          pipeline.del(`session:${session.id}`);
-        }
-        await pipeline.exec();
-        await prisma.session.deleteMany({ where: { userId: id } });
-      }
+      await revokeUserSessions(id);
     } else if (newRoleLevel > currentRoleLevel) {
       // Mark sessions for refresh on promotion
       const sessions = await prisma.session.findMany({ where: { userId: id } });
@@ -121,15 +130,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
           data: { status: UserStatus.BANNED }
         });
         // Revoke root sessions
-        const rootSessions = await prisma.session.findMany({ where: { userId: rootUser.id } });
-        if (rootSessions.length > 0) {
-          const pipeline = redis.pipeline();
-          for (const session of rootSessions) {
-            pipeline.del(`session:${session.id}`);
-          }
-          await pipeline.exec();
-          await prisma.session.deleteMany({ where: { userId: rootUser.id } });
-        }
+        await revokeUserSessions(rootUser.id);
         await logAudit('system', 'AUTO_DISABLE_ROOT', 'root');
       }
     }
@@ -156,9 +157,9 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  const roleLevels: Record<string, number> = { 'SUPER_ADMIN': 4, 'ADMIN': 3, 'MODERATOR': 2, 'USER': 1 };
-  const targetRoleLevel = roleLevels[targetUser.role?.name || 'USER'] || 1;
-  const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
+  
+  const targetRoleLevel = ROLE_LEVELS[targetUser.role?.name || 'USER'] || 1;
+  const operatorRoleLevel = ROLE_LEVELS[req.user?.role || 'USER'] || 1;
 
   if (targetRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
     res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE' });
@@ -169,15 +170,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
 
   if (status === UserStatus.BANNED) {
     // Revoke sessions on ban
-    const sessions = await prisma.session.findMany({ where: { userId: id } });
-    if (sessions.length > 0) {
-      const pipeline = redis.pipeline();
-      for (const session of sessions) {
-        pipeline.del(`session:${session.id}`);
-      }
-      await pipeline.exec();
-      await prisma.session.deleteMany({ where: { userId: id } });
-    }
+    await revokeUserSessions(id);
   }
 
   await logAudit(operatorId, 'UPDATE_USER_STATUS', `User:${id} to ${status}`);

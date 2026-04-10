@@ -26,20 +26,6 @@ export function PostActions({
   const router = useRouter();
 
   useEffect(() => {
-    // Fetch current user
-    const fetchUser = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
-          credentials: 'include'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setCurrentUser(data.user);
-        }
-      } catch (err) {}
-    };
-    fetchUser();
-
     // Check initial interaction status
     const checkInteractions = async () => {
       try {
