@@ -33,6 +33,8 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
         username: true,
         role: { select: { name: true } },
         isTotpEnabled: true,
+        password: true,
+        _count: { select: { passkeys: true } }
       }
     });
 
@@ -41,7 +43,10 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    res.json({ user: { ...user, role: user.role?.name || null } });
+    const hasPassword = !!user.password;
+    delete (user as any).password;
+
+    res.json({ user: { ...user, role: user.role?.name || null, hasPassword } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -237,10 +242,13 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
-      select: { id: true, email: true, username: true, role: { select: { name: true } } } // Don't return password or sensitive data
+      select: { id: true, email: true, username: true, role: { select: { name: true } }, isTotpEnabled: true, password: true, _count: { select: { passkeys: true } } }
     });
 
-    res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: updatedUser.role?.name || null } });
+    const hasPassword = !!updatedUser.password;
+    delete (updatedUser as any).password;
+
+    res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: updatedUser.role?.name || null, hasPassword } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
