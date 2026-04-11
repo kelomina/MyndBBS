@@ -56,6 +56,27 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   const sender = await prisma.user.findUnique({ where: { id: senderId } });
   if (!sender || sender.level < 2) { res.status(403).json({ error: 'ERR_LEVEL_TOO_LOW' }); return; }
 
+  // Check if they are friends
+  const isFriend = await prisma.friendship.findFirst({
+    where: {
+      status: 'ACCEPTED',
+      OR: [
+        { requesterId: senderId, addresseeId: receiverId },
+        { requesterId: receiverId, addresseeId: senderId }
+      ]
+    }
+  });
+
+  if (!isFriend) {
+    const sentCount = await prisma.privateMessage.count({
+      where: { senderId, receiverId }
+    });
+    if (sentCount >= 3) {
+      res.status(403).json({ error: 'ERR_FRIEND_REQUIRED_LIMIT_REACHED' });
+      return;
+    }
+  }
+
   const msg = await prisma.privateMessage.create({
     data: { senderId, receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent, senderEncryptedContent, expiresAt }
   });

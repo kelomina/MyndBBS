@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { requireAuth } from '../middleware/auth';
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
 const uploadDir = path.join(process.cwd(), 'uploads', 'messages');
 if (!fs.existsSync(uploadDir)) {

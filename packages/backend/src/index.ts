@@ -77,6 +77,7 @@ if (!isInstalled) {
   const notificationRoutes = require('./routes/notification').default;
   const messageRoutes = require('./routes/message').default;
   const uploadRoutes = require('./routes/upload').default;
+  const friendRoutes = require('./routes/friend').default;
 
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/user', userRoutes);
@@ -86,6 +87,7 @@ if (!isInstalled) {
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/messages', messageRoutes);
   app.use('/api/v1/messages/upload', uploadRoutes);
+  app.use('/api/v1/friends', friendRoutes);
 
   // Serve static files from uploads directory
   app.use('/uploads', express.static(require('path').join(process.cwd(), 'uploads')));
