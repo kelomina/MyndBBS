@@ -85,7 +85,32 @@ if (!isInstalled) {
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/messages', messageRoutes);
 
-  app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-  });
+  const { prisma } = require('./db');
+  const crypto = require('crypto');
+  const argon2 = require('argon2');
+
+  const ensureSystemUser = async () => {
+    const sysUser = await prisma.user.findUnique({ where: { username: 'system' } });
+    if (!sysUser) {
+      const superAdminRole = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
+      if (superAdminRole) {
+        await prisma.user.create({
+          data: {
+            username: 'system',
+            email: 'system@localhost',
+            password: await argon2.hash(crypto.randomBytes(32).toString('hex')),
+            status: 'ACTIVE',
+            roleId: superAdminRole.id
+          }
+        });
+        console.log('System user auto-initialized.');
+      }
+    }
+  };
+
+  ensureSystemUser().then(() => {
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  }).catch((err: any) => console.error('Failed to ensure system user:', err));
 }

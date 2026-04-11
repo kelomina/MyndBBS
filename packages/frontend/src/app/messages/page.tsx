@@ -22,6 +22,9 @@ interface MessageThread {
     encryptedContent: string;
     createdAt: string;
     isRead: boolean;
+    isSystem: boolean;
+    receiverId: string;
+    senderId: string;
   };
 }
 
@@ -101,7 +104,10 @@ export default function MessagesPage() {
               lastMessage: {
                 encryptedContent: msg.encryptedContent,
                 createdAt: msg.createdAt,
-                isRead: msg.isRead
+                isRead: msg.isRead,
+                isSystem: msg.isSystem,
+                receiverId: msg.receiverId,
+                senderId: msg.senderId
               }
             });
           } else {
@@ -111,7 +117,10 @@ export default function MessagesPage() {
               existing.lastMessage = {
                 encryptedContent: msg.encryptedContent,
                 createdAt: msg.createdAt,
-                isRead: msg.isRead
+                isRead: msg.isRead,
+                isSystem: msg.isSystem,
+                receiverId: msg.receiverId,
+                senderId: msg.senderId
               };
             }
           }

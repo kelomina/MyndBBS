@@ -7,6 +7,7 @@ import { User, Loader2, PenSquare, Mail } from 'lucide-react';
 export function UserNav({ title, newPostText, messagesText }: { title: string; newPostText?: string; messagesText?: string }) {
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     fetch('/api/v1/user/profile', { credentials: 'include' })

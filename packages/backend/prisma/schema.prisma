@@ -326,6 +326,7 @@ model PrivateMessage {
   ephemeralMlKemCiphertext String?  @db.Text
   encryptedContent         String   @db.Text
   isRead                   Boolean  @default(false)
+  isSystem                 Boolean  @default(false)
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 

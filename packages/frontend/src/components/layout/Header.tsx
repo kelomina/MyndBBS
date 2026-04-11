@@ -5,7 +5,6 @@ import { Locale } from '../../i18n/config';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { ThemeToggle } from '../ThemeToggle';
 import { UserNav } from './UserNav';
-import { NotificationsDropdown } from '../NotificationsDropdown';
 
 export async function Header({ locale }: { locale: Locale }) {
   const dict = await getDictionary(locale);
@@ -35,8 +34,7 @@ export async function Header({ locale }: { locale: Locale }) {
         <div className="flex items-center space-x-3">
           <ThemeToggle />
           <LanguageSwitcher currentLocale={locale} />
-          <NotificationsDropdown />
-          <UserNav title={dict.common.account} newPostText={dict.common.newPost} messagesText={dict.messages.title} />
+                    <UserNav title={dict.common.account} newPostText={dict.common.newPost} messagesText={dict.messages.title} />
         </div>
       </div>
     </header>
