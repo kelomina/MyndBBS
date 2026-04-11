@@ -10,7 +10,7 @@ export function UserNav({ title, newPostText, messagesText }: { title: string; n
   const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchUnreadCount = () => {
-    fetch('/api/v1/messages/unread', { credentials: 'include' })
+    fetch('/api/v1/messages/unread?t=' + Date.now(), { credentials: 'include', cache: 'no-store' })
       .then(r => r.ok ? r.json() : { count: 0 })
       .then(d => setUnreadCount(d.count || 0))
       .catch(() => setUnreadCount(0));
