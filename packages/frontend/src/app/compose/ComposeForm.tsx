@@ -7,8 +7,10 @@ import { PostEditor } from '../../components/PostEditor';
 import { SliderCaptcha } from '../../components/SliderCaptcha';
 import { fetcher } from '../../lib/api/fetcher';
 import { useTranslation } from '../../components/TranslationProvider';
+import { useToast } from '../../components/ui/Toast';
 
 export function ComposeForm({ dict }: { dict: any }) {
+  const { toast } = useToast();
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -19,7 +21,7 @@ export function ComposeForm({ dict }: { dict: any }) {
 
   const handlePrePublish = () => {
     if (!title || !content || !categoryId) {
-      alert('Please fill out all fields');
+      toast(dict.apiErrors?.ERR_PLEASE_FILL_ALL || 'Please fill out all fields', 'error');
       return;
     }
     setShowCaptcha(true);
@@ -35,14 +37,14 @@ export function ComposeForm({ dict }: { dict: any }) {
       });
 
       if (data.message === 'ERR_PENDING_MODERATION') {
-        alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
+        toast(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.", 'info');
         router.push('/');
       } else {
         router.push(`/p/${data.id}`);
       }
     } catch (err: any) {
       console.error(err);
-      alert(err.message || dict.apiErrors?.ERR_FAILED_TO_PUBLISH || 'Failed to publish post');
+      toast(err.message || dict.apiErrors?.ERR_FAILED_TO_PUBLISH || 'Failed to publish post', 'error');
     } finally {
       setLoading(false);
     }

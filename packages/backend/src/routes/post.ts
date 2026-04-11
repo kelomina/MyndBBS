@@ -3,6 +3,7 @@ import { requireAuth, requireAbility, optionalAuth, AuthRequest } from '../middl
 import { PostStatus } from '@prisma/client';
 import { prisma } from '../db';
 import { containsModeratedWord } from '../lib/moderation';
+import { notifyModerators } from '../lib/notification';
 import { subject } from '@casl/ability';
 import { accessibleBy } from '@casl/prisma';
 import { sendNotification } from '../lib/notification';

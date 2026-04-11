@@ -479,6 +479,13 @@
     "userNotFound": "User not found or has not initialized messaging.",
     "failedToSendRequest": "Failed to send request.",
     "errorSendingRequest": "Error sending request.",
-    "imageLoadError": "Failed to load image or expired"
+    "imageLoadError": "Failed to load image or expired",
+    "postApproved": "Post Approved",
+    "postRejected": "Post Rejected",
+    "systemAlert": "System Alert",
+    "postApprovedDesc": "Your post \"{title}\" has been approved and published.",
+    "postRejectedDesc": "Your post \"{title}\" has been rejected. Reason: {reason}",
+    "systemAlertDesc": "A new post \"{title}\" has been submitted for moderation. Please review it.",
+    "viewPost": "View Post"
   }
 }

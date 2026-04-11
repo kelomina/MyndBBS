@@ -90,7 +90,7 @@ export default function CategoriesPage() {
       setCreateData({ name: '', description: '', sortOrder: 0 });
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to create category');
+      toast(err instanceof Error ? err.message : 'Failed to create category', 'error');
     }
   };
 
@@ -102,7 +102,7 @@ export default function CategoriesPage() {
       setDeletingId(null);
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to delete category');
+      toast(err instanceof Error ? err.message : 'Failed to delete category', 'error');
     }
   };
 
@@ -115,7 +115,7 @@ export default function CategoriesPage() {
       setAssignData({ categoryId: '', userId: '' });
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to assign moderator');
+      toast(err instanceof Error ? err.message : 'Failed to assign moderator', 'error');
     }
   };
 
@@ -125,7 +125,7 @@ export default function CategoriesPage() {
       await removeCategoryModerator(categoryId, userId);
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to remove moderator');
+      toast(err instanceof Error ? err.message : 'Failed to remove moderator', 'error');
     }
   };
 

@@ -39,7 +39,7 @@ export function CommentItem({
     } catch (error: any) {
       console.error('Upvote failed:', error);
       if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('login') || error.message?.includes('401')) {
-        alert(dict.auth?.pleaseLogin || 'Please login to upvote.');
+        toast(dict.auth?.pleaseLogin || 'Please login to upvote.', 'error');
       }
     } finally {
       setLoadingUpvote(false);
@@ -55,7 +55,7 @@ export function CommentItem({
     } catch (error: any) {
       console.error('Bookmark failed:', error);
       if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('login') || error.message?.includes('401')) {
-        alert(dict.auth?.pleaseLogin || 'Please login to bookmark.');
+        toast(dict.auth?.pleaseLogin || 'Please login to bookmark.', 'error');
       }
     } finally {
       setLoadingBookmark(false);
@@ -72,7 +72,7 @@ export function CommentItem({
       });
     } else {
       navigator.clipboard.writeText(url.toString());
-      alert('Comment link copied to clipboard!');
+      toast(dict.common?.linkCopied || 'Comment link copied to clipboard!', 'success');
     }
   };
 
@@ -86,7 +86,7 @@ export function CommentItem({
       });
       
       if (data.message === 'ERR_PENDING_MODERATION') {
-        alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
+        toast(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.", 'info');
         setIsEditing(false);
         setContent(editContent);
         return;
@@ -97,7 +97,7 @@ export function CommentItem({
       setIsEditing(false);
     } catch (error: any) {
       console.error('Update failed:', error);
-      alert(error.message || dict.apiErrors?.ERR_FAILED_TO_UPDATE_COMMENT || 'Failed to update comment');
+      toast(error.message || dict.apiErrors?.ERR_FAILED_TO_UPDATE_COMMENT || 'Failed to update comment', 'error');
     } finally {
       setIsUpdating(false);
     }

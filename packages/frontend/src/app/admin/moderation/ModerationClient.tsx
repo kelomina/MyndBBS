@@ -87,7 +87,7 @@ export default function ModerationClient({ dict }: { dict: any }) {
       setSelectedCategory('');
       fetchQueue();
     } catch (err: any) {
-      alert(dict.apiErrors?.[err.message] || err.message || dict.admin?.failedToAddWord || 'Failed to add word');
+      toast(dict.apiErrors?.[err.message] || err.message || dict.admin?.failedToAddWord || 'Failed to add word', 'error');
     }
   };
 

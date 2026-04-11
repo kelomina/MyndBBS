@@ -5,8 +5,10 @@ import { useCategories } from '../../../../lib/hooks';
 import { fetcher } from '../../../../lib/api/fetcher';
 import { useRouter } from 'next/navigation';
 import { PostEditor } from '../../../../components/PostEditor';
+import { useToast } from '../../../../components/ui/Toast';
 
 export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: any }) {
+  const { toast } = useToast();
   const router = useRouter();
   const [title, setTitle] = useState(initialPost.title);
   const [content, setContent] = useState(initialPost.content);
@@ -16,7 +18,7 @@ export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: an
 
   const handlePublish = async () => {
     if (!title || !content || !categoryId) {
-      alert(dict.common?.pleaseFillAllFields || 'Please fill out all fields');
+      toast(dict.common?.pleaseFillAllFields || 'Please fill out all fields', 'error');
       return;
     }
 
@@ -28,14 +30,14 @@ export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: an
       });
 
       if (data.message === 'ERR_PENDING_MODERATION') {
-        alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
+        toast(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.", 'info');
         router.push('/');
       } else {
         router.push(`/p/${initialPost.id}`);
       }
     } catch (err: any) {
       console.error(err);
-      alert(err.message || dict.apiErrors?.ERR_FAILED_TO_UPDATE || 'Failed to update post');
+      toast(err.message || dict.apiErrors?.ERR_FAILED_TO_UPDATE || 'Failed to update post', 'error');
     } finally {
       setLoading(false);
     }
