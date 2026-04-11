@@ -472,6 +472,7 @@
     "accepted": "Accepted",
     "rejected": "Rejected",
     "errLevelTooLow": "Your level is too low (>= 2 required) to send private messages.",
-    "errFriendLimit": "Non-friends can only send up to 3 messages. Please add as a friend first."
+    "errFriendLimit": "Non-friends can only send up to 3 messages. Please add as a friend first.",
+    "cannotReplySystem": "You cannot reply to system notifications."
   }
 }
