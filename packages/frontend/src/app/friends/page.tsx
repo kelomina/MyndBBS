@@ -3,12 +3,14 @@ import React, { useEffect, useState } from 'react';
 import { Shield, UserPlus, Check, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from '../../components/TranslationProvider';
+import { useToast } from '../../components/ui/Toast';
 
 export default function FriendsPage() {
   const dict = useTranslation();
   const [friendships, setFriendships] = useState<any[]>([]);
   const [targetUsername, setTargetUsername] = useState('');
   const [myId, setMyId] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     fetch('/api/v1/user/profile', { credentials: 'include' })
@@ -35,7 +37,7 @@ export default function FriendsPage() {
     if (!targetUsername.trim()) return;
     try {
       const uRes = await fetch(`/api/v1/messages/keys/${targetUsername}`, { credentials: 'include' });
-      if (!uRes.ok) return alert('User not found or has not initialized messaging.');
+      if (!uRes.ok) return toast(dict.messages?.userNotFound || 'User not found or has not initialized messaging.', 'error');
       const uData = await uRes.json();
       
       const reqRes = await fetch('/api/v1/friends/request', {
@@ -47,13 +49,13 @@ export default function FriendsPage() {
       if (reqRes.ok) {
         setTargetUsername('');
         loadFriends();
-        alert('Friend request sent!');
+        toast(dict.messages?.requestSent || 'Friend request sent!', 'success');
       } else {
         const err = await reqRes.json();
-        alert(err.error || 'Failed to send request');
+        toast(err.error || dict.messages?.failedToSendRequest || 'Failed to send request', 'error');
       }
     } catch (e) { 
-      alert('Error sending request'); 
+      toast(dict.messages?.errorSendingRequest || 'Error sending request', 'error'); 
     }
   };
 

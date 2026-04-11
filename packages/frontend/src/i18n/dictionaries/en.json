@@ -475,6 +475,9 @@
     "errFriendLimit": "Non-friends can only send up to 3 messages. Please add as a friend first.",
     "cannotReplySystem": "You cannot reply to system notifications.",
     "errRateLimit": "You are sending messages too fast. Please try again later.",
-    "requestSent": "Request Sent"
+    "requestSent": "Request Sent",
+    "userNotFound": "User not found or has not initialized messaging.",
+    "failedToSendRequest": "Failed to send request.",
+    "errorSendingRequest": "Error sending request."
   }
 }
