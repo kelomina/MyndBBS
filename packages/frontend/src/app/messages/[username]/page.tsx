@@ -32,7 +32,7 @@ interface Message {
 }
 
 
-const EncryptedImage = ({ payload, onPreview }: { payload: string, onPreview: (url: string) => void }) => {
+const EncryptedImage = ({ payload, onPreview, dict }: { payload: string, onPreview: (url: string) => void, dict: any }) => {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   
@@ -80,9 +80,9 @@ const EncryptedImage = ({ payload, onPreview }: { payload: string, onPreview: (u
       />
       {showMenu && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-popover border shadow-lg rounded-lg p-2 z-50 flex flex-col gap-1 min-w-[120px]">
-          <button onClick={() => { onPreview(blobUrl); setShowMenu(false); }} className="px-3 py-2 text-sm hover:bg-accent rounded text-left">Full Screen</button>
-          <a href={blobUrl} download="secure_image" onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent rounded text-left block">Download</a>
-          <button onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent text-destructive rounded text-left">Cancel</button>
+          <button onClick={() => { onPreview(blobUrl); setShowMenu(false); }} className="px-3 py-2 text-sm hover:bg-accent rounded text-left">{dict.messages?.fullScreen || "Full Screen"}</button>
+          <a href={blobUrl} download="secure_image" onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent rounded text-left block">{dict.messages?.download || "Download"}</a>
+          <button onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent text-destructive rounded text-left">{dict.common?.cancel || "Cancel"}</button>
         </div>
       )}
     </div>
@@ -550,36 +550,35 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
             <button 
               onClick={handleClearChat}
               className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"
-              title="Clear Chat"
+              title={dict.messages?.clearChat || "Clear Chat"}
             >
               <Trash className="h-5 w-5" />
             </button>
             <button 
               onClick={() => setShowSettings(!showSettings)}
               className="p-2 text-muted-foreground hover:bg-accent/50 rounded-full transition-colors"
-              title="Settings"
+              title={dict.messages?.conversationSettings || "Settings"}
             >
               <Settings className="h-5 w-5" />
             </button>
 
             {showSettings && (
               <div className="absolute top-full right-0 mt-2 w-64 bg-card border border-border rounded-xl shadow-lg p-4 z-50">
-                <h3 className="font-semibold mb-3 text-sm">Conversation Settings</h3>
+                <h3 className="font-semibold mb-3 text-sm">{dict.messages?.conversationSettings || "Conversation Settings"}</h3>
                 <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm">Allow Two-Sided Delete</span>
+                  <span className="text-sm">{dict.messages?.allowTwoSidedDelete || "Allow Two-Sided Delete"}</span>
                   <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
                     <input 
                       type="checkbox" 
                       checked={allowTwoSidedDelete}
                       onChange={toggleTwoSidedDelete}
-                      className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out"
-                      style={{ transform: allowTwoSidedDelete ? 'translateX(100%)' : 'translateX(0)', borderColor: allowTwoSidedDelete ? '#10b981' : '#e5e7eb' }}
+                      className={`toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out ${allowTwoSidedDelete ? 'translate-x-full border-green-500' : 'translate-x-0 border-muted'}`}
                     />
-                    <label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${allowTwoSidedDelete ? 'bg-green-500' : 'bg-gray-300'}`}></label>
+                    <label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${allowTwoSidedDelete ? 'bg-green-500' : 'bg-muted'}`}></label>
                   </div>
                 </label>
                 <p className="text-xs text-muted-foreground mt-2">
-                  If enabled, when you delete a message, it will also be deleted for {username}.
+                  {dict.messages?.allowTwoSidedDeleteDesc?.replace("{username}", username) || `If enabled, when you delete a message, it will also be deleted for ${username}.`}
                 </p>
               </div>
             )}
@@ -640,7 +639,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
                     }`}>
                       <p className="text-sm whitespace-pre-wrap break-words">
                         {msg.plaintext?.startsWith('{') && msg.plaintext.includes('"type":"image"') ? (
-                          <EncryptedImage payload={msg.plaintext} onPreview={setPreviewImage} />
+                          <EncryptedImage payload={msg.plaintext} onPreview={setPreviewImage} dict={dict} />
                         ) : (
                           msg.plaintext || <span className="flex items-center gap-1 opacity-70"><Loader2 className="h-3 w-3 animate-spin" /> Decrypting...</span>
                         )}
@@ -654,7 +653,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
                         className={`absolute top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-background/80 text-destructive opacity-0 group-hover:opacity-100 transition-opacity ${
                           isMine ? '-left-10' : '-right-10'
                         }`}
-                        title="Delete Message"
+                        title={dict.messages?.deleteMessage || "Delete Message"}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -674,13 +673,13 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
                 <select 
                   value={expiresIn} 
                   onChange={(e) => setExpiresIn(Number(e.target.value))}
-                  className="text-xs bg-transparent border-none text-muted-foreground focus:ring-0 cursor-pointer"
+                  className="text-xs bg-background border border-border rounded text-muted-foreground focus:ring-1 focus:ring-primary cursor-pointer outline-none px-2 py-1"
                 >
-                  <option value={0}>No Expiration</option>
-                  <option value={60000}>1 Minute</option>
-                  <option value={3600000}>1 Hour</option>
-                  <option value={86400000}>1 Day</option>
-                  <option value={604800000}>1 Week</option>
+                  <option value={0} className="bg-background text-foreground">{dict.messages?.noExpiration || "No Expiration"}</option>
+                  <option value={60000} className="bg-background text-foreground">{dict.messages?.oneMinute || "1 Minute"}</option>
+                  <option value={3600000} className="bg-background text-foreground">{dict.messages?.oneHour || "1 Hour"}</option>
+                  <option value={86400000} className="bg-background text-foreground">{dict.messages?.oneDay || "1 Day"}</option>
+                  <option value={604800000} className="bg-background text-foreground">{dict.messages?.oneWeek || "1 Week"}</option>
                 </select>
               </div>
               <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
