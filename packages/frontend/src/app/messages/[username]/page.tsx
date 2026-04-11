@@ -695,19 +695,19 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
               messages.map((msg) => {
                 const isMine = msg.senderId === myUserId;
                 return (
-                  <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} group`}>
+                  <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                     <div className={`relative max-w-[75%] rounded-2xl px-4 py-2 ${
                       isMine 
                         ? 'bg-primary text-primary-foreground rounded-br-sm' 
                         : 'bg-muted text-foreground rounded-bl-sm'
                     }`}>
-                      <p className="text-sm whitespace-pre-wrap break-words">
+                      <div className="text-sm whitespace-pre-wrap break-words">
                         {msg.plaintext?.startsWith('{') && msg.plaintext.includes('"type":"image"') ? (
                           <EncryptedImage payload={msg.plaintext} onPreview={setPreviewImage} dict={dict} />
                         ) : (
                           msg.plaintext || <span className="flex items-center gap-1 opacity-70"><Loader2 className="h-3 w-3 animate-spin" /> Decrypting...</span>
                         )}
-                      </p>
+                      </div>
                       <p className={`text-[10px] mt-1 ${isMine ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {new Date(msg.createdAt).toLocaleTimeString()} {new Date(msg.createdAt).toLocaleDateString()}
                       </p>
