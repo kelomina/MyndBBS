@@ -405,6 +405,11 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
         scrollToBottom();
       } else {
         const err = await res.json();
+        if (err.error === 'ERR_LEVEL_TOO_LOW') {
+           throw new Error(dict.messages?.errLevelTooLow || '等级不足，无法发送私信 (Level < 2)');
+        } else if (err.error === 'ERR_FRIEND_REQUIRED_LIMIT_REACHED') {
+           throw new Error(dict.messages?.errFriendLimit || '非好友最多发送 3 条消息，请先添加好友。');
+        }
         throw new Error(err.error || 'Failed to send image');
       }
     } catch (err: any) {
@@ -445,6 +450,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
           receiverId: targetUserId,
           ephemeralPublicKey: ephemeralPublicKeyBase64,
           encryptedContent,
+          senderEncryptedContent,
           expiresIn: expiresIn > 0 ? expiresIn : undefined
         })
       });
@@ -455,7 +461,13 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
         setInputText('');
         scrollToBottom();
       } else {
-        throw new Error('Failed to send message');
+        const err = await res.json();
+        if (err.error === 'ERR_LEVEL_TOO_LOW') {
+           throw new Error(dict.messages?.errLevelTooLow || '等级不足，无法发送私信 (Level < 2)');
+        } else if (err.error === 'ERR_FRIEND_REQUIRED_LIMIT_REACHED') {
+           throw new Error(dict.messages?.errFriendLimit || '非好友最多发送 3 条消息，请先添加好友。');
+        }
+        throw new Error(err.error || 'Failed to send message');
       }
     } catch (err: any) {
       setError(err.message || dict.messages.sendError);

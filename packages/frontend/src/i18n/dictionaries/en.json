@@ -470,6 +470,8 @@
     "chat": "Chat",
     "pending": "Pending",
     "accepted": "Accepted",
-    "rejected": "Rejected"
+    "rejected": "Rejected",
+    "errLevelTooLow": "Your level is too low (>= 2 required) to send private messages.",
+    "errFriendLimit": "Non-friends can only send up to 3 messages. Please add as a friend first."
   }
 }

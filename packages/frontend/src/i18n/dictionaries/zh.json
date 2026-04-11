@@ -470,6 +470,8 @@
     "chat": "发消息",
     "pending": "待处理",
     "accepted": "已接受",
-    "rejected": "已拒绝"
+    "rejected": "已拒绝",
+    "errLevelTooLow": "您的等级不足（需 >= 2 级）无法发送私信。",
+    "errFriendLimit": "非好友最多发送 3 条消息，请先添加对方为好友。"
   }
 }
