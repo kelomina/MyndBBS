@@ -48,6 +48,7 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   if (!senderId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
   const { receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent, senderEncryptedContent, expiresIn } = req.body;
+  console.log('Sending message:', { senderId, receiverId, expiresIn });
   let expiresAt: Date | null = null;
   if (expiresIn && typeof expiresIn === 'number') {
     expiresAt = new Date(Date.now() + expiresIn);
