@@ -13,7 +13,7 @@ import {
   exportKeyToBase64
 } from '../../../lib/crypto/e2ee';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { Shield, Loader2, Send, Lock, ArrowLeft, Flame, Trash2, Settings, Clock, Trash, Image as ImageIcon, X, UserPlus, Check } from 'lucide-react';
+import { Shield, Loader2, Send, Lock, ArrowLeft, Flame, Trash2, Settings, Clock, Trash, Image as ImageIcon, X, UserPlus, Check, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 interface Message {
@@ -66,6 +66,7 @@ const EncryptedImage = ({ payload, onPreview, dict }: { payload: string, onPrevi
   const handleTouchEnd = () => { clearTimeout(pressTimer); };
 
   if (!blobUrl) return <Loader2 className="animate-spin h-5 w-5" />;
+  if (blobUrl === 'error') return <div className="flex flex-col items-center gap-1 p-4 bg-destructive/10 text-destructive rounded text-xs border border-destructive/20"><AlertCircle className="h-5 w-5" /><span>{dict.messages?.imageLoadError || "Failed to load image"}</span></div>;
 
   return (
     <div className="relative">
