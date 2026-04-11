@@ -13,7 +13,7 @@ import {
   exportKeyToBase64
 } from '../../../lib/crypto/e2ee';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { Shield, Loader2, Send, Lock, ArrowLeft, Flame } from 'lucide-react';
+import { Shield, Loader2, Send, Lock, ArrowLeft, Flame, Trash2, Settings, Clock, Trash } from 'lucide-react';
 import Link from 'next/link';
 
 interface Message {
@@ -41,6 +41,11 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const [unlocking, setUnlocking] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Phase 3 States
+  const [expiresIn, setExpiresIn] = useState<number>(0);
+  const [allowTwoSidedDelete, setAllowTwoSidedDelete] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -100,13 +105,18 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
         setTheirPublicKey(importedTheirKey);
 
         // Load messages history
-        const inboxRes = await fetch(`/api/v1/messages/inbox?withUserId=${targetData.userId}&limit=20`, { credentials: 'include' });
+        const inboxRes = await fetch(`/api/v1/messages/inbox?withUserId=${targetData.userId}`, { credentials: 'include' });
         if (inboxRes.ok) {
           const inboxData = await inboxRes.json();
           setMessages(inboxData.messages);
-          setNextCursor(inboxData.nextCursor || null);
-          setHasMore(inboxData.hasMore || false);
           scrollToBottom();
+        }
+
+        // Load conversation settings
+        const settingsRes = await fetch(`/api/v1/messages/settings/${targetData.userId}`, { credentials: 'include' });
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setAllowTwoSidedDelete(settingsData.allowTwoSidedDelete);
         }
       } else {
         setError(`User ${targetUsername} has not initialized secure messaging.`);
@@ -296,10 +306,10 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          senderEncryptedContent,
           receiverId: targetUserId,
           ephemeralPublicKey: ephemeralPublicKeyBase64,
-          encryptedContent
+          encryptedContent,
+          expiresIn: expiresIn > 0 ? expiresIn : undefined
         })
       });
 
@@ -320,6 +330,50 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     }
   };
 
+  const toggleTwoSidedDelete = async () => {
+    try {
+      const newValue = !allowTwoSidedDelete;
+      await fetch(`/api/v1/messages/settings/${targetUserId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ allowTwoSidedDelete: newValue })
+      });
+      setAllowTwoSidedDelete(newValue);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      const res = await fetch(`/api/v1/messages/${msgId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setMessages(prev => prev.filter(m => m.id !== msgId));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleClearChat = async () => {
+    if (!confirm(dict.messages?.confirmClearChat || 'Are you sure you want to clear this chat?')) return;
+    try {
+      const res = await fetch(`/api/v1/messages/chat/${targetUserId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setMessages([]);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -330,21 +384,63 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 h-[calc(100vh-4rem)] flex flex-col">
-      <div className="flex items-center gap-4 mb-6 shrink-0">
+            <div className="flex items-center justify-between mb-6 shrink-0"><div className="flex items-center gap-4">
         <Link href="/messages" className="p-2 rounded-full hover:bg-accent/50 text-muted transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold uppercase shrink-0">
           {username.charAt(0)}
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-foreground">
+        <div className="flex-1">
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             {dict.messages.conversationWith?.replace('{username}', username) || `Conversation with ${username}`}
           </h1>
           <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
-            <Lock className="h-3 w-3" /> E2E Encrypted
+              <Lock className="h-3 w-3" /> E2E Encrypted
+            </div>
           </div>
         </div>
+
+        {unlocked && (
+          <div className="flex items-center gap-2 relative">
+            <button 
+              onClick={handleClearChat}
+              className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+              title="Clear Chat"
+            >
+              <Trash className="h-5 w-5" />
+            </button>
+            <button 
+              onClick={() => setShowSettings(!showSettings)}
+              className="p-2 text-muted-foreground hover:bg-accent/50 rounded-full transition-colors"
+              title="Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </button>
+
+            {showSettings && (
+              <div className="absolute top-full right-0 mt-2 w-64 bg-card border border-border rounded-xl shadow-lg p-4 z-50">
+                <h3 className="font-semibold mb-3 text-sm">Conversation Settings</h3>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm">Allow Two-Sided Delete</span>
+                  <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input 
+                      type="checkbox" 
+                      checked={allowTwoSidedDelete}
+                      onChange={toggleTwoSidedDelete}
+                      className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out"
+                      style={{ transform: allowTwoSidedDelete ? 'translateX(100%)' : 'translateX(0)', borderColor: allowTwoSidedDelete ? '#10b981' : '#e5e7eb' }}
+                    />
+                    <label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${allowTwoSidedDelete ? 'bg-green-500' : 'bg-gray-300'}`}></label>
+                  </div>
+                </label>
+                <p className="text-xs text-muted-foreground mt-2">
+                  If enabled, when you delete a message, it will also be deleted for {username}.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -392,8 +488,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
               messages.map((msg) => {
                 const isMine = msg.senderId === myUserId;
                 return (
-                  <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+                  <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} group`}>
+                    <div className={`relative max-w-[75%] rounded-2xl px-4 py-2 ${
                       isMine 
                         ? 'bg-primary text-primary-foreground rounded-br-sm' 
                         : 'bg-muted text-foreground rounded-bl-sm'
@@ -404,6 +500,16 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
                       <p className={`text-[10px] mt-1 ${isMine ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {new Date(msg.createdAt).toLocaleTimeString()} {new Date(msg.createdAt).toLocaleDateString()}
                       </p>
+                      
+                      <button 
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className={`absolute top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-background/80 text-destructive opacity-0 group-hover:opacity-100 transition-opacity ${
+                          isMine ? '-left-10' : '-right-10'
+                        }`}
+                        title="Delete Message"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 );
@@ -415,6 +521,20 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
           <div className="p-4 border-t border-border bg-background/50">
             <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <select 
+                  value={expiresIn} 
+                  onChange={(e) => setExpiresIn(Number(e.target.value))}
+                  className="text-xs bg-transparent border-none text-muted-foreground focus:ring-0 cursor-pointer"
+                >
+                  <option value={0}>No Expiration</option>
+                  <option value={60000}>1 Minute</option>
+                  <option value={3600000}>1 Hour</option>
+                  <option value={86400000}>1 Day</option>
+                  <option value={604800000}>1 Week</option>
+                </select>
+              </div>
               <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
                 <input 
                   type="checkbox" 

@@ -1,6 +1,6 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth';
-import { uploadKeys, getMyKey, getUserPublicKey, sendMessage, getInbox } from '../controllers/message';
+import { uploadKeys, getMyKey, getUserPublicKey, sendMessage, getInbox, getUnreadCount, markAsRead, deleteMessage, clearChat, getConversationSettings, updateConversationSettings } from '../controllers/message';
 import { rateLimit } from 'express-rate-limit';
 
 const getClientIp = (req: any, res: any): string => {
@@ -31,4 +31,11 @@ router.get('/keys/me', requireAuth, getMyKey);
 router.get('/keys/:username', requireAuth, getUserPublicKey);
 router.post('/', requireAuth, messageLimiter, sendMessage);
 router.get('/inbox', requireAuth, getInbox);
+
+router.get('/unread', requireAuth, getUnreadCount);
+router.put('/read', requireAuth, markAsRead);
+router.get('/settings/:partnerId', requireAuth, getConversationSettings);
+router.put('/settings/:partnerId', requireAuth, updateConversationSettings);
+router.delete('/:id', requireAuth, deleteMessage);
+router.delete('/chat/:withUserId', requireAuth, clearChat);
 export default router;
