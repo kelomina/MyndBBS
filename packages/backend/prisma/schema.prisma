@@ -338,6 +338,7 @@ model PrivateMessage {
   encryptedContent         String   @db.Text
   senderEncryptedContent   String?  @db.Text
   isRead                   Boolean  @default(false)
+  isSystem                 Boolean  @default(false)
   expiresAt                DateTime?
   deletedBy                String[]
   createdAt                DateTime @default(now())
