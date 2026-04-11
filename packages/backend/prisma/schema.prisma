@@ -7,6 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  BLOCKED
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -56,6 +63,8 @@ model User {
   receivedMessages    PrivateMessage[] @relation("ReceivedMessages")
   conversationSettings ConversationSetting[] @relation("UserConversationSettings")
   partnerSettings      ConversationSetting[] @relation("PartnerConversationSettings")
+  sentFriendRequests     Friendship[] @relation("SentFriendRequests")
+  receivedFriendRequests Friendship[] @relation("ReceivedFriendRequests")
 
   @@index([roleId])
   @@index([status])
@@ -354,4 +363,21 @@ model ConversationSetting {
   @@unique([userId, partnerId])
   @@index([userId])
   @@index([partnerId])
+}
+
+
+model Friendship {
+  id          String           @id @default(uuid()) @db.Uuid
+  requesterId String           @db.Uuid
+  addresseeId String           @db.Uuid
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester   User             @relation("SentFriendRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("ReceivedFriendRequests", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
 }
