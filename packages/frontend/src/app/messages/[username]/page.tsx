@@ -714,7 +714,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
                       
                       <button 
                         onClick={() => handleDeleteMessage(msg.id)}
-                        className={`absolute top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-background/80 text-destructive opacity-0 group-hover:opacity-100 transition-opacity ${
+                        className={`absolute top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 ${
                           isMine ? '-left-10' : '-right-10'
                         }`}
                         title={dict.messages?.deleteMessage || "Delete Message"}
