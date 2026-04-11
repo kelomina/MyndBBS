@@ -24,6 +24,7 @@ interface Message {
   encryptedContent: string;
   createdAt: string;
   isRead: boolean;
+  isSystem: boolean;
   plaintext?: string;
   sender: { username: string };
   receiver: { username: string };
@@ -319,6 +320,34 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
               </div>
             ) : (
               messages.map((msg) => {
+                if (msg.isSystem) {
+                  let parsed: any = { content: msg.plaintext };
+                  try { parsed = JSON.parse(msg.plaintext || '{}'); } catch (e) {}
+
+                  return (
+                    <div key={msg.id} className="flex justify-center my-6">
+                      <div className="bg-card border border-border rounded-xl p-4 shadow-sm max-w-[85%] sm:max-w-[400px] w-full flex flex-col items-center text-center">
+                        <div className="bg-primary/10 text-primary px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider mb-2">
+                          System Notification
+                        </div>
+                        <h4 className="font-semibold text-sm mb-1">{parsed.title || 'Notification'}</h4>
+                        <p className="text-xs text-muted-foreground mb-4">{parsed.content}</p>
+                        {parsed.relatedId && (
+                          <Link 
+                            href={`/p/${parsed.relatedId}`}
+                            className="w-full py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md text-xs font-medium transition-colors block"
+                          >
+                            View Related Content
+                          </Link>
+                        )}
+                        <span className="text-[10px] text-muted-foreground/50 mt-3">
+                          {new Date(msg.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+
                 const isMine = msg.senderId === myUserId;
                 return (
                   <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>

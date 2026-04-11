@@ -58,6 +58,28 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   res.json({ success: true, message: msg });
 };
 
+export const getUnreadCount = async (req: AuthRequest, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
+  if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
+
+  const count = await prisma.privateMessage.count({
+    where: { receiverId: userId, isRead: false }
+  });
+  res.json({ count });
+};
+
+export const markAsRead = async (req: AuthRequest, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
+  const { senderId } = req.body;
+  if (!userId || !senderId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
+
+  await prisma.privateMessage.updateMany({
+    where: { receiverId: userId, senderId: senderId, isRead: false },
+    data: { isRead: true }
+  });
+  res.json({ success: true });
+};
+
 export const getInbox = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
