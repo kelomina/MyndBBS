@@ -6,6 +6,7 @@ import { useCurrentUser } from '../../../lib/hooks';
 import { useRouter } from 'next/navigation';
 import { CommentItem } from './CommentItem';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
+import { useToast } from '../../../components/ui/Toast';
 import { fetcher } from '../../../lib/api/fetcher';
 
 
@@ -47,7 +48,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       });
       
       if (data.message === 'ERR_PENDING_MODERATION') {
-        alert(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.");
+        toast(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.", 'info');
         setNewComment('');
         setReplyTo(null);
         return;
@@ -60,7 +61,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       router.refresh();
     } catch (err: any) {
       console.error(err);
-      alert(err.message || dict.apiErrors?.ERR_FAILED_TO_POST_COMMENT || 'Failed to post comment');
+      toast(err.message || dict.apiErrors?.ERR_FAILED_TO_POST_COMMENT || 'Failed to post comment', 'error');
     } finally {
       setLoading(false);
     }
@@ -102,7 +103,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       setComments(comments.map(c => c.id === commentId ? { ...c, deletedAt: new Date().toISOString() } : c));
     } catch (err: any) {
       console.error(err);
-      alert(err.message || dict.apiErrors?.ERR_FAILED_TO_DELETE_COMMENT || 'Failed to delete comment');
+      toast(err.message || dict.apiErrors?.ERR_FAILED_TO_DELETE_COMMENT || 'Failed to delete comment', 'error');
     }
   };
 

@@ -50,7 +50,7 @@ export default function UsersPage() {
       await updateUserRole(userId, newRole);
       await loadUsers();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to update role');
+      toast(err instanceof Error ? err.message : 'Failed to update role', 'error');
     }
   };
 
@@ -59,7 +59,7 @@ export default function UsersPage() {
       await updateUserStatus(userId, newStatus);
       await loadUsers();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to update status');
+      toast(err instanceof Error ? err.message : 'Failed to update status', 'error');
     }
   };
 

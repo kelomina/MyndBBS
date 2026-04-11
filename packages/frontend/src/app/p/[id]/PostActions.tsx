@@ -58,7 +58,7 @@ export function PostActions({
         setHasUpvoted(data.upvoted);
         setUpvotes(prev => data.upvoted ? prev + 1 : prev - 1);
       } else {
-        if (res.status === 401) alert('Please login to upvote.');
+        if (res.status === 401) toast(dict.auth?.pleaseLogin || 'Please login to upvote.', 'error');
       }
     } catch (error) {
       console.error('Upvote failed:', error);
@@ -79,7 +79,7 @@ export function PostActions({
         const data = await res.json();
         setHasBookmarked(data.bookmarked);
       } else {
-        if (res.status === 401) alert('Please login to bookmark.');
+        if (res.status === 401) toast(dict.auth?.pleaseLogin || 'Please login to bookmark.', 'error');
       }
     } catch (error) {
       console.error('Bookmark failed:', error);
@@ -96,7 +96,7 @@ export function PostActions({
       });
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
+      toast(dict.common?.linkCopied || 'Link copied to clipboard!', 'success');
     }
   };
 
@@ -110,15 +110,15 @@ export function PostActions({
         credentials: 'include'
       });
       if (res.ok) {
-        alert('Post deleted successfully');
+        toast(dict.post?.postDeleted || 'Post deleted successfully', 'success');
         router.push('/');
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to delete post');
+        toast(data.error || dict.apiErrors?.ERR_FAILED_TO_DELETE || 'Failed to delete post', 'error');
       }
     } catch (error) {
       console.error('Delete failed:', error);
-      alert('Failed to delete post');
+      toast(dict.apiErrors?.ERR_FAILED_TO_DELETE || 'Failed to delete post', 'error');
     } finally {
       setLoading(false);
     }

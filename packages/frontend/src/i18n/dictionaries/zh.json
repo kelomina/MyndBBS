@@ -479,6 +479,13 @@
     "userNotFound": "未找到该用户，或该用户未初始化私信功能。",
     "failedToSendRequest": "发送好友请求失败。",
     "errorSendingRequest": "发送请求时出错。",
-    "imageLoadError": "图片加载失败或已过期"
+    "imageLoadError": "图片加载失败或已过期",
+    "postApproved": "帖子审核通过",
+    "postRejected": "帖子未通过审核",
+    "systemAlert": "系统通知",
+    "postApprovedDesc": "您的帖子 \"{title}\" 已经通过审核并发布。",
+    "postRejectedDesc": "您的帖子 \"{title}\" 未通过审核。原因: {reason}",
+    "systemAlertDesc": "有新的帖子 \"{title}\" 提交到了人工审核队列，请前往后台处理。",
+    "viewPost": "查看帖子"
   }
 }

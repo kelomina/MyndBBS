@@ -51,7 +51,7 @@ export default function RecycleBinPage() {
       await restorePost(id);
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to restore post');
+      toast(err instanceof Error ? err.message : 'Failed to restore post', 'error');
     }
   };
 
@@ -61,7 +61,7 @@ export default function RecycleBinPage() {
       await hardDeletePost(id);
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to permanently delete post');
+      toast(err instanceof Error ? err.message : 'Failed to permanently delete post', 'error');
     }
   };
 
@@ -71,7 +71,7 @@ export default function RecycleBinPage() {
       await restoreComment(id);
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to restore comment');
+      toast(err instanceof Error ? err.message : 'Failed to restore comment', 'error');
     }
   };
 
@@ -81,7 +81,7 @@ export default function RecycleBinPage() {
       await hardDeleteComment(id);
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to permanently delete comment');
+      toast(err instanceof Error ? err.message : 'Failed to permanently delete comment', 'error');
     }
   };
 
