@@ -13,7 +13,7 @@ import {
   exportKeyToBase64
 } from '../../../lib/crypto/e2ee';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { Shield, Loader2, Send, Lock, ArrowLeft, Flame, Trash2, Settings, Clock, Trash } from 'lucide-react';
+import { Shield, Loader2, Send, Lock, ArrowLeft, Flame, Trash2, Settings, Clock, Trash, Image as ImageIcon, X } from 'lucide-react';
 import Link from 'next/link';
 
 interface Message {
@@ -25,10 +25,69 @@ interface Message {
   senderEncryptedContent?: string;
   createdAt: string;
   isRead: boolean;
+  isSystem: boolean;
   plaintext?: string;
   sender: { username: string };
   receiver: { username: string };
 }
+
+
+const EncryptedImage = ({ payload, onPreview }: { payload: string, onPreview: (url: string) => void }) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  
+  useEffect(() => {
+    const decryptImage = async () => {
+      try {
+        const data = JSON.parse(payload);
+        if (data.type !== 'image') return;
+        
+        const res = await fetch(data.url);
+        const encryptedBuffer = await res.arrayBuffer();
+        
+        const keyBytes = Uint8Array.from(atob(data.key), c => c.charCodeAt(0));
+        const ivBytes = Uint8Array.from(atob(data.iv), c => c.charCodeAt(0));
+        
+        const aesKey = await window.crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt']);
+        const decryptedBuffer = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, aesKey, encryptedBuffer);
+        
+        const blob = new Blob([decryptedBuffer], { type: data.mime });
+        setBlobUrl(URL.createObjectURL(blob));
+      } catch (e) {
+        console.error('Failed to decrypt image', e);
+      }
+    };
+    decryptImage();
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  }, [payload]);
+
+  let pressTimer: any;
+  const handleTouchStart = () => { pressTimer = setTimeout(() => setShowMenu(true), 500); };
+  const handleTouchEnd = () => { clearTimeout(pressTimer); };
+
+  if (!blobUrl) return <Loader2 className="animate-spin h-5 w-5" />;
+
+  return (
+    <div className="relative">
+      <img 
+        src={blobUrl} 
+        alt="Encrypted" 
+        className="max-w-[200px] rounded cursor-pointer"
+        onClick={() => onPreview(blobUrl)}
+        onContextMenu={(e) => { e.preventDefault(); setShowMenu(true); }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      />
+      {showMenu && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-popover border shadow-lg rounded-lg p-2 z-50 flex flex-col gap-1 min-w-[120px]">
+          <button onClick={() => { onPreview(blobUrl); setShowMenu(false); }} className="px-3 py-2 text-sm hover:bg-accent rounded text-left">Full Screen</button>
+          <a href={blobUrl} download="secure_image" onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent rounded text-left block">Download</a>
+          <button onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent text-destructive rounded text-left">Cancel</button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function ChatPage({ params }: { params: Promise<{ username: string }> }) {
   const dict = useTranslation();
@@ -41,6 +100,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const [unlocking, setUnlocking] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Phase 3 States
   const [expiresIn, setExpiresIn] = useState<number>(0);
@@ -227,6 +288,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     const updatedMessages = await Promise.all(messages.map(async (msg) => {
       if (msg.plaintext) return msg; // Already decrypted
       needsUpdate = true;
+      if (msg.isSystem) return { ...msg, plaintext: msg.encryptedContent };
       try {
         if (msg.senderId === myUserId) {
           if (msg.senderEncryptedContent && myPrivateKey) {
@@ -276,6 +338,80 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       } finally {
         setIsLoadingOlder(false);
       }
+    }
+  };
+
+  
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !unlocked || !myPrivateKey || !theirPublicKey) return;
+    
+    setSending(true);
+    try {
+      // 1. Generate AES key
+      const aesKey = await window.crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      
+      // 2. Read and Encrypt file
+      const arrayBuffer = await file.arrayBuffer();
+      const encryptedBuffer = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, arrayBuffer);
+      
+      // 3. Upload encrypted blob
+      const formData = new FormData();
+      formData.append('file', new Blob([encryptedBuffer]));
+      
+      const uploadRes = await fetch('/api/v1/messages/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      if (!uploadRes.ok) throw new Error('Upload failed');
+      const { url } = await uploadRes.json();
+      
+      // 4. Export keys
+      const exportedKey = await window.crypto.subtle.exportKey('raw', aesKey);
+      const keyBase64 = btoa(String.fromCharCode(...new Uint8Array(exportedKey)));
+      const ivBase64 = btoa(String.fromCharCode(...iv));
+      
+      // 5. Send JSON payload
+      const payload = JSON.stringify({ type: 'image', url, key: keyBase64, iv: ivBase64, mime: file.type });
+      
+      const ephemeralKeyPair = await generateECDHKeyPair();
+      const ephemeralPublicKeyBase64 = await exportKeyToBase64(ephemeralKeyPair.publicKey);
+      const encryptedContent = await encryptMessage(payload, ephemeralKeyPair.privateKey, theirPublicKey);
+      
+      // Phase 3 required double encryption, check if senderEncryptedContent is needed:
+      // The backend expects senderEncryptedContent for the sender's own view if not using the Phase 4 unified DB.
+      // Wait, the backend uses ephemeral keys. The sender can't decrypt their own messages later if they don't save the ephemeral key.
+      // Actually, my Phase 3 code in page.tsx still has senderEncryptedContent logic!
+      const senderEncryptedContent = await encryptMessage(payload, ephemeralKeyPair.privateKey, myPublicKey!);
+
+      const res = await fetch('/api/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          receiverId: targetUserId,
+          ephemeralPublicKey: ephemeralPublicKeyBase64,
+          encryptedContent,
+          senderEncryptedContent,
+          expiresIn: expiresIn > 0 ? expiresIn : undefined
+        })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => [...prev, { ...data.message, plaintext: payload }]);
+        scrollToBottom();
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to send image');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error sending image');
+    } finally {
+      setSending(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -384,6 +520,14 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 h-[calc(100vh-4rem)] flex flex-col">
+      {previewImage && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => setPreviewImage(null)}>
+          <img src={previewImage} className="max-w-full max-h-full object-contain" alt="Preview" />
+          <button className="absolute top-4 right-4 text-white p-2" onClick={() => setPreviewImage(null)}>
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      )}
             <div className="flex items-center justify-between mb-6 shrink-0"><div className="flex items-center gap-4">
         <Link href="/messages" className="p-2 rounded-full hover:bg-accent/50 text-muted transition-colors">
           <ArrowLeft className="h-5 w-5" />
@@ -495,7 +639,11 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
                         : 'bg-muted text-foreground rounded-bl-sm'
                     }`}>
                       <p className="text-sm whitespace-pre-wrap break-words">
-                        {msg.plaintext || <span className="flex items-center gap-1 opacity-70"><Loader2 className="h-3 w-3 animate-spin" /> Decrypting...</span>}
+                        {msg.plaintext?.startsWith('{') && msg.plaintext.includes('"type":"image"') ? (
+                          <EncryptedImage payload={msg.plaintext} onPreview={setPreviewImage} />
+                        ) : (
+                          msg.plaintext || <span className="flex items-center gap-1 opacity-70"><Loader2 className="h-3 w-3 animate-spin" /> Decrypting...</span>
+                        )}
                       </p>
                       <p className={`text-[10px] mt-1 ${isMine ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {new Date(msg.createdAt).toLocaleTimeString()} {new Date(msg.createdAt).toLocaleDateString()}
@@ -547,6 +695,15 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
               </label>
             </div>
             <form onSubmit={handleSend} className="flex gap-2">
+              <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-secondary-foreground transition-transform hover:scale-105 shrink-0"
+                disabled={sending}
+              >
+                <ImageIcon className="h-4 w-4" />
+              </button>
               <input
                 type="text"
                 value={inputText}
