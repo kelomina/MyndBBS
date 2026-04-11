@@ -9,7 +9,7 @@ import {
   encryptPrivateKey 
 } from '../../lib/crypto/e2ee';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { Shield, Loader2, MessageSquare, Plus } from 'lucide-react';
+import { Shield, Loader2, MessageSquare, Plus, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 
 interface MessageThread {
@@ -256,10 +256,17 @@ export default function MessagesPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
           <MessageSquare className="h-8 w-8 text-primary" />
           {dict.messages.title}
         </h1>
+        <Link 
+          href="/friends"
+          className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg text-sm font-medium transition-colors"
+        >
+          <UserPlus className="h-4 w-4" />
+          {dict.messages?.manageFriends || "Manage Friends"}
+        </Link>
       </div>
 
       {error && (

@@ -7,6 +7,7 @@ import { User, Loader2, PenSquare, Mail } from 'lucide-react';
 export function UserNav({ title, newPostText, messagesText }: { title: string; newPostText?: string; messagesText?: string }) {
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     fetch('/api/v1/user/profile', { credentials: 'include' })
@@ -16,8 +17,14 @@ export function UserNav({ title, newPostText, messagesText }: { title: string; n
         }
         throw new Error('Not authenticated');
       })
+
       .then(data => {
         setUser(data.user);
+        // Fetch unread messages/notifications count
+        fetch('/api/v1/messages/unread', { credentials: 'include' })
+          .then(r => r.ok ? r.json() : { count: 0 })
+          .then(d => setUnreadCount(d.count || 0))
+          .catch(() => setUnreadCount(0));
       })
       .catch(() => {
         setUser(null);
@@ -49,10 +56,15 @@ export function UserNav({ title, newPostText, messagesText }: { title: string; n
         )}
         <Link
           href="/messages"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted transition-colors hover:bg-background hover:text-foreground"
-          title={messagesText || 'Messages'}
+          className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted transition-colors hover:bg-background hover:text-foreground"
+          title={messagesText || 'Messages & Notifications'}
         >
           <Mail className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </Link>
         <Link
           href={`/u/${user.username}`}

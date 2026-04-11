@@ -345,6 +345,10 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !unlocked || !myPrivateKey || !theirPublicKey) return;
+    if (username === 'system') {
+      setError(dict.messages?.cannotReplySystem || 'You cannot reply to system notifications.');
+      return;
+    }
     
     setSending(true);
     try {
@@ -423,6 +427,10 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !unlocked || !myPrivateKey || !theirPublicKey || isCoolingDown) return;
+    if (username === 'system') {
+      setError(dict.messages?.cannotReplySystem || 'You cannot reply to system notifications.');
+      return;
+    }
 
     setSending(true);
     try {

@@ -74,7 +74,6 @@ if (!isInstalled) {
   const adminRoutes = require('./routes/admin').default;
   const postRoutes = require('./routes/post').default;
   const categoryRoutes = require('./routes/category').default;
-  const notificationRoutes = require('./routes/notification').default;
   const messageRoutes = require('./routes/message').default;
   const uploadRoutes = require('./routes/upload').default;
   const friendRoutes = require('./routes/friend').default;
@@ -84,7 +83,6 @@ if (!isInstalled) {
   app.use('/api/admin', adminRoutes);
   app.use('/api/posts', postRoutes);
   app.use('/api/categories', categoryRoutes);
-  app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/messages', messageRoutes);
   app.use('/api/v1/messages/upload', uploadRoutes);
   app.use('/api/v1/friends', friendRoutes);
