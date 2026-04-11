@@ -76,6 +76,7 @@ if (!isInstalled) {
   const categoryRoutes = require('./routes/category').default;
   const notificationRoutes = require('./routes/notification').default;
   const messageRoutes = require('./routes/message').default;
+  const uploadRoutes = require('./routes/upload').default;
 
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/user', userRoutes);
@@ -84,6 +85,10 @@ if (!isInstalled) {
   app.use('/api/categories', categoryRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/messages', messageRoutes);
+  app.use('/api/v1/messages/upload', uploadRoutes);
+
+  // Serve static files from uploads directory
+  app.use('/uploads', express.static(require('path').join(process.cwd(), 'uploads')));
 
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
