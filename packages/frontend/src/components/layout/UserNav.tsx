@@ -9,6 +9,24 @@ export function UserNav({ title, newPostText, messagesText }: { title: string; n
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const fetchUnreadCount = () => {
+    fetch('/api/v1/messages/unread', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { count: 0 })
+      .then(d => setUnreadCount(d.count || 0))
+      .catch(() => setUnreadCount(0));
+  };
+
+  useEffect(() => {
+    const handleUnreadUpdate = () => fetchUnreadCount();
+    window.addEventListener('messages-read', handleUnreadUpdate);
+    window.addEventListener('messages-received', handleUnreadUpdate);
+
+    return () => {
+      window.removeEventListener('messages-read', handleUnreadUpdate);
+      window.removeEventListener('messages-received', handleUnreadUpdate);
+    };
+  }, []);
+
   useEffect(() => {
     fetch('/api/v1/user/profile', { credentials: 'include' })
       .then(res => {
@@ -20,11 +38,7 @@ export function UserNav({ title, newPostText, messagesText }: { title: string; n
 
       .then(data => {
         setUser(data.user);
-        // Fetch unread messages/notifications count
-        fetch('/api/v1/messages/unread', { credentials: 'include' })
-          .then(r => r.ok ? r.json() : { count: 0 })
-          .then(d => setUnreadCount(d.count || 0))
-          .catch(() => setUnreadCount(0));
+        fetchUnreadCount();
       })
       .catch(() => {
         setUser(null);

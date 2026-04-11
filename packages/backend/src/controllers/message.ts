@@ -136,8 +136,8 @@ export const deleteMessage = async (req: AuthRequest, res: Response): Promise<vo
   if (canHardDelete) {
     await prisma.privateMessage.delete({ where: { id: messageId } });
   } else {
-    if (!message.deletedBy.includes(userId)) {
-      const newDeletedBy = [...message.deletedBy, userId];
+    if (!message.deletedBy?.includes(userId)) {
+      const newDeletedBy = [...(message.deletedBy || []), userId];
       if (newDeletedBy.includes(message.senderId) && newDeletedBy.includes(message.receiverId)) {
         await prisma.privateMessage.delete({ where: { id: messageId } });
       } else {
