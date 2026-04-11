@@ -478,6 +478,7 @@
     "requestSent": "已发送申请",
     "userNotFound": "未找到该用户，或该用户未初始化私信功能。",
     "failedToSendRequest": "发送好友请求失败。",
-    "errorSendingRequest": "发送请求时出错。"
+    "errorSendingRequest": "发送请求时出错。",
+    "imageLoadError": "图片加载失败或已过期"
   }
 }
