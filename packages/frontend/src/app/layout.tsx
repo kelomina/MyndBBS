@@ -7,6 +7,7 @@ import { getDictionary } from "../i18n/get-dictionary";
 import { ThemeProvider } from "../components/ThemeProvider";
 import { TranslationProvider } from "../components/TranslationProvider";
 import { PasskeyBanner } from "../components/PasskeyBanner";
+import { ToastProvider } from "../components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "MyndBBS - Modern Community",
@@ -27,11 +28,13 @@ export default async function RootLayout({
       <body className="min-h-screen flex flex-col bg-background transition-colors duration-300">
         <ThemeProvider>
           <TranslationProvider dict={dict}>
+            <ToastProvider>
             <PasskeyBanner />
             <Header locale={locale} />
             <div className="flex-1">
               {children}
             </div>
+            </ToastProvider>
           </TranslationProvider>
         </ThemeProvider>
       </body>

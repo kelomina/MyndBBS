@@ -475,6 +475,9 @@
     "errFriendLimit": "非好友最多发送 3 条消息，请先添加对方为好友。",
     "cannotReplySystem": "您不能回复系统通知。",
     "errRateLimit": "发送频率过快，请稍后再试。",
-    "requestSent": "已发送申请"
+    "requestSent": "已发送申请",
+    "userNotFound": "未找到该用户，或该用户未初始化私信功能。",
+    "failedToSendRequest": "发送好友请求失败。",
+    "errorSendingRequest": "发送请求时出错。"
   }
 }
