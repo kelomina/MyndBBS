@@ -26,7 +26,8 @@ export const sendNotification = async (params: SendNotificationParams) => {
         receiverId: params.userId,
         ephemeralPublicKey: 'system',
         encryptedContent: JSON.stringify(payload),
-        isSystem: true
+        isSystem: true,
+        deletedBy: []
       }
     });
   }

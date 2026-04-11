@@ -79,7 +79,7 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   }
 
   const msg = await prisma.privateMessage.create({
-    data: { senderId, receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent, senderEncryptedContent, expiresAt }
+    data: { senderId, receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent, senderEncryptedContent, expiresAt, deletedBy: [] }
   });
 
   res.json({ success: true, message: msg });

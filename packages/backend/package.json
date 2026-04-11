@@ -11,7 +11,8 @@
     "predev": "pnpm run generate",
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "build": "pnpm run generate && tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "fix-db": "ts-node scripts/fix-db.ts"
   },
   "keywords": [],
   "author": "",
