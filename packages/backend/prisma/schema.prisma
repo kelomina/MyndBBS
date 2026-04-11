@@ -340,7 +340,7 @@ model PrivateMessage {
   isRead                   Boolean  @default(false)
   isSystem                 Boolean  @default(false)
   expiresAt                DateTime?
-  deletedBy                String[]
+  deletedBy                String[] @default([])
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
