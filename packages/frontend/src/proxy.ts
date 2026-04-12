@@ -28,15 +28,11 @@ export function proxy(request: NextRequest) {
   }
   response.headers.set('x-locale', locale);
 
-  // 403 Protection Logic
-  const isPublicPath = pathname === '/' || pathname === '/login' || pathname === '/register' || pathname === '/403' || pathname === '/popular' || pathname === '/recent' || pathname === '/compose' || pathname === '/friends' || pathname.startsWith('/p/') || pathname.startsWith('/c/') || pathname.startsWith('/u/') || pathname.startsWith('/messages') || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/uploads');
+    // 403 Protection Logic
+  // Define paths that explicitly require SUPER_ADMIN privileges
+  const isAdminPath = pathname.startsWith('/admin') || pathname.startsWith('/wp-admin') || pathname.startsWith('/phpmyadmin') || pathname === '/.env';
 
-  // Allow internal navigation via Referer check
-  const referer = request.headers.get('referer');
-  const isInternalNavigation = referer && referer.startsWith(request.nextUrl.origin);
-  const isNextClientNavigation = request.headers.has('rsc') || request.headers.has('next-router-prefetch');
-
-  if (!isPublicPath && !(isInternalNavigation || isNextClientNavigation)) {
+  if (isAdminPath) {
     const token = request.cookies.get('accessToken')?.value;
     let isSuperAdmin = false;
 
@@ -58,7 +54,7 @@ export function proxy(request: NextRequest) {
     if (!isSuperAdmin) {
       const url = request.nextUrl.clone();
       url.pathname = '/403';
-      
+
       // Preserve locale cookie on redirect
       const redirectResponse = NextResponse.redirect(url);
       if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {
