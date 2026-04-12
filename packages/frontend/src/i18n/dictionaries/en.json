@@ -20,7 +20,8 @@
   "nav": {
     "home": "Home",
     "popular": "Popular",
-    "recent": "Recent"
+    "recent": "Recent",
+    "routingWhitelist": "Routing Whitelist"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -278,7 +279,23 @@
     "inPost": "In Post",
     "approve": "Approve",
     "reject": "Reject",
-    "failedToAddWord": "Failed to add word"
+    "failedToAddWord": "Failed to add word",
+    "routingWhitelist": "Routing Whitelist",
+    "routingWhitelistDesc": "Configure paths that are accessible without SUPER_ADMIN privileges. Unlisted paths will be strictly intercepted.",
+    "addRoute": "Add Route",
+    "editRoute": "Edit Route",
+    "deleteRoute": "Delete Route",
+    "path": "Path",
+    "matchType": "Match Type",
+    "prefixMatch": "Prefix Match",
+    "exactMatch": "Exact Match",
+    "isPrefixMatch": "Prefix Match (allows all sub-paths)",
+    "noRoutesFound": "No routes configured. The site is currently strictly restricted.",
+    "confirmDeleteRoute": "Are you sure you want to delete this route? Unlisted paths will be blocked.",
+    "routeAdded": "Route added successfully",
+    "routeUpdated": "Route updated successfully",
+    "routeDeleted": "Route deleted successfully",
+    "pathMustStartWithSlash": "Path must start with /"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "User not found",
@@ -487,7 +504,6 @@
     "postRejectedDesc": "Your post \"{title}\" has been rejected. Reason: {reason}",
     "systemAlertDesc": "A new post \"{title}\" has been submitted for moderation. Please review it.",
     "viewPost": "View Post"
-
   },
   "forbidden": {
     "title": "403 - Access Denied",

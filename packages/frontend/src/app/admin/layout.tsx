@@ -5,7 +5,7 @@ import { getDictionary } from '../../i18n/get-dictionary';
 import { defaultLocale, Locale } from '../../i18n/config';
 import { headers, cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { Users, FolderTree, LayoutDashboard, Trash2, Database, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Users, FolderTree, LayoutDashboard, Trash2, Database, ShieldAlert } from 'lucide-react';
 
 export default async function AdminLayout({
   children,
@@ -77,6 +77,15 @@ export default async function AdminLayout({
               <Trash2 className="h-5 w-5" />
               <span>{dict.admin?.recycleBin || "Recycle Bin"}</span>
             </Link>
+            {isSuperAdmin && (
+              <Link
+                href="/admin/routes"
+                className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                <ShieldCheck className="h-5 w-5" />
+                <span>{dict.admin?.routingWhitelist || "Routing Whitelist"}</span>
+              </Link>
+            )}
             {isSuperAdmin && (
               <Link
                 href="/admin/db"

@@ -20,7 +20,8 @@
   "nav": {
     "home": "首页",
     "popular": "热门",
-    "recent": "最新"
+    "recent": "最新",
+    "routingWhitelist": "路由白名单"
   },
   "auth": {
     "welcomeBack": "欢迎回来",
@@ -278,7 +279,23 @@
     "inPost": "所属帖子",
     "approve": "通过",
     "reject": "拒绝 (删除)",
-    "failedToAddWord": "添加审核词失败"
+    "failedToAddWord": "添加审核词失败",
+    "routingWhitelist": "路由白名单",
+    "routingWhitelistDesc": "配置允许无需 SUPER_ADMIN 权限即可访问的路径。未列出的路径将被严格拦截。",
+    "addRoute": "添加路由",
+    "editRoute": "编辑路由",
+    "deleteRoute": "删除路由",
+    "path": "路径",
+    "matchType": "匹配类型",
+    "prefixMatch": "前缀匹配",
+    "exactMatch": "精确匹配",
+    "isPrefixMatch": "前缀匹配 (允许所有子路径)",
+    "noRoutesFound": "暂无配置路由，网站当前处于严格拦截状态。",
+    "confirmDeleteRoute": "确定要删除此路由吗？未在白名单中的路径将被阻断。",
+    "routeAdded": "路由添加成功",
+    "routeUpdated": "路由更新成功",
+    "routeDeleted": "路由删除成功",
+    "pathMustStartWithSlash": "路径必须以 / 开头"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "用户未找到",
@@ -487,7 +504,6 @@
     "postRejectedDesc": "您的帖子 \"{title}\" 未通过审核。原因: {reason}",
     "systemAlertDesc": "有新的帖子 \"{title}\" 提交到了人工审核队列，请前往后台处理。",
     "viewPost": "查看帖子"
-
   },
   "forbidden": {
     "title": "403 - 访问受限",

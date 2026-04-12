@@ -11,10 +11,15 @@ import {
   assignCategoryModerator, removeCategoryModerator,
   getPosts, updatePostStatus,
   getDeletedPosts, getDeletedComments, restorePost, hardDeletePost, restoreComment, hardDeleteComment,
-  getDbConfig, updateDbConfig
+  getDbConfig, updateDbConfig,
+  getRouteWhitelist, addRouteWhitelist, updateRouteWhitelist, deleteRouteWhitelist
 } from '../controllers/admin';
 
 const router: Router = Router();
+
+// Public endpoint for proxy to fetch whitelist
+router.get('/routing-whitelist', getRouteWhitelist);
+
 
 router.use(requireAuth);
 
@@ -60,5 +65,11 @@ router.post('/moderation/posts/:id/reject', requireAbility('update_status', 'Pos
 router.get('/moderation/comments', requireAbility('read', 'AdminPanel'), getPendingComments);
 router.post('/moderation/comments/:id/approve', requireAbility('update_status', 'Post'), approvePendingComment);
 router.post('/moderation/comments/:id/reject', requireAbility('update_status', 'Post'), rejectPendingComment);
+
+
+// Routing Whitelist management
+router.post('/routing-whitelist', requireAbility('manage', 'AdminPanel'), addRouteWhitelist);
+router.put('/routing-whitelist/:id', requireAbility('manage', 'AdminPanel'), updateRouteWhitelist);
+router.delete('/routing-whitelist/:id', requireAbility('manage', 'AdminPanel'), deleteRouteWhitelist);
 
 export default router;
