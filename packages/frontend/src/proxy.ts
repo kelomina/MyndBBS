@@ -29,7 +29,7 @@ export function proxy(request: NextRequest) {
   response.headers.set('x-locale', locale);
 
   // 403 Protection Logic
-  const isPublicPath = pathname === '/login' || pathname === '/register' || pathname === '/403' || pathname.startsWith('/_next') || pathname.startsWith('/api');
+  const isPublicPath = pathname === '/' || pathname === '/login' || pathname === '/register' || pathname === '/403' || pathname === '/popular' || pathname === '/recent' || pathname === '/compose' || pathname === '/friends' || pathname.startsWith('/p/') || pathname.startsWith('/c/') || pathname.startsWith('/u/') || pathname.startsWith('/messages') || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/uploads');
 
   if (!isPublicPath) {
     const token = request.cookies.get('accessToken')?.value;
