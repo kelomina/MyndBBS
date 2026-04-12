@@ -1,4 +1,5 @@
 'use client';
+import { useToast } from '../../../components/ui/Toast';
 import { useTranslation } from '../../../components/TranslationProvider';
 
 import React, { useEffect, useState } from 'react';
@@ -23,6 +24,7 @@ interface User {
 }
 
 export default function UsersPage() {
+  const { toast } = useToast();
   const dict = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);

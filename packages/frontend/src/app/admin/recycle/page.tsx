@@ -1,4 +1,5 @@
 'use client';
+import { useToast } from '../../../components/ui/Toast';
 import { useTranslation } from '../../../components/TranslationProvider';
 import React, { useEffect, useState } from 'react';
 import {
@@ -20,6 +21,7 @@ import {
 } from '../../../lib/api/admin';
 
 export default function RecycleBinPage() {
+  const { toast } = useToast();
   const dict = useTranslation();
   const [posts, setPosts] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);

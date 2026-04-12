@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "../../../components/ui/Toast";
 
 import React, { useState, useEffect } from 'react';
 import { useCategories } from '../../../lib/hooks';
@@ -6,6 +7,7 @@ import { fetcher } from '../../../lib/api/fetcher';
 import { Trash2, Check, X, ShieldAlert } from 'lucide-react';
 
 export default function ModerationClient({ dict }: { dict: any }) {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'posts' | 'comments' | 'words'>('posts');
   const [posts, setPosts] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
