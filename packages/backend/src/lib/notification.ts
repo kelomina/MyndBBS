@@ -65,6 +65,12 @@ export const notifyModerators = async (title: string, content: string, relatedId
       title,
       content,
       ...(relatedId ? { relatedId } : {})
+    /**
+     * Callers: [notifyModerators]
+     * Callees: [error]
+     * Description: An anonymous error handler callback for notification sending failures.
+     * Keywords: notification, moderators, catch, error, anonymous
+     */
     }).catch(err => console.error('Failed to notify moderator', mod.id, err));
   }
 };

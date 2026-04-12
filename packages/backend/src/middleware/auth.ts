@@ -201,6 +201,12 @@ export const requireSudo = async (req: AuthRequest, res: Response, next: NextFun
  * Keywords: requireability, require, ability, auto-annotated
  */
 export const requireAbility = (action: Action, subject: AppSubjects) => {
+/**
+ * Callers: [requireAbility]
+ * Callees: [json, status, can, next, log]
+ * Description: The returned middleware function that checks if the authenticated user has a specific CASL ability.
+ * Keywords: middleware, auth, ability, check, anonymous
+ */
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.ability) {
       res.status(401).json({ error: 'ERR_UNAUTHORIZED_MISSING_ABILITY' });
