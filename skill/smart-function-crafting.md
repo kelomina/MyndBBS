@@ -12,14 +12,64 @@ This skill defines the mandatory workflow for AI agents when modifying existing 
 
 ---
 
-## Workflow Steps
+## Phase 1: Solution Design & Planning (方案设计)
 
-### Step 0: Pre-Modification & User Alignment (Mandatory User Interaction)
-Before writing any code or making any modifications, you MUST interact with the user using the `AskUserQuestion` tool to ensure alignment:
-1. **Evaluate Request Completeness**: Assess the user's request. If it lacks detail or is too vague to safely implement, use `AskUserQuestion` to provide multiple-choice options to clarify their specific vision. Do not guess.
-2. **Security & Performance Assessment**: Prioritize analyzing the potential security vulnerabilities and performance bottlenecks the new feature might introduce. Use `AskUserQuestion` to present these risks to the user, explicitly ask for their consent to proceed, and brainstorm possible alternative, safer, or more performant solutions.
-3. **Explicit Permission**: Before applying any file changes, explicitly outline your plan and ask the user for their permission to proceed with the modifications.
-4. **Git Sync Check**: Before starting a new round of modifications, verify the `git` status. If there are unpushed commits on the `main` branch, you MUST ask the user (using `AskUserQuestion`) for explicit permission to push to `main` before proceeding with new changes.
+Before writing any code or making any modifications, you MUST design a solution and create a detailed plan to ensure alignment.
+
+### Step 0.1: Solution Ideation (方案构思)
+1. **Assess Requirements & Complexity**: Determine if the task is a simple fix or a complex feature (e.g., involves new architecture, multiple paths, >1 module, >3 files, or user explicitly requested options).
+2. **Security & Performance Assessment**: Identify potential security vulnerabilities (e.g., EHRB) and performance bottlenecks.
+3. **Solution Design Thinking**: 
+   You MUST evaluate options inside a `<thinking>` block (do not output this block to the user):
+   ```xml
+   <thinking>
+   1. List all possible technical paths.
+   2. Evaluate pros, cons, risks, and costs for each.
+   3. Select 1 (for simple tasks) or 2-3 (for complex tasks) viable solutions.
+   4. Determine the recommended solution.
+   </thinking>
+   ```
+4. **Output Ideation Format**: 
+   Present the options to the user using the strict markdown format below:
+   ```markdown
+   ❓【HelloAGENTS】- 方案构思
+   - 📋 需求类型: [Technical Change / Product Feature]
+   - 🔍 复杂度: [Complex / Simple] - [Reason]
+   - 💡 方案对比:
+     - 方案1: [Name - Recommended] - [Brief description]
+     - 方案2: [Name] - [Brief description]
+   - ⚠️ 风险提示: [Security/Performance risks]
+   ────
+   🔄 下一步: 请输入方案序号(1/2/3)选择方案
+   ```
+   *Wait for user confirmation before proceeding. If all solutions are rejected, prompt to redesign or cancel.*
+
+### Step 0.2: Detailed Planning (详细规划)
+Once the user confirms the solution, create a new plan package:
+1. **Create Plan Directory**: `plan/YYYYMMDDHHMM_<feature>/` (use `_v2` suffix if a directory with the same name exists). Do not reuse legacy plans.
+2. **Generate Plan Files**:
+   - `why.md`: Context, purpose, and value proposition.
+   - `how.md`: Technical design, architecture decisions, and specific security/performance mitigations.
+   - `task.md`: Granular task list. Keep code changes small (≤3 files per task) and strictly include verification/security check tasks.
+3. **Output Planning Format**:
+   ```markdown
+   ### 方案设计完成
+   - 📚 知识库/上下文状态: [Brief context]
+   - 📝 方案概要: [Selected Solution]
+   - 📋 变更清单: [Modules/Files affected]
+   - 📊 任务清单概要: [X tasks total, including security checks]
+   - ⚠️ 风险评估: [Mitigation strategies]
+   
+   **文件变更清单:**
+   - `plan/YYYYMMDDHHMM_<feature>/why.md`
+   - `plan/YYYYMMDDHHMM_<feature>/how.md`
+   - `plan/YYYYMMDDHHMM_<feature>/task.md`
+   
+   🔄 下一步: 是否进入开发实施?(是/否)
+   ```
+   *Verify Git sync status (ensure previous changes are pushed to `main`) and wait for explicit user permission before touching actual codebase files.*
+
+## Phase 2: Execution & Function Crafting
 
 ### Step 1: Search and Reuse First
 Before writing any new logic or creating a new function:
@@ -73,7 +123,7 @@ Before finalizing the task and delivering the code to the user, you MUST perform
 ## AI Agent Instructions (Self-Check)
 When you receive a task that involves writing or changing code, you must:
 1. Acknowledge this skill: "I am applying the `Smart Function Crafting & Annotation` skill."
-2. Execute **Step 0**: Use `AskUserQuestion` to evaluate completeness, discuss security/performance implications, check Git sync status, and obtain explicit permission BEFORE touching code.
+2. Execute **Phase 1 (Solution Design & Planning)**: Use the `<thinking>` tag to evaluate paths, output the `❓【HelloAGENTS】- 方案构思` format, generate the `plan/` directory, check Git sync status, and obtain explicit permission BEFORE touching code.
 3. Explicitly document your search process for reusable functions (`Step 1`).
 4. Explicitly document your manual call chain verification (`Step 2`).
 5. Manually inject the required JSDoc format without using any automated generation scripts (`Step 3`).
