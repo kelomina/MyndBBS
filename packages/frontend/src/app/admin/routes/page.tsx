@@ -32,7 +32,7 @@ export default function RoutingWhitelistPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ path: '', isPrefix: false, description: '' });
+  const [formData, setFormData] = useState<{path: string, isPrefix: boolean, minRole: string, description: string}>({ path: '', isPrefix: false, minRole: '', description: '' });
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadData = async () => {
@@ -60,14 +60,14 @@ export default function RoutingWhitelistPage() {
     
     try {
       if (editingId) {
-        await updateRouteWhitelist(editingId, formData);
+        await updateRouteWhitelist(editingId, { ...formData, minRole: formData.minRole || null });
         toast(dict.admin?.routeUpdated || 'Route updated successfully', 'success');
       } else {
-        await addRouteWhitelist(formData);
+        await addRouteWhitelist({ ...formData, minRole: formData.minRole || null });
         toast(dict.admin?.routeAdded || 'Route added successfully', 'success');
       }
       setIsModalOpen(false);
-      setFormData({ path: '', isPrefix: false, description: '' });
+      setFormData({ path: '', isPrefix: false, minRole: '', description: '' });
       setEditingId(null);
       await loadData();
     } catch (err: unknown) {
@@ -89,13 +89,13 @@ export default function RoutingWhitelistPage() {
   };
 
   const openEditModal = (route: RouteWhitelist) => {
-    setFormData({ path: route.path, isPrefix: route.isPrefix, description: route.description || '' });
+    setFormData({ path: route.path, isPrefix: route.isPrefix, minRole: route.minRole || '', description: route.description || '' });
     setEditingId(route.id);
     setIsModalOpen(true);
   };
 
   const openCreateModal = () => {
-    setFormData({ path: '', isPrefix: false, description: '' });
+    setFormData({ path: '', isPrefix: false, minRole: '', description: '' });
     setEditingId(null);
     setIsModalOpen(true);
   };
@@ -127,6 +127,7 @@ export default function RoutingWhitelistPage() {
             <TableRow className="bg-muted/30">
               <TableHead>{dict.admin?.path || "Path"}</TableHead>
               <TableHead>{dict.admin?.matchType || "Match Type"}</TableHead>
+              <TableHead>{dict.admin?.minRole || "Min Role"}</TableHead>
               <TableHead>{dict.admin?.description || "Description"}</TableHead>
               <TableHead className="text-right">{dict.admin?.actions || "Actions"}</TableHead>
             </TableRow>
@@ -150,6 +151,11 @@ export default function RoutingWhitelistPage() {
                   <TableCell>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${route.isPrefix ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-secondary text-secondary-foreground border border-secondary/30'}`}>
                       {route.isPrefix ? (dict.admin?.prefixMatch || "Prefix Match") : (dict.admin?.exactMatch || "Exact Match")}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-md text-xs font-semibold ${!route.minRole ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                      {route.minRole ? route.minRole : (dict.admin?.publicAccess || "Public")}
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
@@ -211,6 +217,24 @@ export default function RoutingWhitelistPage() {
             <label htmlFor="isPrefix" className="text-sm font-medium cursor-pointer select-none">
               {dict.admin?.isPrefixMatch || "Prefix Match (allows all sub-paths)"}
             </label>
+          </div>
+
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
+              {dict.admin?.minRole || "Minimum Role"}
+            </label>
+            <select
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              value={formData.minRole}
+              onChange={(e) => setFormData({ ...formData, minRole: e.target.value })}
+            >
+              <option value="">{dict.admin?.publicAccess || "Public (No login required)"}</option>
+              <option value="USER">{dict.admin?.roleUser || "User"}</option>
+              <option value="MODERATOR">{dict.admin?.roleModerator || "Moderator"}</option>
+              <option value="ADMIN">{dict.admin?.roleAdmin || "Admin"}</option>
+              <option value="SUPER_ADMIN">{dict.admin?.roleSuperAdmin || "Super Admin"}</option>
+            </select>
           </div>
 
           <div className="space-y-2">

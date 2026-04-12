@@ -281,7 +281,7 @@
     "reject": "Reject",
     "failedToAddWord": "Failed to add word",
     "routingWhitelist": "Routing Whitelist",
-    "routingWhitelistDesc": "Configure paths that are accessible without SUPER_ADMIN privileges. Unlisted paths will be strictly intercepted.",
+    "routingWhitelistDesc": "Configure path access levels. Paths not configured here will strictly require SUPER_ADMIN privileges.",
     "addRoute": "Add Route",
     "editRoute": "Edit Route",
     "deleteRoute": "Delete Route",
@@ -295,7 +295,10 @@
     "routeAdded": "Route added successfully",
     "routeUpdated": "Route updated successfully",
     "routeDeleted": "Route deleted successfully",
-    "pathMustStartWithSlash": "Path must start with /"
+    "pathMustStartWithSlash": "Path must start with /",
+    "minRole": "Minimum Role",
+    "publicAccess": "Public (No login required)",
+    "roleSuperAdmin": "Super Admin"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "User not found",
