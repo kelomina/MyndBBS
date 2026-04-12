@@ -2,6 +2,12 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
+/**
+ * Callers: [AdminSetupClient, LoginClient, RegisterClient, ReauthModal, OwnerSettingsButton, ProfileTabs, AutoRefresh, PostList, ProfileSettings, SecuritySettings, SessionManagement, TwoFactorLogin, TwoFactorSetup, Header, Modal, Toast]
+ * Callees: [cva]
+ * Description: Generates button variants using cva.
+ * Keywords: buttonvariants, ui, component, auto-annotated
+ */
 const buttonVariants = cva(
   'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
   {
@@ -34,6 +40,12 @@ export interface ButtonProps
   asChild?: boolean;
 }
 
+/**
+ * Callers: [AdminSetupClient, LoginClient, RegisterClient, ReauthModal, OwnerSettingsButton, ProfileTabs, AutoRefresh, PostList, ProfileSettings, SecuritySettings, SessionManagement, TwoFactorLogin, TwoFactorSetup, Header, Modal, Toast]
+ * Callees: [cn, buttonVariants]
+ * Description: Handles the button UI component.
+ * Keywords: button, ui, component, auto-annotated
+ */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     return (
