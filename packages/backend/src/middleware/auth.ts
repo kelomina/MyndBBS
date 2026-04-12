@@ -14,6 +14,12 @@ export interface AuthRequest extends Request {
   ability?: AppAbility;
 }
 
+/**
+ * Callers: []
+ * Callees: [startsWith, split, json, status, verify, get, clearCookie, findUnique, set, sign, cookie, expire, findMany, defineAbilityFor, next]
+ * Description: Handles the require auth logic for the application.
+ * Keywords: requireauth, require, auth, auto-annotated
+ */
 export const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   let token = req.cookies?.accessToken;
 
@@ -122,6 +128,12 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [startsWith, split, defineAbilityFor, next, verify, findMany, findUnique]
+ * Description: Handles the optional auth logic for the application.
+ * Keywords: optionalauth, optional, auth, auto-annotated
+ */
 export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   let token = req.cookies?.accessToken;
 
@@ -163,6 +175,12 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
   next();
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, get, next]
+ * Description: Handles the require sudo logic for the application.
+ * Keywords: requiresudo, require, sudo, auto-annotated
+ */
 export const requireSudo = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   if (!req.user || !req.user.sessionId) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
@@ -176,6 +194,12 @@ export const requireSudo = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, can, next, log]
+ * Description: Handles the require ability logic for the application.
+ * Keywords: requireability, require, ability, auto-annotated
+ */
 export const requireAbility = (action: Action, subject: AppSubjects) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.ability) {

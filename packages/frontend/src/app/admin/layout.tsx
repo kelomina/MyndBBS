@@ -7,6 +7,12 @@ import { headers, cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ShieldCheck, Users, FolderTree, LayoutDashboard, Trash2, Database, ShieldAlert } from 'lucide-react';
 
+/**
+ * Callers: []
+ * Callees: [headers, get, getDictionary, cookies, join, map, getAll, fetch, redirect, json]
+ * Description: Handles the admin layout logic for the application.
+ * Keywords: adminlayout, admin, layout, auto-annotated
+ */
 export default async function AdminLayout({
   children,
 }: {

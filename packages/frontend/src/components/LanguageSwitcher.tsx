@@ -5,11 +5,23 @@ import { Globe } from 'lucide-react';
 import { Locale } from '../i18n/config';
 import { useTranslation } from './TranslationProvider';
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useRouter, refresh]
+ * Description: Handles the language switcher logic for the application.
+ * Keywords: languageswitcher, language, switcher, auto-annotated
+ */
 export function LanguageSwitcher({ currentLocale }: { currentLocale: Locale }) {
   const dict = useTranslation();
   const router = useRouter();
 
-  const toggleLanguage = () => {
+  /**
+     * Callers: []
+     * Callees: [refresh]
+     * Description: Handles the toggle language logic for the application.
+     * Keywords: togglelanguage, toggle, language, auto-annotated
+     */
+    const toggleLanguage = () => {
     const nextLocale = currentLocale === 'en' ? 'zh' : 'en';
     document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000`;
     router.refresh();

@@ -3,6 +3,12 @@ import { Locale, defaultLocale } from '../../i18n/config';
 import { getDictionary } from '../../i18n/get-dictionary';
 import { ComposeForm } from './ComposeForm';
 
+/**
+ * Callers: []
+ * Callees: [headers, get, getDictionary]
+ * Description: Handles the compose page logic for the application.
+ * Keywords: composepage, compose, page, auto-annotated
+ */
 export default async function ComposePage() {
   const headersList = await headers();
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;

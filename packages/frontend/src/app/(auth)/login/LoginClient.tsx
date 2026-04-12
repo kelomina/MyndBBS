@@ -7,6 +7,12 @@ import { usePasskey } from '../../../lib/hooks/usePasskey';
 import { TwoFactorLogin } from '../../../components/TwoFactorLogin';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/**
+ * Callers: []
+ * Callees: [useState, usePasskey, preventDefault, setError, setLoading, fetch, stringify, json, setRequires2FA, setTwoFactorMethods, executePasskeyFlow, setEmail, setPassword]
+ * Description: Handles the login client logic for the application.
+ * Keywords: loginclient, login, client, auto-annotated
+ */
 export function LoginClient({ dict }: { dict: any }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,7 +22,13 @@ export function LoginClient({ dict }: { dict: any }) {
   const [twoFactorMethods, setTwoFactorMethods] = useState<string[]>([]);
   const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /**
+     * Callers: []
+     * Callees: [preventDefault, setError, setLoading, fetch, stringify, json, setRequires2FA, setTwoFactorMethods]
+     * Description: Handles the handle submit logic for the application.
+     * Keywords: handlesubmit, handle, submit, auto-annotated
+     */
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -48,7 +60,13 @@ export function LoginClient({ dict }: { dict: any }) {
     }
   };
 
-  const handlePasskeyLogin = async () => {
+  /**
+     * Callers: []
+     * Callees: [executePasskeyFlow]
+     * Description: Handles the handle passkey login logic for the application.
+     * Keywords: handlepasskeylogin, handle, passkey, login, auto-annotated
+     */
+    const handlePasskeyLogin = async () => {
     executePasskeyFlow(
       'login',
       '/api/v1/auth/passkey/generate-authentication-options',

@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { useTranslation } from '../../components/TranslationProvider';
 import { useToast } from '../../components/ui/Toast';
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useState, useToast, useEffect, catch, then, fetch, json, setMyId, error, loadFriends, setFriendships, preventDefault, trim, toast, stringify, setTargetUsername, map, handleRespond]
+ * Description: Handles the friends page logic for the application.
+ * Keywords: friendspage, friends, page, auto-annotated
+ */
 export default function FriendsPage() {
   const dict = useTranslation();
   const [friendships, setFriendships] = useState<any[]>([]);
@@ -20,7 +26,13 @@ export default function FriendsPage() {
     loadFriends();
   }, []);
 
-  const loadFriends = async () => {
+  /**
+     * Callers: []
+     * Callees: [fetch, json, setFriendships, error]
+     * Description: Handles the load friends logic for the application.
+     * Keywords: loadfriends, load, friends, auto-annotated
+     */
+    const loadFriends = async () => {
     try {
       const res = await fetch('/api/v1/friends', { credentials: 'include' });
       if (res.ok) {
@@ -32,7 +44,13 @@ export default function FriendsPage() {
     }
   };
 
-  const handleAddFriend = async (e: React.FormEvent) => {
+  /**
+     * Callers: []
+     * Callees: [preventDefault, trim, fetch, toast, json, stringify, setTargetUsername, loadFriends]
+     * Description: Handles the handle add friend logic for the application.
+     * Keywords: handleaddfriend, handle, add, friend, auto-annotated
+     */
+    const handleAddFriend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetUsername.trim()) return;
     try {
@@ -59,7 +77,13 @@ export default function FriendsPage() {
     }
   };
 
-  const handleRespond = async (id: string, accept: boolean) => {
+  /**
+     * Callers: []
+     * Callees: [fetch, stringify, loadFriends, error]
+     * Description: Handles the handle respond logic for the application.
+     * Keywords: handlerespond, handle, respond, auto-annotated
+     */
+    const handleRespond = async (id: string, accept: boolean) => {
     try {
       await fetch('/api/v1/friends/respond', {
         method: 'PUT',

@@ -4,6 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { getDbConfig, updateDbConfig } from '../../../lib/api/admin';
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useState, setLoading, getDbConfig, setConfig, setError, useEffect, loadData, preventDefault, setSaving, setSuccess, updateDbConfig, Number]
+ * Description: Handles the database config page logic for the application.
+ * Keywords: databaseconfigpage, database, config, page, auto-annotated
+ */
 export default function DatabaseConfigPage() {
   const dict = useTranslation();
   const [config, setConfig] = useState({
@@ -18,7 +24,13 @@ export default function DatabaseConfigPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const loadData = async () => {
+  /**
+     * Callers: []
+     * Callees: [setLoading, getDbConfig, setConfig, setError]
+     * Description: Handles the load data logic for the application.
+     * Keywords: loaddata, load, data, auto-annotated
+     */
+    const loadData = async () => {
     try {
       setLoading(true);
       const data = await getDbConfig();
@@ -35,7 +47,13 @@ export default function DatabaseConfigPage() {
     loadData();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /**
+     * Callers: []
+     * Callees: [preventDefault, setSaving, setError, setSuccess, updateDbConfig]
+     * Description: Handles the handle submit logic for the application.
+     * Keywords: handlesubmit, handle, submit, auto-annotated
+     */
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setSaving(true);

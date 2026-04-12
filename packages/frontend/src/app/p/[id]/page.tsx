@@ -11,6 +11,12 @@ import { getCategoryTranslation } from '../../../lib/utils';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Callers: []
+ * Callees: [headers, get, getDictionary, fetch, json, notFound, error, toUpperCase, toLocaleString, getTime, getCategoryTranslation]
+ * Description: Handles the post detail page logic for the application.
+ * Keywords: postdetailpage, post, detail, page, auto-annotated
+ */
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   

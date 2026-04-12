@@ -11,6 +11,12 @@ interface PostEditorProps {
   categories: { id: string; name: string; description: string }[];
 }
 
+/**
+ * Callers: []
+ * Callees: [setCategoryId, map, toUpperCase, charAt, slice, setTitle, setContent]
+ * Description: Handles the post editor logic for the application.
+ * Keywords: posteditor, post, editor, auto-annotated
+ */
 export function PostEditor({
   dict,
   title,

@@ -7,6 +7,12 @@ import { isValidPassword } from '@myndbbs/shared';
 import { ReauthModal } from './ReauthModal';
 import { fetcher } from '../lib/api/fetcher';
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useState, fetcher, setProfile, setEmail, setUsername, setError, setLoading, useEffect, fetchProfile, setSaving, fetch, stringify, json, setPendingUpdate, setShowReauth, setMessage, setTimeout, setPassword, preventDefault, isValidPassword, keys, executeUpdate]
+ * Description: Handles the profile settings logic for the application.
+ * Keywords: profilesettings, profile, settings, auto-annotated
+ */
 export function ProfileSettings() {
   const dict = useTranslation();
   const [profile, setProfile] = useState<{ email: string; username: string } | null>(null);
@@ -20,7 +26,13 @@ export function ProfileSettings() {
   const [showReauth, setShowReauth] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<any>(null);
 
-  const fetchProfile = async () => {
+  /**
+     * Callers: []
+     * Callees: [fetcher, setProfile, setEmail, setUsername, setError, setLoading]
+     * Description: Handles the fetch profile logic for the application.
+     * Keywords: fetchprofile, fetch, profile, auto-annotated
+     */
+    const fetchProfile = async () => {
     try {
       const data = await fetcher('/api/v1/user/profile');
       if (data.user) {
@@ -42,7 +54,13 @@ export function ProfileSettings() {
     fetchProfile();
   }, []);
 
-  const executeUpdate = async (updateData: any) => {
+  /**
+     * Callers: []
+     * Callees: [setSaving, fetch, stringify, json, setPendingUpdate, setShowReauth, setMessage, setTimeout, setProfile, setPassword, setError]
+     * Description: Handles the execute update logic for the application.
+     * Keywords: executeupdate, execute, update, auto-annotated
+     */
+    const executeUpdate = async (updateData: any) => {
       setSaving(true);
       const res = await fetch('/api/v1/user/profile', {
         method: 'PUT',
@@ -76,7 +94,13 @@ export function ProfileSettings() {
       }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /**
+     * Callers: []
+     * Callees: [preventDefault, setMessage, setError, isValidPassword, keys, executeUpdate]
+     * Description: Handles the handle submit logic for the application.
+     * Keywords: handlesubmit, handle, submit, auto-annotated
+     */
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage('');
     setError('');

@@ -9,6 +9,12 @@ import { BookmarkMinus } from 'lucide-react';
 import { getCategoryTranslation } from '../../../lib/utils';
 import { fetcher } from '../../../lib/api/fetcher';
 
+/**
+ * Callers: []
+ * Callees: [useState, useEffect, fetcher, setIsOwner, checkOwner, setActiveTab, setLoading, setBookmarks, error, preventDefault, stopPropagation, filter, handleTabChange, map, getCategoryTranslation, toLocaleDateString, handleRemoveBookmark]
+ * Description: Handles the profile tabs logic for the application.
+ * Keywords: profiletabs, profile, tabs, auto-annotated
+ */
 export function ProfileTabs({ 
   user, 
   dict, 
@@ -25,7 +31,13 @@ export function ProfileTabs({
 
   useEffect(() => {
     // Check if the logged-in user is the owner of this profile
-    const checkOwner = async () => {
+    /**
+       * Callers: []
+       * Callees: [fetcher, setIsOwner]
+       * Description: Handles the check owner logic for the application.
+       * Keywords: checkowner, check, owner, auto-annotated
+       */
+      const checkOwner = async () => {
       try {
         const data = await fetcher('/api/v1/user/profile');
         if (data.user?.username === user.username) {
@@ -38,7 +50,13 @@ export function ProfileTabs({
     checkOwner();
   }, [user.username]);
 
-  const handleTabChange = async (tab: 'posts' | 'bookmarks') => {
+  /**
+     * Callers: []
+     * Callees: [setActiveTab, setLoading, fetcher, setBookmarks, error]
+     * Description: Handles the handle tab change logic for the application.
+     * Keywords: handletabchange, handle, tab, change, auto-annotated
+     */
+    const handleTabChange = async (tab: 'posts' | 'bookmarks') => {
     setActiveTab(tab);
     if (tab === 'bookmarks' && bookmarks === null) {
       setLoading(true);
@@ -54,7 +72,13 @@ export function ProfileTabs({
     }
   };
 
-  const handleRemoveBookmark = async (e: React.MouseEvent, type: 'post' | 'comment', id: string) => {
+  /**
+     * Callers: []
+     * Callees: [preventDefault, stopPropagation, fetcher, setBookmarks, filter, error]
+     * Description: Handles the handle remove bookmark logic for the application.
+     * Keywords: handleremovebookmark, handle, remove, bookmark, auto-annotated
+     */
+    const handleRemoveBookmark = async (e: React.MouseEvent, type: 'post' | 'comment', id: string) => {
     e.preventDefault();
     e.stopPropagation();
     try {

@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db';
 
+/**
+ * Callers: []
+ * Callees: [floor, random, now, catch, deleteMany, create, toString, from, json, error, status]
+ * Description: Handles the generate captcha logic for the application.
+ * Keywords: generatecaptcha, generate, captcha, auto-annotated
+ */
 export const generateCaptcha = async (req: Request, res: Response) => {
   try {
     // Assuming an inner container width of 318px.
@@ -55,6 +61,12 @@ export const generateCaptcha = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [findUnique, delete]
+ * Description: Handles the verify and consume captcha logic for the application.
+ * Keywords: verifyandconsumecaptcha, verify, and, consume, captcha, auto-annotated
+ */
 export const verifyAndConsumeCaptcha = async (captchaId: string): Promise<boolean> => {
   try {
     const challenge = await prisma.captchaChallenge.findUnique({
@@ -72,6 +84,12 @@ export const verifyAndConsumeCaptcha = async (captchaId: string): Promise<boolea
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, findUnique, catch, delete, map, reduce, pow, push, abs, sqrt, update]
+ * Description: Handles the verify captcha logic for the application.
+ * Keywords: verifycaptcha, verify, captcha, auto-annotated
+ */
 export const verifyCaptcha = async (req: Request, res: Response): Promise<void> => {
   try {
     const { captchaId, dragPath, totalDragTime, finalPosition } = req.body;

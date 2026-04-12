@@ -8,6 +8,12 @@ interface TwoFactorLoginProps {
   methods: string[];
 }
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useState, usePasskey, includes, useEffect, tryPasskeyLogin, setPasskeyError, executePasskeyFlow, setError, setCurrentMethod, preventDefault, setLoading, fetch, stringify, json, setTotpCode]
+ * Description: Handles the two factor login logic for the application.
+ * Keywords: twofactorlogin, two, factor, login, auto-annotated
+ */
 export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
   const dict = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -24,7 +30,13 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
     }
   }, [currentMethod]);
 
-  const tryPasskeyLogin = async () => {
+  /**
+     * Callers: []
+     * Callees: [setPasskeyError, executePasskeyFlow, includes, setError, setCurrentMethod]
+     * Description: Handles the try passkey login logic for the application.
+     * Keywords: trypasskeylogin, try, passkey, login, auto-annotated
+     */
+    const tryPasskeyLogin = async () => {
     setPasskeyError('');
     executePasskeyFlow(
       'login',
@@ -46,7 +58,13 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
     );
   };
 
-  const verifyTotp = async (e: React.FormEvent) => {
+  /**
+     * Callers: []
+     * Callees: [preventDefault, setLoading, setError, fetch, stringify, json]
+     * Description: Handles the verify totp logic for the application.
+     * Keywords: verifytotp, verify, totp, auto-annotated
+     */
+    const verifyTotp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');

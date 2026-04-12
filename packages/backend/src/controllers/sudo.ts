@@ -9,6 +9,12 @@ import crypto from 'crypto';
 const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 
+/**
+ * Callers: []
+ * Callees: [findMany, json, status, generateAuthenticationOptions, map, randomUUID, create, now]
+ * Description: Handles the get sudo passkey options logic for the application.
+ * Keywords: getsudopasskeyoptions, get, sudo, passkey, options, auto-annotated
+ */
 export const getSudoPasskeyOptions = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
   const userPasskeys = await prisma.passkey.findMany({ where: { userId } });
@@ -39,6 +45,12 @@ export const getSudoPasskeyOptions = async (req: AuthRequest, res: Response): Pr
   res.json({ ...options, challengeId });
 };
 
+/**
+ * Callers: []
+ * Callees: [findUnique, json, status, verify, verifySync, verifyAuthenticationResponse, Number, update, BigInt, delete, set, error]
+ * Description: Handles the verify sudo logic for the application.
+ * Keywords: verifysudo, verify, sudo, auto-annotated
+ */
 export const verifySudo = async (req: AuthRequest, res: Response): Promise<void> => {
   const { type, password, totpCode, passkeyResponse, response, challengeId } = req.body;
   const actualPasskeyResponse = passkeyResponse || response;
@@ -125,6 +137,12 @@ export const verifySudo = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [get, json]
+ * Description: Handles the check sudo logic for the application.
+ * Keywords: checksudo, check, sudo, auto-annotated
+ */
 export const checkSudo = async (req: AuthRequest, res: Response): Promise<void> => {
   const isSudo = await redis.get(`sudo:${req.user!.sessionId}`);
   res.json({ isSudo: isSudo === 'true' });

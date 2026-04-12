@@ -9,6 +9,12 @@ interface SendNotificationParams {
   relatedId?: string;
 }
 
+/**
+ * Callers: []
+ * Callees: [findUnique, create, stringify]
+ * Description: Handles the send notification logic for the application.
+ * Keywords: sendnotification, send, notification, auto-annotated
+ */
 export const sendNotification = async (params: SendNotificationParams) => {
   const systemUser = await prisma.user.findUnique({ where: { username: 'system' } });
   
@@ -39,6 +45,12 @@ export const sendNotification = async (params: SendNotificationParams) => {
 };
 
 
+/**
+ * Callers: []
+ * Callees: [findMany, catch, sendNotification, error]
+ * Description: Handles the notify moderators logic for the application.
+ * Keywords: notifymoderators, notify, moderators, auto-annotated
+ */
 export const notifyModerators = async (title: string, content: string, relatedId?: string) => {
   // Find users with level >= 3 (Moderators, Admins, Super Admins)
   const moderators = await prisma.user.findMany({

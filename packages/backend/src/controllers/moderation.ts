@@ -4,6 +4,12 @@ import { AuthRequest } from '../middleware/auth';
 import { clearModerationCache } from '../lib/moderation';
 import { sendNotification } from '../lib/notification';
 
+/**
+ * Callers: []
+ * Callees: [findUnique, map, findMany, json]
+ * Description: Handles the get moderated words logic for the application.
+ * Keywords: getmoderatedwords, get, moderated, words, auto-annotated
+ */
 export const getModeratedWords = async (req: AuthRequest, res: Response): Promise<void> => {
     const userId = req.user!.userId;
   const user = await prisma.user.findUnique({
@@ -27,6 +33,12 @@ export const getModeratedWords = async (req: AuthRequest, res: Response): Promis
   res.json({ words });
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, findUnique, some, create, clearModerationCache]
+ * Description: Handles the add moderated word logic for the application.
+ * Keywords: addmoderatedword, add, moderated, word, auto-annotated
+ */
 export const addModeratedWord = async (req: AuthRequest, res: Response): Promise<void> => {
   const { word, categoryId } = req.body;
   if (!word) {
@@ -72,6 +84,12 @@ export const addModeratedWord = async (req: AuthRequest, res: Response): Promise
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [findUnique, json, status, some, delete, clearModerationCache]
+ * Description: Handles the delete moderated word logic for the application.
+ * Keywords: deletemoderatedword, delete, moderated, word, auto-annotated
+ */
 export const deleteModeratedWord = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   
@@ -111,6 +129,12 @@ export const deleteModeratedWord = async (req: AuthRequest, res: Response): Prom
 };
 
 // Queue endpoints
+/**
+ * Callers: []
+ * Callees: [findUnique, map, findMany, json]
+ * Description: Handles the get pending posts logic for the application.
+ * Keywords: getpendingposts, get, pending, posts, auto-annotated
+ */
 export const getPendingPosts = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
   const user = await prisma.user.findUnique({
@@ -136,6 +160,12 @@ export const getPendingPosts = async (req: AuthRequest, res: Response): Promise<
   res.json({ posts });
 };
 
+/**
+ * Callers: []
+ * Callees: [update, sendNotification, json, status]
+ * Description: Handles the approve pending post logic for the application.
+ * Keywords: approvependingpost, approve, pending, post, auto-annotated
+ */
 export const approvePendingPost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {
@@ -158,6 +188,12 @@ export const approvePendingPost = async (req: AuthRequest, res: Response): Promi
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [update, sendNotification, json, status]
+ * Description: Handles the reject pending post logic for the application.
+ * Keywords: rejectpendingpost, reject, pending, post, auto-annotated
+ */
 export const rejectPendingPost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { reason } = req.body;
@@ -181,6 +217,12 @@ export const rejectPendingPost = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [findUnique, map, findMany, json]
+ * Description: Handles the get pending comments logic for the application.
+ * Keywords: getpendingcomments, get, pending, comments, auto-annotated
+ */
 export const getPendingComments = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
   const user = await prisma.user.findUnique({
@@ -207,6 +249,12 @@ export const getPendingComments = async (req: AuthRequest, res: Response): Promi
   res.json({ comments });
 };
 
+/**
+ * Callers: []
+ * Callees: [update, json, status]
+ * Description: Handles the approve pending comment logic for the application.
+ * Keywords: approvependingcomment, approve, pending, comment, auto-annotated
+ */
 export const approvePendingComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {
@@ -220,6 +268,12 @@ export const approvePendingComment = async (req: AuthRequest, res: Response): Pr
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [update, json, status]
+ * Description: Handles the reject pending comment logic for the application.
+ * Keywords: rejectpendingcomment, reject, pending, comment, auto-annotated
+ */
 export const rejectPendingComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {

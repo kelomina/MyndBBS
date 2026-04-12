@@ -1,10 +1,22 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+/**
+ * Callers: []
+ * Callees: [twMerge, clsx]
+ * Description: Handles the cn logic for the application.
+ * Keywords: cn, auto-annotated
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Callers: []
+ * Callees: [toUpperCase, charAt, slice]
+ * Description: Handles the get category translation logic for the application.
+ * Keywords: getcategorytranslation, get, category, translation, auto-annotated
+ */
 export function getCategoryTranslation(name: string | undefined | null, dict: any): string {
   if (!name) return dict?.profile?.uncategorized || 'Uncategorized';
   const key = `category${name.charAt(0).toUpperCase() + name.slice(1)}`;
@@ -13,6 +25,12 @@ export function getCategoryTranslation(name: string | undefined | null, dict: an
 
 export type PostListEmptyKind = 'general' | 'category' | 'recent' | 'popular';
 
+/**
+ * Callers: []
+ * Callees: []
+ * Description: Handles the get post list empty message logic for the application.
+ * Keywords: getpostlistemptymessage, get, post, list, empty, message, auto-annotated
+ */
 export function getPostListEmptyMessage(kind: PostListEmptyKind, dict: any): string {
   if (kind === 'recent') return dict?.category?.noRecentPostsFound || dict?.category?.noPostsFoundGeneral || 'No posts found.';
   if (kind === 'popular') return dict?.category?.noPopularPostsFound || dict?.category?.noPostsFoundGeneral || 'No posts found.';

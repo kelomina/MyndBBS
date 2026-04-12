@@ -23,6 +23,12 @@ interface User {
   createdAt: string;
 }
 
+/**
+ * Callers: []
+ * Callees: [useToast, useTranslation, useState, setLoading, getUsers, setUsers, setError, useEffect, loadUsers, updateUserRole, toast, updateUserStatus, map, handleRoleChange, toLocaleDateString, handleStatusChange]
+ * Description: Handles the users page logic for the application.
+ * Keywords: userspage, users, page, auto-annotated
+ */
 export default function UsersPage() {
   const { toast } = useToast();
   const dict = useTranslation();
@@ -30,7 +36,13 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadUsers = async () => {
+  /**
+     * Callers: []
+     * Callees: [setLoading, getUsers, setUsers, setError]
+     * Description: Handles the load users logic for the application.
+     * Keywords: loadusers, load, users, auto-annotated
+     */
+    const loadUsers = async () => {
     try {
       setLoading(true);
       const data = await getUsers();
@@ -47,7 +59,13 @@ export default function UsersPage() {
     loadUsers();
   }, []);
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
+  /**
+     * Callers: []
+     * Callees: [updateUserRole, loadUsers, toast]
+     * Description: Handles the handle role change logic for the application.
+     * Keywords: handlerolechange, handle, role, change, auto-annotated
+     */
+    const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       await updateUserRole(userId, newRole);
       await loadUsers();
@@ -56,7 +74,13 @@ export default function UsersPage() {
     }
   };
 
-  const handleStatusChange = async (userId: string, newStatus: string) => {
+  /**
+     * Callers: []
+     * Callees: [updateUserStatus, loadUsers, toast]
+     * Description: Handles the handle status change logic for the application.
+     * Keywords: handlestatuschange, handle, status, change, auto-annotated
+     */
+    const handleStatusChange = async (userId: string, newStatus: string) => {
     try {
       await updateUserStatus(userId, newStatus);
       await loadUsers();

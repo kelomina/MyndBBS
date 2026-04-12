@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { defaultLocale, locales } from './i18n/config';
 
+/**
+ * Callers: []
+ * Callees: [get, includes]
+ * Description: Handles the get locale logic for the application.
+ * Keywords: getlocale, get, locale, auto-annotated
+ */
 function getLocale(request: NextRequest): string {
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,6 +35,12 @@ const ROLE_LEVELS: Record<string, number> = {
   'SUPER_ADMIN': 4
 };
 
+/**
+ * Callers: []
+ * Callees: [now, fetch, json, sort, error]
+ * Description: Handles the get whitelist logic for the application.
+ * Keywords: getwhitelist, get, whitelist, auto-annotated
+ */
 async function getWhitelist() {
   const now = Date.now();
   if (cachedWhitelist && now - lastFetchTime < 30000) {
@@ -57,6 +69,12 @@ async function getWhitelist() {
   return cachedWhitelist || [];
 }
 
+/**
+ * Callers: []
+ * Callees: [getLocale, next, get, set, startsWith, getWhitelist, split, replace, atob, parse, clone, redirect]
+ * Description: Handles the proxy logic for the application.
+ * Keywords: proxy, auto-annotated
+ */
 export async function proxy(request: NextRequest) {
   const locale = getLocale(request);
   const pathname = request.nextUrl.pathname;

@@ -6,6 +6,12 @@ import { useState } from 'react';
 import { fetcher } from '../../../lib/api/fetcher';
 import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2, Edit2, X, Check } from 'lucide-react';
 
+/**
+ * Callers: []
+ * Callees: [useToast, useState, setLoadingUpvote, fetcher, setHasUpvoted, setUpvotes, error, includes, toast, setLoadingBookmark, setHasBookmarked, share, toString, writeText, trim, setIsUpdating, stringify, setIsEditing, setContent, setUpdatedAt, toUpperCase, toLocaleString, getTime, setEditContent, onReply]
+ * Description: Handles the comment item logic for the application.
+ * Keywords: commentitem, comment, item, auto-annotated
+ */
 export function CommentItem({ 
   comment, 
   dict, 
@@ -31,7 +37,13 @@ export function CommentItem({
   const [isUpdating, setIsUpdating] = useState(false);
   const [updatedAt, setUpdatedAt] = useState(comment.updatedAt);
 
-  const handleUpvote = async () => {
+  /**
+     * Callers: []
+     * Callees: [setLoadingUpvote, fetcher, setHasUpvoted, setUpvotes, error, includes, toast]
+     * Description: Handles the handle upvote logic for the application.
+     * Keywords: handleupvote, handle, upvote, auto-annotated
+     */
+    const handleUpvote = async () => {
     if (loadingUpvote) return;
     setLoadingUpvote(true);
     try {
@@ -48,7 +60,13 @@ export function CommentItem({
     }
   };
 
-  const handleBookmark = async () => {
+  /**
+     * Callers: []
+     * Callees: [setLoadingBookmark, fetcher, setHasBookmarked, error, includes, toast]
+     * Description: Handles the handle bookmark logic for the application.
+     * Keywords: handlebookmark, handle, bookmark, auto-annotated
+     */
+    const handleBookmark = async () => {
     if (loadingBookmark) return;
     setLoadingBookmark(true);
     try {
@@ -64,7 +82,13 @@ export function CommentItem({
     }
   };
 
-  const handleShare = () => {
+  /**
+     * Callers: []
+     * Callees: [share, toString, writeText, toast]
+     * Description: Handles the handle share logic for the application.
+     * Keywords: handleshare, handle, share, auto-annotated
+     */
+    const handleShare = () => {
     const url = new URL(window.location.href);
     url.hash = `comment-${comment.id}`;
     if (navigator.share) {
@@ -78,7 +102,13 @@ export function CommentItem({
     }
   };
 
-  const handleEditSubmit = async () => {
+  /**
+     * Callers: []
+     * Callees: [trim, setIsUpdating, fetcher, stringify, toast, setIsEditing, setContent, setUpdatedAt, error]
+     * Description: Handles the handle edit submit logic for the application.
+     * Keywords: handleeditsubmit, handle, edit, submit, auto-annotated
+     */
+    const handleEditSubmit = async () => {
     if (!editContent.trim() || isUpdating) return;
     setIsUpdating(true);
     try {

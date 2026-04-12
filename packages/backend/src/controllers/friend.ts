@@ -2,6 +2,12 @@ import { Response } from 'express';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
 
+/**
+ * Callers: []
+ * Callees: [json, status, findFirst, create, findUnique, stringify]
+ * Description: Handles the request friend logic for the application.
+ * Keywords: requestfriend, request, friend, auto-annotated
+ */
 export const requestFriend = async (req: AuthRequest, res: Response): Promise<void> => {
   const requesterId = req.user?.userId;
   const { addresseeId } = req.body;
@@ -48,6 +54,12 @@ export const requestFriend = async (req: AuthRequest, res: Response): Promise<vo
   res.json({ success: true, friendship });
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, findUnique, update]
+ * Description: Handles the respond friend logic for the application.
+ * Keywords: respondfriend, respond, friend, auto-annotated
+ */
 export const respondFriend = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   const { friendshipId, accept } = req.body;
@@ -64,6 +76,12 @@ export const respondFriend = async (req: AuthRequest, res: Response): Promise<vo
   res.json({ success: true });
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, findMany]
+ * Description: Handles the get friends logic for the application.
+ * Keywords: getfriends, get, friends, auto-annotated
+ */
 export const getFriends = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }

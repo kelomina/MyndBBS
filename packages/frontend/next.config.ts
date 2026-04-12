@@ -2,7 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  async rewrites() {
+  /**
+     * Callers: []
+     * Callees: []
+     * Description: Handles the rewrites logic for the application.
+     * Keywords: rewrites, auto-annotated
+     */
+    async rewrites() {
     return [
       {
         source: '/api/:path*',

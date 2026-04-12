@@ -1,6 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
+/**
+ * Callers: []
+ * Callees: [String, findMany, log]
+ * Description: Handles the test logic for the application.
+ * Keywords: test, auto-annotated
+ */
 async function test() {
   const userId = '921a558c-9b0e-40cc-b0fd-fa13184819e8';
   const withUserId = 'c55417b9-05ee-4f4b-88e4-12d542a98545';
