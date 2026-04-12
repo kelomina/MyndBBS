@@ -86,9 +86,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
             </h1>
             
             <div className="prose dark:prose-invert max-w-none text-foreground space-y-4 whitespace-pre-wrap">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {post.content}
-              </ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} children={post.content} />
             </div>
             
             <PostActions 

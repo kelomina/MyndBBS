@@ -16,6 +16,7 @@
     "@noble/post-quantum": "^0.6.0",
     "@prisma/client": "5.22.0",
     "@simplewebauthn/browser": "^13.3.0",
+    "@tailwindcss/typography": "^0.5.19",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.7.0",
