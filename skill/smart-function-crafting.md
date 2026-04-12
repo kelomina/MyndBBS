@@ -207,6 +207,8 @@ After all modifications are complete and verified, but **BEFORE** making any git
 1. **Modified Files (修改了哪些文件)**: A precise list of all files that were changed.
 2. **Interfered Function Calls (干涉了哪些函数的调用)**: Which specific function calls were modified, added, or removed.
 3. **Expected Impact (预计影响哪些函数)**: Which downstream functions, upstream callers, or modules are expected to be affected by these changes.
+4. **Reason for Modification (修改原因)**: A clear explanation of *why* these specific functions were modified.
+5. **Upstream/Downstream Synchronized Changes (是否对上下游做了联动修改)**: Explicitly state whether upstream callers or downstream dependencies were modified to accommodate these changes, and detail what those changes were.
 
 ---
 
