@@ -31,7 +31,12 @@ export function proxy(request: NextRequest) {
   // 403 Protection Logic
   const isPublicPath = pathname === '/' || pathname === '/login' || pathname === '/register' || pathname === '/403' || pathname === '/popular' || pathname === '/recent' || pathname === '/compose' || pathname === '/friends' || pathname.startsWith('/p/') || pathname.startsWith('/c/') || pathname.startsWith('/u/') || pathname.startsWith('/messages') || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/uploads');
 
-  if (!isPublicPath) {
+  // Allow internal navigation via Referer check
+  const referer = request.headers.get('referer');
+  const isInternalNavigation = referer && referer.startsWith(request.nextUrl.origin);
+  const isNextClientNavigation = request.headers.has('rsc') || request.headers.has('next-router-prefetch');
+
+  if (!isPublicPath && !(isInternalNavigation || isNextClientNavigation)) {
     const token = request.cookies.get('accessToken')?.value;
     let isSuperAdmin = false;
 
