@@ -13,10 +13,22 @@ const envPath = path.resolve(__dirname, '../../.env');
 // Temporary in-memory token for the install session
 let installToken = '';
 
+/**
+ * Callers: []
+ * Callees: [sendFile, join]
+ * Description: An anonymous route handler that serves the tailwind script for the installer.
+ * Keywords: install, tailwind, get, route, anonymous
+ */
 router.get('/tailwind.js', (req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, 'tailwind.js'));
 });
 
+/**
+ * Callers: []
+ * Callees: [send]
+ * Description: An anonymous route handler that serves the installer HTML UI.
+ * Keywords: install, ui, get, route, html, anonymous
+ */
 router.get('/', (req: Request, res: Response) => {
   res.send(`
 <!DOCTYPE html>
@@ -601,6 +613,12 @@ router.get('/', (req: Request, res: Response) => {
   `);
 });
 
+/**
+ * Callers: []
+ * Callees: [json, status, writeFileSync, config, exec, resolve, reject, error]
+ * Description: An anonymous route handler that processes database and environment configuration during installation.
+ * Keywords: install, env, config, post, anonymous
+ */
 router.post('/api/env', async (req: Request, res: Response): Promise<void> => {
   try {
     const { DATABASE_URL, PORT, FRONTEND_URL, UPLOAD_DIR, WEB_ROOT } = req.body;
@@ -678,6 +696,12 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
   }
 });
 
+/**
+ * Callers: []
+ * Callees: [json, status, hash, create, findFirst, appendFileSync, exec, resolve, reject, error]
+ * Description: An anonymous route handler that processes admin account creation and finalizes installation.
+ * Keywords: install, admin, account, setup, post, anonymous
+ */
 router.post('/api/admin', async (req: Request, res: Response): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader || authHeader !== `Bearer ${installToken}`) {

@@ -26,12 +26,23 @@ if (!isInstalled) {
   const installModule = require('./routes/install');
   app.use('/install', installModule.default);
   
-  // Redirect all other requests to the installer
+  /**
+   * Callers: []
+   * Callees: [startsWith, redirect]
+   * Description: Handles redirecting all non-install requests to the installer when not installed.
+   * Keywords: install, redirect, middleware, anonymous
+   */
   app.use((req, res, next) => {
     if (req.path.startsWith('/install')) return next();
     res.redirect('/install');
   });
 
+  /**
+   * Callers: []
+   * Callees: [log]
+   * Description: Handles logging the setup server start event.
+   * Keywords: install, listen, setup, server, anonymous
+   */
   app.listen(port, () => {
     console.log(`Setup server running. Please visit http://localhost:${port}/install to configure the system.`);
   });
@@ -65,6 +76,12 @@ if (!isInstalled) {
   app.use(helmet());
 
   const { APP_NAME } = require('@myndbbs/shared');
+  /**
+   * Callers: []
+   * Callees: [json]
+   * Description: Handles health check requests.
+   * Keywords: health, check, endpoint, anonymous
+   */
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', app: APP_NAME });
   });
@@ -90,6 +107,12 @@ if (!isInstalled) {
   // Serve static files from uploads directory
   app.use('/uploads', express.static(require('path').join(process.cwd(), 'uploads')));
 
+  /**
+   * Callers: []
+   * Callees: [log]
+   * Description: Handles logging the main server start event.
+   * Keywords: listen, server, anonymous
+   */
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
   });

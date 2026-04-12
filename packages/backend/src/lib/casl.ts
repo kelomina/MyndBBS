@@ -79,6 +79,12 @@ export function defineAbilityFor(user?: AbilityUser) {
 
   // Category Moderator logic
   if (user.moderatedCategories && user.moderatedCategories.length > 0) {
+    /**
+     * Callers: [defineAbilityFor]
+     * Callees: []
+     * Description: An anonymous callback to map moderated categories to their IDs.
+     * Keywords: casl, map, categories, ids, anonymous
+     */
     const categoryIds = user.moderatedCategories.map((mc) => mc.categoryId);
     can('manage', 'Post', { categoryId: { in: categoryIds } });
     can('manage', 'Comment', { post: { is: { categoryId: { in: categoryIds } } } } as any);

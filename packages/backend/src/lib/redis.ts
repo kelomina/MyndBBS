@@ -29,6 +29,12 @@ class MockRedis {
       const existing = this.expirations.get(key);
       if (existing) clearTimeout(existing);
       
+      /**
+       * Callers: [setTimeout]
+       * Callees: [delete]
+       * Description: An anonymous timeout callback that deletes the key from the mock store upon expiration.
+       * Keywords: redis, mock, timeout, expire, anonymous
+       */
       this.expirations.set(key, setTimeout(() => {
         this.data.delete(key);
         this.expirations.delete(key);
@@ -62,14 +68,32 @@ class MockRedis {
     pipeline() {
     const operations: (() => void)[] = [];
     return {
+      /**
+       * Callers: [revokeUserSessions]
+       * Callees: [push, del]
+       * Description: Mocks the pipeline del method by queuing a del operation.
+       * Keywords: redis, mock, pipeline, delete, anonymous
+       */
       del: (key: string) => {
         operations.push(() => this.del(key));
         return this;
       },
+      /**
+       * Callers: []
+       * Callees: [push, set]
+       * Description: Mocks the pipeline set method by queuing a set operation.
+       * Keywords: redis, mock, pipeline, set, anonymous
+       */
       set: (key: string, value: string, mode?: string, duration?: number) => {
         operations.push(() => this.set(key, value, mode, duration));
         return this;
       },
+      /**
+       * Callers: [revokeUserSessions]
+       * Callees: [op]
+       * Description: Mocks the pipeline exec method by executing all queued operations.
+       * Keywords: redis, mock, pipeline, execute, anonymous
+       */
       exec: async () => {
         for (const op of operations) {
           await op();
@@ -96,6 +120,12 @@ class MockRedis {
 }
 
 export const redis = redisUrl ? new Redis(redisUrl, {
+  /**
+   * Callers: []
+   * Callees: [min]
+   * Description: Strategy to compute the retry delay for Redis connections.
+   * Keywords: redis, connection, retry, strategy, anonymous
+   */
   retryStrategy: (times) => {
     // 限制重试间隔，最大延迟为 2 秒
     return Math.min(times * 50, 2000);
@@ -103,10 +133,22 @@ export const redis = redisUrl ? new Redis(redisUrl, {
 }) : new MockRedis() as unknown as Redis;
 
 if (redisUrl) {
+  /**
+   * Callers: []
+   * Callees: [error]
+   * Description: An anonymous error event listener callback for the Redis client.
+   * Keywords: redis, error, listener, catch, anonymous
+   */
   (redis as Redis).on('error', (err) => {
     console.error('[Redis Error]', err.message);
   });
 
+  /**
+   * Callers: []
+   * Callees: [log]
+   * Description: An anonymous connect event listener callback for the Redis client.
+   * Keywords: redis, connect, listener, anonymous
+   */
   (redis as Redis).on('connect', () => {
     console.log('[Redis] Connected successfully');
   });

@@ -17,6 +17,12 @@ export const getUsers = async (req: Request, res: Response) => {
   const users = await prisma.user.findMany({
     select: { id: true, username: true, email: true, role: { select: { name: true } }, status: true, createdAt: true }
   });
+  /**
+   * Callers: [getUsers]
+   * Callees: []
+   * Description: An anonymous callback mapping user properties to a formatted object.
+   * Keywords: admin, users, map, format, anonymous
+   */
   const formattedUsers = users.map(user => ({
     ...user,
     role: user.role?.name || null
@@ -464,10 +470,10 @@ export const getDeletedComments = async (req: AuthRequest, res: Response) => {
 
 // Helper for admin actions on entities
 /**
- * Callers: []
- * Callees: [findUniqueFn, json, status, toUpperCase, can, subject, operationFn, logAudit]
- * Description: Handles the handle admin action logic for the application.
- * Keywords: handleadminaction, handle, admin, action, auto-annotated
+ * Callers: [restorePost, hardDeletePost, restoreComment, hardDeleteComment]
+ * Callees: [json, status, error, logAudit, req]
+ * Description: An abstract handler to process admin actions like restore or hard delete.
+ * Keywords: admin, action, abstract, handle, restore, delete, auto-annotated
  */
 const handleAdminAction = async (
   req: AuthRequest,
@@ -507,7 +513,19 @@ const handleAdminAction = async (
 export const restorePost = async (req: AuthRequest, res: Response): Promise<void> => {
   return handleAdminAction(
     req, res, 'Post', 'RESTORE',
+    /**
+     * Callers: [handleAdminAction]
+     * Callees: [findUnique]
+     * Description: An anonymous callback to find a post by id.
+     * Keywords: admin, post, find, anonymous
+     */
     (id) => prisma.post.findUnique({ where: { id } }),
+    /**
+     * Callers: [handleAdminAction]
+     * Callees: [update]
+     * Description: An anonymous callback to update a post's status to published.
+     * Keywords: admin, post, restore, anonymous
+     */
     (id) => prisma.post.update({ where: { id }, data: { status: PostStatus.PUBLISHED } }),
     'Post restored'
   );
@@ -521,8 +539,23 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
  */
 export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<void> => {
   return handleAdminAction(
-    req, res, 'Post', 'HARD_DELETE',
+    req,
+    res,
+    'Post',
+    'HARD_DELETE',
+    /**
+     * Callers: [handleAdminAction]
+     * Callees: [findUnique]
+     * Description: An anonymous callback to find a post by id.
+     * Keywords: admin, post, find, anonymous
+     */
     (id) => prisma.post.findUnique({ where: { id } }),
+    /**
+     * Callers: [handleAdminAction]
+     * Callees: [delete]
+     * Description: An anonymous callback to hard delete a post.
+     * Keywords: admin, post, delete, anonymous
+     */
     (id) => prisma.post.delete({ where: { id } }),
     'Post permanently deleted'
   );
@@ -536,8 +569,23 @@ export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<v
  */
 export const restoreComment = async (req: AuthRequest, res: Response): Promise<void> => {
   return handleAdminAction(
-    req, res, 'Comment', 'RESTORE',
+    req,
+    res,
+    'Comment',
+    'RESTORE',
+    /**
+     * Callers: [handleAdminAction]
+     * Callees: [findUnique]
+     * Description: An anonymous callback to find a comment by id.
+     * Keywords: admin, comment, find, anonymous
+     */
     (id) => prisma.comment.findUnique({ where: { id }, include: { post: true } }),
+    /**
+     * Callers: [handleAdminAction]
+     * Callees: [update]
+     * Description: An anonymous callback to restore a comment.
+     * Keywords: admin, comment, restore, anonymous
+     */
     (id) => prisma.comment.update({ where: { id }, data: { deletedAt: null } }),
     'Comment restored'
   );
@@ -551,8 +599,23 @@ export const restoreComment = async (req: AuthRequest, res: Response): Promise<v
  */
 export const hardDeleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
   return handleAdminAction(
-    req, res, 'Comment', 'HARD_DELETE',
+    req,
+    res,
+    'Comment',
+    'HARD_DELETE',
+    /**
+     * Callers: [handleAdminAction]
+     * Callees: [findUnique]
+     * Description: An anonymous callback to find a comment by id.
+     * Keywords: admin, comment, find, anonymous
+     */
     (id) => prisma.comment.findUnique({ where: { id }, include: { post: true } }),
+    /**
+     * Callers: [handleAdminAction]
+     * Callees: [delete]
+     * Description: An anonymous callback to hard delete a comment.
+     * Keywords: admin, comment, delete, anonymous
+     */
     (id) => prisma.comment.delete({ where: { id } }),
     'Comment permanently deleted'
   );
@@ -624,6 +687,12 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
     await tempPrisma.$disconnect();
 
     const envPath = path.resolve(process.cwd(), '../../.env');
+    /**
+     * Callers: [updateDbConfig]
+     * Callees: []
+     * Description: An anonymous error handler callback returning an empty string.
+     * Keywords: admin, file, catch, empty, anonymous
+     */
     let envContent = await fs.readFile(envPath, 'utf8').catch(() => '');
     
     if (envContent.includes('DATABASE_URL=')) {
@@ -635,6 +704,12 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
     await fs.writeFile(envPath, envContent);
     process.env.DATABASE_URL = newDbUrl;
 
+    /**
+     * Callers: [updateDbConfig]
+     * Callees: [error, json, status, setTimeout, exit]
+     * Description: An anonymous callback executed after prisma db push completes.
+     * Keywords: admin, exec, prisma, push, callback, anonymous
+     */
     exec('npx prisma db push', { cwd: process.cwd() }, async (err, stdout, stderr) => {
       if (err) {
         console.error('Prisma Error on DB Update:', stderr || err.message);
@@ -645,6 +720,12 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
       await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
       res.json({ message: 'Database configuration updated successfully', config: { host, port, username, password, database } });
 
+      /**
+       * Callers: [exec]
+       * Callees: [exit]
+       * Description: An anonymous timeout callback that forcefully restarts the server.
+       * Keywords: admin, restart, exit, timeout, anonymous
+       */
       setTimeout(() => {
         process.exit(0);
       }, 1000);
