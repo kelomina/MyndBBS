@@ -12,11 +12,52 @@ This skill defines the mandatory workflow for AI agents when modifying existing 
 
 ---
 
+## Phase 0: Requirement Analysis (需求分析)
+
+**Objective:** Validate requirement completeness, analyze the current codebase, and lay the foundation for solution design.
+**Workflow:** `Step 0.0 (Requirement Assessment) -> Score ≥ 7? -> Yes -> Step 0.1 (Solution Ideation) | No -> Ask user to clarify.`
+
+### Step 0.0: Requirement Assessment & Scoring
+1. **Evaluate Request Completeness**: Assess the user's request across 4 dimensions (Total 10 points):
+   - **Goal Clarity (0-3)**: Is the objective clear?
+   - **Expected Results (0-3)**: Are success criteria and deliverables explicit?
+   - **Scope Boundaries (0-2)**: Is the task scope well-defined?
+   - **Constraints (0-2)**: Are performance, time, or business limits stated?
+   
+2. **Requirement Scoring Thinking**:
+   You MUST evaluate the score inside a `<thinking>` block:
+   ```xml
+   <thinking>
+   1. Analyze the 4 dimensions based on user input.
+   2. Cite evidence (quotes from the user) for the score.
+   3. Identify missing key information.
+   4. Calculate Total Score: X/10.
+   5. Determine if follow-up questions are needed.
+   </thinking>
+   ```
+
+3. **Handle Low Scores (Score < 7)**:
+   If the score is below 7, **DO NOT proceed to Solution Design**. You must ask the user for clarification using the format below.
+   ```markdown
+   ❓【HelloAGENTS】- 需求分析
+   当前需求完整性评分为 [X]/10 分，无法明确 [具体缺失的部分，如目标/预期效果]。
+   
+   1. [Question 1: e.g., Which specific module?]
+   2. [Question 2: e.g., What is the exact expected behavior?]
+   3. [Question 3: e.g., Are there any performance constraints?]
+   
+   请按序号回答，或输入"以现有需求继续"跳过追问（可能影响方案质量）。
+   ```
+   *If the user replies "以现有需求继续", proceed to Phase 1. Otherwise, rescore based on their answers until Score ≥ 7.*
+
+4. **Extract Objectives**: Once Score ≥ 7, extract the core goal and define verifiable success criteria before moving to Solution Design.
+
 ## Phase 1: Solution Design & Planning (方案设计)
 
 Before writing any code or making any modifications, you MUST design a solution and create a detailed plan to ensure alignment.
 
 ### Step 0.1: Solution Ideation (方案构思)
+*Prerequisite: Requirement Score ≥ 7 or user explicitly chose to continue.*
 1. **Assess Requirements & Complexity**: Determine if the task is a simple fix or a complex feature (e.g., involves new architecture, multiple paths, >1 module, >3 files, or user explicitly requested options).
 2. **Security & Performance Assessment**: Identify potential security vulnerabilities (e.g., EHRB) and performance bottlenecks.
 3. **Solution Design Thinking**: 
@@ -123,8 +164,9 @@ Before finalizing the task and delivering the code to the user, you MUST perform
 ## AI Agent Instructions (Self-Check)
 When you receive a task that involves writing or changing code, you must:
 1. Acknowledge this skill: "I am applying the `Smart Function Crafting & Annotation` skill."
-2. Execute **Phase 1 (Solution Design & Planning)**: Use the `<thinking>` tag to evaluate paths, output the `❓【HelloAGENTS】- 方案构思` format, generate the `plan/` directory, check Git sync status, and obtain explicit permission BEFORE touching code.
-3. Explicitly document your search process for reusable functions (`Step 1`).
-4. Explicitly document your manual call chain verification (`Step 2`).
-5. Manually inject the required JSDoc format without using any automated generation scripts (`Step 3`).
-6. Perform the **Pre-Delivery Verification** (`Step 4`). If you fail the compliance check, silently rework the code. If it's impossible to complete, report the failure honestly and explicitly to the user.
+2. Execute **Phase 0 (Requirement Analysis)**: Score the request out of 10 inside a `<thinking>` block. If < 7, stop and use the `❓【HelloAGENTS】- 需求分析` format to ask clarifying questions. Wait for the user's reply before proceeding.
+3. Execute **Phase 1 (Solution Design & Planning)**: Only when Score ≥ 7 or the user explicitly allows continuing. Use the `<thinking>` tag to evaluate paths, output the `❓【HelloAGENTS】- 方案构思` format, generate the `plan/` directory, check Git sync status, and obtain explicit permission BEFORE touching code.
+4. Explicitly document your search process for reusable functions (`Step 1`).
+5. Explicitly document your manual call chain verification (`Step 2`).
+6. Manually inject the required JSDoc format without using any automated generation scripts (`Step 3`).
+7. Perform the **Pre-Delivery Verification** (`Step 4`). If you fail the compliance check, silently rework the code. If it's impossible to complete, report the failure honestly and explicitly to the user.
