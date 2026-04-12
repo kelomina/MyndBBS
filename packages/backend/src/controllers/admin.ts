@@ -550,11 +550,11 @@ export const getRouteWhitelist = async (req: Request, res: Response) => {
 
 export const addRouteWhitelist = async (req: Request, res: Response) => {
   try {
-    const { path, isPrefix, description } = req.body;
+    const { path, isPrefix, minRole, description } = req.body;
     if (!path) return res.status(400).json({ error: 'Path is required' });
 
     const route = await prisma.routeWhitelist.create({
-      data: { path, isPrefix: !!isPrefix, description }
+      data: { path, isPrefix: !!isPrefix, minRole: minRole || null, description }
     });
     res.json(route);
   } catch (error) {
@@ -565,11 +565,11 @@ export const addRouteWhitelist = async (req: Request, res: Response) => {
 export const updateRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { path, isPrefix, description } = req.body;
+    const { path, isPrefix, minRole, description } = req.body;
 
     const route = await prisma.routeWhitelist.update({
       where: { id },
-      data: { path, isPrefix: !!isPrefix, description }
+      data: { path, isPrefix: !!isPrefix, minRole: minRole || null, description }
     });
     res.json(route);
   } catch (error) {

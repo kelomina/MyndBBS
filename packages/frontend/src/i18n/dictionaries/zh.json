@@ -255,7 +255,7 @@
     "content": "内容",
     "post": "帖子",
     "database": "数据库配置",
-    "roleUser": "用户",
+    "roleUser": "普通用户",
     "roleModerator": "版主",
     "roleAdmin": "管理员",
     "adminPanel": "管理面板",
@@ -281,7 +281,7 @@
     "reject": "拒绝 (删除)",
     "failedToAddWord": "添加审核词失败",
     "routingWhitelist": "路由白名单",
-    "routingWhitelistDesc": "配置允许无需 SUPER_ADMIN 权限即可访问的路径。未列出的路径将被严格拦截。",
+    "routingWhitelistDesc": "配置路径的访问权限。未在这里配置的路径将严格拦截，仅限 SUPER_ADMIN 访问。",
     "addRoute": "添加路由",
     "editRoute": "编辑路由",
     "deleteRoute": "删除路由",
@@ -295,7 +295,10 @@
     "routeAdded": "路由添加成功",
     "routeUpdated": "路由更新成功",
     "routeDeleted": "路由删除成功",
-    "pathMustStartWithSlash": "路径必须以 / 开头"
+    "pathMustStartWithSlash": "路径必须以 / 开头",
+    "minRole": "最低权限要求",
+    "publicAccess": "公开 (无需登录)",
+    "roleSuperAdmin": "超级管理员"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "用户未找到",

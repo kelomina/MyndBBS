@@ -61,15 +61,16 @@ export interface RouteWhitelist {
   id: string;
   path: string;
   isPrefix: boolean;
+  minRole?: string | null;
   description?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export const getRouteWhitelist = () => fetcher('/api/admin/routing-whitelist');
-export const addRouteWhitelist = (data: { path: string; isPrefix: boolean; description?: string }) => 
+export const addRouteWhitelist = (data: { path: string; isPrefix: boolean; minRole?: string | null; description?: string }) => 
   fetcher('/api/admin/routing-whitelist', { method: 'POST', body: JSON.stringify(data) });
-export const updateRouteWhitelist = (id: string, data: { path: string; isPrefix: boolean; description?: string }) => 
+export const updateRouteWhitelist = (id: string, data: { path: string; isPrefix: boolean; minRole?: string | null; description?: string }) => 
   fetcher(`/api/admin/routing-whitelist/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteRouteWhitelist = (id: string) => 
   fetcher(`/api/admin/routing-whitelist/${id}`, { method: 'DELETE' });
