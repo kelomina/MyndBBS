@@ -37,18 +37,14 @@ This skill defines the mandatory workflow for AI agents when modifying existing 
    ```
 
 3. **Handle Low Scores (Score < 7)**:
-   If the score is below 7, **DO NOT proceed to Solution Design**. You must ask the user for clarification using the format below.
-   ```markdown
-   ❓【HelloAGENTS】- 需求分析
-   当前需求完整性评分为 [X]/10 分，无法明确 [具体缺失的部分，如目标/预期效果]。
+   If the score is below 7, **DO NOT proceed to Solution Design**. You MUST use the `AskUserQuestion` tool to clarify the missing information. Do not just output text and wait.
    
-   1. [Question 1: e.g., Which specific module?]
-   2. [Question 2: e.g., What is the exact expected behavior?]
-   3. [Question 3: e.g., Are there any performance constraints?]
+   *Example `AskUserQuestion` configuration:*
+   - `header`: "需求澄清"
+   - `question`: "当前需求完整性评分为 [X]/10 分，无法明确 [缺失部分]。请问您具体期望如何处理？"
+   - `options`: Provide 2-3 logical paths or options based on the missing context, plus a "以现有需求继续 (Continue as-is)" option.
    
-   请按序号回答，或输入"以现有需求继续"跳过追问（可能影响方案质量）。
-   ```
-   *If the user replies "以现有需求继续", proceed to Phase 1. Otherwise, rescore based on their answers until Score ≥ 7.*
+   *If the user selects "以现有需求继续", proceed to Phase 1. Otherwise, rescore based on their answers until Score ≥ 7.*
 
 4. **Extract Objectives**: Once Score ≥ 7, extract the core goal and define verifiable success criteria before moving to Solution Design.
 
@@ -70,20 +66,13 @@ Before writing any code or making any modifications, you MUST design a solution 
    4. Determine the recommended solution.
    </thinking>
    ```
-4. **Output Ideation Format**: 
-   Present the options to the user using the strict markdown format below:
-   ```markdown
-   ❓【HelloAGENTS】- 方案构思
-   - 📋 需求类型: [Technical Change / Product Feature]
-   - 🔍 复杂度: [Complex / Simple] - [Reason]
-   - 💡 方案对比:
-     - 方案1: [Name - Recommended] - [Brief description]
-     - 方案2: [Name] - [Brief description]
-   - ⚠️ 风险提示: [Security/Performance risks]
-   ────
-   🔄 下一步: 请输入方案序号(1/2/3)选择方案
-   ```
-   *Wait for user confirmation before proceeding. If all solutions are rejected, prompt to redesign or cancel.*
+4. **Output Ideation Options**: 
+   You MUST present the evaluated options to the user using the `AskUserQuestion` tool.
+   - `header`: "方案选择"
+   - `question`: "发现多种实现路径。推荐方案是 [Name]（原因：[Brief Reason]）。请选择您倾向的方案："
+   - `options`: List the 2-3 solutions evaluated in your thinking block, including any potential Security/Performance risks in their descriptions.
+   
+   *Wait for user confirmation via the tool before proceeding. If the user selects "Other" to reject all, prompt to redesign or cancel.*
 
 ### Step 0.2: Detailed Planning (详细规划)
 Once the user confirms the solution, create a new plan package:
@@ -92,23 +81,13 @@ Once the user confirms the solution, create a new plan package:
    - `why.md`: Context, purpose, and value proposition.
    - `how.md`: Technical design, architecture decisions, and specific security/performance mitigations.
    - `task.md`: Granular task list. Keep code changes small (≤3 files per task) and strictly include verification/security check tasks.
-3. **Output Planning Format**:
-   ```markdown
-   ### 方案设计完成
-   - 📚 知识库/上下文状态: [Brief context]
-   - 📝 方案概要: [Selected Solution]
-   - 📋 变更清单: [Modules/Files affected]
-   - 📊 任务清单概要: [X tasks total, including security checks]
-   - ⚠️ 风险评估: [Mitigation strategies]
+3. **Output Planning and Get Permission**:
+   You MUST present the plan summary and request explicit permission using the `AskUserQuestion` tool:
+   - `header`: "确认开发"
+   - `question`: "已生成方案包 `plan/YYYYMMDDHHMM_<feature>/` (含 [X] 个任务)。是否进入实际的开发实施？"
+   - `options`: Provide "Yes (Proceed)", "No (Cancel)", and "Need Adjustments" as options.
    
-   **文件变更清单:**
-   - `plan/YYYYMMDDHHMM_<feature>/why.md`
-   - `plan/YYYYMMDDHHMM_<feature>/how.md`
-   - `plan/YYYYMMDDHHMM_<feature>/task.md`
-   
-   🔄 下一步: 是否进入开发实施?(是/否)
-   ```
-   *Verify Git sync status (ensure previous changes are pushed to `main`) and wait for explicit user permission before touching actual codebase files.*
+   *Wait for explicit user permission via the tool before touching actual codebase files. If unpushed commits exist on `main`, include a warning in the tool question.*
 
 ## Phase 2: Implementation & Execution (开发实施)
 
@@ -116,7 +95,10 @@ Once the user confirms the solution, create a new plan package:
 
 ### Step 2.0: Pre-Execution Validation
 1. **Locate Target Plan**: Identify the specific `plan/YYYYMMDDHHMM_<feature>/` package.
-2. **Handle Multiple Plans**: If multiple plan packages exist, output a list (`❓【HelloAGENTS】- 开发实施`) and wait for the user to select the correct one via a numbered choice (1, 2, 3...). Do not guess.
+2. **Handle Multiple Plans**: If multiple plan packages exist, you MUST ask the user to select the target plan using the `AskUserQuestion` tool:
+   - `header`: "选择方案包"
+   - `question`: "检测到多个方案包，请选择执行目标："
+   - `options`: Provide each `plan/YYYYMMDD...` directory as an option.
 3. **Verify Plan Completeness**: Ensure the selected plan directory contains `why.md`, `how.md`, and `task.md`. If incomplete, stop and alert the user.
 
 ### Step 2.1: Execute Task List
@@ -134,24 +116,18 @@ Read `task.md` and execute the tasks strictly item by item:
 1. **Run Security Checks**: Ensure no unsafe patterns (e.g., `eval`, `exec`, raw SQL injection) or hardcoded sensitive data exist.
 2. **Execute Tests**: Run the tests defined in `task.md` or the project's existing test suite.
 3. **Handle Blocking Test Failures**:
-   If a core function test fails (Blocking Failure), you MUST immediately stop execution and prompt the user:
-   ```markdown
-   ❌【HelloAGENTS】- 阻断性测试失败
-   ⛔ 核心功能测试失败，必须处理后才能继续:
-   - 失败测试: [Test Name]
-   - 错误信息: [Error Summary]
-
-   [1] 修复后重试
-   [2] 跳过继续
-   [3] 终止执行
-   ────
-   🔄 下一步: 请输入序号选择
-   ```
+   If a core function test fails (Blocking Failure), you MUST immediately stop execution and use the `AskUserQuestion` tool to prompt the user:
+   - `header`: "测试失败阻断"
+   - `question`: "核心功能测试 [Test Name] 失败。错误信息: [Error Summary]。必须处理后才能继续，请选择："
+   - `options`: 
+     - 修复后重试 (Fix and Retry)
+     - 跳过继续 (Skip - Risky)
+     - 终止执行 (Abort Execution)
 
 ### Step 2.3: Code Consistency Audit
 After applying changes:
 1. **Audit Truth**: Code behavior is the only ground truth. If documentation and code conflict, correct the documentation.
-2. **Code Quality Review (Optional)**: If you notice refactoring opportunities, output `❓【HelloAGENTS】- 代码质量` to ask the user whether they want to apply the optimizations or skip them.
+2. **Code Quality Review (Optional)**: If you notice refactoring opportunities, use the `AskUserQuestion` tool to ask the user whether they want to apply the optimizations or skip them.
 
 ### Step 2.4: Plan Migration & Finalization
 **CRITICAL**: This is a mandatory, atomic operation that ends the phase.
