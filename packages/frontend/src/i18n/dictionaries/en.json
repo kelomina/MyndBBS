@@ -487,5 +487,13 @@
     "postRejectedDesc": "Your post \"{title}\" has been rejected. Reason: {reason}",
     "systemAlertDesc": "A new post \"{title}\" has been submitted for moderation. Please review it.",
     "viewPost": "View Post"
+
+  },
+  "forbidden": {
+    "title": "403 - Access Denied",
+    "description": "Sorry, you don't have permission to access this page. This area is restricted to Super Admins.",
+    "backToHome": "Back to Home",
+    "goToLogin": "Login Again",
+    "lockIconAlt": "Access Denied"
   }
 }

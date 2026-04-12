@@ -3,14 +3,12 @@ import type { NextRequest } from 'next/server';
 import { defaultLocale, locales } from './i18n/config';
 
 function getLocale(request: NextRequest): string {
-  // 1. Check cookie
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (cookieLocale && locales.includes(cookieLocale as any)) {
     return cookieLocale;
   }
 
-  // 2. Check Accept-Language header
   const acceptLang = request.headers.get('Accept-Language');
   if (acceptLang) {
     if (acceptLang.includes('zh')) return 'zh';
@@ -21,16 +19,49 @@ function getLocale(request: NextRequest): string {
 
 export function middleware(request: NextRequest) {
   const locale = getLocale(request);
-  
+  const pathname = request.nextUrl.pathname;
+
+  // Set response and locale header
   const response = NextResponse.next();
-  
-  // Set cookie if not present or differs from detected
   if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {
     response.cookies.set('NEXT_LOCALE', locale, { path: '/' });
   }
-  
-  // We pass the locale to headers so Server Components can read it without needing to parse cookies manually everywhere
   response.headers.set('x-locale', locale);
+
+  // 403 Protection Logic
+  const isPublicPath = pathname === '/login' || pathname === '/register' || pathname === '/403' || pathname.startsWith('/_next') || pathname.startsWith('/api');
+
+  if (!isPublicPath) {
+    const token = request.cookies.get('accessToken')?.value;
+    let isSuperAdmin = false;
+
+    if (token) {
+      try {
+        const payload = token.split('.')[1];
+        let b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        const decoded = atob(b64);
+        const parsed = JSON.parse(decoded);
+        if (parsed.role === 'SUPER_ADMIN') {
+          isSuperAdmin = true;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (!isSuperAdmin) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/403';
+      
+      // Preserve locale cookie on redirect
+      const redirectResponse = NextResponse.redirect(url);
+      if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {
+        redirectResponse.cookies.set('NEXT_LOCALE', locale, { path: '/' });
+      }
+      return redirectResponse;
+    }
+  }
 
   return response;
 }

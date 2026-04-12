@@ -487,5 +487,13 @@
     "postRejectedDesc": "您的帖子 \"{title}\" 未通过审核。原因: {reason}",
     "systemAlertDesc": "有新的帖子 \"{title}\" 提交到了人工审核队列，请前往后台处理。",
     "viewPost": "查看帖子"
+
+  },
+  "forbidden": {
+    "title": "403 - 访问受限",
+    "description": "抱歉，您没有访问此页面的权限。此区域仅限超级管理员 (SUPER_ADMIN) 访问。",
+    "backToHome": "返回首页",
+    "goToLogin": "重新登录",
+    "lockIconAlt": "权限受限"
   }
 }
