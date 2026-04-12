@@ -10,9 +10,9 @@ interface PostListProps {
 
 /**
  * Callers: []
- * Callees: [map, toUpperCase, toLocaleDateString, getCategoryTranslation]
- * Description: Handles the post list logic for the application.
- * Keywords: postlist, post, list, auto-annotated
+ * Callees: [map, toUpperCase, toLocaleDateString, getCategoryTranslation, replace]
+ * Description: Handles the post list logic for the application. Truncates and cleans markdown content for preview.
+ * Keywords: postlist, post, list, markdown
  */
 export function PostList({ posts, emptyMessage = "No posts found.", dict }: PostListProps) {
   if (posts.length === 0) {
@@ -47,7 +47,7 @@ export function PostList({ posts, emptyMessage = "No posts found.", dict }: Post
             <Link href={`/p/${post.id}`}>{post.title}</Link>
           </h2>
           <p className="mb-4 text-sm text-muted line-clamp-2">
-            {post.content}
+            {post.content.replace(/[#*_~`\[\]]/g, '')}
           </p>
           
           <div className="flex items-center space-x-4 text-sm font-medium text-muted">
