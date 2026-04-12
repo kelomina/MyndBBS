@@ -110,23 +110,90 @@ Once the user confirms the solution, create a new plan package:
    ```
    *Verify Git sync status (ensure previous changes are pushed to `main`) and wait for explicit user permission before touching actual codebase files.*
 
-## Phase 2: Execution & Function Crafting
+## Phase 2: Implementation & Execution (开发实施)
 
-### Step 1: Search and Reuse First
+**Objective:** Execute code changes strictly according to the task list in the plan package, run quality/security checks, and finalize by migrating the plan to the history directory.
+
+### Step 2.0: Pre-Execution Validation
+1. **Locate Target Plan**: Identify the specific `plan/YYYYMMDDHHMM_<feature>/` package.
+2. **Handle Multiple Plans**: If multiple plan packages exist, output a list (`❓【HelloAGENTS】- 开发实施`) and wait for the user to select the correct one via a numbered choice (1, 2, 3...). Do not guess.
+3. **Verify Plan Completeness**: Ensure the selected plan directory contains `why.md`, `how.md`, and `task.md`. If incomplete, stop and alert the user.
+
+### Step 2.1: Execute Task List
+Read `task.md` and execute the tasks strictly item by item:
+1. **Update Task Status**: 
+   - Successfully completed tasks must be marked as `[√]`.
+   - Skipped tasks (e.g., due to failed dependencies or overridden requirements) must be marked as `[-]`.
+   - Failed tasks must be marked as `[X]` and the failure reason recorded.
+2. **File Editing Rules**:
+   - Only edit one function or class per edit operation.
+   - Follow existing project code styles and naming conventions.
+   - **File Top Comments**: Add a 1-3 sentence summary comment before the imports explaining the module's purpose.
+
+### Step 2.2: Quality & Security Testing
+1. **Run Security Checks**: Ensure no unsafe patterns (e.g., `eval`, `exec`, raw SQL injection) or hardcoded sensitive data exist.
+2. **Execute Tests**: Run the tests defined in `task.md` or the project's existing test suite.
+3. **Handle Blocking Test Failures**:
+   If a core function test fails (Blocking Failure), you MUST immediately stop execution and prompt the user:
+   ```markdown
+   ❌【HelloAGENTS】- 阻断性测试失败
+   ⛔ 核心功能测试失败，必须处理后才能继续:
+   - 失败测试: [Test Name]
+   - 错误信息: [Error Summary]
+
+   [1] 修复后重试
+   [2] 跳过继续
+   [3] 终止执行
+   ────
+   🔄 下一步: 请输入序号选择
+   ```
+
+### Step 2.3: Code Consistency Audit
+After applying changes:
+1. **Audit Truth**: Code behavior is the only ground truth. If documentation and code conflict, correct the documentation.
+2. **Code Quality Review (Optional)**: If you notice refactoring opportunities, output `❓【HelloAGENTS】- 代码质量` to ask the user whether they want to apply the optimizations or skip them.
+
+### Step 2.4: Plan Migration & Finalization
+**CRITICAL**: This is a mandatory, atomic operation that ends the phase.
+1. **Update Task Status**: Ensure all tasks in `task.md` reflect their true final status (`[√]`, `[X]`, or `[-]`). Add blockquote `> 备注: [原因]` for any failed or skipped tasks.
+2. **Migrate Plan**: 
+   - Move the entire plan directory from `plan/` to `history/YYYY-MM/` (extract year and month from the folder name). 
+   - Example: `plan/202511201200_login/` moves to `history/2025-11/202511201200_login/`.
+   - Ensure the original directory in `plan/` is deleted. Overwrite any conflicts in the `history/` directory.
+3. **Update Index**: Append the migration record to `history/index.md`.
+4. **Execution Summary Format**:
+   ```markdown
+   ### 开发实施完成
+   - 📚 知识库状态: [Updated/Unchanged]
+   - ✅ 执行结果: [e.g., 5/5 tasks completed]
+   - 🔍 质量验证: [Consistency audit and test results]
+   - 💡 代码质量建议: [List any skipped optimizations]
+   - 📦 迁移信息: 已迁移至 `history/YYYY-MM/YYYYMMDDHHMM_<feature>/`
+   
+   **文件变更清单:**
+   - [Modified code files]
+   - `history/index.md`
+   
+   🔄 下一步: 请确认实施结果是否符合预期?
+   ```
+
+## Phase 3: Smart Function Crafting & Verification
+
+### Step 3.1: Search and Reuse First
 Before writing any new logic or creating a new function:
 1. Identify the core keywords of the functionality you intend to build (e.g., `user`, `authentication`, `password`, `validate`).
 2. Use codebase search tools to find existing functions that match these keywords.
 3. **Analyze for Reuse**: Read the implementation of any matching functions. If an existing function can safely handle your requirement (perhaps with a minor, backward-compatible modification), **reuse it**.
 4. **Create as Last Resort**: Only create a new function if absolutely no reusable function exists.
 
-### Step 2: Call Chain Verification
+### Step 3.2: Call Chain Verification
 After modifying an existing function or creating a new one:
 1. **Trace Callers**: Find all places in the codebase where this function is called.
 2. **Trace Callees**: Identify all other functions that your function calls internally.
 3. **Verify Stability**: Manually check the entire call chain. Ensure that data types, expected behaviors, and return values align perfectly across all related functions. 
 4. Fix any breakages or type mismatches introduced in the call chain immediately.
 
-### Step 3: Strict JSDoc Annotation
+### Step 3.3: Strict JSDoc Annotation
 Every new or modified function (including nested functions, anonymous callbacks, and closures) MUST have a standardized JSDoc comment immediately preceding its definition.
 
 #### Required Format:
@@ -152,7 +219,7 @@ export const isValidPassword = (password: string): boolean => {
 };
 ```
 
-### Step 4: Pre-Delivery Verification & Rework (Self-Correction)
+### Step 3.4: Pre-Delivery Verification & Rework (Self-Correction)
 Before finalizing the task and delivering the code to the user, you MUST perform a strict self-audit:
 1. **Git Diff Review**: Review your own modifications (e.g., using `git diff` or checking changed files).
 2. **Compliance Check**: Verify that *every single* newly created or modified function (including nested/anonymous ones) contains the exact required JSDoc format (`Callers`, `Callees`, `Description`, `Keywords`).
@@ -166,7 +233,6 @@ When you receive a task that involves writing or changing code, you must:
 1. Acknowledge this skill: "I am applying the `Smart Function Crafting & Annotation` skill."
 2. Execute **Phase 0 (Requirement Analysis)**: Score the request out of 10 inside a `<thinking>` block. If < 7, stop and use the `❓【HelloAGENTS】- 需求分析` format to ask clarifying questions. Wait for the user's reply before proceeding.
 3. Execute **Phase 1 (Solution Design & Planning)**: Only when Score ≥ 7 or the user explicitly allows continuing. Use the `<thinking>` tag to evaluate paths, output the `❓【HelloAGENTS】- 方案构思` format, generate the `plan/` directory, check Git sync status, and obtain explicit permission BEFORE touching code.
-4. Explicitly document your search process for reusable functions (`Step 1`).
-5. Explicitly document your manual call chain verification (`Step 2`).
-6. Manually inject the required JSDoc format without using any automated generation scripts (`Step 3`).
-7. Perform the **Pre-Delivery Verification** (`Step 4`). If you fail the compliance check, silently rework the code. If it's impossible to complete, report the failure honestly and explicitly to the user.
+4. Execute **Phase 2 (Implementation & Execution)**: Strictly follow `task.md`. Handle multiple plans via user prompt. Migrate the plan to `history/` upon completion and output the Execution Summary.
+5. Execute **Phase 3 (Smart Function Crafting)**: During code execution, ensure you search for reusable functions (`Step 3.1`), manually verify call chains (`Step 3.2`), and inject required JSDoc format (`Step 3.3`).
+6. Perform the **Pre-Delivery Verification** (`Step 3.4`). If you fail the compliance check, silently rework the code. If it's impossible to complete, report the failure honestly and explicitly to the user.
