@@ -15,8 +15,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Callers: []
- * Callees: [headers, get, getDictionary, fetch, json, notFound, error, toUpperCase, toLocaleString, getTime, getCategoryTranslation, ReactMarkdown]
- * Description: Handles the post detail page logic for the application. Renders markdown content using ReactMarkdown.
+ * Callees: [headers, get, getDictionary, fetch, json, notFound, error, toUpperCase, toLocaleString, getTime, getCategoryTranslation, ReactMarkdown, replace]
+ * Description: Handles the post detail page logic for the application. Renders markdown content using ReactMarkdown with normalized newlines.
  * Keywords: postdetailpage, post, detail, page, markdown, react-markdown
  */
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -86,7 +86,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
             </h1>
             
             <div className="prose dark:prose-invert max-w-none text-foreground space-y-4 whitespace-pre-wrap">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} children={post.content} />
+              <ReactMarkdown remarkPlugins={[remarkGfm]} children={post.content?.replace(/\\n/g, '\n')} />
             </div>
             
             <PostActions 
