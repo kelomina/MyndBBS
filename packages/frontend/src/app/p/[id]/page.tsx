@@ -8,14 +8,16 @@ import { CommentsSection } from "./CommentsSection";
 import { PostActions } from "./PostActions";
 import Link from "next/link";
 import { getCategoryTranslation } from '../../../lib/utils';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Callers: []
- * Callees: [headers, get, getDictionary, fetch, json, notFound, error, toUpperCase, toLocaleString, getTime, getCategoryTranslation]
- * Description: Handles the post detail page logic for the application.
- * Keywords: postdetailpage, post, detail, page, auto-annotated
+ * Callees: [headers, get, getDictionary, fetch, json, notFound, error, toUpperCase, toLocaleString, getTime, getCategoryTranslation, ReactMarkdown]
+ * Description: Handles the post detail page logic for the application. Renders markdown content using ReactMarkdown.
+ * Keywords: postdetailpage, post, detail, page, markdown, react-markdown
  */
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -84,7 +86,9 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
             </h1>
             
             <div className="prose dark:prose-invert max-w-none text-foreground space-y-4 whitespace-pre-wrap">
-              {post.content}
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {post.content}
+              </ReactMarkdown>
             </div>
             
             <PostActions 
