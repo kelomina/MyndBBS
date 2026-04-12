@@ -1,6 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
+/**
+ * Callers: []
+ * Callees: [findFirst, log, create, now, error, $disconnect]
+ * Description: Handles the test logic for the application.
+ * Keywords: test, auto-annotated
+ */
 async function test() {
   try {
     const sender = await prisma.user.findFirst();

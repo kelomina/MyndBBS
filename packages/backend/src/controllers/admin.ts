@@ -7,6 +7,12 @@ import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
 
 // Users
+/**
+ * Callers: []
+ * Callees: [findMany, map, json]
+ * Description: Handles the get users logic for the application.
+ * Keywords: getusers, get, users, auto-annotated
+ */
 export const getUsers = async (req: Request, res: Response) => {
   const users = await prisma.user.findMany({
     select: { id: true, username: true, email: true, role: { select: { name: true } }, status: true, createdAt: true }
@@ -18,6 +24,12 @@ export const getUsers = async (req: Request, res: Response) => {
   res.json(formattedUsers);
 };
 
+/**
+ * Callers: []
+ * Callees: [findUnique, json, status, findMany, update, logAudit, includes, pipeline, del, exec, deleteMany, set, findFirst]
+ * Description: Handles the update user role logic for the application.
+ * Keywords: updateuserrole, update, user, role, auto-annotated
+ */
 export const updateUserRole = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { role, level } = req.body;
@@ -149,6 +161,12 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
   res.json({ message: 'User updated', user: { id: finalUser.id, role: finalUser.role?.name, level: (finalUser as any).level } });
 };
 
+/**
+ * Callers: []
+ * Callees: [includes, json, status, findUnique, update, findMany, pipeline, del, exec, deleteMany, logAudit]
+ * Description: Handles the update user status logic for the application.
+ * Keywords: updateuserstatus, update, user, status, auto-annotated
+ */
 export const updateUserStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { status } = req.body;
@@ -195,11 +213,23 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
 };
 
 // Categories
+/**
+ * Callers: []
+ * Callees: [findMany, json]
+ * Description: Handles the get categories logic for the application.
+ * Keywords: getcategories, get, categories, auto-annotated
+ */
 export const getCategories = async (req: Request, res: Response) => {
   const categories = await prisma.category.findMany({ orderBy: { sortOrder: 'asc' } });
   res.json(categories);
 };
 
+/**
+ * Callers: []
+ * Callees: [create, logAudit, json, status]
+ * Description: Handles the create category logic for the application.
+ * Keywords: createcategory, create, category, auto-annotated
+ */
 export const createCategory = async (req: AuthRequest, res: Response) => {
   const { name, description, sortOrder, minLevel } = req.body;
   const operatorId = req.user?.userId || 'unknown';
@@ -213,6 +243,12 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
   res.status(201).json(category);
 };
 
+/**
+ * Callers: []
+ * Callees: [update, logAudit, json]
+ * Description: Handles the update category logic for the application.
+ * Keywords: updatecategory, update, category, auto-annotated
+ */
 export const updateCategory = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   const { name, description, sortOrder, minLevel } = req.body;
@@ -228,6 +264,12 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
   res.json(category);
 };
 
+/**
+ * Callers: []
+ * Callees: [$transaction, deleteMany, delete, logAudit, json, status]
+ * Description: Handles the delete category logic for the application.
+ * Keywords: deletecategory, delete, category, auto-annotated
+ */
 export const deleteCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
@@ -246,6 +288,12 @@ export const deleteCategory = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [findUnique, json, status, upsert, logAudit]
+ * Description: Handles the assign category moderator logic for the application.
+ * Keywords: assigncategorymoderator, assign, category, moderator, auto-annotated
+ */
 export const assignCategoryModerator = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
@@ -278,6 +326,12 @@ export const assignCategoryModerator = async (req: AuthRequest, res: Response): 
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [delete, logAudit, json, status]
+ * Description: Handles the remove category moderator logic for the application.
+ * Keywords: removecategorymoderator, remove, category, moderator, auto-annotated
+ */
 export const removeCategoryModerator = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
@@ -299,6 +353,12 @@ export const removeCategoryModerator = async (req: AuthRequest, res: Response): 
 };
 
 // Posts
+/**
+ * Callers: []
+ * Callees: [json, status, findMany, accessibleBy]
+ * Description: Handles the get posts logic for the application.
+ * Keywords: getposts, get, posts, auto-annotated
+ */
 export const getPosts = async (req: AuthRequest, res: Response) => {
   const { accessibleBy } = await import('@casl/prisma');
   
@@ -315,6 +375,12 @@ export const getPosts = async (req: AuthRequest, res: Response) => {
   res.json(posts);
 };
 
+/**
+ * Callers: []
+ * Callees: [includes, json, status, findUnique, can, subject, update, logAudit]
+ * Description: Handles the update post status logic for the application.
+ * Keywords: updatepoststatus, update, post, status, auto-annotated
+ */
 export const updatePostStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { status } = req.body;
@@ -345,6 +411,12 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
 };
 
 // Recycle Bin
+/**
+ * Callers: []
+ * Callees: [json, status, findMany, accessibleBy]
+ * Description: Handles the get deleted posts logic for the application.
+ * Keywords: getdeletedposts, get, deleted, posts, auto-annotated
+ */
 export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
   const { accessibleBy } = await import('@casl/prisma');
   if (!req.ability) {
@@ -364,6 +436,12 @@ export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
   res.json(posts);
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, findMany, accessibleBy]
+ * Description: Handles the get deleted comments logic for the application.
+ * Keywords: getdeletedcomments, get, deleted, comments, auto-annotated
+ */
 export const getDeletedComments = async (req: AuthRequest, res: Response) => {
   const { accessibleBy } = await import('@casl/prisma');
   if (!req.ability) {
@@ -385,6 +463,12 @@ export const getDeletedComments = async (req: AuthRequest, res: Response) => {
 
 
 // Helper for admin actions on entities
+/**
+ * Callers: []
+ * Callees: [findUniqueFn, json, status, toUpperCase, can, subject, operationFn, logAudit]
+ * Description: Handles the handle admin action logic for the application.
+ * Keywords: handleadminaction, handle, admin, action, auto-annotated
+ */
 const handleAdminAction = async (
   req: AuthRequest,
   res: Response,
@@ -414,6 +498,12 @@ const handleAdminAction = async (
   res.json({ message: successMessage });
 };
 
+/**
+ * Callers: []
+ * Callees: [handleAdminAction, findUnique, update]
+ * Description: Handles the restore post logic for the application.
+ * Keywords: restorepost, restore, post, auto-annotated
+ */
 export const restorePost = async (req: AuthRequest, res: Response): Promise<void> => {
   return handleAdminAction(
     req, res, 'Post', 'RESTORE',
@@ -423,6 +513,12 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
   );
 };
 
+/**
+ * Callers: []
+ * Callees: [handleAdminAction, findUnique, delete]
+ * Description: Handles the hard delete post logic for the application.
+ * Keywords: harddeletepost, hard, delete, post, auto-annotated
+ */
 export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<void> => {
   return handleAdminAction(
     req, res, 'Post', 'HARD_DELETE',
@@ -432,6 +528,12 @@ export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<v
   );
 };
 
+/**
+ * Callers: []
+ * Callees: [handleAdminAction, findUnique, update]
+ * Description: Handles the restore comment logic for the application.
+ * Keywords: restorecomment, restore, comment, auto-annotated
+ */
 export const restoreComment = async (req: AuthRequest, res: Response): Promise<void> => {
   return handleAdminAction(
     req, res, 'Comment', 'RESTORE',
@@ -441,6 +543,12 @@ export const restoreComment = async (req: AuthRequest, res: Response): Promise<v
   );
 };
 
+/**
+ * Callers: []
+ * Callees: [handleAdminAction, findUnique, delete]
+ * Description: Handles the hard delete comment logic for the application.
+ * Keywords: harddeletecomment, hard, delete, comment, auto-annotated
+ */
 export const hardDeleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
   return handleAdminAction(
     req, res, 'Comment', 'HARD_DELETE',
@@ -455,6 +563,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
 
+/**
+ * Callers: []
+ * Callees: [json, status, parseInt, decodeURIComponent, slice]
+ * Description: Handles the get db config logic for the application.
+ * Keywords: getdbconfig, get, db, config, auto-annotated
+ */
 export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
   if (req.user?.role !== 'SUPER_ADMIN') {
     res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
@@ -487,6 +601,12 @@ export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void
   });
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, encodeURIComponent, $connect, $disconnect, resolve, cwd, catch, readFile, includes, replace, writeFile, exec, error, logAudit, setTimeout, exit]
+ * Description: Handles the update db config logic for the application.
+ * Keywords: updatedbconfig, update, db, config, auto-annotated
+ */
 export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
   if (req.user?.role !== 'SUPER_ADMIN') {
     res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
@@ -537,6 +657,12 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
 
 
 // Route Whitelist Management
+/**
+ * Callers: []
+ * Callees: [findMany, json, status]
+ * Description: Handles the get route whitelist logic for the application.
+ * Keywords: getroutewhitelist, get, route, whitelist, auto-annotated
+ */
 export const getRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const routes = await prisma.routeWhitelist.findMany({
@@ -548,6 +674,12 @@ export const getRouteWhitelist = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, create]
+ * Description: Handles the add route whitelist logic for the application.
+ * Keywords: addroutewhitelist, add, route, whitelist, auto-annotated
+ */
 export const addRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const { path, isPrefix, minRole, description } = req.body;
@@ -562,6 +694,12 @@ export const addRouteWhitelist = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [update, json, status]
+ * Description: Handles the update route whitelist logic for the application.
+ * Keywords: updateroutewhitelist, update, route, whitelist, auto-annotated
+ */
 export const updateRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
@@ -577,6 +715,12 @@ export const updateRouteWhitelist = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [delete, json, status]
+ * Description: Handles the delete route whitelist logic for the application.
+ * Keywords: deleteroutewhitelist, delete, route, whitelist, auto-annotated
+ */
 export const deleteRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;

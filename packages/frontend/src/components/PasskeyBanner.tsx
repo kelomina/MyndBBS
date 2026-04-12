@@ -7,6 +7,12 @@ import { useTranslation } from './TranslationProvider';
 import { fetcher } from '../lib/api/fetcher';
 import { usePathname } from 'next/navigation';
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useState, usePathname, useEffect, startsWith, setShow, catch, then, fetcher, setClosed]
+ * Description: Handles the passkey banner logic for the application.
+ * Keywords: passkeybanner, passkey, banner, auto-annotated
+ */
 export function PasskeyBanner() {
   const dict = useTranslation();
   const [show, setShow] = useState(false);

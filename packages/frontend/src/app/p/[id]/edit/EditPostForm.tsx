@@ -7,6 +7,12 @@ import { useRouter } from 'next/navigation';
 import { PostEditor } from '../../../../components/PostEditor';
 import { useToast } from '../../../../components/ui/Toast';
 
+/**
+ * Callers: []
+ * Callees: [useToast, useRouter, useState, useCategories, toast, setLoading, fetcher, stringify, push, error, back]
+ * Description: Handles the edit post form logic for the application.
+ * Keywords: editpostform, edit, post, form, auto-annotated
+ */
 export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: any }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -16,7 +22,13 @@ export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: an
   const { categories } = useCategories();
   const [loading, setLoading] = useState(false);
 
-  const handlePublish = async () => {
+  /**
+     * Callers: []
+     * Callees: [toast, setLoading, fetcher, stringify, push, error]
+     * Description: Handles the handle publish logic for the application.
+     * Keywords: handlepublish, handle, publish, auto-annotated
+     */
+    const handlePublish = async () => {
     if (!title || !content || !categoryId) {
       toast(dict.common?.pleaseFillAllFields || 'Please fill out all fields', 'error');
       return;

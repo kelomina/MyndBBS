@@ -9,6 +9,12 @@ interface SliderCaptchaProps {
   apiUrl?: string;
 }
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useState, useRef, useCallback, setTimeout, setStatus, resetUI, setErrorMsg, fetch, json, setCaptchaId, setCaptchaImage, error, useEffect, fetchChallenge, setPointerCapture, parseFloat, now, getBoundingClientRect, max, min, push, releasePointerCapture, stringify, onSuccess, toUpperCase]
+ * Description: Handles the slider captcha logic for the application.
+ * Keywords: slidercaptcha, slider, captcha, auto-annotated
+ */
 export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCaptchaProps) {
   const dict = useTranslation();
   const [captchaId, setCaptchaId] = useState<string | null>(null);
@@ -59,7 +65,13 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
     fetchChallenge();
   }, [fetchChallenge]);
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  /**
+     * Callers: []
+     * Callees: [setPointerCapture, parseFloat, now]
+     * Description: Handles the handle pointer down logic for the application.
+     * Keywords: handlepointerdown, handle, pointer, down, auto-annotated
+     */
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (status === 'success' || status === 'verifying') return;
     
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -74,7 +86,13 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
     dragPathRef.current = [{ x: startLeftRef.current, y: e.clientY, time: dragStartTimeRef.current }];
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  /**
+     * Callers: []
+     * Callees: [getBoundingClientRect, max, min, push, now]
+     * Description: Handles the handle pointer move logic for the application.
+     * Keywords: handlepointermove, handle, pointer, move, auto-annotated
+     */
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current || !trackRef.current || !sliderRef.current) return;
     
     const trackRect = trackRef.current.getBoundingClientRect();
@@ -89,7 +107,13 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
     dragPathRef.current.push({ x: newLeft, y: e.clientY, time: Date.now() });
   };
 
-  const handlePointerUp = async (e: React.PointerEvent<HTMLDivElement>) => {
+  /**
+     * Callers: []
+     * Callees: [releasePointerCapture, setStatus, now, fetch, stringify, json, onSuccess, setErrorMsg, setTimeout, error]
+     * Description: Handles the handle pointer up logic for the application.
+     * Keywords: handlepointerup, handle, pointer, up, auto-annotated
+     */
+    const handlePointerUp = async (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) return;
     
     e.currentTarget.releasePointerCapture(e.pointerId);

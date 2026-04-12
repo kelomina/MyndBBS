@@ -8,6 +8,12 @@ interface PostListProps {
   dict?: any;
 }
 
+/**
+ * Callers: []
+ * Callees: [map, toUpperCase, toLocaleDateString, getCategoryTranslation]
+ * Description: Handles the post list logic for the application.
+ * Keywords: postlist, post, list, auto-annotated
+ */
 export function PostList({ posts, emptyMessage = "No posts found.", dict }: PostListProps) {
   if (posts.length === 0) {
     return (

@@ -7,11 +7,23 @@ class MockRedis {
   private data = new Map<string, string>();
   private expirations = new Map<string, NodeJS.Timeout>();
 
-  async get(key: string) {
+  /**
+     * Callers: []
+     * Callees: [get]
+     * Description: Handles the get logic for the application.
+     * Keywords: get, auto-annotated
+     */
+    async get(key: string) {
     return this.data.get(key) || null;
   }
   
-  async set(key: string, value: string, mode?: string, duration?: number) {
+  /**
+     * Callers: []
+     * Callees: [set, get, clearTimeout, setTimeout, delete]
+     * Description: Handles the set logic for the application.
+     * Keywords: set, auto-annotated
+     */
+    async set(key: string, value: string, mode?: string, duration?: number) {
     this.data.set(key, value);
     if (mode === 'EX' && duration) {
       const existing = this.expirations.get(key);
@@ -25,7 +37,13 @@ class MockRedis {
     return 'OK';
   }
 
-  async del(key: string) {
+  /**
+     * Callers: []
+     * Callees: [delete, get, clearTimeout]
+     * Description: Handles the del logic for the application.
+     * Keywords: del, auto-annotated
+     */
+    async del(key: string) {
     this.data.delete(key);
     const existing = this.expirations.get(key);
     if (existing) {
@@ -35,7 +53,13 @@ class MockRedis {
     return 1;
   }
 
-  pipeline() {
+  /**
+     * Callers: []
+     * Callees: [push, del, set, op]
+     * Description: Handles the pipeline logic for the application.
+     * Keywords: pipeline, auto-annotated
+     */
+    pipeline() {
     const operations: (() => void)[] = [];
     return {
       del: (key: string) => {
@@ -55,7 +79,13 @@ class MockRedis {
     };
   }
 
-  async expire(key: string, seconds: number) {
+  /**
+     * Callers: []
+     * Callees: [get, set]
+     * Description: Handles the expire logic for the application.
+     * Keywords: expire, auto-annotated
+     */
+    async expire(key: string, seconds: number) {
     const val = this.data.get(key);
     if (val !== undefined) {
       await this.set(key, val, 'EX', seconds);

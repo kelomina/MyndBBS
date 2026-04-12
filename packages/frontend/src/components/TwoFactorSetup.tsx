@@ -5,6 +5,12 @@ import { startRegistration } from '@simplewebauthn/browser';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from './TranslationProvider';
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useState, useEffect, initiateSetup, fallbackToTotp, setSetupMethod, tryPasskeyRegistration, error, fetch, getEndpoint, json, startRegistration, stringify, loadTotp, onComplete, includes, setError, setLoading, setTotpSetup, preventDefault, setTotpCode]
+ * Description: Handles the two factor setup logic for the application.
+ * Keywords: twofactorsetup, two, factor, setup, auto-annotated
+ */
 export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false }: { onComplete?: () => void, context?: 'auth' | 'user', forceTotp?: boolean }) {
   const dict = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -17,11 +23,23 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
     initiateSetup();
   }, []);
 
-  const getEndpoint = (path: string) => {
+  /**
+     * Callers: []
+     * Callees: []
+     * Description: Handles the get endpoint logic for the application.
+     * Keywords: getendpoint, get, endpoint, auto-annotated
+     */
+    const getEndpoint = (path: string) => {
     return context === 'user' ? `/api/v1/user${path}` : `/api/v1/auth${path}`;
   };
 
-  const initiateSetup = async () => {
+  /**
+     * Callers: []
+     * Callees: [fallbackToTotp, setSetupMethod, tryPasskeyRegistration, error]
+     * Description: Handles the initiate setup logic for the application.
+     * Keywords: initiatesetup, initiate, setup, auto-annotated
+     */
+    const initiateSetup = async () => {
     try {
       if (forceTotp) {
         await fallbackToTotp();
@@ -37,7 +55,13 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
     }
   };
 
-  const tryPasskeyRegistration = async () => {
+  /**
+     * Callers: []
+     * Callees: [fetch, getEndpoint, json, startRegistration, stringify, loadTotp, onComplete, error, includes, setError, fallbackToTotp]
+     * Description: Handles the try passkey registration logic for the application.
+     * Keywords: trypasskeyregistration, try, passkey, registration, auto-annotated
+     */
+    const tryPasskeyRegistration = async () => {
     try {
       // 1. Get options from server
       const optionsRes = await fetch(getEndpoint('/passkey/generate-registration-options'), {
@@ -85,7 +109,13 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
     }
   };
 
-  const loadTotp = async () => {
+  /**
+     * Callers: []
+     * Callees: [setSetupMethod, setLoading, setError, fetch, getEndpoint, json, setTotpSetup]
+     * Description: Handles the load totp logic for the application.
+     * Keywords: loadtotp, load, totp, auto-annotated
+     */
+    const loadTotp = async () => {
     setSetupMethod('totp');
     setLoading(true);
     setError('');
@@ -107,11 +137,23 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
     }
   };
 
-  const fallbackToTotp = async () => {
+  /**
+     * Callers: []
+     * Callees: [loadTotp]
+     * Description: Handles the fallback to totp logic for the application.
+     * Keywords: fallbacktototp, fallback, to, totp, auto-annotated
+     */
+    const fallbackToTotp = async () => {
     await loadTotp();
   };
 
-  const verifyTotp = async (e: React.FormEvent) => {
+  /**
+     * Callers: []
+     * Callees: [preventDefault, setLoading, setError, getEndpoint, fetch, stringify, onComplete, json]
+     * Description: Handles the verify totp logic for the application.
+     * Keywords: verifytotp, verify, totp, auto-annotated
+     */
+    const verifyTotp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');

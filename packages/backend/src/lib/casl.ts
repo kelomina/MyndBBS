@@ -25,6 +25,12 @@ type AbilityUser = {
   moderatedCategories?: { categoryId: string }[];
 };
 
+/**
+ * Callers: []
+ * Callees: [can, build, map]
+ * Description: Handles the define ability for logic for the application.
+ * Keywords: defineabilityfor, define, ability, for, auto-annotated
+ */
 export function defineAbilityFor(user?: AbilityUser) {
   const { can, cannot, build } = new AbilityBuilder<AppAbility>(createPrismaAbility);
 

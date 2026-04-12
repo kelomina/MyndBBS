@@ -1,6 +1,12 @@
 // Minimum 8 characters, at least one uppercase, one lowercase, one number and one special character
 export const STRICT_PASSWORD_REGEX = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/;
 
+/**
+ * Callers: []
+ * Callees: [test]
+ * Description: Handles the is valid password logic for the application.
+ * Keywords: isvalidpassword, is, valid, password, auto-annotated
+ */
 export const isValidPassword = (password: string): boolean => {
   return STRICT_PASSWORD_REGEX.test(password);
 };

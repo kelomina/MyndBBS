@@ -11,6 +11,12 @@ import { sendNotification } from '../lib/notification';
 import { verifyAndConsumeCaptcha } from '../controllers/captcha';
 import { AppAbility } from '../lib/casl';
 
+/**
+ * Callers: []
+ * Callees: [findFirst, accessibleBy]
+ * Description: Handles the get accessible post logic for the application.
+ * Keywords: getaccessiblepost, get, accessible, post, auto-annotated
+ */
 const getAccessiblePost = async (postId: string, ability: AppAbility) => {
   return prisma.post.findFirst({
     where: {
@@ -23,6 +29,12 @@ const getAccessiblePost = async (postId: string, ability: AppAbility) => {
 };
 
 
+/**
+ * Callers: []
+ * Callees: [findUnique]
+ * Description: Handles the get comment with post logic for the application.
+ * Keywords: getcommentwithpost, get, comment, with, post, auto-annotated
+ */
 const getCommentWithPost = async (commentId: string) => {
   return prisma.comment.findUnique({
     where: { id: commentId },
@@ -32,6 +44,12 @@ const getCommentWithPost = async (commentId: string) => {
 
 
 // Helper for interaction toggles
+/**
+ * Callers: []
+ * Callees: [findUnique, delete, json, create, error, status]
+ * Description: Handles the toggle interaction logic for the application.
+ * Keywords: toggleinteraction, toggle, interaction, auto-annotated
+ */
 const toggleInteraction = async (
   req: AuthRequest,
   res: Response,

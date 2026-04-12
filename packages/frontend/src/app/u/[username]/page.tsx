@@ -6,6 +6,12 @@ import { getDictionary } from '../../../i18n/get-dictionary';
 import { ProfileTabs } from './ProfileTabs';
 import { OwnerSettingsButton } from './OwnerSettingsButton';
 
+/**
+ * Callers: []
+ * Callees: [fetch, json]
+ * Description: Handles the get profile logic for the application.
+ * Keywords: getprofile, get, profile, auto-annotated
+ */
 async function getProfile(username: string) {
   // Using localhost:3001 for server-side fetch to backend
   const res = await fetch(`http://localhost:3001/api/v1/user/public/${username}`, {
@@ -18,6 +24,12 @@ async function getProfile(username: string) {
   return data.user;
 }
 
+/**
+ * Callers: []
+ * Callees: [getProfile, headers, get, getDictionary, notFound, toLocaleDateString]
+ * Description: Handles the profile page logic for the application.
+ * Keywords: profilepage, profile, page, auto-annotated
+ */
 export default async function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   // Need to await params in Next.js 15+
   const resolvedParams = await params;

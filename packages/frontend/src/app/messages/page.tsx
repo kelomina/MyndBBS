@@ -25,6 +25,12 @@ interface MessageThread {
   };
 }
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useState, setPasswordPrompt, useEffect, checkStatus, all, fetch, json, setUserLevel, setCurrentUser, setHasKey, loadInbox, error, setError, setLoading, forEach, has, set, get, setThreads, sort, from, values, getTime, setInitializing, generateECDHKeyPair, exportKeyToBase64, map, startAuthentication, requestPassword, importKey, encode, deriveKey, getAesKeyFromPrf, encryptPrivateKey, stringify, charAt, toLocaleDateString, resolve, getElementById]
+ * Description: Handles the messages page logic for the application.
+ * Keywords: messagespage, messages, page, auto-annotated
+ */
 export default function MessagesPage() {
   const dict = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -36,7 +42,13 @@ export default function MessagesPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [passwordPrompt, setPasswordPrompt] = useState<{ isOpen: boolean; message: string; resolve: (value: string | null) => void } | null>(null);
   
-  const requestPassword = (message: string): Promise<string | null> => {
+  /**
+     * Callers: []
+     * Callees: [setPasswordPrompt]
+     * Description: Handles the request password logic for the application.
+     * Keywords: requestpassword, request, password, auto-annotated
+     */
+    const requestPassword = (message: string): Promise<string | null> => {
     return new Promise((resolve) => {
       setPasswordPrompt({ isOpen: true, message, resolve });
     });
@@ -46,7 +58,13 @@ export default function MessagesPage() {
     checkStatus();
   }, []);
 
-  const checkStatus = async () => {
+  /**
+     * Callers: []
+     * Callees: [all, fetch, json, setUserLevel, setCurrentUser, setHasKey, loadInbox, error, setError, setLoading]
+     * Description: Handles the check status logic for the application.
+     * Keywords: checkstatus, check, status, auto-annotated
+     */
+    const checkStatus = async () => {
     try {
       const [profileRes, keyRes] = await Promise.all([
         fetch('/api/v1/user/profile', { credentials: 'include' }),
@@ -74,7 +92,13 @@ export default function MessagesPage() {
     }
   };
 
-  const loadInbox = async () => {
+  /**
+     * Callers: []
+     * Callees: [fetch, json, forEach, has, set, get, setThreads, sort, from, values, getTime, error]
+     * Description: Handles the load inbox logic for the application.
+     * Keywords: loadinbox, load, inbox, auto-annotated
+     */
+    const loadInbox = async () => {
     try {
       const res = await fetch('/api/v1/messages/inbox', { credentials: 'include' });
       if (res.ok) {
@@ -131,7 +155,13 @@ export default function MessagesPage() {
     }
   };
 
-  const handleInitSecureMessaging = async () => {
+  /**
+     * Callers: []
+     * Callees: [setInitializing, setError, generateECDHKeyPair, exportKeyToBase64, all, fetch, json, map, startAuthentication, requestPassword, importKey, encode, deriveKey, getAesKeyFromPrf, encryptPrivateKey, stringify, setHasKey, loadInbox, error]
+     * Description: Handles the handle init secure messaging logic for the application.
+     * Keywords: handleinitsecuremessaging, handle, init, secure, messaging, auto-annotated
+     */
+    const handleInitSecureMessaging = async () => {
     setInitializing(true);
     setError('');
     try {

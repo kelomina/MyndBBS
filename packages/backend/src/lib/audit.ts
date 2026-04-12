@@ -1,5 +1,11 @@
 import { prisma } from '../db';
 
+/**
+ * Callers: []
+ * Callees: [replace]
+ * Description: Handles the mask sensitive data logic for the application.
+ * Keywords: masksensitivedata, mask, sensitive, data, auto-annotated
+ */
 const maskSensitiveData = (data: string) => {
   return data
     .replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi, '***@***.***')
@@ -12,6 +18,12 @@ const maskSensitiveData = (data: string) => {
  * @param who - The ID or username of the user performing the action
  * @param action - A description of the action being performed
  * @param target - The target of the action (e.g., User ID, Category ID, etc.)
+ */
+/**
+ * Callers: []
+ * Callees: [create, maskSensitiveData, error]
+ * Description: Handles the log audit logic for the application.
+ * Keywords: logaudit, log, audit, auto-annotated
  */
 export const logAudit = async (who: string, action: string, target: string): Promise<void> => {
   try {

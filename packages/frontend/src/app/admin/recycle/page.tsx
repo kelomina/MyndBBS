@@ -20,6 +20,12 @@ import {
   hardDeleteComment,
 } from '../../../lib/api/admin';
 
+/**
+ * Callers: []
+ * Callees: [useToast, useTranslation, useState, setLoading, all, getDeletedPosts, getDeletedComments, setPosts, setComments, setError, useEffect, loadData, confirm, restorePost, toast, hardDeletePost, restoreComment, hardDeleteComment, setActiveTab, map, handleRestorePost, handleHardDeletePost, handleRestoreComment, handleHardDeleteComment]
+ * Description: Handles the recycle bin page logic for the application.
+ * Keywords: recyclebinpage, recycle, bin, page, auto-annotated
+ */
 export default function RecycleBinPage() {
   const { toast } = useToast();
   const dict = useTranslation();
@@ -29,7 +35,13 @@ export default function RecycleBinPage() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'posts' | 'comments'>('posts');
 
-  const loadData = async () => {
+  /**
+     * Callers: []
+     * Callees: [setLoading, all, getDeletedPosts, getDeletedComments, setPosts, setComments, setError]
+     * Description: Handles the load data logic for the application.
+     * Keywords: loaddata, load, data, auto-annotated
+     */
+    const loadData = async () => {
     try {
       setLoading(true);
       const [p, c] = await Promise.all([getDeletedPosts(), getDeletedComments()]);
@@ -47,7 +59,13 @@ export default function RecycleBinPage() {
     loadData();
   }, []);
 
-  const handleRestorePost = async (id: string) => {
+  /**
+     * Callers: []
+     * Callees: [confirm, restorePost, loadData, toast]
+     * Description: Handles the handle restore post logic for the application.
+     * Keywords: handlerestorepost, handle, restore, post, auto-annotated
+     */
+    const handleRestorePost = async (id: string) => {
     if (!confirm(dict.admin?.confirmRestore || 'Are you sure you want to restore this item?')) return;
     try {
       await restorePost(id);
@@ -57,7 +75,13 @@ export default function RecycleBinPage() {
     }
   };
 
-  const handleHardDeletePost = async (id: string) => {
+  /**
+     * Callers: []
+     * Callees: [confirm, hardDeletePost, loadData, toast]
+     * Description: Handles the handle hard delete post logic for the application.
+     * Keywords: handleharddeletepost, handle, hard, delete, post, auto-annotated
+     */
+    const handleHardDeletePost = async (id: string) => {
     if (!confirm(dict.admin?.confirmHardDelete || 'Are you sure you want to permanently delete this item?')) return;
     try {
       await hardDeletePost(id);
@@ -67,7 +91,13 @@ export default function RecycleBinPage() {
     }
   };
 
-  const handleRestoreComment = async (id: string) => {
+  /**
+     * Callers: []
+     * Callees: [confirm, restoreComment, loadData, toast]
+     * Description: Handles the handle restore comment logic for the application.
+     * Keywords: handlerestorecomment, handle, restore, comment, auto-annotated
+     */
+    const handleRestoreComment = async (id: string) => {
     if (!confirm(dict.admin?.confirmRestore || 'Are you sure you want to restore this item?')) return;
     try {
       await restoreComment(id);
@@ -77,7 +107,13 @@ export default function RecycleBinPage() {
     }
   };
 
-  const handleHardDeleteComment = async (id: string) => {
+  /**
+     * Callers: []
+     * Callees: [confirm, hardDeleteComment, loadData, toast]
+     * Description: Handles the handle hard delete comment logic for the application.
+     * Keywords: handleharddeletecomment, handle, hard, delete, comment, auto-annotated
+     */
+    const handleHardDeleteComment = async (id: string) => {
     if (!confirm(dict.admin?.confirmHardDelete || 'Are you sure you want to permanently delete this item?')) return;
     try {
       await hardDeleteComment(id);

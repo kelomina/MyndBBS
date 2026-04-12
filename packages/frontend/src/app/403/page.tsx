@@ -4,6 +4,12 @@ import { getDictionary } from '../../i18n/get-dictionary';
 import { cookies, headers } from 'next/headers';
 import { defaultLocale } from '../../i18n/config';
 
+/**
+ * Callers: []
+ * Callees: [cookies, headers, get, getDictionary]
+ * Description: Handles the forbidden page logic for the application.
+ * Keywords: forbiddenpage, forbidden, page, auto-annotated
+ */
 export default async function ForbiddenPage() {
   const cookieStore = await cookies();
   const headersStore = await headers();

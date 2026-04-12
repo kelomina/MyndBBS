@@ -8,7 +8,13 @@ const basePrisma = new PrismaClient();
 export const prisma = basePrisma.$extends({
   query: {
     user: {
-      async update({ args, query }) {
+      /**
+         * Callers: []
+         * Callees: [findUnique, count, query]
+         * Description: Handles the update logic for the application.
+         * Keywords: update, auto-annotated
+         */
+        async update({ args, query }) {
         let isPromoting = false;
         if (args.data && args.data.level !== undefined) {
           if (typeof args.data.level === 'number' && args.data.level > 1) isPromoting = true;
@@ -28,7 +34,13 @@ export const prisma = basePrisma.$extends({
         }
         return query(args);
       },
-      async updateMany({ args, query }) {
+      /**
+         * Callers: []
+         * Callees: [query]
+         * Description: Handles the update many logic for the application.
+         * Keywords: updatemany, update, many, auto-annotated
+         */
+        async updateMany({ args, query }) {
         let isPromoting = false;
         if (args.data && args.data.level !== undefined) {
           if (typeof args.data.level === 'number' && args.data.level > 1) isPromoting = true;

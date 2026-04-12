@@ -7,6 +7,12 @@ import { TwoFactorSetup } from './TwoFactorSetup';
 import { useTranslation } from './TranslationProvider';
 import { ReauthModal } from './ReauthModal';
 
+/**
+ * Callers: []
+ * Callees: [useTranslation, useState, usePasskey, useEffect, fetchSecurityData, all, fetch, json, setTotpEnabled, setPasskeys, error, setLoading, action, setPendingAction, setShowReauth, setError, setMessage, setPasskeyError, executePasskeyFlow, confirm, filter, pendingAction, map, toLocaleDateString, executeWithSudo, handleDeletePasskey, setShowTotpSetup]
+ * Description: Handles the security settings logic for the application.
+ * Keywords: securitysettings, security, settings, auto-annotated
+ */
 export function SecuritySettings() {
   const dict = useTranslation();
   const [passkeys, setPasskeys] = useState<{ id: string; deviceType: string; createdAt: string }[]>([]);
@@ -23,7 +29,13 @@ export function SecuritySettings() {
     fetchSecurityData();
   }, []);
 
-  const fetchSecurityData = async () => {
+  /**
+     * Callers: []
+     * Callees: [all, fetch, json, setTotpEnabled, setPasskeys, error, setLoading]
+     * Description: Handles the fetch security data logic for the application.
+     * Keywords: fetchsecuritydata, fetch, security, data, auto-annotated
+     */
+    const fetchSecurityData = async () => {
     try {
       const [profileRes, passkeysRes] = await Promise.all([
         fetch('/api/v1/user/profile', { credentials: 'include' }),
@@ -46,7 +58,13 @@ export function SecuritySettings() {
     }
   };
 
-  const executeWithSudo = async (action: () => void) => {
+  /**
+     * Callers: []
+     * Callees: [fetch, json, action, setPendingAction, setShowReauth, setError]
+     * Description: Handles the execute with sudo logic for the application.
+     * Keywords: executewithsudo, execute, with, sudo, auto-annotated
+     */
+    const executeWithSudo = async (action: () => void) => {
     try {
       const res = await fetch('/api/v1/user/sudo/check', { credentials: 'include' });
       const data = await res.json();
@@ -61,7 +79,13 @@ export function SecuritySettings() {
     }
   };
 
-  const handleAddPasskey = async () => {
+  /**
+     * Callers: []
+     * Callees: [setError, setMessage, setPasskeyError, executePasskeyFlow, fetchSecurityData]
+     * Description: Handles the handle add passkey logic for the application.
+     * Keywords: handleaddpasskey, handle, add, passkey, auto-annotated
+     */
+    const handleAddPasskey = async () => {
     setError('');
     setMessage('');
     setPasskeyError('');
@@ -77,7 +101,13 @@ export function SecuritySettings() {
     );
   };
 
-  const handleDeletePasskey = async (id: string) => {
+  /**
+     * Callers: []
+     * Callees: [confirm, fetch, setPasskeys, filter, setMessage, setError]
+     * Description: Handles the handle delete passkey logic for the application.
+     * Keywords: handledeletepasskey, handle, delete, passkey, auto-annotated
+     */
+    const handleDeletePasskey = async (id: string) => {
     if (!confirm(dict.settings.confirmRemovePasskey)) return;
     
     try {
@@ -96,7 +126,13 @@ export function SecuritySettings() {
     }
   };
 
-  const handleDisableTotp = async () => {
+  /**
+     * Callers: []
+     * Callees: [confirm, fetch, setTotpEnabled, setMessage, setError]
+     * Description: Handles the handle disable totp logic for the application.
+     * Keywords: handledisabletotp, handle, disable, totp, auto-annotated
+     */
+    const handleDisableTotp = async () => {
     if (!confirm(dict.settings.confirmDisableTotp)) return;
     
     try {

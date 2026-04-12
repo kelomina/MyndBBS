@@ -3,6 +3,12 @@ import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
+/**
+ * Callers: []
+ * Callees: [log, upsert, findUnique, findFirst, update, hash, create]
+ * Description: Handles the main logic for the application.
+ * Keywords: main, auto-annotated
+ */
 async function main() {
   console.log('Seeding database...');
 

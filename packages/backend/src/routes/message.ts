@@ -3,6 +3,12 @@ import { requireAuth } from '../middleware/auth';
 import { uploadKeys, getMyKey, getUserPublicKey, sendMessage, getInbox, getUnreadCount, markAsRead, deleteMessage, clearChat, getConversationSettings, updateConversationSettings } from '../controllers/message';
 import { rateLimit } from 'express-rate-limit';
 
+/**
+ * Callers: []
+ * Callees: [map, split, trim]
+ * Description: Handles the get client ip logic for the application.
+ * Keywords: getclientip, get, client, ip, auto-annotated
+ */
 const getClientIp = (req: any, res: any): string => {
   const xForwardedFor = req.headers['x-forwarded-for'];
   if (xForwardedFor) {

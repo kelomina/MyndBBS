@@ -10,6 +10,12 @@ import { getPostListEmptyMessage } from "../../lib/utils";
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Callers: []
+ * Callees: [headers, get, getDictionary, fetch, json, error, getPostListEmptyMessage]
+ * Description: Handles the recent page logic for the application.
+ * Keywords: recentpage, recent, page, auto-annotated
+ */
 export default async function RecentPage() {
   const headersList = await headers();
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;

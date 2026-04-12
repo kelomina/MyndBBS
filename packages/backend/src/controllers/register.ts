@@ -8,6 +8,12 @@ import { finalizeAuth } from './auth';
 import { verifyAndConsumeCaptcha } from './captcha';
 import { isValidPassword } from '@myndbbs/shared';
 
+/**
+ * Callers: []
+ * Callees: [json, status, isValidPassword, test, verifyAndConsumeCaptcha, findFirst, hash, findUnique, create, sign, cookie, error]
+ * Description: Handles the register user logic for the application.
+ * Keywords: registeruser, register, user, auto-annotated
+ */
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, username, password, captchaId } = req.body;
@@ -84,6 +90,12 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, findFirst, verify, push, sign, cookie, finalizeAuth, error]
+ * Description: Handles the login user logic for the application.
+ * Keywords: loginuser, login, user, auto-annotated
+ */
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
@@ -136,6 +148,12 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [verify, deleteMany, del, clearCookie, json, error, status]
+ * Description: Handles the logout user logic for the application.
+ * Keywords: logoutuser, logout, user, auto-annotated
+ */
 export const logoutUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { accessToken, refreshToken: tokenFromCookie } = req.cookies;
@@ -178,6 +196,12 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
+/**
+ * Callers: []
+ * Callees: [json, status, verify, findUnique, clearCookie, sign, cookie, error]
+ * Description: Handles the refresh token logic for the application.
+ * Keywords: refreshtoken, refresh, token, auto-annotated
+ */
 export const refreshToken = async (req: Request, res: Response): Promise<void> => {
   try {
     const { refreshToken } = req.cookies;

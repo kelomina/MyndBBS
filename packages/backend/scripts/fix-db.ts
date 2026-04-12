@@ -1,6 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
+/**
+ * Callers: []
+ * Callees: [log, error]
+ * Description: Handles the main logic for the application.
+ * Keywords: main, auto-annotated
+ */
 async function main() {
   console.log('Fixing existing private messages with NULL deletedBy...');
   try {

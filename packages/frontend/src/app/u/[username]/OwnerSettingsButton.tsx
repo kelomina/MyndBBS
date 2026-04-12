@@ -8,6 +8,12 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from '../../../components/TranslationProvider';
 
 import { Mail } from 'lucide-react';
+/**
+ * Callers: []
+ * Callees: [useState, useRouter, useTranslation, useEffect, fetch, json, setCurrentUser, checkOwner, setIsLoggingOut, error]
+ * Description: Handles the owner settings button logic for the application.
+ * Keywords: ownersettingsbutton, owner, settings, button, auto-annotated
+ */
 export function OwnerSettingsButton({ username }: { username: string }) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   
@@ -16,7 +22,13 @@ export function OwnerSettingsButton({ username }: { username: string }) {
   const dict = useTranslation();
 
   useEffect(() => {
-    const checkOwner = async () => {
+    /**
+       * Callers: []
+       * Callees: [fetch, json, setCurrentUser]
+       * Description: Handles the check owner logic for the application.
+       * Keywords: checkowner, check, owner, auto-annotated
+       */
+      const checkOwner = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
           credentials: 'include'
@@ -32,7 +44,13 @@ export function OwnerSettingsButton({ username }: { username: string }) {
     checkOwner();
   }, [username]);
 
-  const handleLogout = async () => {
+  /**
+     * Callers: []
+     * Callees: [setIsLoggingOut, fetch, error]
+     * Description: Handles the handle logout logic for the application.
+     * Keywords: handlelogout, handle, logout, auto-annotated
+     */
+    const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/auth/logout`, {

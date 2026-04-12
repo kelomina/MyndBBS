@@ -3,6 +3,12 @@ import React, { createContext, useContext } from 'react';
 
 const TranslationContext = createContext<any>(null);
 
+/**
+ * Callers: []
+ * Callees: []
+ * Description: Handles the translation provider logic for the application.
+ * Keywords: translationprovider, translation, provider, auto-annotated
+ */
 export function TranslationProvider({ dict, children }: { dict: any, children: React.ReactNode }) {
   return (
     <TranslationContext.Provider value={dict}>
@@ -11,6 +17,12 @@ export function TranslationProvider({ dict, children }: { dict: any, children: R
   );
 }
 
+/**
+ * Callers: []
+ * Callees: [useContext]
+ * Description: Handles the use translation logic for the application.
+ * Keywords: usetranslation, use, translation, auto-annotated
+ */
 export function useTranslation() {
   const context = useContext(TranslationContext);
   if (!context) {
