@@ -17,7 +17,32 @@ function getLocale(request: NextRequest): string {
   return defaultLocale;
 }
 
-export function proxy(request: NextRequest) {
+
+let cachedWhitelist: any[] | null = null;
+let lastFetchTime = 0;
+
+async function getWhitelist() {
+  const now = Date.now();
+  if (cachedWhitelist && now - lastFetchTime < 30000) {
+    return cachedWhitelist;
+  }
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+    const res = await fetch(`${apiUrl}/api/admin/routing-whitelist`, {
+      next: { revalidate: 30 }
+    });
+    if (res.ok) {
+      cachedWhitelist = await res.json();
+      lastFetchTime = now;
+      return cachedWhitelist;
+    }
+  } catch (e) {
+    console.error('Failed to fetch routing whitelist in proxy:', e);
+  }
+  return cachedWhitelist || [];
+}
+
+export async function proxy(request: NextRequest) {
   const locale = getLocale(request);
   const pathname = request.nextUrl.pathname;
 
@@ -28,11 +53,29 @@ export function proxy(request: NextRequest) {
   }
   response.headers.set('x-locale', locale);
 
-    // 403 Protection Logic
-  // Define paths that explicitly require SUPER_ADMIN privileges
-  const isAdminPath = pathname.startsWith('/admin') || pathname.startsWith('/wp-admin') || pathname.startsWith('/phpmyadmin') || pathname === '/.env';
+  // 403 Protection Logic (Dynamic Whitelist)
+  // 1. Essential paths to prevent lock-out
+  let isPublicPath = pathname === '/login' || pathname === '/register' || pathname === '/403' || pathname === '/admin-setup' || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/uploads') || pathname === '/favicon.ico';
 
-  if (isAdminPath) {
+  // 2. Fetch dynamic whitelist
+  if (!isPublicPath) {
+    const whitelist = (await getWhitelist()) || [];
+    for (const route of whitelist) {
+      if (route.isPrefix) {
+        if (pathname.startsWith(route.path)) {
+          isPublicPath = true;
+          break;
+        }
+      } else {
+        if (pathname === route.path) {
+          isPublicPath = true;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!isPublicPath) {
     const token = request.cookies.get('accessToken')?.value;
     let isSuperAdmin = false;
 

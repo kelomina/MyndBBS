@@ -534,3 +534,55 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
     res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED' });
   }
 };
+
+
+// Route Whitelist Management
+export const getRouteWhitelist = async (req: Request, res: Response) => {
+  try {
+    const routes = await prisma.routeWhitelist.findMany({
+      orderBy: { createdAt: 'asc' }
+    });
+    res.json(routes);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch route whitelist' });
+  }
+};
+
+export const addRouteWhitelist = async (req: Request, res: Response) => {
+  try {
+    const { path, isPrefix, description } = req.body;
+    if (!path) return res.status(400).json({ error: 'Path is required' });
+
+    const route = await prisma.routeWhitelist.create({
+      data: { path, isPrefix: !!isPrefix, description }
+    });
+    res.json(route);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add route whitelist' });
+  }
+};
+
+export const updateRouteWhitelist = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { path, isPrefix, description } = req.body;
+
+    const route = await prisma.routeWhitelist.update({
+      where: { id },
+      data: { path, isPrefix: !!isPrefix, description }
+    });
+    res.json(route);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update route whitelist' });
+  }
+};
+
+export const deleteRouteWhitelist = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    await prisma.routeWhitelist.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete route whitelist' });
+  }
+};
