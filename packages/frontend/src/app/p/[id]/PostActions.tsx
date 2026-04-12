@@ -1,4 +1,5 @@
 'use client';
+import { useToast } from '../../../components/ui/Toast';
 import { useTranslation } from '../../../components/TranslationProvider';
 
 import { useState, useEffect } from 'react';
@@ -17,6 +18,7 @@ export function PostActions({
   initialBookmarks: number,
   authorUsername: string
 }) {
+  const { toast } = useToast();
   const dict = useTranslation();
   const [upvotes, setUpvotes] = useState(initialUpvotes);
   const [hasUpvoted, setHasUpvoted] = useState(false);

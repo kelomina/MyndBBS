@@ -11,6 +11,7 @@ import { fetcher } from '../../../lib/api/fetcher';
 
 
 export function CommentsSection({ postId, dict, initialCount }: { postId: string, dict: any, initialCount: number }) {
+  const { toast } = useToast();
   const router = useRouter();
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');

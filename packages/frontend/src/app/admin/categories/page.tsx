@@ -1,4 +1,5 @@
 'use client';
+import { useToast } from '../../../components/ui/Toast';
 import { useTranslation } from '../../../components/TranslationProvider';
 
 import React, { useEffect, useState } from 'react';
@@ -45,6 +46,7 @@ interface User {
 }
 
 export default function CategoriesPage() {
+  const { toast } = useToast();
   const dict = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [users, setUsers] = useState<User[]>([]);

@@ -13,7 +13,7 @@ import {
   exportKeyToBase64
 } from '../../../lib/crypto/e2ee';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { useToast } from '../../../../components/ui/Toast';
+import { useToast } from '../../../components/ui/Toast';
 import { Shield, Loader2, Send, Lock, ArrowLeft, Flame, Trash2, Settings, Clock, Trash, Image as ImageIcon, X, UserPlus, Check, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -92,6 +92,7 @@ const EncryptedImage = ({ payload, onPreview, dict }: { payload: string, onPrevi
 };
 
 export default function ChatPage({ params }: { params: Promise<{ username: string }> }) {
+  const { toast } = useToast();
   const dict = useTranslation();
   const [username, setUsername] = useState<string>('');
   const [loading, setLoading] = useState(true);

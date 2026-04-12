@@ -1,4 +1,5 @@
 'use client';
+import { useToast } from '../../../components/ui/Toast';
 import { useTranslation } from '../../../components/TranslationProvider';
 
 import { useState } from 'react';
@@ -18,6 +19,7 @@ export function CommentItem({
   onDelete?: () => void;
   currentUser?: any;
 }) {
+  const { toast } = useToast();
   const [upvotes, setUpvotes] = useState(comment._count?.upvotes || 0);
   const [hasUpvoted, setHasUpvoted] = useState(comment.hasUpvoted || false);
   const [hasBookmarked, setHasBookmarked] = useState(comment.hasBookmarked || false);
