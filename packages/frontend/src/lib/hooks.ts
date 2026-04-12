@@ -11,7 +11,13 @@ export function useCurrentUser() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+/**
+ * Callers: [useCurrentUser]
+ * Callees: [fetchUser]
+ * Description: An anonymous effect callback that triggers the user profile fetching.
+ * Keywords: usecurrentuser, effect, fetch, profile, anonymous
+ */
+  const effectProfile = () => {
     /**
        * Callers: []
        * Callees: [fetcher, setUser, setLoading]
@@ -29,7 +35,8 @@ export function useCurrentUser() {
       }
     };
     fetchUser();
-  }, []);
+  };
+  useEffect(effectProfile, []);
 
   return { user, loading };
 }
@@ -44,7 +51,13 @@ export function useCategories() {
   const [categories, setCategories] = useState<{ id: string; name: string; description: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+/**
+ * Callers: [useCategories]
+ * Callees: [fetchCats]
+ * Description: An anonymous effect callback that triggers the categories fetching.
+ * Keywords: usecategories, effect, fetch, categories, anonymous
+ */
+  const effectCategories = () => {
     /**
        * Callers: []
        * Callees: [fetcher, setCategories, error, setLoading]
@@ -62,7 +75,8 @@ export function useCategories() {
       }
     };
     fetchCats();
-  }, []);
+  };
+  useEffect(effectCategories, []);
 
   return { categories, loading };
 }
