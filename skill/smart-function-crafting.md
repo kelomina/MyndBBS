@@ -14,6 +14,13 @@ This skill defines the mandatory workflow for AI agents when modifying existing 
 
 ## Workflow Steps
 
+### Step 0: Pre-Modification & User Alignment (Mandatory User Interaction)
+Before writing any code or making any modifications, you MUST interact with the user using the `AskUserQuestion` tool to ensure alignment:
+1. **Evaluate Request Completeness**: Assess the user's request. If it lacks detail or is too vague to safely implement, use `AskUserQuestion` to provide multiple-choice options to clarify their specific vision. Do not guess.
+2. **Security & Performance Assessment**: Prioritize analyzing the potential security vulnerabilities and performance bottlenecks the new feature might introduce. Use `AskUserQuestion` to present these risks to the user, explicitly ask for their consent to proceed, and brainstorm possible alternative, safer, or more performant solutions.
+3. **Explicit Permission**: Before applying any file changes, explicitly outline your plan and ask the user for their permission to proceed with the modifications.
+4. **Git Sync Check**: Before starting a new round of modifications, verify the `git` status. If there are unpushed commits on the `main` branch, you MUST ask the user (using `AskUserQuestion`) for explicit permission to push to `main` before proceeding with new changes.
+
 ### Step 1: Search and Reuse First
 Before writing any new logic or creating a new function:
 1. Identify the core keywords of the functionality you intend to build (e.g., `user`, `authentication`, `password`, `validate`).
@@ -66,7 +73,8 @@ Before finalizing the task and delivering the code to the user, you MUST perform
 ## AI Agent Instructions (Self-Check)
 When you receive a task that involves writing or changing code, you must:
 1. Acknowledge this skill: "I am applying the `Smart Function Crafting & Annotation` skill."
-2. Explicitly document your search process for reusable functions.
-3. Explicitly document your manual call chain verification.
-4. Manually inject the required JSDoc format without using any automated generation scripts.
-5. Perform the **Pre-Delivery Verification** (`Step 4`). If you fail the compliance check, silently rework the code. If it's impossible to complete, report the failure honestly and explicitly to the user.
+2. Execute **Step 0**: Use `AskUserQuestion` to evaluate completeness, discuss security/performance implications, check Git sync status, and obtain explicit permission BEFORE touching code.
+3. Explicitly document your search process for reusable functions (`Step 1`).
+4. Explicitly document your manual call chain verification (`Step 2`).
+5. Manually inject the required JSDoc format without using any automated generation scripts (`Step 3`).
+6. Perform the **Pre-Delivery Verification** (`Step 4`). If you fail the compliance check, silently rework the code. If it's impossible to complete, report the failure honestly and explicitly to the user.
