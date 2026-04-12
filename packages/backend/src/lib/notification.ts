@@ -52,7 +52,7 @@ export const notifyModerators = async (title: string, content: string, relatedId
       type: 'SYSTEM',
       title,
       content,
-      relatedId
+      ...(relatedId ? { relatedId } : {})
     }).catch(err => console.error('Failed to notify moderator', mod.id, err));
   }
 };
