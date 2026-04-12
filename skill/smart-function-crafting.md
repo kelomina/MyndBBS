@@ -54,6 +54,13 @@ export const isValidPassword = (password: string): boolean => {
 };
 ```
 
+### Step 4: Pre-Delivery Verification & Rework (Self-Correction)
+Before finalizing the task and delivering the code to the user, you MUST perform a strict self-audit:
+1. **Git Diff Review**: Review your own modifications (e.g., using `git diff` or checking changed files).
+2. **Compliance Check**: Verify that *every single* newly created or modified function (including nested/anonymous ones) contains the exact required JSDoc format (`Callers`, `Callees`, `Description`, `Keywords`).
+3. **Mandatory Rework**: If you find any missing annotations, incorrect formats, or skipped call chain checks, you MUST rework and fix them immediately before yielding back to the user.
+4. **Honest Escalation**: If you find it genuinely impossible to manually trace the call chain or annotate the functions (e.g., due to extreme codebase complexity, context length limits, or deeply obfuscated dynamic calls), you MUST stop. You are required to honestly, explicitly, and professionally inform the user of the specific technical limitations preventing completion. Do not hallucinate or guess the call chain.
+
 ---
 
 ## AI Agent Instructions (Self-Check)
@@ -62,3 +69,4 @@ When you receive a task that involves writing or changing code, you must:
 2. Explicitly document your search process for reusable functions.
 3. Explicitly document your manual call chain verification.
 4. Manually inject the required JSDoc format without using any automated generation scripts.
+5. Perform the **Pre-Delivery Verification** (`Step 4`). If you fail the compliance check, silently rework the code. If it's impossible to complete, report the failure honestly and explicitly to the user.
