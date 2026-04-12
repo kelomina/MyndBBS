@@ -10,6 +10,7 @@ import { sendNotification } from '../lib/notification';
 
 import { verifyAndConsumeCaptcha } from '../controllers/captcha';
 import { AppAbility } from '../lib/casl';
+import { postLimiter } from '../lib/rateLimit';
 
 /**
  * Callers: []
@@ -109,6 +110,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<v
     }
 
     const posts = await prisma.post.findMany({
+      take: 1000,
       where: whereClause,
       orderBy: orderByClause,
       include: {
@@ -129,7 +131,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<v
   }
 });
 
-router.post('/', requireAuth, requireAbility('create', 'Post'), async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { title, content, categoryId, captchaId } = req.body;
     
@@ -328,6 +330,7 @@ router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response
     }
 
     const comments = await prisma.comment.findMany({
+      take: 1000,
       where: {
         AND: [
           { postId },
@@ -379,7 +382,7 @@ router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response
 });
 
 // POST a comment to a post
-router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const postId = req.params.id as string;
     const { content, parentId, captchaId } = req.body;

@@ -15,6 +15,7 @@ import { AuthRequest } from '../middleware/auth';
  */
 export const getUsers = async (req: Request, res: Response) => {
   const users = await prisma.user.findMany({
+    take: 1000,
     select: { id: true, username: true, email: true, role: { select: { name: true } }, status: true, createdAt: true }
   });
   /**
@@ -226,7 +227,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
  * Keywords: getcategories, get, categories, auto-annotated
  */
 export const getCategories = async (req: Request, res: Response) => {
-  const categories = await prisma.category.findMany({ orderBy: { sortOrder: 'asc' } });
+  const categories = await prisma.category.findMany({ take: 1000, orderBy: { sortOrder: 'asc' } });
   res.json(categories);
 };
 
@@ -374,6 +375,7 @@ export const getPosts = async (req: AuthRequest, res: Response) => {
   }
 
   const posts = await prisma.post.findMany({
+    take: 1000,
     where: accessibleBy(req.ability, 'read').Post,
     include: { author: { select: { username: true } }, category: { select: { name: true } } },
     orderBy: { createdAt: 'desc' }
@@ -430,6 +432,7 @@ export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
     return;
   }
   const posts = await prisma.post.findMany({
+    take: 1000,
     where: {
       AND: [
         accessibleBy(req.ability, 'manage').Post,
@@ -455,6 +458,7 @@ export const getDeletedComments = async (req: AuthRequest, res: Response) => {
     return;
   }
   const comments = await prisma.comment.findMany({
+    take: 1000,
     where: {
       AND: [
         accessibleBy(req.ability, 'manage').Comment,

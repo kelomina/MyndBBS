@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { requireAuth } from '../middleware/auth';
+import { uploadLimiter } from '../lib/rateLimit';
 
 const router: express.Router = express.Router();
 
@@ -39,7 +40,7 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } }); // 1
  * Description: An anonymous route handler that processes file uploads.
  * Keywords: upload, file, message, post, anonymous
  */
-router.post('/', requireAuth, upload.single('file'), (req: Request, res: Response) => {
+router.post('/', requireAuth, uploadLimiter, upload.single('file'), (req: Request, res: Response) => {
   if (!req.file) {
     res.status(400).json({ error: 'ERR_NO_FILE' });
     return;

@@ -21,6 +21,7 @@ export const getModeratedWords = async (req: AuthRequest, res: Response): Promis
   const categoryIds = isSuperAdmin ? undefined : user?.moderatedCategories.map(c => c.categoryId);
 
   const words = await prisma.moderatedWord.findMany({
+    take: 1000,
     where: categoryIds ? {
       OR: [
         { categoryId: null },
@@ -146,6 +147,7 @@ export const getPendingPosts = async (req: AuthRequest, res: Response): Promise<
   const categoryIds = isSuperAdmin ? undefined : user?.moderatedCategories.map(c => c.categoryId);
 
   const posts = await prisma.post.findMany({
+    take: 1000,
     where: {
       status: 'PENDING',
       ...(categoryIds ? { categoryId: { in: categoryIds } } : {})
@@ -234,6 +236,7 @@ export const getPendingComments = async (req: AuthRequest, res: Response): Promi
   const categoryIds = isSuperAdmin ? undefined : user?.moderatedCategories.map(c => c.categoryId);
 
   const comments = await prisma.comment.findMany({
+    take: 1000,
     where: {
       isPending: true,
       deletedAt: null,
