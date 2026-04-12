@@ -54,6 +54,12 @@ async function getWhitelist() {
     if (res.ok) {
       const data = await res.json();
       // Sort: exact matches first, then longest prefixes
+/**
+ * Callers: [getWhitelist]
+ * Callees: []
+ * Description: An anonymous sorting callback to order whitelist paths.
+ * Keywords: proxy, sort, whitelist, paths, anonymous
+ */
       data.sort((a: any, b: any) => {
         if (!a.isPrefix && b.isPrefix) return -1;
         if (a.isPrefix && !b.isPrefix) return 1;

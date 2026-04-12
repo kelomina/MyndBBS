@@ -17,7 +17,14 @@ export const fetcher = async (url: string, options?: RequestInit) => {
     credentials: 'include',
   });
   if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
+/**
+ * Callers: [fetcher]
+ * Callees: []
+ * Description: An anonymous fallback function that returns an empty object if `res.json()` fails to parse the error response.
+ * Keywords: fetcher, error, fallback, catch, anonymous
+ */
+const fallbackEmptyObject = () => ({});
+    const error = await res.json().catch(fallbackEmptyObject);
     throw new Error(error.error || 'Request failed');
   }
   return res.json();
