@@ -202,6 +202,12 @@ Before finalizing the task and delivering the code to the user, you MUST perform
 3. **Mandatory Rework**: If you find any missing annotations, incorrect formats, or skipped call chain checks, you MUST rework and fix them immediately before yielding back to the user.
 4. **Honest Escalation**: If you find it genuinely impossible to manually trace the call chain or annotate the functions (e.g., due to extreme codebase complexity, context length limits, or deeply obfuscated dynamic calls), you MUST stop. You are required to honestly, explicitly, and professionally inform the user of the specific technical limitations preventing completion. Do not hallucinate or guess the call chain.
 
+### Step 3.5: Pre-Commit Impact Summary (提交前影响说明)
+After all modifications are complete and verified, but **BEFORE** making any git commits, you MUST output a detailed impact summary to the user explaining:
+1. **Modified Files (修改了哪些文件)**: A precise list of all files that were changed.
+2. **Interfered Function Calls (干涉了哪些函数的调用)**: Which specific function calls were modified, added, or removed.
+3. **Expected Impact (预计影响哪些函数)**: Which downstream functions, upstream callers, or modules are expected to be affected by these changes.
+
 ---
 
 ## AI Agent Instructions (Self-Check)
@@ -212,3 +218,4 @@ When you receive a task that involves writing or changing code, you must:
 4. Execute **Phase 2 (Implementation & Execution)**: Strictly follow `task.md`. Handle multiple plans via user prompt. Migrate the plan to `history/` upon completion and output the Execution Summary.
 5. Execute **Phase 3 (Smart Function Crafting)**: During code execution, ensure you search for reusable functions (`Step 3.1`), manually verify call chains (`Step 3.2`), and inject required JSDoc format (`Step 3.3`).
 6. Perform the **Pre-Delivery Verification** (`Step 3.4`). If you fail the compliance check, silently rework the code. If it's impossible to complete, report the failure honestly and explicitly to the user.
+7. Generate the **Pre-Commit Impact Summary** (`Step 3.5`). Before any git commit, explicitly list the modified files, interfered function calls, and expected impacted functions to the user.
