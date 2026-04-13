@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
+import { adminQueryService } from '../queries/admin/AdminQueryService';
 import { clearModerationCache } from '../lib/moderation';
 import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
 import { ModerationApplicationService } from '../application/community/ModerationApplicationService';
@@ -22,26 +23,8 @@ const moderationApplicationService = new ModerationApplicationService(
  * Keywords: getmoderatedwords, get, moderated, words, auto-annotated
  */
 export const getModeratedWords = async (req: AuthRequest, res: Response): Promise<void> => {
-    const userId = req.user!.userId;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: true, moderatedCategories: true }
-  });
-
-  const isSuperAdmin = user?.role?.name === 'SUPER_ADMIN' || user?.role?.name === 'ADMIN';
-  const categoryIds = isSuperAdmin ? undefined : user?.moderatedCategories.map(c => c.categoryId);
-
-  const words = await prisma.moderatedWord.findMany({
-    take: 1000,
-    where: categoryIds ? {
-      OR: [
-        { categoryId: null },
-        { categoryId: { in: categoryIds } }
-      ]
-    } : {},
-    include: { category: { select: { name: true } } },
-    orderBy: { createdAt: 'desc' }
-  });
+  const userId = req.user!.userId;
+  const words = await adminQueryService.listModeratedWords(userId);
   res.json({ words });
 };
 
@@ -59,19 +42,14 @@ export const addModeratedWord = async (req: AuthRequest, res: Response): Promise
   }
   
   const userId = req.user!.userId;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: true, moderatedCategories: true }
-  });
-
-  const isSuperAdmin = user?.role?.name === 'SUPER_ADMIN' || user?.role?.name === 'ADMIN';
+  const { isSuperAdmin, categoryIds } = await adminQueryService.getModeratorScope(userId);
   
   if (!isSuperAdmin) {
     if (!categoryId) {
       res.status(403).json({ error: 'ERR_CANNOT_ADD_GLOBAL_WORD' });
       return;
     }
-    const isMod = user?.moderatedCategories.some(c => c.categoryId === categoryId);
+    const isMod = categoryIds?.includes(categoryId);
     if (!isMod) {
       res.status(403).json({ error: 'ERR_NOT_MODERATOR_OF_CATEGORY' });
       return;
@@ -101,14 +79,9 @@ export const deleteModeratedWord = async (req: AuthRequest, res: Response): Prom
   const id = req.params.id as string;
   
   const userId = req.user!.userId;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: true, moderatedCategories: true }
-  });
+  const { isSuperAdmin, categoryIds } = await adminQueryService.getModeratorScope(userId);
 
-  const isSuperAdmin = user?.role?.name === 'SUPER_ADMIN' || user?.role?.name === 'ADMIN';
-
-  const word = await prisma.moderatedWord.findUnique({ where: { id } });
+  const word = await adminQueryService.getModeratedWordById(id);
   if (!word) {
     res.status(404).json({ error: 'ERR_WORD_NOT_FOUND' });
     return;
@@ -119,7 +92,7 @@ export const deleteModeratedWord = async (req: AuthRequest, res: Response): Prom
       res.status(403).json({ error: 'ERR_CANNOT_DELETE_GLOBAL_WORD' });
       return;
     }
-    const isMod = user?.moderatedCategories.some(c => c.categoryId === word.categoryId);
+    const isMod = categoryIds?.includes(word.categoryId);
     if (!isMod) {
       res.status(403).json({ error: 'ERR_NOT_MODERATOR_OF_CATEGORY' });
       return;
@@ -144,27 +117,7 @@ export const deleteModeratedWord = async (req: AuthRequest, res: Response): Prom
  */
 export const getPendingPosts = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: true, moderatedCategories: true }
-  });
-
-  const isSuperAdmin = user?.role?.name === 'SUPER_ADMIN' || user?.role?.name === 'ADMIN';
-  const categoryIds = isSuperAdmin ? undefined : user?.moderatedCategories.map(c => c.categoryId);
-
-  const posts = await prisma.post.findMany({
-    take: 1000,
-    where: {
-      status: 'PENDING',
-      ...(categoryIds ? { categoryId: { in: categoryIds } } : {})
-    },
-    include: {
-      author: { select: { username: true } },
-      category: { select: { name: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
-  
+  const posts = await adminQueryService.listPendingPosts(userId);
   res.json({ posts });
 };
 
@@ -209,28 +162,7 @@ export const rejectPendingPost = async (req: AuthRequest, res: Response): Promis
  */
 export const getPendingComments = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: true, moderatedCategories: true }
-  });
-
-  const isSuperAdmin = user?.role?.name === 'SUPER_ADMIN' || user?.role?.name === 'ADMIN';
-  const categoryIds = isSuperAdmin ? undefined : user?.moderatedCategories.map(c => c.categoryId);
-
-  const comments = await prisma.comment.findMany({
-    take: 1000,
-    where: {
-      isPending: true,
-      deletedAt: null,
-      ...(categoryIds ? { post: { categoryId: { in: categoryIds } } } : {})
-    },
-    include: {
-      author: { select: { username: true } },
-      post: { select: { title: true, id: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
-  
+  const comments = await adminQueryService.listPendingComments(userId);
   res.json({ comments });
 };
 
