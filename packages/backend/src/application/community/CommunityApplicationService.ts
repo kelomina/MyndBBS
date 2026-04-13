@@ -2,6 +2,8 @@ import { ICategoryRepository } from '../../domain/community/ICategoryRepository'
 import { IPostRepository } from '../../domain/community/IPostRepository';
 import { ICommentRepository } from '../../domain/community/ICommentRepository';
 import { IEngagementRepository } from '../../domain/community/IEngagementRepository';
+import { IUserRepository } from '../../domain/identity/IUserRepository';
+import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { Category } from '../../domain/community/Category';
 import { Post, PostStatus } from '../../domain/community/Post';
 import { Comment } from '../../domain/community/Comment';
@@ -9,7 +11,6 @@ import { PostUpvote, PostBookmark } from '../../domain/community/PostEngagement'
 import { CommentUpvote, CommentBookmark } from '../../domain/community/CommentEngagement';
 import { v4 as uuidv4 } from 'uuid';
 import redis from '../../lib/redis';
-import { prisma } from '../../db'; // Kept for CQRS read joins that return complex DTOs
 import { containsModeratedWord } from '../../lib/moderation';
 
 /**
@@ -23,7 +24,9 @@ export class CommunityApplicationService {
     private categoryRepository: ICategoryRepository,
     private postRepository: IPostRepository,
     private commentRepository: ICommentRepository,
-    private engagementRepository: IEngagementRepository
+    private engagementRepository: IEngagementRepository,
+    private userRepository: IUserRepository,
+    private roleRepository: IRoleRepository
   ) {}
 
   // --- Category Management ---
@@ -52,15 +55,21 @@ export class CommunityApplicationService {
     await this.categoryRepository.save(category);
   }
 
+  /**
+   * Callers: [AdminController]
+   * Callees: [categoryRepository.findById, userRepository.findById, roleRepository.findById, category.addModerator, categoryRepository.save, redis.del]
+   * Description: Assigns a moderator role to a user for a specific category.
+   * Keywords: assign, moderator, category, community, user
+   */
   public async assignCategoryModerator(categoryId: string, userId: string): Promise<any> {
     const category = await this.categoryRepository.findById(categoryId);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
 
-    const user = await prisma.user.findUnique({ 
-      where: { id: userId },
-      include: { role: true }
-    });
-    if (!user || user.role?.name !== 'MODERATOR') {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error('ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR');
+
+    const role = await this.roleRepository.findById(user.roleId);
+    if (!role || role.name !== 'MODERATOR') {
       throw new Error('ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR');
     }
 

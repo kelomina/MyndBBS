@@ -9,8 +9,6 @@ import { ConversationSetting } from '../../domain/messaging/ConversationSetting'
 import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { v4 as uuidv4 } from 'uuid';
 
-import { prisma } from '../../db';
-
 /**
  * Callers: [FriendController, MessageController]
  * Callees: [IFriendshipRepository, IPrivateMessageRepository, IUserKeyRepository, IConversationSettingRepository, Friendship.create, Friendship.accept, Friendship.reject, PrivateMessage.create, PrivateMessage.markAsRead, PrivateMessage.deleteForUser]
@@ -28,6 +26,12 @@ export class MessagingApplicationService {
 
   // --- Friendship Management ---
 
+  /**
+   * Callers: [FriendController]
+   * Callees: [friendshipRepository.findByUsers, Friendship.create, friendshipRepository.save, userRepository.findById, userRepository.findByUsername, PrivateMessage.create, privateMessageRepository.save]
+   * Description: Sends a friend request from one user to another, also dispatching a system notification.
+   * Keywords: friend, request, send, messaging, friendship
+   */
   public async sendFriendRequest(requesterId: string, addresseeId: string): Promise<Friendship> {
     const existing = await this.friendshipRepository.findByUsers(requesterId, addresseeId);
     if (existing) throw new Error('ERR_FRIENDSHIP_EXISTS');
@@ -51,7 +55,7 @@ export class MessagingApplicationService {
       type: 'FRIEND_REQUEST'
     };
 
-    const systemUser = await prisma.user.findUnique({ where: { username: 'system' } });
+    const systemUser = await this.userRepository.findByUsername('system');
     if (systemUser) {
       const systemMessage = PrivateMessage.create({
         id: uuidv4(),
@@ -183,13 +187,13 @@ export class MessagingApplicationService {
   }
 
   /**
-   * Callers: [MessageController.uploadKeys]
-   * Callees: [IUserKeyRepository.findByUserId, UserKey.updateKeys, UserKey.create, IUserKeyRepository.save]
-   * Description: Uploads or updates a user's cryptographic keys and encryption scheme.
-   * Keywords: upload, keys, userkey, crypto, scheme, messaging
+   * Callers: [MessageController]
+   * Callees: [userRepository.findById, userKeyRepository.findByUserId, userKey.updateKeys, UserKey.create, userKeyRepository.save]
+   * Description: Uploads public and private encryption keys for a user.
+   * Keywords: upload, keys, encryption, messaging, user
    */
   public async uploadKeys(userId: string, scheme: string, publicKey: string, encryptedPrivateKey: string, mlKemPublicKey?: string, encryptedMlKemPrivateKey?: string): Promise<void> {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.userRepository.findById(userId);
     if (!user || user.level < 2) throw new Error('ERR_LEVEL_TOO_LOW');
     if (scheme === 'X_WING_HYBRID' && user.level < 4) throw new Error('ERR_LEVEL_TOO_LOW_FOR_X_WING');
 

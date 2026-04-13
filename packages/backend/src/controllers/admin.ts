@@ -2,8 +2,6 @@ import { Request, Response } from 'express';
 import { adminQueryService } from '../queries/admin/AdminQueryService';
 import { systemQueryService } from '../queries/system/SystemQueryService';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
-import { prisma } from '../db';
-import { PrismaClient } from '@prisma/client';
 import { UserStatus, PostStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
 import { logAudit } from '../lib/audit';
@@ -26,7 +24,11 @@ import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPa
 import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
 import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 
-const systemApplicationService = new SystemApplicationService(new PrismaRouteWhitelistRepository());
+const systemApplicationService = new SystemApplicationService(
+  new PrismaRouteWhitelistRepository(),
+  new PrismaUserRepository(),
+  new PrismaRoleRepository()
+);
 const roleApplicationService = new RoleApplicationService(
   new PrismaRoleRepository(),
   new PrismaPermissionRepository(),
@@ -55,7 +57,9 @@ const communityApplicationService = new CommunityApplicationService(
   new PrismaCategoryRepository(),
   new PrismaPostRepository(),
   new PrismaCommentRepository(),
-  new PrismaEngagementRepository()
+  new PrismaEngagementRepository(),
+  new PrismaUserRepository(),
+  new PrismaRoleRepository()
 );
 const moderationApplicationService = new ModerationApplicationService(
   new PrismaPostRepository(),
@@ -589,7 +593,7 @@ export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void
 
 /**
  * Callers: []
- * Callees: [json, status, encodeURIComponent, $connect, $disconnect, resolve, cwd, catch, readFile, includes, replace, writeFile, exec, error, logAudit, setTimeout, exit]
+ * Callees: [json, status, encodeURIComponent, updateDatabaseConfiguration, logAudit, setTimeout, exit]
  * Description: Handles the update db config logic for the application.
  * Keywords: updatedbconfig, update, db, config, auto-annotated
  */
@@ -605,30 +609,8 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
   const newDbUrl = `postgresql://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}?schema=public`;
 
   try {
-    const tempPrisma = new PrismaClient({ datasources: { db: { url: newDbUrl } } });
-    await tempPrisma.$connect();
-    await tempPrisma.$disconnect();
-
-    const envPath = path.resolve(process.cwd(), '../../.env');
-    /**
-     * Callers: [updateDbConfig]
-     * Callees: []
-     * Description: An anonymous error handler callback returning an empty string.
-     * Keywords: admin, file, catch, empty, anonymous
-     */
-    let envContent = await fs.readFile(envPath, 'utf8').catch(() => '');
-    
-    if (envContent.includes('DATABASE_URL=')) {
-      envContent = envContent.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL="${newDbUrl}"`);
-    } else {
-      envContent += `\nDATABASE_URL="${newDbUrl}"`;
-    }
-    
-    await fs.writeFile(envPath, envContent);
-    process.env.DATABASE_URL = newDbUrl;
-
     try {
-      await systemApplicationService.initializeDatabaseSchema();
+      await systemApplicationService.updateDatabaseConfiguration(newDbUrl);
     } catch (err: any) {
       console.error('Prisma Error on DB Update:', err.message);
       res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });

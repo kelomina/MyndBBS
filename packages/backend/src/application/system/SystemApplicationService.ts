@@ -1,12 +1,16 @@
 import { IRouteWhitelistRepository } from '../../domain/system/IRouteWhitelistRepository';
+import { IUserRepository } from '../../domain/identity/IUserRepository';
+import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { RouteWhitelist } from '../../domain/system/RouteWhitelist';
-import { UserStatus } from '../../domain/identity/User';
+import { User, UserStatus } from '../../domain/identity/User';
+import { Role } from '../../domain/identity/Role';
 import { v4 as uuidv4 } from 'uuid';
 import { exec } from 'child_process';
 import path from 'path';
 import crypto from 'crypto';
 import * as argon2 from 'argon2';
-import { prisma } from '../../db';
+import fs from 'fs/promises';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Callers: [AdminController, InstallController]
@@ -15,7 +19,11 @@ import { prisma } from '../../db';
  * Keywords: system, service, application, orchestration, route, whitelist
  */
 export class SystemApplicationService {
-  constructor(private routeWhitelistRepository: IRouteWhitelistRepository) {}
+  constructor(
+    private routeWhitelistRepository: IRouteWhitelistRepository,
+    private userRepository: IUserRepository,
+    private roleRepository: IRoleRepository
+  ) {}
 
   public async addRouteWhitelist(path: string, isPrefix: boolean, minRole: string | null, description: string | null): Promise<RouteWhitelist> {
     const route = RouteWhitelist.create({
@@ -61,76 +69,117 @@ export class SystemApplicationService {
   }
 
   /**
-   * Creates a temporary root user for installation.
-   * Returns the generated temporary install token.
+   * Callers: [InstallController]
+   * Callees: [roleRepository.findByName, Role.create, roleRepository.save, userRepository.findByUsername, user.updateProfile, user.changeRole, user.changeStatus, userRepository.save, User.create, crypto.randomBytes, argon2.hash]
+   * Description: Creates a temporary root user for the installation process and returns a token.
+   * Keywords: install, root, user, system, setup
    */
   public async createTemporaryRootUser(): Promise<string> {
     const installToken = crypto.randomBytes(16).toString('hex');
     const hashedPass = await argon2.hash(crypto.randomBytes(16).toString('hex'));
 
-    // We still use Prisma here for the initial bootstrap because domain repositories 
-    // might not be fully functional or we need to upsert roles. This is acceptable
-    // for a one-time bootstrap script, but kept isolated in the System service.
-    let role = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
+    let role = await this.roleRepository.findByName('SUPER_ADMIN');
     if (!role) {
-      role = await prisma.role.create({ data: { name: 'SUPER_ADMIN', description: 'System Administrator' } });
+      role = Role.create({ id: uuidv4(), name: 'SUPER_ADMIN', description: 'System Administrator', permissions: [] });
+      await this.roleRepository.save(role);
     }
 
-    await prisma.user.upsert({
-      where: { username: 'temp_root_install' },
-      update: { roleId: role.id, status: UserStatus.ACTIVE, password: hashedPass },
-      create: {
+    let user = await this.userRepository.findByUsername('temp_root_install');
+    if (user) {
+      user.updateProfile('temp_root@install.local', 'temp_root_install', hashedPass);
+      user.changeRole(role.id);
+      user.changeStatus(UserStatus.ACTIVE);
+      await this.userRepository.save(user);
+    } else {
+      user = User.create({
+        id: uuidv4(),
         username: 'temp_root_install',
         email: 'temp_root@install.local',
         password: hashedPass,
         roleId: role.id,
-        status: UserStatus.ACTIVE
-      }
-    });
+        status: UserStatus.ACTIVE,
+        level: 4,
+        isPasskeyMandatory: false,
+        totpSecret: null,
+        isTotpEnabled: false,
+        createdAt: new Date()
+      });
+      await this.userRepository.save(user);
+    }
 
     return installToken;
   }
 
+  /**
+   * Callers: [InstallController]
+   * Callees: [roleRepository.findByName, userRepository.findByUsername, userRepository.findByEmail, user.updateProfile, user.changeRole, user.changeStatus, userRepository.save, User.create, argon2.hash]
+   * Description: Finalizes the installation by setting up the actual super admin user and disabling the temporary root.
+   * Keywords: finalize, install, admin, system
+   */
   public async finalizeInstallation(username: string, email: string, password: string): Promise<string> {
-    const role = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
+    const role = await this.roleRepository.findByName('SUPER_ADMIN');
     if (!role) {
       throw new Error('ERR_ROLE_NOT_FOUND');
     }
 
     const hashedPass = await argon2.hash(password);
 
-    let user = await prisma.user.findFirst({
-      where: { OR: [{ username }, { email }] }
-    });
+    let user = await this.userRepository.findByUsername(username) || await this.userRepository.findByEmail(email);
 
     if (user) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          username,
-          email,
-          password: hashedPass,
-          roleId: role.id,
-          status: UserStatus.ACTIVE
-        }
-      });
+      user.updateProfile(email, username, hashedPass);
+      user.changeRole(role.id);
+      user.changeStatus(UserStatus.ACTIVE);
+      await this.userRepository.save(user);
     } else {
-      user = await prisma.user.create({
-        data: {
-          username,
-          email,
-          password: hashedPass,
-          roleId: role.id,
-          status: UserStatus.ACTIVE
-        }
+      user = User.create({
+        id: uuidv4(),
+        username,
+        email,
+        password: hashedPass,
+        roleId: role.id,
+        status: UserStatus.ACTIVE,
+        level: 4,
+        isPasskeyMandatory: false,
+        totpSecret: null,
+        isTotpEnabled: false,
+        createdAt: new Date()
       });
+      await this.userRepository.save(user);
     }
 
-    await prisma.user.updateMany({
-      where: { username: 'temp_root_install' },
-      data: { status: UserStatus.BANNED }
-    });
+    const tempUser = await this.userRepository.findByUsername('temp_root_install');
+    if (tempUser) {
+      tempUser.changeStatus(UserStatus.BANNED);
+      await this.userRepository.save(tempUser);
+    }
 
     return user.id;
+  }
+
+  /**
+   * Callers: [AdminController]
+   * Callees: [PrismaClient.$connect, PrismaClient.$disconnect, fs.readFile, fs.writeFile, initializeDatabaseSchema]
+   * Description: Updates the database configuration in .env and initializes the schema.
+   * Keywords: system, db, config, update
+   */
+  public async updateDatabaseConfiguration(newDbUrl: string): Promise<void> {
+    const tempPrisma = new PrismaClient({ datasources: { db: { url: newDbUrl } } });
+    await tempPrisma.$connect();
+    await tempPrisma.$disconnect();
+
+    const envPath = path.resolve(process.cwd(), '../../.env');
+    let envContent = await fs.readFile(envPath, 'utf8').catch(() => '');
+    
+    if (envContent.includes('DATABASE_URL=')) {
+      envContent = envContent.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL="${newDbUrl}"`);
+    } else {
+      envContent += `\nDATABASE_URL="${newDbUrl}"`;
+    }
+    
+    await fs.writeFile(envPath, envContent);
+    process.env.DATABASE_URL = newDbUrl;
+
+    await this.initializeDatabaseSchema();
   }
 }
