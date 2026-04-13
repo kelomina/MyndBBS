@@ -12,3 +12,4 @@
 - [2026-04-12] Migrated plan: history/2026-04/202604121400_ddd_user_and_messaging
 - [2026-04-12] Migrated plan: history/2026-04/202604121430_ddd_post_and_moderation
 - [2026-04-12] Migrated plan: history/2026-04/202604121500_ddd_session_auth
+- [2026-04-12] Migrated plan: history/2026-04/202604121600_ddd_messaging_audit

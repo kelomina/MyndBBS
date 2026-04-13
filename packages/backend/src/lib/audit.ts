@@ -1,4 +1,9 @@
 import { prisma } from '../db';
+import { AuditLog } from '../domain/system/AuditLog';
+import { PrismaAuditLogRepository } from '../infrastructure/repositories/PrismaAuditLogRepository';
+import { v4 as uuidv4 } from 'uuid';
+
+const auditLogRepository = new PrismaAuditLogRepository();
 
 /**
  * Callers: []
@@ -20,20 +25,21 @@ const maskSensitiveData = (data: string) => {
  * @param target - The target of the action (e.g., User ID, Category ID, etc.)
  */
 /**
- * Callers: []
- * Callees: [create, maskSensitiveData, error]
- * Description: Handles the log audit logic for the application.
- * Keywords: logaudit, log, audit, auto-annotated
+ * Callers: [AdminController.banUser, AdminController.unbanUser, AdminController.updateUserLevel, AdminController.updateUserRole, AdminController.hardDeletePost, AdminController.hardDeleteComment, AdminController.restorePost, AdminController.restoreComment]
+ * Callees: [AuditLog.create, maskSensitiveData, IAuditLogRepository.save, error]
+ * Description: Logs a system action immutably, masking sensitive user data beforehand.
+ * Keywords: logaudit, log, audit, system, logging, mask
  */
 export const logAudit = async (who: string, action: string, target: string): Promise<void> => {
   try {
-    await prisma.auditLog.create({
-      data: {
-        who: maskSensitiveData(who),
-        action: maskSensitiveData(action),
-        target: maskSensitiveData(target),
-      },
+    const auditLog = AuditLog.create({
+      id: uuidv4(),
+      who: maskSensitiveData(who),
+      action: maskSensitiveData(action),
+      target: maskSensitiveData(target),
+      timestamp: new Date()
     });
+    await auditLogRepository.save(auditLog);
   } catch (error) {
     console.error('Failed to write audit log:', error);
   }
