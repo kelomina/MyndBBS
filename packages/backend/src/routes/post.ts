@@ -76,20 +76,15 @@ router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), asy
     const userLevel = await communityQueryService.getUserLevel(req.user!.userId);
     
     try {
-      const { post, isModerated } = await communityApplicationService.createPost(
+      const result = await communityApplicationService.createPost(
         title, 
         content, 
         categoryId, 
         req.user!.userId, 
         userLevel
       );
-
-      if (isModerated) {
-        res.status(201).json({ message: 'ERR_PENDING_MODERATION', post });
-        return;
-      }
-
-      res.status(201).json(post);
+      const postDto = await communityQueryService.getPostById(req.ability!, result.postId);
+      res.status(201).json({ post: postDto, isModerated: result.isModerated });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
       return;
@@ -232,7 +227,7 @@ router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, 
       }
     }
 
-    const comment = await communityApplicationService.createComment(
+    const result = await communityApplicationService.createComment(
       content,
       postId,
       req.user!.userId,
@@ -241,24 +236,23 @@ router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, 
 
     const postObj = await communityQueryService.getPostBasicInfo(postId);
     if (postObj && postObj.authorId !== req.user!.userId) {
-      globalEventBus.publish(new PostRepliedEvent(postId, postObj.authorId, postObj.title, req.user!.userId, comment.id));
+      globalEventBus.publish(new PostRepliedEvent(postId, postObj.authorId, postObj.title, req.user!.userId, result.commentId));
     }
     if (parentId) {
       const parentComment = await communityQueryService.getCommentBasicInfo(parentId);
       if (parentComment && parentComment.authorId !== req.user!.userId) {
-        globalEventBus.publish(new CommentRepliedEvent(parentId, parentComment.authorId, postId, req.user!.userId, comment.id));
+        globalEventBus.publish(new CommentRepliedEvent(parentId, parentComment.authorId, postId, req.user!.userId, result.commentId));
       }
     }
 
-    // Attach count object to match the previous return signature exactly for the frontend
-    const finalComment = {
-      ...comment,
-      _count: { upvotes: 0, bookmarks: 0, replies: 0 },
-      hasUpvoted: false, 
-      hasBookmarked: false
-    };
+    const commentDto = await communityQueryService.getCommentById(result.commentId);
+    
+    if (commentDto?.isPending || commentDto?.status === 'PENDING') {
+      res.status(201).json({ message: 'ERR_PENDING_MODERATION', comment: commentDto });
+      return;
+    }
 
-    res.status(201).json(finalComment);
+    res.status(201).json(commentDto);
   } catch (error) {
     console.error('Error creating comment:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_CREATE_COMMENT' });
@@ -288,14 +282,13 @@ router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: Au
       return;
     }
 
-    const updatedPost = await communityApplicationService.updatePost(postId, title, content, categoryId);
-
-    if (updatedPost.status === 'PENDING') {
-      res.json({ message: 'ERR_PENDING_MODERATION', post: updatedPost });
+    const result = await communityApplicationService.updatePost(postId, title, content, categoryId);
+    const postDto = await communityQueryService.getPostById(req.ability!, result.postId);
+    if (postDto?.status === 'PENDING') {
+      res.json({ message: 'ERR_PENDING_MODERATION', post: postDto });
       return;
     }
-
-    res.json(updatedPost);
+    res.json(postDto);
   } catch (error) {
     console.error('Error updating post:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_POST' });
@@ -350,14 +343,15 @@ router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Commen
     }
 
     
-    const updatedComment = await communityApplicationService.updateComment(commentId, content, comment.post.categoryId);
+    const result = await communityApplicationService.updateComment(commentId, content, comment.post.categoryId);
+    const commentDto = await communityQueryService.getCommentById(result.commentId);
 
-    if (updatedComment.isPending) {
-      res.json({ message: 'ERR_PENDING_MODERATION', comment: updatedComment });
+    if (commentDto?.isPending) {
+      res.json({ message: 'ERR_PENDING_MODERATION', comment: commentDto });
       return;
     }
 
-    res.json(updatedComment);
+    res.json(commentDto);
   } catch (error) {
     res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_COMMENT' });
   }
