@@ -9,3 +9,4 @@
 - [2026-04-12] Migrated plan: history/2026-04/202604121200_ddd_identity_leftovers
 - [2026-04-12] Migrated plan: history/2026-04/202604121300_ddd_event_bus
 - [2026-04-12] Migrated plan: history/2026-04/202604121330_ddd_community_controllers
+- [2026-04-12] Migrated plan: history/2026-04/202604121400_ddd_user_and_messaging

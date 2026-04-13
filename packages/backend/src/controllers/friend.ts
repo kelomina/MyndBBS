@@ -1,6 +1,14 @@
 import { Response } from 'express';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
+import { MessagingApplicationService } from '../application/messaging/MessagingApplicationService';
+import { PrismaFriendshipRepository } from '../infrastructure/repositories/PrismaFriendshipRepository';
+import { PrismaPrivateMessageRepository } from '../infrastructure/repositories/PrismaPrivateMessageRepository';
+
+const messagingApplicationService = new MessagingApplicationService(
+  new PrismaFriendshipRepository(),
+  new PrismaPrivateMessageRepository()
+);
 
 /**
  * Callers: []
@@ -13,45 +21,12 @@ export const requestFriend = async (req: AuthRequest, res: Response): Promise<vo
   const { addresseeId } = req.body;
   if (!requesterId || !addresseeId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
-  // Check if existing
-  const existing = await prisma.friendship.findFirst({
-    where: {
-      OR: [
-        { requesterId, addresseeId },
-        { requesterId: addresseeId, addresseeId: requesterId }
-      ]
-    }
-  });
-
-  if (existing) { res.status(400).json({ error: 'ERR_FRIENDSHIP_EXISTS' }); return; }
-
-  const friendship = await prisma.friendship.create({
-    data: { requesterId, addresseeId, status: 'PENDING' }
-  });
-
-  // Create system notification for addressee
-  const requester = await prisma.user.findUnique({ where: { id: requesterId } });
-  const payload = {
-    title: 'Friend Request',
-    content: `${requester?.username} wants to be your friend.`,
-    relatedId: friendship.id,
-    type: 'FRIEND_REQUEST'
-  };
-
-  const systemUser = await prisma.user.findUnique({ where: { username: 'system' } });
-  if (systemUser) {
-    await prisma.privateMessage.create({
-      data: {
-        senderId: systemUser.id,
-        receiverId: addresseeId,
-        ephemeralPublicKey: 'system',
-        encryptedContent: JSON.stringify(payload),
-        isSystem: true
-      }
-    });
+  try {
+    const friendship = await messagingApplicationService.sendFriendRequest(requesterId, addresseeId);
+    res.json({ success: true, friendship });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
   }
-
-  res.json({ success: true, friendship });
 };
 
 /**
@@ -65,15 +40,12 @@ export const respondFriend = async (req: AuthRequest, res: Response): Promise<vo
   const { friendshipId, accept } = req.body;
   if (!userId || !friendshipId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
-  const friendship = await prisma.friendship.findUnique({ where: { id: friendshipId } });
-  if (!friendship || friendship.addresseeId !== userId) { res.status(404).json({ error: 'ERR_NOT_FOUND' }); return; }
-
-  await prisma.friendship.update({
-    where: { id: friendshipId },
-    data: { status: accept ? 'ACCEPTED' : 'REJECTED' }
-  });
-
-  res.json({ success: true });
+  try {
+    await messagingApplicationService.respondFriendRequest(friendshipId, userId, accept);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(error.message === 'ERR_NOT_FOUND' ? 404 : 400).json({ error: error.message });
+  }
 };
 
 /**
