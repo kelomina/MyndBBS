@@ -2,10 +2,16 @@ import { Request, Response } from 'express';
 import { AuthApplicationService } from '../application/identity/AuthApplicationService';
 import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
 import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
+import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository()
+  new PrismaPasskeyRepository(),
+  new PrismaSessionRepository(),
+  new PrismaAuthChallengeRepository(),
+  new PrismaUserRepository()
 );
 
 /**
@@ -51,28 +57,7 @@ export const generateCaptcha = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Callers: []
- * Callees: [findUnique, delete]
- * Description: Handles the verify and consume captcha logic for the application.
- * Keywords: verifyandconsumecaptcha, verify, and, consume, captcha, auto-annotated
- */
-export const verifyAndConsumeCaptcha = async (captchaId: string): Promise<boolean> => {
-  try {
-    const challenge = await prisma.captchaChallenge.findUnique({
-      where: { id: captchaId }
-    });
 
-    if (!challenge || !challenge.verified || challenge.expiresAt < new Date()) {
-      return false;
-    }
-
-    await prisma.captchaChallenge.delete({ where: { id: captchaId } });
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
 
 /**
  * Callers: []

@@ -8,10 +8,16 @@ import { isValidPassword } from '@myndbbs/shared';
 import { AuthApplicationService } from '../application/identity/AuthApplicationService';
 import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
 import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
+import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository()
+  new PrismaPasskeyRepository(),
+  new PrismaSessionRepository(),
+  new PrismaAuthChallengeRepository(),
+  new PrismaUserRepository()
 );
 
 /**
@@ -162,9 +168,7 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
     }
 
     if (sessionId) {
-      await prisma.session.deleteMany({
-        where: { id: sessionId }
-      });
+      await authApplicationService.revokeSession(sessionId);
       await redis.del(`session:${sessionId}`);
       await redis.del(`session:${sessionId}:requires_refresh`);
     }

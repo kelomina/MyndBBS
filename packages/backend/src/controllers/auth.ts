@@ -15,10 +15,19 @@ import { APP_NAME } from '@myndbbs/shared';
 import { AuthApplicationService } from '../application/identity/AuthApplicationService';
 import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
 import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
+import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+
+import { UserApplicationService } from '../application/identity/UserApplicationService';
+const userApplicationService = new UserApplicationService(new PrismaUserRepository());
 
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository()
+  new PrismaPasskeyRepository(),
+  new PrismaSessionRepository(),
+  new PrismaAuthChallengeRepository(),
+  new PrismaUserRepository()
 );
 
 const rpName = APP_NAME;
@@ -57,14 +66,12 @@ const getUserFromTempToken = async (req: Request, expectedType: 'registration' |
  */
 export const finalizeAuth = async (user: any, req: Request, res: Response) => {
   // Create Session first
-  const session = await prisma.session.create({
-    data: {
-      userId: user.id,
-      ...(req.ip && { ipAddress: req.ip }),
-      ...(req.headers['user-agent'] && { userAgent: req.headers['user-agent'] }),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-    }
-  });
+  const session = await authApplicationService.createSession(
+    user.id,
+    req.ip || null,
+    req.headers['user-agent'] || null,
+    7 * 24 * 60 * 60 * 1000 // 7 days
+  );
 
   const roleName = user.role?.name || user.role || null;
 
@@ -138,10 +145,7 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
     return;
   }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { isTotpEnabled: true, totpSecret: pendingSecret }
-  });
+  await userApplicationService.enableTotp(user.id, pendingSecret);
 
   await redis.del(`totp_setup:${user.id}`);
 
@@ -180,13 +184,8 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
     },
   });
 
-  const challengeId = crypto.randomUUID();
-  // Store challenge
-  await prisma.authChallenge.upsert({
-    where: { id: challengeId },
-    update: { challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
-    create: { id: challengeId, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
-  });
+  const authChallenge = await authApplicationService.generateAuthChallenge(options.challenge);
+  const challengeId = authChallenge.id;
 
   res.json({ ...options, challengeId });
 };
@@ -210,9 +209,11 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
     return;
   }
 
-  const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
-  if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
-    res.status(400).json({ error: 'ERR_CHALLENGE_EXPIRED_OR_NOT_FOUND' });
+  let expectedChallenge;
+  try {
+    expectedChallenge = await authApplicationService.consumeAuthChallenge(challengeId);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
     return;
   }
 
@@ -243,10 +244,8 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
       credentialBackedUp
     );
 
-    await prisma.authChallenge.delete({ where: { id: challengeId } });
-
     if (user.level === 1) {
-      await prisma.user.update({ where: { id: user.id }, data: { level: 2 } });
+      await userApplicationService.changeLevel(user.id, 2);
     }
 
     if (!user.isTotpEnabled) {
@@ -322,7 +321,6 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
         })),
         userVerification: 'preferred',
       });
-      challengeId = crypto.randomUUID();
     } else {
     // Passwordless flow
     options = await generateAuthenticationOptions({
@@ -330,15 +328,10 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
       allowCredentials: [], // Prompt for all discoverable credentials
       userVerification: 'preferred',
     });
-    challengeId = crypto.randomUUID();
   }
 
-  // Store challenge
-  await prisma.authChallenge.upsert({
-    where: { id: challengeId },
-    update: { challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
-    create: { id: challengeId, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
-  });
+  const authChallenge = await authApplicationService.generateAuthChallenge(options.challenge);
+  const challengeId = authChallenge.id;
 
   res.json({ ...options, challengeId });
 };
@@ -377,9 +370,11 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
     challengeId = bodyChallengeId;
   }
 
-  const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
-  if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
-    res.status(400).json({ error: 'ERR_CHALLENGE_EXPIRED_OR_NOT_FOUND' });
+  let expectedChallenge;
+  try {
+    expectedChallenge = await authApplicationService.consumeAuthChallenge(challengeId);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
     return;
   }
 
@@ -433,8 +428,6 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
       res.status(400).json({ error: e.message });
       return;
     }
-
-    await prisma.authChallenge.delete({ where: { id: challengeId } });
 
     if (!user) {
       res.status(400).json({ error: 'ERR_USER_NOT_FOUND' });

@@ -32,6 +32,7 @@ export class CommunityApplicationService {
       description,
       sortOrder: sortOrder || 0,
       minLevel: minLevel || 0,
+      moderatorIds: [],
       createdAt: new Date()
     });
     await this.categoryRepository.save(category);
@@ -48,6 +49,31 @@ export class CommunityApplicationService {
     await this.categoryRepository.save(category);
   }
 
+  public async assignCategoryModerator(categoryId: string, userId: string): Promise<any> {
+    const category = await this.categoryRepository.findById(categoryId);
+    if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
+
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: { role: true }
+    });
+    if (!user || user.role?.name !== 'MODERATOR') {
+      throw new Error('ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR');
+    }
+
+    category.addModerator(userId);
+    await this.categoryRepository.save(category);
+
+    return { categoryId, userId };
+  }
+
+  public async removeCategoryModerator(categoryId: string, userId: string): Promise<void> {
+    const category = await this.categoryRepository.findById(categoryId);
+    if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
+
+    category.removeModerator(userId);
+    await this.categoryRepository.save(category);
+  }
   public async deleteCategory(id: string): Promise<void> {
     const category = await this.categoryRepository.findById(id);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');

@@ -4,6 +4,7 @@ export interface CategoryProps {
   description: string | null;
   sortOrder: number;
   minLevel: number;
+  moderatorIds: string[];
   createdAt: Date;
 }
 
@@ -49,6 +50,7 @@ export class Category {
   public get description(): string | null { return this.props.description; }
   public get sortOrder(): number { return this.props.sortOrder; }
   public get minLevel(): number { return this.props.minLevel; }
+  public get moderatorIds(): string[] { return [...this.props.moderatorIds]; }
   public get createdAt(): Date { return this.props.createdAt; }
 
   // --- Domain Behaviors ---
@@ -89,5 +91,27 @@ export class Category {
    */
   public isLevelSufficient(userLevel: number): boolean {
     return userLevel >= this.props.minLevel;
+  }
+
+  /**
+   * Callers: [CommunityApplicationService.assignCategoryModerator]
+   * Callees: []
+   * Description: Adds a user to the category's moderators.
+   * Keywords: add, moderator, category, assign
+   */
+  public addModerator(userId: string): void {
+    if (!this.props.moderatorIds.includes(userId)) {
+      this.props.moderatorIds.push(userId);
+    }
+  }
+
+  /**
+   * Callers: [CommunityApplicationService.removeCategoryModerator]
+   * Callees: []
+   * Description: Removes a user from the category's moderators.
+   * Keywords: remove, moderator, category, unassign
+   */
+  public removeModerator(userId: string): void {
+    this.props.moderatorIds = this.props.moderatorIds.filter(id => id !== userId);
   }
 }

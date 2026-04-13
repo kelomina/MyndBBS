@@ -8,20 +8,30 @@ import { accessibleBy } from '@casl/prisma';
 import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
 import { PostRepliedEvent, CommentRepliedEvent } from '../domain/shared/events/DomainEvents';
 
+import { PrismaPostRepository } from '../infrastructure/repositories/PrismaPostRepository';
+import { PrismaCommentRepository } from '../infrastructure/repositories/PrismaCommentRepository';
 import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
 import { PrismaEngagementRepository } from '../infrastructure/repositories/PrismaEngagementRepository';
 import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
 import { AuthApplicationService } from '../application/identity/AuthApplicationService';
 import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
 import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
+import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 
 const communityApplicationService = new CommunityApplicationService(
   new PrismaCategoryRepository(),
+  new PrismaPostRepository(),
+  new PrismaCommentRepository(),
   new PrismaEngagementRepository()
 );
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository()
+  new PrismaPasskeyRepository(),
+  new PrismaSessionRepository(),
+  new PrismaAuthChallengeRepository(),
+  new PrismaUserRepository()
 );
 import { AppAbility } from '../lib/casl';
 import { postLimiter } from '../lib/rateLimit';
