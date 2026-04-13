@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../db';
+import { messagingQueryService } from '../queries/messaging/MessagingQueryService';
 import { AuthRequest } from '../middleware/auth';
 import { MessagingApplicationService } from '../application/messaging/MessagingApplicationService';
 import { PrismaFriendshipRepository } from '../infrastructure/repositories/PrismaFriendshipRepository';
@@ -58,18 +58,7 @@ export const getFriends = async (req: AuthRequest, res: Response): Promise<void>
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const friendships = await prisma.friendship.findMany({
-    where: {
-      OR: [
-        { requesterId: userId },
-        { addresseeId: userId }
-      ]
-    },
-    include: {
-      requester: { select: { id: true, username: true } },
-      addressee: { select: { id: true, username: true } }
-    }
-  });
+  const friendships = await messagingQueryService.listFriends(userId);
 
   res.json({ friendships });
 };
