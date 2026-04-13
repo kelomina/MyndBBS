@@ -5,6 +5,8 @@ import { IEngagementRepository } from '../../domain/community/IEngagementReposit
 import { Category } from '../../domain/community/Category';
 import { Post } from '../../domain/community/Post';
 import { Comment } from '../../domain/community/Comment';
+import { PostUpvote, PostBookmark } from '../../domain/community/PostEngagement';
+import { CommentUpvote, CommentBookmark } from '../../domain/community/CommentEngagement';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../../db'; // Kept for CQRS read joins that return complex DTOs
 import { containsModeratedWord } from '../../lib/moderation';
@@ -194,19 +196,87 @@ export class CommunityApplicationService {
 
   // --- Engagements ---
 
+  /**
+   * Callers: [PostController.toggleUpvote]
+   * Callees: [IPostRepository.findById, IEngagementRepository.findPostUpvote, IEngagementRepository.deletePostUpvote, PostUpvote.create, IEngagementRepository.savePostUpvote]
+   * Description: Toggles an upvote on a post. Enforces domain invariants (e.g. post must exist).
+   * Keywords: toggle, upvote, post, engagement
+   */
   public async togglePostUpvote(postId: string, userId: string): Promise<boolean> {
-    return this.engagementRepository.togglePostUpvote(postId, userId);
+    const post = await this.postRepository.findById(postId);
+    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    const existing = await this.engagementRepository.findPostUpvote(postId, userId);
+    if (existing) {
+      await this.engagementRepository.deletePostUpvote(postId, userId);
+      return false; // Toggled off
+    } else {
+      const upvote = PostUpvote.create({ userId, postId, createdAt: new Date() });
+      await this.engagementRepository.savePostUpvote(upvote);
+      return true; // Toggled on
+    }
   }
 
+  /**
+   * Callers: [PostController.toggleBookmark]
+   * Callees: [IPostRepository.findById, IEngagementRepository.findPostBookmark, IEngagementRepository.deletePostBookmark, PostBookmark.create, IEngagementRepository.savePostBookmark]
+   * Description: Toggles a bookmark on a post. Enforces domain invariants.
+   * Keywords: toggle, bookmark, post, engagement
+   */
   public async togglePostBookmark(postId: string, userId: string): Promise<boolean> {
-    return this.engagementRepository.togglePostBookmark(postId, userId);
+    const post = await this.postRepository.findById(postId);
+    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    const existing = await this.engagementRepository.findPostBookmark(postId, userId);
+    if (existing) {
+      await this.engagementRepository.deletePostBookmark(postId, userId);
+      return false;
+    } else {
+      const bookmark = PostBookmark.create({ userId, postId, createdAt: new Date() });
+      await this.engagementRepository.savePostBookmark(bookmark);
+      return true;
+    }
   }
 
+  /**
+   * Callers: [PostController.toggleCommentUpvote]
+   * Callees: [ICommentRepository.findById, IEngagementRepository.findCommentUpvote, IEngagementRepository.deleteCommentUpvote, CommentUpvote.create, IEngagementRepository.saveCommentUpvote]
+   * Description: Toggles an upvote on a comment. Enforces domain invariants.
+   * Keywords: toggle, upvote, comment, engagement
+   */
   public async toggleCommentUpvote(commentId: string, userId: string): Promise<boolean> {
-    return this.engagementRepository.toggleCommentUpvote(commentId, userId);
+    const comment = await this.commentRepository.findById(commentId);
+    if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+
+    const existing = await this.engagementRepository.findCommentUpvote(commentId, userId);
+    if (existing) {
+      await this.engagementRepository.deleteCommentUpvote(commentId, userId);
+      return false;
+    } else {
+      const upvote = CommentUpvote.create({ userId, commentId, createdAt: new Date() });
+      await this.engagementRepository.saveCommentUpvote(upvote);
+      return true;
+    }
   }
 
+  /**
+   * Callers: [PostController.toggleCommentBookmark]
+   * Callees: [ICommentRepository.findById, IEngagementRepository.findCommentBookmark, IEngagementRepository.deleteCommentBookmark, CommentBookmark.create, IEngagementRepository.saveCommentBookmark]
+   * Description: Toggles a bookmark on a comment. Enforces domain invariants.
+   * Keywords: toggle, bookmark, comment, engagement
+   */
   public async toggleCommentBookmark(commentId: string, userId: string): Promise<boolean> {
-    return this.engagementRepository.toggleCommentBookmark(commentId, userId);
+    const comment = await this.commentRepository.findById(commentId);
+    if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+
+    const existing = await this.engagementRepository.findCommentBookmark(commentId, userId);
+    if (existing) {
+      await this.engagementRepository.deleteCommentBookmark(commentId, userId);
+      return false;
+    } else {
+      const bookmark = CommentBookmark.create({ userId, commentId, createdAt: new Date() });
+      await this.engagementRepository.saveCommentBookmark(bookmark);
+      return true;
+    }
   }
 }

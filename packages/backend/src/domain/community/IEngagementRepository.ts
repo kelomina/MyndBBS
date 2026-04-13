@@ -1,39 +1,26 @@
+import { PostUpvote, PostBookmark } from './PostEngagement';
+import { CommentUpvote, CommentBookmark } from './CommentEngagement';
+
 /**
  * Callers: [CommunityApplicationService]
  * Callees: []
- * Description: The repository interface for managing user engagements (upvotes, bookmarks) on posts and comments.
+ * Description: The repository interface for managing user engagements (upvotes, bookmarks) via domain entities.
  * Keywords: engagement, repository, interface, contract, upvote, bookmark
  */
 export interface IEngagementRepository {
-  /**
-   * Callers: [CommunityApplicationService]
-   * Callees: []
-   * Description: Toggles an upvote on a post for a specific user.
-   * Keywords: toggle, upvote, post, repository
-   */
-  togglePostUpvote(postId: string, userId: string): Promise<boolean>;
+  findPostUpvote(postId: string, userId: string): Promise<PostUpvote | null>;
+  savePostUpvote(upvote: PostUpvote): Promise<void>;
+  deletePostUpvote(postId: string, userId: string): Promise<void>;
 
-  /**
-   * Callers: [CommunityApplicationService]
-   * Callees: []
-   * Description: Toggles a bookmark on a post for a specific user.
-   * Keywords: toggle, bookmark, post, repository
-   */
-  togglePostBookmark(postId: string, userId: string): Promise<boolean>;
+  findPostBookmark(postId: string, userId: string): Promise<PostBookmark | null>;
+  savePostBookmark(bookmark: PostBookmark): Promise<void>;
+  deletePostBookmark(postId: string, userId: string): Promise<void>;
 
-  /**
-   * Callers: [CommunityApplicationService]
-   * Callees: []
-   * Description: Toggles an upvote on a comment for a specific user.
-   * Keywords: toggle, upvote, comment, repository
-   */
-  toggleCommentUpvote(commentId: string, userId: string): Promise<boolean>;
+  findCommentUpvote(commentId: string, userId: string): Promise<CommentUpvote | null>;
+  saveCommentUpvote(upvote: CommentUpvote): Promise<void>;
+  deleteCommentUpvote(commentId: string, userId: string): Promise<void>;
 
-  /**
-   * Callers: [CommunityApplicationService]
-   * Callees: []
-   * Description: Toggles a bookmark on a comment for a specific user.
-   * Keywords: toggle, bookmark, comment, repository
-   */
-  toggleCommentBookmark(commentId: string, userId: string): Promise<boolean>;
+  findCommentBookmark(commentId: string, userId: string): Promise<CommentBookmark | null>;
+  saveCommentBookmark(bookmark: CommentBookmark): Promise<void>;
+  deleteCommentBookmark(commentId: string, userId: string): Promise<void>;
 }
