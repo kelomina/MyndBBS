@@ -53,15 +53,15 @@ export class PrismaNotificationRepository implements INotificationRepository {
       create: {
         id: notification.id,
         userId: notification.userId,
-        type: notification.type,
+        type: notification.type as any,
         title: notification.title,
         content: notification.content,
         relatedId: notification.relatedId,
-        read: notification.read,
+        isRead: notification.isRead,
         createdAt: notification.createdAt,
       },
       update: {
-        read: notification.read,
+        isRead: notification.isRead,
       },
     });
   }

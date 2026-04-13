@@ -55,6 +55,16 @@ export class PostUpvote {
   public get userId(): string { return this.props.userId; }
   public get postId(): string { return this.props.postId; }
   public get createdAt(): Date { return this.props.createdAt; }
+
+  // --- Domain Behaviors ---
+
+  /**
+   * Evaluates if this upvote was cast within a specific time window.
+   */
+  public isCastWithinHours(hours: number): boolean {
+    const threshold = new Date(Date.now() - hours * 60 * 60 * 1000);
+    return this.props.createdAt >= threshold;
+  }
 }
 
 /**
@@ -102,4 +112,13 @@ export class PostBookmark {
   public get userId(): string { return this.props.userId; }
   public get postId(): string { return this.props.postId; }
   public get createdAt(): Date { return this.props.createdAt; }
+
+  // --- Domain Behaviors ---
+
+  /**
+   * Checks if this bookmark belongs to a specific user.
+   */
+  public isOwnedBy(userId: string): boolean {
+    return this.props.userId === userId;
+  }
 }

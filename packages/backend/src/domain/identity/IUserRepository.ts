@@ -38,4 +38,12 @@ export interface IUserRepository {
    * Keywords: save, create, update, user, repository
    */
   save(user: User): Promise<void>;
+
+  /**
+   * Callers: [RoleApplicationService]
+   * Callees: []
+   * Description: Retrieves all Users associated with a specific role ID.
+   * Keywords: find, by, role, user, repository
+   */
+  findByRoleId(roleId: string): Promise<User[]>;
 }

@@ -5,7 +5,7 @@ const MODERATION_CACHE_KEY = 'moderation_words';
 
 /**
  * Callers: []
- * Callees: [get, parse, findMany, push, set, stringify]
+ * Callees: [get, parse, systemQueryService.getAllModeratedWords, push, set, stringify]
  * Description: Handles the get moderation words logic for the application.
  * Keywords: getmoderationwords, get, moderation, words, auto-annotated
  */
@@ -15,7 +15,7 @@ export const getModerationWords = async (): Promise<{ global: string[], category
     return JSON.parse(cached);
   }
 
-  const words = await prisma.moderatedWord.findMany();
+  const words = await systemQueryService.getAllModeratedWords();
   const global: string[] = [];
   const category: Record<string, string[]> = {};
 

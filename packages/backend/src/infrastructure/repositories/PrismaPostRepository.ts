@@ -31,14 +31,14 @@ export class PrismaPostRepository implements IPostRepository {
         content: post.content,
         categoryId: post.categoryId,
         authorId: post.authorId,
-        status: post.status,
+        status: post.status as any, // Cast domain status to Prisma status
         createdAt: post.createdAt,
       },
       update: {
         title: post.title,
         content: post.content,
         categoryId: post.categoryId,
-        status: post.status,
+        status: post.status as any, // Cast domain status to Prisma status
       },
     });
   }

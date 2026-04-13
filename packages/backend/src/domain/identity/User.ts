@@ -1,4 +1,9 @@
-import { UserStatus } from '@prisma/client';
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  BANNED = 'BANNED',
+  PENDING_VERIFICATION = 'PENDING_VERIFICATION'
+}
 
 export interface UserProps {
   id: string;

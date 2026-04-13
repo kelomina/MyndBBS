@@ -3,7 +3,7 @@ import { IPostRepository } from '../../domain/community/IPostRepository';
 import { ICommentRepository } from '../../domain/community/ICommentRepository';
 import { IEngagementRepository } from '../../domain/community/IEngagementRepository';
 import { Category } from '../../domain/community/Category';
-import { Post } from '../../domain/community/Post';
+import { Post, PostStatus } from '../../domain/community/Post';
 import { Comment } from '../../domain/community/Comment';
 import { PostUpvote, PostBookmark } from '../../domain/community/PostEngagement';
 import { CommentUpvote, CommentBookmark } from '../../domain/community/CommentEngagement';
@@ -102,7 +102,7 @@ export class CommunityApplicationService {
       content,
       categoryId,
       authorId,
-      status: isModerated ? 'PENDING' : 'PUBLISHED',
+      status: isModerated ? PostStatus.PENDING_MODERATION : PostStatus.PUBLISHED,
       createdAt: new Date()
     });
 

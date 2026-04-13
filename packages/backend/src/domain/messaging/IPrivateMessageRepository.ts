@@ -46,4 +46,14 @@ export interface IPrivateMessageRepository {
    * Keywords: save, many, bulk, privatemessage, repository
    */
   saveMany(messages: PrivateMessage[]): Promise<void>;
+
+  /**
+   * Callers: [MessagingApplicationService]
+   * Callees: []
+   * Description: Counts the number of messages sent by a specific user to another specific user.
+   * Keywords: count, messages, between, privatemessage, repository
+   */
+  countMessagesBetween(senderId: string, receiverId: string): Promise<number>;
+
+  delete(id: string): Promise<void>;
 }

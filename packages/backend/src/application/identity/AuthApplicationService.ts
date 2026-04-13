@@ -3,14 +3,14 @@ import { IPasskeyRepository } from '../../domain/identity/IPasskeyRepository';
 import { ISessionRepository } from '../../domain/identity/ISessionRepository';
 import { IAuthChallengeRepository } from '../../domain/identity/IAuthChallengeRepository';
 import { IUserRepository } from '../../domain/identity/IUserRepository';
+import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { CaptchaChallenge } from '../../domain/identity/CaptchaChallenge';
 import { Passkey } from '../../domain/identity/Passkey';
 import { Session } from '../../domain/identity/Session';
 import { AuthChallenge } from '../../domain/identity/AuthChallenge';
-import { User } from '../../domain/identity/User';
+import { User, UserStatus } from '../../domain/identity/User';
 import { v4 as uuidv4 } from 'uuid';
 import * as argon2 from 'argon2';
-import { prisma } from '../../db';
 
 /**
  * Callers: [CaptchaController, RegisterController, AuthController, UserController, AdminController, SudoController]
@@ -30,7 +30,8 @@ export class AuthApplicationService {
     private passkeyRepository: IPasskeyRepository,
     private sessionRepository: ISessionRepository,
     private authChallengeRepository: IAuthChallengeRepository,
-    private userRepository: IUserRepository
+    private userRepository: IUserRepository,
+    private roleRepository: IRoleRepository
   ) {}
 
   // --- Captcha Orchestration ---
@@ -118,7 +119,7 @@ export class AuthApplicationService {
     if (existingUsername) throw new Error('ERR_USERNAME_ALREADY_EXISTS');
 
     const hashedPassword = await argon2.hash(password);
-    const defaultRole = await prisma.role.findUnique({ where: { name: 'USER' } });
+    const defaultRole = await this.roleRepository.findByName('USER');
     
     const user = User.create({
       id: uuidv4(),
@@ -127,7 +128,7 @@ export class AuthApplicationService {
       password: hashedPassword,
       roleId: defaultRole?.id || null,
       level: 1,
-      status: 'ACTIVE',
+      status: UserStatus.ACTIVE,
       isPasskeyMandatory: false,
       totpSecret: null,
       isTotpEnabled: false,

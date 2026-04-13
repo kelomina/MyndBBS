@@ -1,4 +1,12 @@
-import { PostStatus } from '@prisma/client';
+export enum PostStatus {
+  PUBLISHED = 'PUBLISHED',
+  DRAFT = 'DRAFT',
+  ARCHIVED = 'ARCHIVED',
+  PENDING_MODERATION = 'PENDING_MODERATION',
+  REJECTED = 'REJECTED',
+  PENDING = 'PENDING',
+  DELETED = 'DELETED'
+}
 
 export interface PostProps {
   id: string;
@@ -69,9 +77,9 @@ export class Post {
     if (categoryId) this.props.categoryId = categoryId;
     
     if (isModerated) {
-      this.props.status = 'PENDING';
-    } else if (this.props.status === 'PENDING') {
-      this.props.status = 'PUBLISHED';
+      this.props.status = PostStatus.PENDING_MODERATION;
+    } else if (this.props.status === 'PENDING' || this.props.status === PostStatus.PENDING_MODERATION) {
+      this.props.status = PostStatus.PUBLISHED;
     }
   }
 
@@ -82,10 +90,10 @@ export class Post {
    * Keywords: approve, post, moderation, status
    */
   public approve(): void {
-    if (this.props.status !== 'PENDING') {
+    if (this.props.status !== PostStatus.PENDING_MODERATION && this.props.status !== PostStatus.PENDING) {
       throw new Error('ERR_POST_NOT_PENDING');
     }
-    this.props.status = 'PUBLISHED';
+    this.props.status = PostStatus.PUBLISHED;
   }
 
   /**
@@ -95,10 +103,10 @@ export class Post {
    * Keywords: reject, post, moderation, status
    */
   public reject(): void {
-    if (this.props.status !== 'PENDING') {
+    if (this.props.status !== PostStatus.PENDING_MODERATION && this.props.status !== PostStatus.PENDING) {
       throw new Error('ERR_POST_NOT_PENDING');
     }
-    this.props.status = 'DELETED';
+    this.props.status = PostStatus.REJECTED;
   }
 
   /**
@@ -118,7 +126,7 @@ export class Post {
    * Keywords: delete, post, status, soft
    */
   public delete(): void {
-    this.props.status = 'DELETED';
+    this.props.status = PostStatus.DELETED;
   }
 
   /**
@@ -128,9 +136,9 @@ export class Post {
    * Keywords: restore, post, status, soft
    */
   public restore(): void {
-    if (this.props.status !== 'DELETED') {
+    if (this.props.status !== PostStatus.DELETED) {
       throw new Error('ERR_POST_NOT_DELETED');
     }
-    this.props.status = 'PUBLISHED';
+    this.props.status = PostStatus.PUBLISHED;
   }
 }

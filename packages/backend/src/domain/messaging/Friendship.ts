@@ -1,4 +1,4 @@
-import { FriendshipStatus } from '@prisma/client';
+export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED';
 
 export interface FriendshipProps {
   id: string;

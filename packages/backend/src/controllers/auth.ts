@@ -18,8 +18,9 @@ import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPa
 import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
 import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
-
 import { UserApplicationService } from '../application/identity/UserApplicationService';
+import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
+
 const userApplicationService = new UserApplicationService(new PrismaUserRepository());
 
 const authApplicationService = new AuthApplicationService(
@@ -27,7 +28,8 @@ const authApplicationService = new AuthApplicationService(
   new PrismaPasskeyRepository(),
   new PrismaSessionRepository(),
   new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository()
+  new PrismaUserRepository(),
+  new PrismaRoleRepository()
 );
 
 const rpName = APP_NAME;
@@ -300,25 +302,24 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
   const { tempToken } = req.cookies;
   
   let options;
-  let challengeId;
 
   if (tempToken) {
-      // 2FA flow
-      const user = await getUserFromTempToken(req, 'login');
-      if (!user) {
-        res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
-        return;
-      }
-      const userPasskeys = await identityQueryService.listUserPasskeyIds(user.id);
-      options = await generateAuthenticationOptions({
-        rpID,
-        allowCredentials: userPasskeys.map(passkey => ({
-          id: passkey.id,
-          transports: ['internal'],
-        })),
-        userVerification: 'preferred',
-      });
-    } else {
+    // 2FA flow
+    const user = await getUserFromTempToken(req, 'login');
+    if (!user) {
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+      return;
+    }
+    const userPasskeys = await identityQueryService.listUserPasskeyIds(user.id);
+    options = await generateAuthenticationOptions({
+      rpID,
+      allowCredentials: userPasskeys.map(passkey => ({
+        id: passkey.id,
+        transports: ['internal'] as any,
+      })),
+      userVerification: 'preferred',
+    });
+  } else {
     // Passwordless flow
     options = await generateAuthenticationOptions({
       rpID,

@@ -4,10 +4,16 @@ import { AuthRequest } from '../middleware/auth';
 import { MessagingApplicationService } from '../application/messaging/MessagingApplicationService';
 import { PrismaFriendshipRepository } from '../infrastructure/repositories/PrismaFriendshipRepository';
 import { PrismaPrivateMessageRepository } from '../infrastructure/repositories/PrismaPrivateMessageRepository';
+import { PrismaUserKeyRepository } from '../infrastructure/repositories/PrismaUserKeyRepository';
+import { PrismaConversationSettingRepository } from '../infrastructure/repositories/PrismaConversationSettingRepository';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 
 const messagingApplicationService = new MessagingApplicationService(
   new PrismaFriendshipRepository(),
-  new PrismaPrivateMessageRepository()
+  new PrismaPrivateMessageRepository(),
+  new PrismaUserKeyRepository(),
+  new PrismaConversationSettingRepository(),
+  new PrismaUserRepository()
 );
 
 /**

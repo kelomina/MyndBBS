@@ -78,7 +78,22 @@ export function defineAbilityForContext(context?: AccessContextDTO, extraRules?:
   // Dynamic DB-driven rules
   if (extraRules && extraRules.length > 0) {
     for (const rule of extraRules) {
-      can(rule.action as Action, rule.subject as AppSubjects);
+      const parts = rule.action.split(':');
+      const actionName = parts.length > 1 ? parts[0] : rule.action;
+      const subjectName = parts.length > 1 ? parts[1] : (rule as any).subject; // Accommodate old structure where subject might still exist
+
+      // Make sure subjectName is passed as string
+      const finalSubjectName = subjectName ? subjectName.toString() : 'all';
+
+      const parsedConditions = typeof (rule as any).conditions === 'string' 
+        ? JSON.parse((rule as any).conditions) 
+        : (rule as any).conditions;
+
+      if (parsedConditions) {
+        can(actionName as Action, finalSubjectName as any, parsedConditions);
+      } else {
+        can(actionName as Action, finalSubjectName as any);
+      }
     }
   }
 

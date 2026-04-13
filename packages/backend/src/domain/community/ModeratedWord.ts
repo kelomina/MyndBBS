@@ -44,4 +44,22 @@ export class ModeratedWord {
   public get categoryId(): string | null { return this.props.categoryId; }
   public get createdAt(): Date { return this.props.createdAt; }
 
+  // --- Domain Behaviors ---
+
+  /**
+   * Updates the moderated word content.
+   */
+  public updateWord(newWord: string): void {
+    if (!newWord || newWord.trim().length === 0) {
+      throw new Error('ERR_MODERATED_WORD_CANNOT_BE_EMPTY');
+    }
+    this.props.word = newWord.trim();
+  }
+
+  /**
+   * Moves the moderated word to a different category, or makes it global (null).
+   */
+  public changeCategory(categoryId: string | null): void {
+    this.props.categoryId = categoryId;
+  }
 }

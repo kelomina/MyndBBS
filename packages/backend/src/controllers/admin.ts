@@ -18,11 +18,19 @@ import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/P
 import { RoleApplicationService } from '../application/identity/RoleApplicationService';
 import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
 import { PrismaPermissionRepository } from '../infrastructure/repositories/PrismaPermissionRepository';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
+import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
+import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
+import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 
 const systemApplicationService = new SystemApplicationService(new PrismaRouteWhitelistRepository());
 const roleApplicationService = new RoleApplicationService(
   new PrismaRoleRepository(),
-  new PrismaPermissionRepository()
+  new PrismaPermissionRepository(),
+  new PrismaUserRepository()
 );
 
 const authApplicationService = new AuthApplicationService(
@@ -30,7 +38,8 @@ const authApplicationService = new AuthApplicationService(
   new PrismaPasskeyRepository(),
   new PrismaSessionRepository(),
   new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository()
+  new PrismaUserRepository(),
+  new PrismaRoleRepository()
 );
 import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
 import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
@@ -201,7 +210,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
   const { status } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  if (!([UserStatus.ACTIVE, UserStatus.BANNED, UserStatus.PENDING] as UserStatus[]).includes(status as UserStatus)) {
+  if (!([UserStatus.ACTIVE, UserStatus.BANNED, UserStatus.PENDING_VERIFICATION, UserStatus.INACTIVE] as UserStatus[]).includes(status as UserStatus)) {
     res.status(400).json({ error: 'ERR_INVALID_STATUS' });
     return;
   }

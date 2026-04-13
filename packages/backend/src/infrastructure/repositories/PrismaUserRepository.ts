@@ -50,6 +50,11 @@ export class PrismaUserRepository implements IUserRepository {
     return this.toDomain(raw);
   }
 
+  public async findByRoleId(roleId: string): Promise<User[]> {
+    const rawUsers = await prisma.user.findMany({ where: { roleId } });
+    return rawUsers.map(raw => this.toDomain(raw));
+  }
+
   public async save(user: User): Promise<void> {
     await prisma.user.upsert({
       where: { id: user.id },
@@ -59,7 +64,7 @@ export class PrismaUserRepository implements IUserRepository {
         username: user.username,
         password: user.password,
         roleId: user.roleId,
-        status: user.status,
+        status: user.status as any,
         level: user.level,
         isPasskeyMandatory: user.isPasskeyMandatory,
         totpSecret: user.totpSecret,
@@ -71,7 +76,7 @@ export class PrismaUserRepository implements IUserRepository {
         username: user.username,
         password: user.password,
         roleId: user.roleId,
-        status: user.status,
+        status: user.status as any,
         level: user.level,
         isPasskeyMandatory: user.isPasskeyMandatory,
         totpSecret: user.totpSecret,

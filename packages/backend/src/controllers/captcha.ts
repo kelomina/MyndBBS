@@ -6,12 +6,15 @@ import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSe
 import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 
+import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
+
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
   new PrismaPasskeyRepository(),
   new PrismaSessionRepository(),
   new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository()
+  new PrismaUserRepository(),
+  new PrismaRoleRepository()
 );
 
 /**
