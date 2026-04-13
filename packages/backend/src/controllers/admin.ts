@@ -1,4 +1,7 @@
 import { Request, Response } from 'express';
+import { adminQueryService } from '../queries/admin/AdminQueryService';
+import { systemQueryService } from '../queries/system/SystemQueryService';
+import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { prisma } from '../db';
 import { PrismaClient } from '@prisma/client';
 import { UserStatus, PostStatus } from '@prisma/client';
@@ -60,21 +63,8 @@ const moderationApplicationService = new ModerationApplicationService(
  * Keywords: getusers, get, users, auto-annotated
  */
 export const getUsers = async (req: Request, res: Response) => {
-  const users = await prisma.user.findMany({
-    take: 1000,
-    select: { id: true, username: true, email: true, role: { select: { name: true } }, status: true, createdAt: true }
-  });
-  /**
-   * Callers: [getUsers]
-   * Callees: []
-   * Description: An anonymous callback mapping user properties to a formatted object.
-   * Keywords: admin, users, map, format, anonymous
-   */
-  const formattedUsers = users.map(user => ({
-    ...user,
-    role: user.role?.name || null
-  }));
-  res.json(formattedUsers);
+  const users = await adminQueryService.listUsers();
+  res.json(users);
 };
 
 /**
@@ -88,10 +78,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
   const { role, level } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id },
-    include: { role: true }
-  });
+  const currentUser = await identityQueryService.getUserWithRoleById(id);
 
   if (!currentUser) {
     res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
@@ -107,14 +94,14 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
     }
 
     if (level > 1) {
-      const passkeys = await prisma.passkey.findMany({ where: { userId: id } });
+      const passkeys = await identityQueryService.listPasskeys(id);
       if (passkeys.length === 0) {
         res.status(400).json({ error: 'ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY' });
         return;
       }
     }
     await userApplicationService.changeLevel(id, level);
-    finalUser = await prisma.user.findUnique({ where: { id }, include: { role: true } }) as any;
+    finalUser = await identityQueryService.getUserWithRoleById(id) as any;
     await logAudit(operatorId, 'UPDATE_USER_LEVEL', `User:${id} to Level:${level}`);
   }
 
@@ -124,7 +111,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
     
-    const roleRecord = await prisma.role.findUnique({ where: { name: role } });
+    const roleRecord = await adminQueryService.getRoleByName(role);
     if (!roleRecord) {
       res.status(400).json({ error: 'ERR_ROLE_NOT_FOUND_IN_DATABASE' });
       return;
@@ -153,11 +140,11 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
     }
 
     await userApplicationService.changeRole(id, roleRecord.id);
-    finalUser = await prisma.user.findUnique({ where: { id }, include: { role: true } }) as any;
+    finalUser = await identityQueryService.getUserWithRoleById(id) as any;
 
     if (newRoleLevel < currentRoleLevel) {
       // Revoke sessions on downgrade
-      const sessions = await prisma.session.findMany({ where: { userId: id } });
+      const sessions = await identityQueryService.listSessions(id);
       if (sessions.length > 0) {
         const pipeline = redis.pipeline();
         for (const session of sessions) {
@@ -168,7 +155,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       }
     } else if (newRoleLevel > currentRoleLevel) {
       // Mark sessions for refresh on promotion
-      const sessions = await prisma.session.findMany({ where: { userId: id } });
+      const sessions = await identityQueryService.listSessions(id);
       if (sessions.length > 0) {
         const pipeline = redis.pipeline();
         for (const session of sessions) {
@@ -180,13 +167,11 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
 
     // Auto-disable root if another user gets SUPER_ADMIN role
     if (role === 'SUPER_ADMIN' && finalUser.username !== 'root') {
-      const rootUser = await prisma.user.findFirst({
-        where: { username: 'root', status: { not: UserStatus.BANNED } }
-      });
+      const rootUser = await adminQueryService.getRootUser();
       if (rootUser) {
         await userApplicationService.changeStatus(rootUser.id, UserStatus.BANNED);
         // Revoke root sessions
-        const rootSessions = await prisma.session.findMany({ where: { userId: rootUser.id } });
+        const rootSessions = await identityQueryService.listSessions(rootUser.id);
         if (rootSessions.length > 0) {
           const pipeline = redis.pipeline();
           for (const session of rootSessions) {
@@ -221,7 +206,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  const targetUser = await prisma.user.findUnique({ where: { id }, include: { role: true } });
+  const targetUser = await identityQueryService.getUserWithRoleById(id);
   if (!targetUser) {
     res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
     return;
@@ -237,11 +222,11 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
   }
 
   await userApplicationService.changeStatus(id, status);
-  const user = await prisma.user.findUnique({ where: { id } }) as any;
+  const user = await identityQueryService.getUserWithRoleById(id) as any;
 
   if (status === UserStatus.BANNED) {
     // Revoke sessions on ban
-    const sessions = await prisma.session.findMany({ where: { userId: id } });
+    const sessions = await identityQueryService.listSessions(id);
     if (sessions.length > 0) {
       const pipeline = redis.pipeline();
       for (const session of sessions) {
@@ -265,7 +250,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
  * Keywords: getcategories, get, categories, auto-annotated
  */
 export const getCategories = async (req: Request, res: Response) => {
-  const categories = await prisma.category.findMany({ take: 1000, orderBy: { sortOrder: 'asc' } });
+  const categories = await adminQueryService.listCategories();
   res.json(categories);
 };
 
@@ -380,19 +365,12 @@ export const removeCategoryModerator = async (req: AuthRequest, res: Response): 
  * Keywords: getposts, get, posts, auto-annotated
  */
 export const getPosts = async (req: AuthRequest, res: Response) => {
-  const { accessibleBy } = await import('@casl/prisma');
-  
   if (!req.ability) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
     return;
   }
 
-  const posts = await prisma.post.findMany({
-    take: 1000,
-    where: accessibleBy(req.ability, 'read').Post,
-    include: { author: { select: { username: true } }, category: { select: { name: true } } },
-    orderBy: { createdAt: 'desc' }
-  });
+  const posts = await adminQueryService.listPosts(req.ability);
   res.json(posts);
 };
 
@@ -412,7 +390,7 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  const existingPost = await prisma.post.findUnique({ where: { id } });
+  const existingPost = await adminQueryService.getPostById(id);
   if (!existingPost) {
     res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
     return;
@@ -439,23 +417,12 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
  * Keywords: getdeletedposts, get, deleted, posts, auto-annotated
  */
 export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
-  const { accessibleBy } = await import('@casl/prisma');
   if (!req.ability) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
     return;
   }
-  const posts = await prisma.post.findMany({
-    take: 1000,
-    where: {
-      AND: [
-        accessibleBy(req.ability, 'manage').Post,
-        { status: PostStatus.DELETED }
-      ]
-    },
-    include: { author: { select: { username: true } }, category: { select: { name: true } } },
-    orderBy: { updatedAt: 'desc' }
-  });
-  res.json(posts);
+  const deletedPosts = await adminQueryService.listDeletedPosts(req.ability);
+  res.json(deletedPosts);
 };
 
 /**
@@ -465,23 +432,12 @@ export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
  * Keywords: getdeletedcomments, get, deleted, comments, auto-annotated
  */
 export const getDeletedComments = async (req: AuthRequest, res: Response) => {
-  const { accessibleBy } = await import('@casl/prisma');
   if (!req.ability) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
     return;
   }
-  const comments = await prisma.comment.findMany({
-    take: 1000,
-    where: {
-      AND: [
-        accessibleBy(req.ability, 'manage').Comment,
-        { deletedAt: { not: null } }
-      ]
-    },
-    include: { author: { select: { username: true } }, post: { select: { id: true, title: true, category: { select: { name: true } } } } },
-    orderBy: { deletedAt: 'desc' }
-  });
-  res.json(comments);
+  const deletedComments = await adminQueryService.listDeletedComments(req.ability);
+  res.json(deletedComments);
 };
 
 
@@ -497,7 +453,7 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
 
-  const existingPost = await prisma.post.findUnique({ where: { id } });
+  const existingPost = await adminQueryService.getPostById(id);
   if (!existingPost) { res.status(404).json({ error: 'ERR_POST_NOT_FOUND' }); return; }
 
   const { subject } = await import('@casl/ability');
@@ -520,7 +476,7 @@ export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<v
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
 
-  const existingPost = await prisma.post.findUnique({ where: { id } });
+  const existingPost = await adminQueryService.getPostById(id);
   if (!existingPost) { res.status(404).json({ error: 'ERR_POST_NOT_FOUND' }); return; }
 
   const { subject } = await import('@casl/ability');
@@ -543,7 +499,7 @@ export const restoreComment = async (req: AuthRequest, res: Response): Promise<v
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
 
-  const existingComment = await prisma.comment.findUnique({ where: { id }, include: { post: true } });
+  const existingComment = await adminQueryService.getCommentWithPost(id);
   if (!existingComment) { res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' }); return; }
 
   const { subject } = await import('@casl/ability');
@@ -566,7 +522,7 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
 
-  const existingComment = await prisma.comment.findUnique({ where: { id }, include: { post: true } });
+  const existingComment = await adminQueryService.getCommentWithPost(id);
   if (!existingComment) { res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' }); return; }
 
   const { subject } = await import('@casl/ability');
@@ -704,9 +660,7 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
  */
 export const getRouteWhitelist = async (req: Request, res: Response) => {
   try {
-    const routes = await prisma.routeWhitelist.findMany({
-      orderBy: { createdAt: 'asc' }
-    });
+    const routes = await systemQueryService.listRouteWhitelist();
     res.json(routes);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch route whitelist' });
