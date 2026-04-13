@@ -13,6 +13,8 @@
 
 /* Note: Tailwind 4 allows inline dark mode variants or custom CSS media queries. 
    Using class-based approach for next-themes compatibility. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 .dark {
   --color-background: #0f172a;
   --color-foreground: #f8fafc;
