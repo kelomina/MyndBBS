@@ -70,7 +70,25 @@ export class AuthApplicationService {
     }
   }
 
-  // --- Registration Orchestration ---
+  /**
+   * Callers: [RegisterController.registerUser, PostController.createPost, PostController.createComment]
+   * Callees: [ICaptchaChallengeRepository.findById, CaptchaChallenge.validateForConsumption, ICaptchaChallengeRepository.delete]
+   * Description: Validates that a captcha challenge is verified and not expired, then deletes it to prevent reuse.
+   * Keywords: verify, consume, captcha, challenge, identity
+   */
+  public async consumeCaptcha(captchaId: string): Promise<boolean> {
+    const challenge = await this.captchaChallengeRepository.findById(captchaId);
+    if (!challenge) {
+      return false;
+    }
+    try {
+      challenge.validateForConsumption();
+      await this.captchaChallengeRepository.delete(captchaId);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
 
   /**
    * Callers: [RegisterController.registerUser]
@@ -79,17 +97,8 @@ export class AuthApplicationService {
    * Keywords: register, user, captcha, consume, hash, command, identity
    */
   public async registerUser(email: string, username: string, password: string, captchaId: string): Promise<any> {
-    // 1. Verify and consume Captcha
-    const challenge = await this.captchaChallengeRepository.findById(captchaId);
-    if (!challenge) {
-      throw new Error('ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA');
-    }
-
-    try {
-      challenge.validateForConsumption();
-      // Consume it so it can't be reused
-      await this.captchaChallengeRepository.delete(captchaId);
-    } catch (error) {
+    const isCaptchaValid = await this.consumeCaptcha(captchaId);
+    if (!isCaptchaValid) {
       throw new Error('ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA');
     }
 

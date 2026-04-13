@@ -233,65 +233,60 @@ export const getCategories = async (req: Request, res: Response) => {
 
 /**
  * Callers: []
- * Callees: [create, logAudit, json, status]
- * Description: Handles the create category logic for the application.
- * Keywords: createcategory, create, category, auto-annotated
+ * Callees: [CommunityApplicationService.createCategory, logAudit, json, status]
+ * Description: Orchestrates the creation of a new category via the domain service.
+ * Keywords: create, category, community, service
  */
 export const createCategory = async (req: AuthRequest, res: Response) => {
   const { name, description, sortOrder, minLevel } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  const category = await prisma.category.create({
-    data: { name, description, sortOrder: sortOrder || 0, minLevel: minLevel || 0 }
-  });
-
-  await logAudit(operatorId, 'CREATE_CATEGORY', `Category:${category.id}`);
-
-  res.status(201).json(category);
+  try {
+    const category = await communityApplicationService.createCategory(name, description, sortOrder, minLevel);
+    await logAudit(operatorId, 'CREATE_CATEGORY', `Category:${category.id}`);
+    res.status(201).json(category);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
 };
 
 /**
  * Callers: []
- * Callees: [update, logAudit, json]
- * Description: Handles the update category logic for the application.
- * Keywords: updatecategory, update, category, auto-annotated
+ * Callees: [CommunityApplicationService.updateCategory, logAudit, json]
+ * Description: Orchestrates the update of a category via the domain service.
+ * Keywords: update, category, community, service
  */
 export const updateCategory = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   const { name, description, sortOrder, minLevel } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  const category = await prisma.category.update({
-    where: { id },
-    data: { name, description, sortOrder, minLevel }
-  });
-
-  await logAudit(operatorId, 'UPDATE_CATEGORY', `Category:${category.id}`);
-
-  res.json(category);
+  try {
+    await communityApplicationService.updateCategory(id, name, description, sortOrder, minLevel);
+    await logAudit(operatorId, 'UPDATE_CATEGORY', `Category:${id}`);
+    res.json({ message: 'Category updated successfully' });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
 };
 
 /**
  * Callers: []
- * Callees: [$transaction, deleteMany, delete, logAudit, json, status]
- * Description: Handles the delete category logic for the application.
- * Keywords: deletecategory, delete, category, auto-annotated
+ * Callees: [CommunityApplicationService.deleteCategory, logAudit, json, status]
+ * Description: Orchestrates the deletion of a category via the domain service.
+ * Keywords: delete, category, community, service
  */
 export const deleteCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
     const operatorId = req.user?.userId || 'unknown';
 
-    await prisma.$transaction([
-      prisma.post.deleteMany({ where: { categoryId: id } }),
-      prisma.category.delete({ where: { id } })
-    ]);
-
+    await communityApplicationService.deleteCategory(id);
     await logAudit(operatorId, 'DELETE_CATEGORY', `Category:${id}`);
 
     res.json({ message: 'Category deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_CATEGORY' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'ERR_FAILED_TO_DELETE_CATEGORY' });
   }
 };
 

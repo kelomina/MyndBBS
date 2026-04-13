@@ -8,7 +8,21 @@ import { accessibleBy } from '@casl/prisma';
 import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
 import { PostRepliedEvent, CommentRepliedEvent } from '../domain/shared/events/DomainEvents';
 
-import { verifyAndConsumeCaptcha } from '../controllers/captcha';
+import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
+import { PrismaEngagementRepository } from '../infrastructure/repositories/PrismaEngagementRepository';
+import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
+import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
+import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+
+const communityApplicationService = new CommunityApplicationService(
+  new PrismaCategoryRepository(),
+  new PrismaEngagementRepository()
+);
+const authApplicationService = new AuthApplicationService(
+  new PrismaCaptchaChallengeRepository(),
+  new PrismaPasskeyRepository()
+);
 import { AppAbility } from '../lib/casl';
 import { postLimiter } from '../lib/rateLimit';
 
@@ -44,43 +58,7 @@ const getCommentWithPost = async (commentId: string) => {
 };
 
 
-// Helper for interaction toggles
-/**
- * Callers: []
- * Callees: [findUnique, delete, json, create, error, status]
- * Description: Handles the toggle interaction logic for the application.
- * Keywords: toggleinteraction, toggle, interaction, auto-annotated
- */
-const toggleInteraction = async (
-  req: AuthRequest,
-  res: Response,
-  modelDelegate: any,
-  whereCondition: any,
-  createData: any,
-  statusKey: string,
-  errorMessage: string
-) => {
-  try {
-    const existing = await modelDelegate.findUnique({
-      where: whereCondition
-    });
 
-    if (existing) {
-      await modelDelegate.delete({
-        where: whereCondition
-      });
-      res.json({ [statusKey]: false });
-    } else {
-      await modelDelegate.create({
-        data: createData
-      });
-      res.json({ [statusKey]: true });
-    }
-  } catch (error) {
-    console.error(`Error toggling ${statusKey}:`, error);
-    res.status(500).json({ error: errorMessage });
-  }
-};
 
 const router: Router = Router();
 
@@ -145,51 +123,33 @@ router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), asy
       return;
     }
 
-    const isCaptchaValid = await verifyAndConsumeCaptcha(captchaId);
+    const isCaptchaValid = await authApplicationService.consumeCaptcha(captchaId);
     if (!isCaptchaValid) {
       res.status(400).json({ error: 'ERR_INVALID_OR_EXPIRED_CAPTCHA' });
       return;
     }
 
-    const category = await prisma.category.findUnique({ where: { id: categoryId } });
-    if (!category) {
-      res.status(404).json({ error: 'ERR_CATEGORY_NOT_FOUND' });
-      return;
-    }
     const currentUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-    if ((currentUser?.level || 1) < category.minLevel) {
-      res.status(403).json({ error: 'ERR_INSUFFICIENT_LEVEL_TO_POST_IN_THIS_CATEGORY' });
-      return;
-    }
-
     
-    const isModerated = await containsModeratedWord(title + ' ' + content, categoryId);
-    const status = isModerated ? 'PENDING' : 'PUBLISHED';
+    try {
+      const { post, isModerated } = await communityApplicationService.createPost(
+        title, 
+        content, 
+        categoryId, 
+        req.user!.userId, 
+        currentUser?.level || 1
+      );
 
-    const post = await prisma.post.create({
-      data: {
-        title,
-        content,
-        categoryId,
-        authorId: req.user!.userId,
-        status,
-      },
-      include: {
-        author: {
-          select: { id: true, username: true }
-        },
-        category: {
-          select: { id: true, name: true, description: true }
-        }
+      if (isModerated) {
+        res.status(201).json({ message: 'ERR_PENDING_MODERATION', post });
+        return;
       }
-    });
 
-    if (isModerated) {
-      res.status(201).json({ message: 'ERR_PENDING_MODERATION', post });
+      res.status(201).json(post);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
       return;
     }
-
-    res.status(201).json(post);
   } catch (error) {
     console.error('Error creating post:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_CREATE_POST' });
@@ -277,13 +237,8 @@ router.post('/:id/upvote', requireAuth, async (req: AuthRequest, res: Response):
       return;
     }
 
-    return toggleInteraction(
-      req, res, prisma.upvote,
-      { userId_postId: { userId, postId } },
-      { userId, postId },
-      'upvoted',
-      'ERR_FAILED_TO_TOGGLE_UPVOTE'
-    );
+    const status = await communityApplicationService.togglePostUpvote(postId, userId);
+    res.json({ upvoted: status });
   } catch (error) {
     console.error('Error toggling upvote:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_UPVOTE' });
@@ -303,13 +258,8 @@ router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response
       return;
     }
 
-    return toggleInteraction(
-      req, res, prisma.bookmark,
-      { userId_postId: { userId, postId } },
-      { userId, postId },
-      'bookmarked',
-      'ERR_FAILED_TO_TOGGLE_BOOKMARK'
-    );
+    const status = await communityApplicationService.togglePostBookmark(postId, userId);
+    res.json({ bookmarked: status });
   } catch (error) {
     console.error('Error toggling bookmark:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_BOOKMARK' });
@@ -397,7 +347,7 @@ router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, 
       return;
     }
 
-    const isCaptchaValid = await verifyAndConsumeCaptcha(captchaId);
+    const isCaptchaValid = await authApplicationService.consumeCaptcha(captchaId);
     if (!isCaptchaValid) {
       res.status(400).json({ error: 'ERR_INVALID_OR_EXPIRED_CAPTCHA' });
       return;
@@ -418,22 +368,12 @@ router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, 
       }
     }
 
-    const comment = await prisma.comment.create({
-      data: {
-        content,
-        postId,
-        parentId: parentId || null,
-        authorId: req.user!.userId
-      },
-      include: {
-        author: {
-          select: { id: true, username: true }
-        },
-        _count: {
-          select: { upvotes: true, bookmarks: true, replies: true }
-        }
-      }
-    });
+    const comment = await communityApplicationService.createComment(
+      content,
+      postId,
+      req.user!.userId,
+      parentId || undefined
+    );
 
     const postObj = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true, title: true } });
     if (postObj && postObj.authorId !== req.user!.userId) {
@@ -446,7 +386,15 @@ router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, 
       }
     }
 
-    res.status(201).json({ ...comment, hasUpvoted: false, hasBookmarked: false });
+    // Attach count object to match the previous return signature exactly for the frontend
+    const finalComment = {
+      ...comment,
+      _count: { upvotes: 0, bookmarks: 0, replies: 0 },
+      hasUpvoted: false, 
+      hasBookmarked: false
+    };
+
+    res.status(201).json(finalComment);
   } catch (error) {
     console.error('Error creating comment:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_CREATE_COMMENT' });
@@ -460,17 +408,6 @@ router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: Au
     
     if (!title || !content || !categoryId) {
       res.status(400).json({ error: 'ERR_TITLE_CONTENT_AND_CATEGORYID_ARE_REQUIRED' });
-      return;
-    }
-
-    const category = await prisma.category.findUnique({ where: { id: categoryId } });
-    if (!category) {
-      res.status(404).json({ error: 'ERR_CATEGORY_NOT_FOUND' });
-      return;
-    }
-    const currentUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-    if ((currentUser?.level || 1) < category.minLevel) {
-      res.status(403).json({ error: 'ERR_INSUFFICIENT_LEVEL_TO_POST_IN_THIS_CATEGORY' });
       return;
     }
 
@@ -490,37 +427,9 @@ router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: Au
       return;
     }
 
-    
-    let isModerated = false;
-    let newStatus = post.status;
-    if (title || content) {
-      const checkTitle = title || post.title;
-      const checkContent = content || post.content;
-      isModerated = await containsModeratedWord(checkTitle + ' ' + checkContent, post.categoryId);
-      if (isModerated) {
-        newStatus = 'PENDING';
-      }
-    }
+    const updatedPost = await communityApplicationService.updatePost(postId, title, content, categoryId);
 
-    const updatedPost = await prisma.post.update({
-      where: { id: postId },
-      data: {
-        title,
-        content,
-        categoryId,
-        status: newStatus
-      },
-      include: {
-        author: {
-          select: { id: true, username: true }
-        },
-        category: {
-          select: { id: true, name: true, description: true }
-        }
-      }
-    });
-
-    if (isModerated) {
+    if (updatedPost.status === 'PENDING') {
       res.json({ message: 'ERR_PENDING_MODERATION', post: updatedPost });
       return;
     }
@@ -551,10 +460,7 @@ router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req:
       return;
     }
 
-    await prisma.$transaction([
-      prisma.post.update({ where: { id: postId }, data: { status: PostStatus.DELETED } }),
-      prisma.comment.updateMany({ where: { postId: postId }, data: { deletedAt: new Date() } })
-    ]);
+    await communityApplicationService.deletePost(postId);
     res.json({ message: 'Post and its comments deleted' });
   } catch (error) {
     res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_POST' });
@@ -585,22 +491,9 @@ router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Commen
     }
 
     
-    const isModerated = await containsModeratedWord(content, comment.post.categoryId);
+    const updatedComment = await communityApplicationService.updateComment(commentId, content, comment.post.categoryId);
 
-    const updatedComment = await prisma.comment.update({
-      where: { id: commentId },
-      data: {
-        content,
-        isPending: isModerated
-      },
-      include: {
-        author: {
-          select: { id: true, username: true }
-        }
-      }
-    });
-
-    if (isModerated) {
+    if (updatedComment.isPending) {
       res.json({ message: 'ERR_PENDING_MODERATION', comment: updatedComment });
       return;
     }
@@ -628,7 +521,7 @@ router.delete('/comments/:commentId', requireAuth, requireAbility('delete', 'Com
       return;
     }
 
-    await prisma.comment.update({ where: { id: commentId }, data: { deletedAt: new Date() } });
+    await communityApplicationService.deleteComment(commentId);
     res.json({ message: 'Comment deleted' });
   } catch (error) {
     res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_COMMENT' });
@@ -654,21 +547,8 @@ router.post('/comments/:commentId/upvote', requireAuth, async (req: AuthRequest,
       return;
     }
 
-    const existingUpvote = await prisma.commentUpvote.findUnique({
-      where: { userId_commentId: { userId, commentId } }
-    });
-
-    if (existingUpvote) {
-      await prisma.commentUpvote.delete({
-        where: { userId_commentId: { userId, commentId } }
-      });
-      res.json({ upvoted: false });
-    } else {
-      await prisma.commentUpvote.create({
-        data: { userId, commentId }
-      });
-      res.json({ upvoted: true });
-    }
+    const status = await communityApplicationService.toggleCommentUpvote(commentId, userId);
+    res.json({ upvoted: status });
   } catch (error) {
     console.error('Error toggling comment upvote:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_COMMENT_UPVOTE' });
@@ -694,21 +574,8 @@ router.post('/comments/:commentId/bookmark', requireAuth, async (req: AuthReques
       return;
     }
 
-    const existingBookmark = await prisma.commentBookmark.findUnique({
-      where: { userId_commentId: { userId, commentId } }
-    });
-
-    if (existingBookmark) {
-      await prisma.commentBookmark.delete({
-        where: { userId_commentId: { userId, commentId } }
-      });
-      res.json({ bookmarked: false });
-    } else {
-      await prisma.commentBookmark.create({
-        data: { userId, commentId }
-      });
-      res.json({ bookmarked: true });
-    }
+    const status = await communityApplicationService.toggleCommentBookmark(commentId, userId);
+    res.json({ bookmarked: status });
   } catch (error) {
     console.error('Error toggling comment bookmark:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK' });
