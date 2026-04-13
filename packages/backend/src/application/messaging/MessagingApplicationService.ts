@@ -6,7 +6,9 @@ import { Friendship } from '../../domain/messaging/Friendship';
 import { PrivateMessage } from '../../domain/messaging/PrivateMessage';
 import { UserKey } from '../../domain/messaging/UserKey';
 import { ConversationSetting } from '../../domain/messaging/ConversationSetting';
+import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { v4 as uuidv4 } from 'uuid';
+
 import { prisma } from '../../db';
 
 /**
@@ -20,7 +22,8 @@ export class MessagingApplicationService {
     private friendshipRepository: IFriendshipRepository,
     private privateMessageRepository: IPrivateMessageRepository,
     private userKeyRepository: IUserKeyRepository,
-    private conversationSettingRepository: IConversationSettingRepository
+    private conversationSettingRepository: IConversationSettingRepository,
+    private userRepository: IUserRepository
   ) {}
 
   // --- Friendship Management ---
@@ -40,7 +43,7 @@ export class MessagingApplicationService {
     await this.friendshipRepository.save(friendship);
 
     // Send system notification message
-    const requester = await prisma.user.findUnique({ where: { id: requesterId } });
+    const requester = await this.userRepository.findById(requesterId);
     const payload = {
       title: 'Friend Request',
       content: `${requester?.username} wants to be your friend.`,
@@ -94,16 +97,14 @@ export class MessagingApplicationService {
     senderEncryptedContent: string | null, 
     expiresIn?: number
   ): Promise<PrivateMessage> {
-    const sender = await prisma.user.findUnique({ where: { id: senderId } });
+    const sender = await this.userRepository.findById(senderId);
     if (!sender || sender.level < 2) throw new Error('ERR_LEVEL_TOO_LOW');
 
     const friendship = await this.friendshipRepository.findByUsers(senderId, receiverId);
     const isFriend = friendship && friendship.status === 'ACCEPTED';
 
     if (!isFriend) {
-      const sentCount = await prisma.privateMessage.count({
-        where: { senderId, receiverId }
-      });
+      const sentCount = await this.privateMessageRepository.countMessagesBetween(senderId, receiverId);
       if (sentCount >= 3) {
         throw new Error('ERR_FRIEND_REQUIRED_LIMIT_REACHED');
       }

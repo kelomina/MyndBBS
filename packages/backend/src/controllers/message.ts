@@ -7,12 +7,14 @@ import { PrismaPrivateMessageRepository } from '../infrastructure/repositories/P
 
 import { PrismaUserKeyRepository } from '../infrastructure/repositories/PrismaUserKeyRepository';
 import { PrismaConversationSettingRepository } from '../infrastructure/repositories/PrismaConversationSettingRepository';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 
 const messagingApplicationService = new MessagingApplicationService(
   new PrismaFriendshipRepository(),
   new PrismaPrivateMessageRepository(),
   new PrismaUserKeyRepository(),
-  new PrismaConversationSettingRepository()
+  new PrismaConversationSettingRepository(),
+  new PrismaUserRepository()
 );
 
 

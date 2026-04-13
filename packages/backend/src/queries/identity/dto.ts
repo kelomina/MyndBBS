@@ -8,6 +8,7 @@ export interface AccessContextDTO {
 export interface RuleDescriptorDTO {
   action: string;
   subject: string;
+  conditions?: any;
 }
 
 export interface AbilityRulesDTO {

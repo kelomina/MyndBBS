@@ -1,10 +1,10 @@
 import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { IPermissionRepository } from '../../domain/identity/IPermissionRepository';
+import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { Role } from '../../domain/identity/Role';
 import { Permission } from '../../domain/identity/Permission';
 import { v4 as uuidv4 } from 'uuid';
 import redis from '../../lib/redis';
-import { prisma } from '../../db';
 
 /**
  * Callers: [AdminController]
@@ -15,7 +15,8 @@ import { prisma } from '../../db';
 export class RoleApplicationService {
   constructor(
     private roleRepository: IRoleRepository,
-    private permissionRepository: IPermissionRepository
+    private permissionRepository: IPermissionRepository,
+    private userRepository: IUserRepository
   ) {}
 
   public async createRole(name: string, description: string | null): Promise<Role> {
@@ -50,10 +51,7 @@ export class RoleApplicationService {
   }
 
   private async invalidateCacheForRoleUsers(roleId: string): Promise<void> {
-    const users = await prisma.user.findMany({
-      where: { roleId },
-      select: { id: true }
-    });
+    const users = await this.userRepository.findByRoleId(roleId);
     const pipeline = redis.pipeline();
     for (const user of users) {
       pipeline.del(`ability_rules:user:${user.id}`);

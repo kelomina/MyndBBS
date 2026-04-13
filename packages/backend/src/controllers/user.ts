@@ -18,9 +18,17 @@ const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 
 const authenticator = new OTP({ strategy: 'totp' });
 
+import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
+import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
+import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
+
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository()
+  new PrismaPasskeyRepository(),
+  new PrismaSessionRepository(),
+  new PrismaAuthChallengeRepository(),
+  new PrismaUserRepository(),
+  new PrismaRoleRepository()
 );
 
 const userApplicationService = new UserApplicationService(
@@ -234,7 +242,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const updateData: any = {};
-    let hashedPassword = undefined;
+    let hashedPassword: string | undefined = undefined;
 
     if (email && email !== user.email) {
       updateData.email = email;

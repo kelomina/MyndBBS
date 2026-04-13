@@ -27,12 +27,15 @@ const communityApplicationService = new CommunityApplicationService(
   new PrismaCommentRepository(),
   new PrismaEngagementRepository()
 );
+import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
+
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
   new PrismaPasskeyRepository(),
   new PrismaSessionRepository(),
   new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository()
+  new PrismaUserRepository(),
+  new PrismaRoleRepository()
 );
 import { AppAbility } from '../lib/casl';
 import { postLimiter } from '../lib/rateLimit';
@@ -247,7 +250,7 @@ router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, 
 
     const commentDto = await communityQueryService.getCommentById(result.commentId);
     
-    if (commentDto?.isPending || commentDto?.status === 'PENDING') {
+    if (commentDto?.isPending) {
       res.status(201).json({ message: 'ERR_PENDING_MODERATION', comment: commentDto });
       return;
     }

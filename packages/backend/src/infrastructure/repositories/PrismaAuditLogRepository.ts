@@ -27,7 +27,7 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
         who: auditLog.who,
         action: auditLog.action,
         target: auditLog.target,
-        timestamp: auditLog.timestamp,
+        when: auditLog.timestamp,
       },
     });
   }

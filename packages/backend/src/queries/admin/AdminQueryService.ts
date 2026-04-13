@@ -1,7 +1,7 @@
 import { prisma } from '../../db';
 import { accessibleBy } from '@casl/prisma';
 import type { AppAbility } from '../../lib/casl';
-import { PostStatus } from '@prisma/client';
+import { PostStatus, UserStatus } from '@prisma/client';
 
 /**
  * Callers: [adminController, moderationController]
@@ -184,7 +184,7 @@ export class AdminQueryService {
 
   public async getRootUser() {
     return prisma.user.findFirst({
-      where: { username: 'root', status: { not: UserStatus.BANNED } }
+      where: { username: 'root', status: { not: UserStatus.BANNED as any } }
     });
   }
 }

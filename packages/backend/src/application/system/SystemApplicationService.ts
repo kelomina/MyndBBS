@@ -1,12 +1,12 @@
 import { IRouteWhitelistRepository } from '../../domain/system/IRouteWhitelistRepository';
 import { RouteWhitelist } from '../../domain/system/RouteWhitelist';
+import { UserStatus } from '../../domain/identity/User';
 import { v4 as uuidv4 } from 'uuid';
 import { exec } from 'child_process';
 import path from 'path';
 import crypto from 'crypto';
 import * as argon2 from 'argon2';
 import { prisma } from '../../db';
-import { UserStatus } from '@prisma/client';
 
 /**
  * Callers: [AdminController, InstallController]

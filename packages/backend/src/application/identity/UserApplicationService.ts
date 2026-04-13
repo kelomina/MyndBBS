@@ -1,5 +1,5 @@
 import { IUserRepository } from '../../domain/identity/IUserRepository';
-import { UserStatus } from '@prisma/client';
+import { User, UserStatus } from '../../domain/identity/User';
 import redis from '../../lib/redis';
 
 /**

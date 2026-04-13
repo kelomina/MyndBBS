@@ -5,7 +5,6 @@ import { ModeratedWord } from '../../domain/community/ModeratedWord';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostApprovedEvent, PostRejectedEvent } from '../../domain/shared/events/DomainEvents';
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../../db';
 
 /**
  * Callers: [ModerationController, AdminController]
@@ -28,11 +27,8 @@ export class ModerationApplicationService {
     post.approve();
     await this.postRepository.save(post);
 
-    const postDto = await prisma.post.findUnique({ where: { id: postId } });
-    if (postDto) {
-      this.eventBus.publish(new PostApprovedEvent(postDto.id, postDto.authorId, postDto.title));
-    }
-    return postDto;
+    this.eventBus.publish(new PostApprovedEvent(post.id, post.authorId, post.title));
+    return { id: post.id, status: post.status };
   }
 
   public async rejectPost(postId: string, reason: string): Promise<any> {
@@ -42,11 +38,8 @@ export class ModerationApplicationService {
     post.reject();
     await this.postRepository.save(post);
 
-    const postDto = await prisma.post.findUnique({ where: { id: postId } });
-    if (postDto) {
-      this.eventBus.publish(new PostRejectedEvent(postDto.id, postDto.authorId, postDto.title, reason || 'N/A'));
-    }
-    return postDto;
+    this.eventBus.publish(new PostRejectedEvent(post.id, post.authorId, post.title, reason || 'N/A'));
+    return { id: post.id, status: post.status };
   }
 
   public async restorePost(postId: string): Promise<any> {
@@ -56,7 +49,7 @@ export class ModerationApplicationService {
     post.restore();
     await this.postRepository.save(post);
 
-    return await prisma.post.findUnique({ where: { id: postId } });
+    return { id: post.id, status: post.status };
   }
 
   public async approveComment(commentId: string): Promise<any> {
@@ -66,17 +59,17 @@ export class ModerationApplicationService {
     comment.approve();
     await this.commentRepository.save(comment);
 
-    return await prisma.comment.findUnique({ where: { id: commentId } });
+    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.isDeleted };
   }
 
   public async rejectComment(commentId: string): Promise<any> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
 
-    comment.delete(); // Rejecting a comment acts as a soft delete
+    comment.softDelete(); // Rejecting a comment acts as a soft delete
     await this.commentRepository.save(comment);
 
-    return await prisma.comment.findUnique({ where: { id: commentId } });
+    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.isDeleted };
   }
 
   public async restoreComment(commentId: string): Promise<any> {
@@ -86,7 +79,7 @@ export class ModerationApplicationService {
     comment.restore();
     await this.commentRepository.save(comment);
 
-    return await prisma.comment.findUnique({ where: { id: commentId } });
+    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.isDeleted };
   }
 
   public async changePostStatus(postId: string, status: any): Promise<any> {
@@ -96,7 +89,7 @@ export class ModerationApplicationService {
     post.changeStatus(status);
     await this.postRepository.save(post);
 
-    return await prisma.post.findUnique({ where: { id: postId } });
+    return { id: post.id, status: post.status };
   }
 
   public async hardDeletePost(postId: string): Promise<void> {

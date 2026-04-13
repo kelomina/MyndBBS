@@ -26,14 +26,12 @@ export class PrismaPermissionRepository implements IPermissionRepository {
       where: { id: permission.id },
       create: {
         id: permission.id,
-        action: permission.action,
-        subject: permission.subject,
-        conditions: conditionsData,
+        action: `${permission.action}:${permission.subject}`,
+        description: permission.conditions || null,
       },
       update: {
-        action: permission.action,
-        subject: permission.subject,
-        conditions: conditionsData,
+        action: `${permission.action}:${permission.subject}`,
+        description: permission.conditions || null,
       },
     });
   }

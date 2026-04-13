@@ -50,6 +50,12 @@ export class PrismaPrivateMessageRepository implements IPrivateMessageRepository
     return raws.map(raw => this.toDomain(raw));
   }
 
+  public async countMessagesBetween(senderId: string, receiverId: string): Promise<number> {
+    return prisma.privateMessage.count({
+      where: { senderId, receiverId }
+    });
+  }
+
   public async save(message: PrivateMessage): Promise<void> {
     await prisma.privateMessage.upsert({
       where: { id: message.id },
@@ -75,9 +81,34 @@ export class PrismaPrivateMessageRepository implements IPrivateMessageRepository
   }
 
   public async saveMany(messages: PrivateMessage[]): Promise<void> {
-    // Basic iterative save for simplicity; can be optimized with Prisma's updateMany if strictly needed
-    for (const msg of messages) {
-      await this.save(msg);
-    }
+    await prisma.$transaction(
+      messages.map(m =>
+        prisma.privateMessage.upsert({
+          where: { id: m.id },
+          create: {
+            id: m.id,
+            senderId: m.senderId,
+            receiverId: m.receiverId,
+            ephemeralPublicKey: m.ephemeralPublicKey,
+            ephemeralMlKemCiphertext: m.ephemeralMlKemCiphertext,
+            encryptedContent: m.encryptedContent,
+            senderEncryptedContent: m.senderEncryptedContent,
+            isRead: m.isRead,
+            isSystem: m.isSystem,
+            expiresAt: m.expiresAt,
+            deletedBy: m.deletedBy,
+            createdAt: m.createdAt,
+          },
+          update: {
+            isRead: m.isRead,
+            deletedBy: m.deletedBy,
+          },
+        })
+      )
+    );
+  }
+
+  public async delete(id: string): Promise<void> {
+    await prisma.privateMessage.delete({ where: { id } });
   }
 }

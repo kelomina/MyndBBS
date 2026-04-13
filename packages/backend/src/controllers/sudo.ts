@@ -4,19 +4,21 @@ import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import { AuthRequest } from '../middleware/auth';
 import { generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server';
+import { AuthApplicationService } from '../application/identity/AuthApplicationService';
 import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
 import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
 import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
 import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
-import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
 
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
   new PrismaPasskeyRepository(),
   new PrismaSessionRepository(),
   new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository()
+  new PrismaUserRepository(),
+  new PrismaRoleRepository()
 );
 
 const rpID = process.env.RP_ID || 'localhost';

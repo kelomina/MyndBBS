@@ -38,6 +38,19 @@ export class PrismaRoleRepository implements IRoleRepository {
     return this.toDomain(raw);
   }
 
+  public async findByName(name: string): Promise<Role | null> {
+    const raw = await prisma.role.findUnique({
+      where: { name },
+      include: {
+        permissions: {
+          include: { permission: true }
+        }
+      }
+    });
+    if (!raw) return null;
+    return this.toDomain(raw);
+  }
+
   public async save(role: Role): Promise<void> {
     await prisma.$transaction(async (tx) => {
       await tx.role.upsert({
