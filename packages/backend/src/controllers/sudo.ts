@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../db';
+import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import { AuthRequest } from '../middleware/auth';
@@ -30,7 +30,7 @@ const origin = process.env.ORIGIN || `http://${rpID}:3000`;
  */
 export const getSudoPasskeyOptions = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
-  const userPasskeys = await prisma.passkey.findMany({ where: { userId } });
+  const userPasskeys = await identityQueryService.listUserPasskeyIds(userId);
   
   if (userPasskeys.length === 0) {
     res.status(400).json({ error: 'ERR_NO_PASSKEYS_REGISTERED' });
@@ -65,7 +65,7 @@ export const verifySudo = async (req: AuthRequest, res: Response): Promise<void>
   const userId = req.user!.userId;
   const sessionId = req.user!.sessionId;
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await identityQueryService.getUserWithRoleById(userId);
   if (!user) {
     res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
     return;
@@ -103,7 +103,7 @@ export const verifySudo = async (req: AuthRequest, res: Response): Promise<void>
         return;
       }
 
-      const passkey = await prisma.passkey.findUnique({ where: { id: actualPasskeyResponse.id } });
+      const passkey = await identityQueryService.getPasskeyById(actualPasskeyResponse.id);
       if (!passkey || passkey.userId !== userId) {
         res.status(400).json({ error: 'ERR_INVALID_PASSKEY' });
         return;

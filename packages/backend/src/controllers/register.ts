@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
-import { prisma } from '../db';
 import { UserStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
 import jwt from 'jsonwebtoken';
+import argon2 from 'argon2';
+import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { finalizeAuth } from './auth';
 import { isValidPassword } from '@myndbbs/shared';
 import { AuthApplicationService } from '../application/identity/AuthApplicationService';
@@ -94,10 +95,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await prisma.user.findFirst({ 
-      where: { OR: [{ email }, { username: email }] },
-      include: { passkeys: true, role: true }
-    });
+    const user = await identityQueryService.getUserForLogin(email);
     if (!user || !user.password) {
       res.status(401).json({ error: 'ERR_INVALID_CREDENTIALS' });
       return;
@@ -201,7 +199,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string) as any;
 
     if (decoded.sessionId) {
-      const session = await prisma.session.findUnique({ where: { id: decoded.sessionId } });
+      const session = await identityQueryService.getSessionById(decoded.sessionId);
       if (!session) {
         res.clearCookie('accessToken');
         res.clearCookie('refreshToken');
@@ -210,10 +208,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       }
     }
 
-    const user = await prisma.user.findUnique({ 
-      where: { id: decoded.userId },
-      include: { role: true }
-    });
+    const user = await identityQueryService.getUserForRefresh(decoded.userId);
     if (!user) {
       res.status(401).json({ error: 'ERR_INVALID_REFRESH_TOKEN' });
       return;

@@ -9,7 +9,7 @@ import {
 import { OTP } from 'otplib';
 import QRCode from 'qrcode';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../db';
+import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { redis } from '../lib/redis';
 import { APP_NAME } from '@myndbbs/shared';
 import { AuthApplicationService } from '../application/identity/AuthApplicationService';
@@ -49,10 +49,7 @@ const getUserFromTempToken = async (req: Request, expectedType: 'registration' |
   try {
     const decoded = jwt.verify(tempToken, process.env.JWT_SECRET as string) as any;
     if (decoded.type !== expectedType) return null;
-    return await prisma.user.findUnique({ 
-      where: { id: decoded.userId },
-      include: { role: true }
-    });
+    return await identityQueryService.getUserWithRoleById(decoded.userId);
   } catch (err) {
     return null;
   }
@@ -165,7 +162,7 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
     return;
   }
 
-  const userPasskeys = await prisma.passkey.findMany({ where: { userId: user.id } });
+  const userPasskeys = await identityQueryService.listUserPasskeyIds(user.id);
 
   const options = await generateRegistrationOptions({
     rpName,
@@ -312,7 +309,7 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
         res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
         return;
       }
-      const userPasskeys = await prisma.passkey.findMany({ where: { userId: user.id } });
+      const userPasskeys = await identityQueryService.listUserPasskeyIds(user.id);
       options = await generateAuthenticationOptions({
         rpID,
         allowCredentials: userPasskeys.map(passkey => ({
@@ -378,7 +375,7 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
     return;
   }
 
-  const passkey = await prisma.passkey.findUnique({ where: { id: response.id } });
+  const passkey = await identityQueryService.getPasskeyById(response.id);
   if (!passkey) {
     res.status(400).json({ error: 'ERR_PASSKEY_NOT_FOUND' });
     return;
@@ -391,10 +388,7 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
 
   // In passwordless flow, we find the user from the passkey
   if (!tempToken) {
-    user = await prisma.user.findUnique({ 
-      where: { id: passkey.userId },
-      include: { role: true }
-    });
+    user = await identityQueryService.getUserWithRoleById(passkey.userId);
     if (!user) {
       res.status(400).json({ error: 'ERR_USER_NOT_FOUND_FOR_THIS_PASSKEY' });
       return;

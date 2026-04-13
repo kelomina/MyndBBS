@@ -46,7 +46,7 @@ export class AccessControlQueryService {
     if (!user) return null;
 
     const moderatedCategoryIds = user.moderatedCategories.map(mc => mc.categoryId);
-    const rawActions = user.role?.permissions.map(rp => rp.permission.action) || [];
+    const rawActions = user.role?.permissions?.map(rp => rp.permission.action) || [];
     const rules = this.parsePermissions(rawActions);
 
     const dto: AbilityRulesDTO = {
@@ -75,7 +75,7 @@ export class AccessControlQueryService {
     for (const actionStr of actions) {
       const parts = actionStr.split(':');
       if (parts.length >= 2) {
-        const action = parts[0].trim();
+        const action = parts[0]!.trim();
         const subject = parts.slice(1).join(':').trim(); // Rejoin in case subject contains ':'
         if (action && subject) {
           rules.push({ action, subject });
