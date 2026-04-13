@@ -12,8 +12,15 @@ import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories
 import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
 import { SystemApplicationService } from '../application/system/SystemApplicationService';
 import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
+import { RoleApplicationService } from '../application/identity/RoleApplicationService';
+import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
+import { PrismaPermissionRepository } from '../infrastructure/repositories/PrismaPermissionRepository';
 
 const systemApplicationService = new SystemApplicationService(new PrismaRouteWhitelistRepository());
+const roleApplicationService = new RoleApplicationService(
+  new PrismaRoleRepository(),
+  new PrismaPermissionRepository()
+);
 
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
