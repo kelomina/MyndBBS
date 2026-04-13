@@ -9,7 +9,7 @@ import { Passkey } from '../../domain/identity/Passkey';
 import { Session } from '../../domain/identity/Session';
 import { AuthChallenge } from '../../domain/identity/AuthChallenge';
 import { User, UserStatus } from '../../domain/identity/User';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 import * as argon2 from 'argon2';
 
 /**

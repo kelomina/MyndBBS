@@ -3,7 +3,7 @@ import { IPermissionRepository } from '../../domain/identity/IPermissionReposito
 import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { Role } from '../../domain/identity/Role';
 import { Permission } from '../../domain/identity/Permission';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 import redis from '../../lib/redis';
 
 /**

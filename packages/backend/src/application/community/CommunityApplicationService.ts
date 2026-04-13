@@ -9,7 +9,7 @@ import { Post, PostStatus } from '../../domain/community/Post';
 import { Comment } from '../../domain/community/Comment';
 import { PostUpvote, PostBookmark } from '../../domain/community/PostEngagement';
 import { CommentUpvote, CommentBookmark } from '../../domain/community/CommentEngagement';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 import redis from '../../lib/redis';
 import { containsModeratedWord } from '../../lib/moderation';
 
@@ -66,7 +66,7 @@ export class CommunityApplicationService {
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
 
     const user = await this.userRepository.findById(userId);
-    if (!user) throw new Error('ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR');
+    if (!user || !user.roleId) throw new Error('ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR');
 
     const role = await this.roleRepository.findById(user.roleId);
     if (!role || role.name !== 'MODERATOR') {

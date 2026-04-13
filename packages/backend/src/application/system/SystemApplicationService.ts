@@ -4,7 +4,7 @@ import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { RouteWhitelist } from '../../domain/system/RouteWhitelist';
 import { User, UserStatus } from '../../domain/identity/User';
 import { Role } from '../../domain/identity/Role';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 import { exec } from 'child_process';
 import path from 'path';
 import crypto from 'crypto';

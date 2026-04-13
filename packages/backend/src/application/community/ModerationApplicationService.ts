@@ -4,7 +4,7 @@ import { IModeratedWordRepository } from '../../domain/community/IModeratedWordR
 import { ModeratedWord } from '../../domain/community/ModeratedWord';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostApprovedEvent, PostRejectedEvent } from '../../domain/shared/events/DomainEvents';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 
 /**
  * Callers: [ModerationController, AdminController]

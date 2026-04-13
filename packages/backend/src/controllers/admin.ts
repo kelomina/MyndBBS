@@ -2,27 +2,24 @@ import { Request, Response } from 'express';
 import { adminQueryService } from '../queries/admin/AdminQueryService';
 import { systemQueryService } from '../queries/system/SystemQueryService';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
-import { UserStatus, PostStatus } from '@prisma/client';
+import { UserStatus } from '../domain/identity/User';
+import { PostStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
 import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
 import { UserApplicationService } from '../application/identity/UserApplicationService';
-import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
-import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
-import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
-import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
-import { SystemApplicationService } from '../application/system/SystemApplicationService';
-import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
 import { RoleApplicationService } from '../application/identity/RoleApplicationService';
-import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
 import { PrismaPermissionRepository } from '../infrastructure/repositories/PrismaPermissionRepository';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
-import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
+import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
+
+import { SystemApplicationService } from '../application/system/SystemApplicationService';
 import { AuthApplicationService } from '../application/identity/AuthApplicationService';
 import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
 import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
 import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
 import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
+import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
 
 const systemApplicationService = new SystemApplicationService(
   new PrismaRouteWhitelistRepository(),
