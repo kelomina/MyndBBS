@@ -7,8 +7,28 @@ import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
 import { UserApplicationService } from '../application/identity/UserApplicationService';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
+import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
+import { PrismaEngagementRepository } from '../infrastructure/repositories/PrismaEngagementRepository';
+import { ModerationApplicationService } from '../application/community/ModerationApplicationService';
+import { PrismaPostRepository } from '../infrastructure/repositories/PrismaPostRepository';
+import { PrismaCommentRepository } from '../infrastructure/repositories/PrismaCommentRepository';
+import { PrismaModeratedWordRepository } from '../infrastructure/repositories/PrismaModeratedWordRepository';
+import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
 
 const userApplicationService = new UserApplicationService(new PrismaUserRepository());
+const communityApplicationService = new CommunityApplicationService(
+  new PrismaCategoryRepository(),
+  new PrismaPostRepository(),
+  new PrismaCommentRepository(),
+  new PrismaEngagementRepository()
+);
+const moderationApplicationService = new ModerationApplicationService(
+  new PrismaPostRepository(),
+  new PrismaCommentRepository(),
+  new PrismaModeratedWordRepository(),
+  globalEventBus
+);
 
 // Users
 /**
@@ -402,7 +422,7 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  const post = await prisma.post.update({ where: { id }, data: { status } });
+  const post = await moderationApplicationService.changePostStatus(id, status);
 
   await logAudit(operatorId, 'UPDATE_POST_STATUS', `Post:${id} to ${status}`);
 
@@ -463,41 +483,7 @@ export const getDeletedComments = async (req: AuthRequest, res: Response) => {
 };
 
 
-// Helper for admin actions on entities
-/**
- * Callers: [restorePost, hardDeletePost, restoreComment, hardDeleteComment]
- * Callees: [json, status, error, logAudit, req]
- * Description: An abstract handler to process admin actions like restore or hard delete.
- * Keywords: admin, action, abstract, handle, restore, delete, auto-annotated
- */
-const handleAdminAction = async (
-  req: AuthRequest,
-  res: Response,
-  modelName: 'Post' | 'Comment',
-  actionType: 'RESTORE' | 'HARD_DELETE',
-  findUniqueFn: (id: string) => Promise<any>,
-  operationFn: (id: string) => Promise<any>,
-  successMessage: string
-): Promise<void> => {
-  const id = req.params.id as string;
-  const operatorId = req.user?.userId || 'unknown';
 
-  const entity = await findUniqueFn(id);
-  if (!entity) {
-    res.status(404).json({ error: `ERR_${modelName.toUpperCase()}_NOT_FOUND` });
-    return;
-  }
-
-  const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject(modelName, entity as any))) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN' });
-    return;
-  }
-
-  await operationFn(id);
-  await logAudit(operatorId, `${actionType}_${modelName.toUpperCase()}`, `${modelName}:${id}`);
-  res.json({ message: successMessage });
-};
 
 /**
  * Callers: []
@@ -506,24 +492,20 @@ const handleAdminAction = async (
  * Keywords: restorepost, restore, post, auto-annotated
  */
 export const restorePost = async (req: AuthRequest, res: Response): Promise<void> => {
-  return handleAdminAction(
-    req, res, 'Post', 'RESTORE',
-    /**
-     * Callers: [handleAdminAction]
-     * Callees: [findUnique]
-     * Description: An anonymous callback to find a post by id.
-     * Keywords: admin, post, find, anonymous
-     */
-    (id) => prisma.post.findUnique({ where: { id } }),
-    /**
-     * Callers: [handleAdminAction]
-     * Callees: [update]
-     * Description: An anonymous callback to update a post's status to published.
-     * Keywords: admin, post, restore, anonymous
-     */
-    (id) => prisma.post.update({ where: { id }, data: { status: PostStatus.PUBLISHED } }),
-    'Post restored'
-  );
+  const id = req.params.id as string;
+  const operatorId = req.user?.userId || 'unknown';
+
+  const existingPost = await prisma.post.findUnique({ where: { id } });
+  if (!existingPost) { res.status(404).json({ error: 'ERR_POST_NOT_FOUND' }); return; }
+
+  const { subject } = await import('@casl/ability');
+  if (!req.ability?.can('manage', subject('Post', existingPost as any))) {
+    res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
+  }
+
+  await moderationApplicationService.restorePost(id);
+  await logAudit(operatorId, 'RESTORE_POST', `Post:${id}`);
+  res.json({ message: 'Post restored' });
 };
 
 /**
@@ -533,27 +515,20 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
  * Keywords: harddeletepost, hard, delete, post, auto-annotated
  */
 export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<void> => {
-  return handleAdminAction(
-    req,
-    res,
-    'Post',
-    'HARD_DELETE',
-    /**
-     * Callers: [handleAdminAction]
-     * Callees: [findUnique]
-     * Description: An anonymous callback to find a post by id.
-     * Keywords: admin, post, find, anonymous
-     */
-    (id) => prisma.post.findUnique({ where: { id } }),
-    /**
-     * Callers: [handleAdminAction]
-     * Callees: [delete]
-     * Description: An anonymous callback to hard delete a post.
-     * Keywords: admin, post, delete, anonymous
-     */
-    (id) => prisma.post.delete({ where: { id } }),
-    'Post permanently deleted'
-  );
+  const id = req.params.id as string;
+  const operatorId = req.user?.userId || 'unknown';
+
+  const existingPost = await prisma.post.findUnique({ where: { id } });
+  if (!existingPost) { res.status(404).json({ error: 'ERR_POST_NOT_FOUND' }); return; }
+
+  const { subject } = await import('@casl/ability');
+  if (!req.ability?.can('manage', subject('Post', existingPost as any))) {
+    res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
+  }
+
+  await moderationApplicationService.hardDeletePost(id);
+  await logAudit(operatorId, 'HARD_DELETE_POST', `Post:${id}`);
+  res.json({ message: 'Post permanently deleted' });
 };
 
 /**
@@ -563,27 +538,20 @@ export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<v
  * Keywords: restorecomment, restore, comment, auto-annotated
  */
 export const restoreComment = async (req: AuthRequest, res: Response): Promise<void> => {
-  return handleAdminAction(
-    req,
-    res,
-    'Comment',
-    'RESTORE',
-    /**
-     * Callers: [handleAdminAction]
-     * Callees: [findUnique]
-     * Description: An anonymous callback to find a comment by id.
-     * Keywords: admin, comment, find, anonymous
-     */
-    (id) => prisma.comment.findUnique({ where: { id }, include: { post: true } }),
-    /**
-     * Callers: [handleAdminAction]
-     * Callees: [update]
-     * Description: An anonymous callback to restore a comment.
-     * Keywords: admin, comment, restore, anonymous
-     */
-    (id) => prisma.comment.update({ where: { id }, data: { deletedAt: null } }),
-    'Comment restored'
-  );
+  const id = req.params.id as string;
+  const operatorId = req.user?.userId || 'unknown';
+
+  const existingComment = await prisma.comment.findUnique({ where: { id }, include: { post: true } });
+  if (!existingComment) { res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' }); return; }
+
+  const { subject } = await import('@casl/ability');
+  if (!req.ability?.can('manage', subject('Comment', existingComment as any))) {
+    res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
+  }
+
+  await moderationApplicationService.restoreComment(id);
+  await logAudit(operatorId, 'RESTORE_COMMENT', `Comment:${id}`);
+  res.json({ message: 'Comment restored' });
 };
 
 /**
@@ -593,27 +561,20 @@ export const restoreComment = async (req: AuthRequest, res: Response): Promise<v
  * Keywords: harddeletecomment, hard, delete, comment, auto-annotated
  */
 export const hardDeleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
-  return handleAdminAction(
-    req,
-    res,
-    'Comment',
-    'HARD_DELETE',
-    /**
-     * Callers: [handleAdminAction]
-     * Callees: [findUnique]
-     * Description: An anonymous callback to find a comment by id.
-     * Keywords: admin, comment, find, anonymous
-     */
-    (id) => prisma.comment.findUnique({ where: { id }, include: { post: true } }),
-    /**
-     * Callers: [handleAdminAction]
-     * Callees: [delete]
-     * Description: An anonymous callback to hard delete a comment.
-     * Keywords: admin, comment, delete, anonymous
-     */
-    (id) => prisma.comment.delete({ where: { id } }),
-    'Comment permanently deleted'
-  );
+  const id = req.params.id as string;
+  const operatorId = req.user?.userId || 'unknown';
+
+  const existingComment = await prisma.comment.findUnique({ where: { id }, include: { post: true } });
+  if (!existingComment) { res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' }); return; }
+
+  const { subject } = await import('@casl/ability');
+  if (!req.ability?.can('manage', subject('Comment', existingComment as any))) {
+    res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
+  }
+
+  await moderationApplicationService.hardDeleteComment(id);
+  await logAudit(operatorId, 'HARD_DELETE_COMMENT', `Comment:${id}`);
+  res.json({ message: 'Comment permanently deleted' });
 };
 
 // Database Config
