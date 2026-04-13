@@ -1,33 +1,23 @@
 import { Request, Response } from 'express';
-import { prisma } from '../db';
+import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
+import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+
+const authApplicationService = new AuthApplicationService(
+  new PrismaCaptchaChallengeRepository(),
+  new PrismaPasskeyRepository()
+);
 
 /**
  * Callers: []
- * Callees: [floor, random, now, catch, deleteMany, create, toString, from, json, error, status]
- * Description: Handles the generate captcha logic for the application.
- * Keywords: generatecaptcha, generate, captcha, auto-annotated
+ * Callees: [AuthApplicationService.generateCaptcha, Buffer.from, toString, json, console.error, status]
+ * Description: Orchestrates the generation of a new slider captcha challenge via the AuthApplicationService and generates the SVG image.
+ * Keywords: generate, captcha, challenge, identity, service
  */
 export const generateCaptcha = async (req: Request, res: Response) => {
   try {
-    // Assuming an inner container width of 318px.
-    // Track is slightly smaller, puzzle piece visually starts at 8px.
-    // Position between 80 and 240
-    const targetPosition = Math.floor(Math.random() * (240 - 80 + 1)) + 80;
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    // Periodically cleanup expired captchas to prevent database exhaustion (10% probability)
-    if (Math.random() < 0.1) {
-      prisma.captchaChallenge.deleteMany({
-        where: { expiresAt: { lt: new Date() } }
-      }).catch(console.error);
-    }
-
-    const challenge = await prisma.captchaChallenge.create({
-      data: {
-        targetPosition,
-        expiresAt
-      }
-    });
+    const challenge = await authApplicationService.generateCaptcha();
+    const targetPosition = challenge.targetPosition;
 
     // Generate SVG background with an obfuscated path instead of explicit circle cx coordinate
     const cx = targetPosition + 24;
@@ -86,9 +76,9 @@ export const verifyAndConsumeCaptcha = async (captchaId: string): Promise<boolea
 
 /**
  * Callers: []
- * Callees: [json, status, findUnique, catch, delete, map, reduce, pow, push, abs, sqrt, update]
- * Description: Handles the verify captcha logic for the application.
- * Keywords: verifycaptcha, verify, captcha, auto-annotated
+ * Callees: [AuthApplicationService.verifyCaptcha, json, status]
+ * Description: Orchestrates the verification of a slider captcha challenge, delegating complex bot-detection heuristics to the domain layer.
+ * Keywords: verify, captcha, challenge, identity, service
  */
 export const verifyCaptcha = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -99,73 +89,17 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const challenge = await prisma.captchaChallenge.findUnique({
-      where: { id: captchaId }
-    });
+    // Map frontend 'time' to domain 't'
+    const formattedDragPath = dragPath.map((p: any) => ({ x: p.x, y: p.y, t: p.time }));
 
-    if (!challenge) {
-      res.status(404).json({ success: false, error: 'ERR_CHALLENGE_NOT_FOUND' });
-      return;
-    }
-
-    if (challenge.expiresAt < new Date()) {
-      await prisma.captchaChallenge.delete({ where: { id: captchaId } }).catch(() => {});
-      res.status(400).json({ success: false, error: 'ERR_CHALLENGE_EXPIRED' });
-      return;
-    }
-
-    // Automation Check 1 & 2
-    if (totalDragTime < 200 || totalDragTime > 10000 || dragPath.length < 10) {
-      res.status(400).json({ success: false, error: 'ERR_AUTOMATION_DETECTED_SPEED_POINTS' });
-      return;
-    }
-
-    // Automation Check 3: Variance & Velocity
-    let timeIntervals: number[] = [];
-    let xDistances: number[] = [];
-    let yVariance = 0;
-    const yValues = dragPath.map((p: any) => p.y || 0);
-    const avgY = yValues.reduce((a: number, b: number) => a + b, 0) / yValues.length;
-    yVariance = yValues.reduce((sum: number, y: number) => sum + Math.pow(y - avgY, 2), 0) / yValues.length;
-
-    for (let i = 1; i < dragPath.length; i++) {
-      timeIntervals.push(dragPath[i].time - dragPath[i - 1].time);
-      xDistances.push(Math.abs(dragPath[i].x - dragPath[i - 1].x));
-    }
-    
-    const avgInterval = timeIntervals.reduce((a, b) => a + b, 0) / timeIntervals.length;
-    const variance = timeIntervals.reduce((sum, interval) => sum + Math.pow(interval - avgInterval, 2), 0) / timeIntervals.length;
-    const stdDev = Math.sqrt(variance);
-
-    // Humans rarely drag perfectly straight. If variance in Y is exactly 0 and X speeds are too uniform, flag it.
-    if (stdDev < 1.5 && yVariance === 0) {
-      res.status(400).json({ success: false, error: 'ERR_AUTOMATION_DETECTED_LINEAR_TRAJECTORY' });
-      return;
-    }
-
-    // Position Check for 48px Orb
-    const ORB_CENTER_OFFSET = 24; // 48 / 2
-    const TARGET_CENTER_OFFSET = 24; // 48 / 2
-    const VALIDATION_TOLERANCE = 15; // Stricter tolerance (down from 35)
-
-    // finalPosition is orb's left. 
-    const sliderCenter = finalPosition + ORB_CENTER_OFFSET;
-    const targetCenter = challenge.targetPosition + TARGET_CENTER_OFFSET;
-    const centerOffset = Math.abs(sliderCenter - targetCenter);
-
-    if (centerOffset > VALIDATION_TOLERANCE) {
-      res.status(400).json({ success: false, error: 'ERR_POSITION_MISMATCH' });
-      return;
-    }
-
-    // Mark as verified
-    await prisma.captchaChallenge.update({
-      where: { id: captchaId },
-      data: { verified: true }
-    });
+    await authApplicationService.verifyCaptcha(captchaId, formattedDragPath, totalDragTime, finalPosition);
 
     res.json({ success: true, message: 'Verification passed' });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.startsWith('ERR_')) {
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
     res.status(500).json({ success: false, error: 'ERR_SERVER_ERROR_DURING_VERIFICATION' });
   }
 };

@@ -12,6 +12,14 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 import { redis } from '../lib/redis';
 import { APP_NAME } from '@myndbbs/shared';
+import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
+import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+
+const authApplicationService = new AuthApplicationService(
+  new PrismaCaptchaChallengeRepository(),
+  new PrismaPasskeyRepository()
+);
 
 const rpName = APP_NAME;
 const rpID = process.env.RP_ID || 'localhost';
@@ -225,17 +233,15 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
     const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
     const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
 
-    await prisma.passkey.create({
-      data: {
-        id: credentialID,
-        publicKey: Buffer.from(credentialPublicKey),
-        userId: user.id,
-        webAuthnUserID: user.id,
-        counter: BigInt(counter),
-        deviceType: credentialDeviceType,
-        backedUp: credentialBackedUp,
-      }
-    });
+    await authApplicationService.addPasskey(
+      user.id,
+      credentialID,
+      Buffer.from(credentialPublicKey),
+      user.id,
+      BigInt(counter),
+      credentialDeviceType,
+      credentialBackedUp
+    );
 
     await prisma.authChallenge.delete({ where: { id: challengeId } });
 
@@ -421,10 +427,12 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
   if (verification.verified && verification.authenticationInfo) {
     const { newCounter } = verification.authenticationInfo;
     
-    await prisma.passkey.update({
-      where: { id: passkey.id },
-      data: { counter: BigInt(newCounter) }
-    });
+    try {
+      await authApplicationService.updatePasskeyCounter(passkey.id, BigInt(newCounter));
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+      return;
+    }
 
     await prisma.authChallenge.delete({ where: { id: challengeId } });
 

@@ -2,17 +2,23 @@ import { Request, Response } from 'express';
 import { prisma } from '../db';
 import { UserStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
-import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { finalizeAuth } from './auth';
-import { verifyAndConsumeCaptcha } from './captcha';
 import { isValidPassword } from '@myndbbs/shared';
+import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
+import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+
+const authApplicationService = new AuthApplicationService(
+  new PrismaCaptchaChallengeRepository(),
+  new PrismaPasskeyRepository()
+);
 
 /**
  * Callers: []
- * Callees: [json, status, isValidPassword, test, verifyAndConsumeCaptcha, findFirst, hash, findUnique, create, sign, cookie, error]
- * Description: Handles the register user logic for the application.
- * Keywords: registeruser, register, user, auto-annotated
+ * Callees: [AuthApplicationService.registerUser, isValidPassword, test, json, status, sign, cookie, error]
+ * Description: Orchestrates the user registration process via the domain service, enforcing strong password requirements and consuming verified captchas.
+ * Keywords: register, user, identity, auth, service
  */
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -39,39 +45,16 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // Verify Captcha
-    const isCaptchaValid = await verifyAndConsumeCaptcha(captchaId);
-    if (!isCaptchaValid) {
-      res.status(400).json({ error: 'ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA' });
-      return;
+    let user;
+    try {
+      user = await authApplicationService.registerUser(email, username, password, captchaId);
+    } catch (error: any) {
+      if (error.message.startsWith('ERR_')) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
     }
-
-    // Check if user exists
-    const existingUser = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username }] }
-    });
-
-    if (existingUser) {
-      res.status(400).json({ error: 'ERR_EMAIL_OR_USERNAME_ALREADY_IN_USE' });
-      return;
-    }
-
-    // Hash password with Argon2id
-    const hashedPassword = await argon2.hash(password);
-
-    // Get USER role
-    const userRole = await prisma.role.findUnique({ where: { name: 'USER' } });
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        username,
-        password: hashedPassword,
-        ...(userRole && { roleId: userRole.id })
-      },
-      include: { role: true }
-    });
 
     // Generate Temp Token for 2FA Registration
     const tempToken = jwt.sign({ userId: user.id, type: 'registration' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
