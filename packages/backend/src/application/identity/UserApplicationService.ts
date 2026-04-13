@@ -1,5 +1,6 @@
 import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { UserStatus } from '@prisma/client';
+import redis from '../../lib/redis';
 
 /**
  * Callers: [UserController, AdminController]
@@ -54,6 +55,7 @@ export class UserApplicationService {
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
     user.changeRole(roleId);
     await this.userRepository.save(user);
+    await redis.del(`ability_rules:user:${userId}`);
   }
 
   public async changeLevel(userId: string, level: number): Promise<void> {
@@ -61,6 +63,7 @@ export class UserApplicationService {
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
     user.changeLevel(level);
     await this.userRepository.save(user);
+    await redis.del(`ability_rules:user:${userId}`);
   }
 
   public async changeStatus(userId: string, status: UserStatus): Promise<void> {
@@ -68,5 +71,6 @@ export class UserApplicationService {
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
     user.changeStatus(status);
     await this.userRepository.save(user);
+    await redis.del(`ability_rules:user:${userId}`);
   }
 }
