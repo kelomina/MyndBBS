@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../db';
+import { messagingQueryService } from '../queries/messaging/MessagingQueryService';
 import { AuthRequest } from '../middleware/auth';
 import { MessagingApplicationService } from '../application/messaging/MessagingApplicationService';
 import { PrismaFriendshipRepository } from '../infrastructure/repositories/PrismaFriendshipRepository';
@@ -47,7 +47,7 @@ export const getMyKey = async (req: AuthRequest, res: Response): Promise<void> =
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const key = await prisma.userKey.findUnique({ where: { userId } });
+  const key = await messagingQueryService.getMyKey(userId);
   res.json({ key });
 };
 
@@ -59,7 +59,7 @@ export const getMyKey = async (req: AuthRequest, res: Response): Promise<void> =
  */
 export const getUserPublicKey = async (req: AuthRequest, res: Response): Promise<void> => {
   const username = req.params.username as string;
-  const user = await prisma.user.findUnique({ where: { username }, include: { userKey: true } });
+  const user = await messagingQueryService.getUserPublicKey(username);
   
   if (!user || !user.userKey) { res.status(404).json({ error: 'ERR_USER_OR_KEY_NOT_FOUND' }); return; }
   res.json({ publicKey: user.userKey.publicKey, userId: user.id });
@@ -105,10 +105,8 @@ export const getConversationSettings = async (req: AuthRequest, res: Response): 
   const partnerId = req.params.partnerId as string;
   if (!userId || !partnerId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
-  const setting = await prisma.conversationSetting.findUnique({
-    where: { userId_partnerId: { userId, partnerId } }
-  });
-  res.json({ allowTwoSidedDelete: setting?.allowTwoSidedDelete || false });
+  const setting = await messagingQueryService.getConversationSettings(userId, partnerId);
+    res.json(setting);
 };
 
 /**
@@ -179,9 +177,7 @@ export const getUnreadCount = async (req: AuthRequest, res: Response): Promise<v
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const count = await prisma.privateMessage.count({
-    where: { receiverId: userId, isRead: false }
-  });
+  const count = await messagingQueryService.getUnreadCount(userId);
   res.json({ count });
 };
 
@@ -219,58 +215,6 @@ export const getInbox = async (req: AuthRequest, res: Response): Promise<void> =
   
   const limit = parseInt(req.query.limit as string) || 20;
   const cursor = req.query.cursor as string | undefined;
-  const notExpiredCondition = {
-    OR: [ { expiresAt: null }, { expiresAt: { gt: new Date() } } ]
-  };
-
-  let whereClause: any = {
-    AND: [
-      { OR: [ { senderId: userId }, { receiverId: userId } ] },
-      notExpiredCondition,
-      { NOT: { deletedBy: { has: userId } } }
-    ]
-  };
-
-  if (withUserId) {
-    whereClause = {
-      AND: [
-        {
-          OR: [
-            { senderId: userId, receiverId: String(withUserId) },
-            { senderId: String(withUserId), receiverId: userId }
-          ]
-        },
-        notExpiredCondition,
-        { NOT: { deletedBy: { has: userId } } }
-      ]
-    };
-  }
-
-  const messages = await prisma.privateMessage.findMany({
-    where: whereClause,
-    take: limit + 1,
-    ...(cursor && {
-      skip: 1,
-      cursor: { id: cursor },
-    }),
-    orderBy: [
-      { createdAt: 'desc' },
-      { id: 'desc' }
-    ],
-    include: { sender: { select: { username: true } }, receiver: { select: { username: true } } }
-  });
-
-  let nextCursor: string | undefined = undefined;
-  if (messages.length > limit) {
-    const nextItem = messages.pop();
-    nextCursor = nextItem?.id;
-  }
-
-  const resultMessages = messages.reverse();
-
-  res.json({ 
-    messages: resultMessages,
-    nextCursor,
-    hasMore: nextCursor !== undefined
-  });
+  const result = await messagingQueryService.getMessages(userId, limit, cursor as string | undefined, withUserId as string | undefined);
+  res.json(result);
 };
