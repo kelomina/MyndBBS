@@ -7,8 +7,10 @@ import { generateRegistrationOptions, verifyRegistrationResponse } from '@simple
 import { OTP } from 'otplib';
 import QRCode from 'qrcode';
 import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+import { UserApplicationService } from '../application/identity/UserApplicationService';
 import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
 import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 
 const rpName = 'MyndBBS';
 const rpID = process.env.RP_ID || 'localhost';
@@ -19,6 +21,10 @@ const authenticator = new OTP({ strategy: 'totp' });
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
   new PrismaPasskeyRepository()
+);
+
+const userApplicationService = new UserApplicationService(
+  new PrismaUserRepository()
 );
 
 /**
@@ -168,10 +174,7 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
     // Check remaining passkeys. If 0, force level to 1 (Pragmatic CQRS read inside controller for flow control)
     const remaining = await prisma.passkey.count({ where: { userId } });
     if (remaining === 0) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { level: 1 }
-      });
+      await userApplicationService.changeLevel(userId, 1);
     }
 
     res.json({ message: 'Passkey deleted successfully' });
@@ -222,10 +225,7 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
       }
     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { isTotpEnabled: false, totpSecret: null }
-    });
+    await userApplicationService.disableTotp(userId);
 
     res.json({ message: 'TOTP disabled successfully' });
   } catch (error) {
@@ -281,24 +281,13 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const updateData: any = {};
+    let hashedPassword = undefined;
 
     if (email && email !== user.email) {
-      // check if email is taken
-      const existingEmail = await prisma.user.findUnique({ where: { email } });
-      if (existingEmail) {
-        res.status(400).json({ error: 'ERR_EMAIL_ALREADY_IN_USE' });
-        return;
-      }
       updateData.email = email;
     }
 
     if (username && username !== user.username) {
-      // check if username is taken
-      const existingUsername = await prisma.user.findUnique({ where: { username } });
-      if (existingUsername) {
-        res.status(400).json({ error: 'ERR_USERNAME_ALREADY_IN_USE' });
-        return;
-      }
       updateData.username = username;
     }
 
@@ -317,7 +306,8 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
         res.status(400).json({ error: 'ERR_PASSWORD_CONTAINS_INVALID_CHARACTERS' });
         return;
       }
-      updateData.password = await argon2.hash(password);
+      hashedPassword = await argon2.hash(password);
+      updateData.password = true;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -325,13 +315,17 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-      select: { id: true, email: true, username: true, role: { select: { name: true } } } // Don't return password or sensitive data
-    });
+    try {
+      const updatedUser = await userApplicationService.updateProfile(userId, updateData.email, updateData.username, hashedPassword);
+      
+      // We need to return role name, let's fetch it via Prisma CQRS read
+      const userRole = await prisma.user.findUnique({ where: { id: userId }, select: { role: { select: { name: true } } } });
 
-    res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: updatedUser.role?.name || null } });
+      res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: userRole?.role?.name || null } });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -400,10 +394,7 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { isTotpEnabled: true, totpSecret: pendingSecret }
-    });
+    await userApplicationService.enableTotp(userId, pendingSecret);
 
     await redis.del(`totp_setup:${userId}`);
 
@@ -519,7 +510,7 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
 
       const dbUser = await prisma.user.findUnique({ where: { id: userId } });
       if (dbUser && dbUser.level === 1) {
-        await prisma.user.update({ where: { id: userId }, data: { level: 2 } });
+        await userApplicationService.changeLevel(userId, 2);
       }
 
       res.json({ message: 'Passkey registered successfully' });

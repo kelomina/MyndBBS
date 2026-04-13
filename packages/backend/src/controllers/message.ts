@@ -1,6 +1,14 @@
 import { Response } from 'express';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
+import { MessagingApplicationService } from '../application/messaging/MessagingApplicationService';
+import { PrismaFriendshipRepository } from '../infrastructure/repositories/PrismaFriendshipRepository';
+import { PrismaPrivateMessageRepository } from '../infrastructure/repositories/PrismaPrivateMessageRepository';
+
+const messagingApplicationService = new MessagingApplicationService(
+  new PrismaFriendshipRepository(),
+  new PrismaPrivateMessageRepository()
+);
 
 
 /**
@@ -12,25 +20,16 @@ import { AuthRequest } from '../middleware/auth';
 export const uploadKeys = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
-  
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.level < 2) { res.status(403).json({ error: 'ERR_LEVEL_TOO_LOW' }); return; }
 
   const { scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey } = req.body;
   if (!publicKey || !encryptedPrivateKey) { res.status(400).json({ error: 'ERR_MISSING_KEYS' }); return; }
-  
-  if (scheme === 'X_WING_HYBRID' && user.level < 4) {
-    res.status(403).json({ error: 'ERR_LEVEL_TOO_LOW_FOR_X_WING' });
-    return;
+
+  try {
+    await messagingApplicationService.uploadKeys(userId, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(403).json({ error: error.message });
   }
-
-  await prisma.userKey.upsert({
-    where: { userId },
-    update: { scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey },
-    create: { userId, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey }
-  });
-
-  res.json({ success: true });
 };
 
 /**
@@ -72,41 +71,21 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   if (!senderId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
   const { receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent, senderEncryptedContent, expiresIn } = req.body;
-  console.log('Sending message:', { senderId, receiverId, expiresIn });
-  let expiresAt: Date | null = null;
-  if (expiresIn && typeof expiresIn === 'number') {
-    expiresAt = new Date(Date.now() + expiresIn);
+
+  try {
+    const msg = await messagingApplicationService.sendMessage(
+      senderId,
+      receiverId,
+      ephemeralPublicKey,
+      ephemeralMlKemCiphertext,
+      encryptedContent,
+      senderEncryptedContent,
+      expiresIn
+    );
+    res.json({ success: true, message: msg });
+  } catch (error: any) {
+    res.status(403).json({ error: error.message });
   }
-  
-  const sender = await prisma.user.findUnique({ where: { id: senderId } });
-  if (!sender || sender.level < 2) { res.status(403).json({ error: 'ERR_LEVEL_TOO_LOW' }); return; }
-
-  // Check if they are friends
-  const isFriend = await prisma.friendship.findFirst({
-    where: {
-      status: 'ACCEPTED',
-      OR: [
-        { requesterId: senderId, addresseeId: receiverId },
-        { requesterId: receiverId, addresseeId: senderId }
-      ]
-    }
-  });
-
-  if (!isFriend) {
-    const sentCount = await prisma.privateMessage.count({
-      where: { senderId, receiverId }
-    });
-    if (sentCount >= 3) {
-      res.status(403).json({ error: 'ERR_FRIEND_REQUIRED_LIMIT_REACHED' });
-      return;
-    }
-  }
-
-  const msg = await prisma.privateMessage.create({
-    data: { senderId, receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent, senderEncryptedContent, expiresAt, deletedBy: [] }
-  });
-
-  res.json({ success: true, message: msg });
 };
 
 
@@ -139,12 +118,12 @@ export const updateConversationSettings = async (req: AuthRequest, res: Response
   const { allowTwoSidedDelete } = req.body;
   if (!userId || !partnerId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
-  await prisma.conversationSetting.upsert({
-    where: { userId_partnerId: { userId, partnerId } },
-    update: { allowTwoSidedDelete },
-    create: { userId, partnerId, allowTwoSidedDelete }
-  });
-  res.json({ success: true });
+  try {
+    await messagingApplicationService.updateConversationSettings(userId, partnerId, allowTwoSidedDelete);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_SETTINGS' });
+  }
 };
 
 /**
@@ -158,40 +137,12 @@ export const deleteMessage = async (req: AuthRequest, res: Response): Promise<vo
   const messageId = req.params.id as string;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const message = await prisma.privateMessage.findUnique({ where: { id: messageId } });
-  if (!message) { res.status(404).json({ error: 'ERR_NOT_FOUND' }); return; }
-
-  if (message.senderId !== userId && message.receiverId !== userId) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
+  try {
+    await messagingApplicationService.deleteMessage(messageId, userId);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(error.message === 'ERR_NOT_FOUND' ? 404 : 403).json({ error: error.message });
   }
-
-  const partnerId = message.senderId === userId ? message.receiverId : message.senderId;
-  
-  let canHardDelete = false;
-  if (message.senderId === userId) {
-    const partnerSetting = await prisma.conversationSetting.findUnique({
-      where: { userId_partnerId: { userId: partnerId, partnerId: userId } }
-    });
-    canHardDelete = partnerSetting?.allowTwoSidedDelete || false;
-  }
-
-  if (canHardDelete) {
-    await prisma.privateMessage.delete({ where: { id: messageId } });
-  } else {
-    if (!message.deletedBy?.includes(userId)) {
-      const newDeletedBy = [...(message.deletedBy || []), userId];
-      if (newDeletedBy.includes(message.senderId) && newDeletedBy.includes(message.receiverId)) {
-        await prisma.privateMessage.delete({ where: { id: messageId } });
-      } else {
-        await prisma.privateMessage.update({
-          where: { id: messageId },
-          data: { deletedBy: { push: userId } }
-        });
-      }
-    }
-  }
-
-  res.json({ success: true });
 };
 
 /**
@@ -205,39 +156,12 @@ export const clearChat = async (req: AuthRequest, res: Response): Promise<void> 
   const withUserId = req.params.withUserId as string;
   if (!userId || !withUserId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
-  const partnerSetting = await prisma.conversationSetting.findUnique({
-    where: { userId_partnerId: { userId: withUserId, partnerId: userId } }
-  });
-  const canHardDelete = partnerSetting?.allowTwoSidedDelete || false;
-
-  const messages = await prisma.privateMessage.findMany({
-    where: {
-      OR: [
-        { senderId: userId, receiverId: withUserId },
-        { senderId: withUserId, receiverId: userId }
-      ],
-      NOT: { deletedBy: { has: userId } }
-    },
-    select: { id: true, senderId: true, receiverId: true, deletedBy: true }
-  });
-
-  for (const msg of messages) {
-    if (canHardDelete && msg.senderId === userId) {
-      await prisma.privateMessage.delete({ where: { id: msg.id } });
-    } else {
-      const newDeletedBy = [...msg.deletedBy, userId];
-      if (newDeletedBy.includes(msg.senderId) && newDeletedBy.includes(msg.receiverId)) {
-        await prisma.privateMessage.delete({ where: { id: msg.id } });
-      } else {
-        await prisma.privateMessage.update({
-          where: { id: msg.id },
-          data: { deletedBy: { push: userId } }
-        });
-      }
-    }
+  try {
+    await messagingApplicationService.clearChat(userId, withUserId);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'ERR_FAILED_TO_CLEAR_CHAT' });
   }
-
-  res.json({ success: true });
 };
 
 /**
@@ -267,11 +191,12 @@ export const markAsRead = async (req: AuthRequest, res: Response): Promise<void>
   const { senderId } = req.body;
   if (!userId || !senderId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
-  await prisma.privateMessage.updateMany({
-    where: { receiverId: userId, senderId: senderId, isRead: false },
-    data: { isRead: true }
-  });
-  res.json({ success: true });
+  try {
+    await messagingApplicationService.markAsRead(userId, senderId);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'ERR_FAILED_TO_MARK_AS_READ' });
+  }
 };
 
 

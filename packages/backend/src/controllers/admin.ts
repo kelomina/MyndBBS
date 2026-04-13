@@ -5,6 +5,10 @@ import { UserStatus, PostStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
 import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
+import { UserApplicationService } from '../application/identity/UserApplicationService';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+
+const userApplicationService = new UserApplicationService(new PrismaUserRepository());
 
 // Users
 /**
@@ -67,11 +71,8 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
         return;
       }
     }
-    finalUser = await prisma.user.update({
-      where: { id },
-      data: { level },
-      include: { role: true }
-    });
+    await userApplicationService.changeLevel(id, level);
+    finalUser = await prisma.user.findUnique({ where: { id }, include: { role: true } }) as any;
     await logAudit(operatorId, 'UPDATE_USER_LEVEL', `User:${id} to Level:${level}`);
   }
 
@@ -109,11 +110,8 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    finalUser = await prisma.user.update({ 
-      where: { id }, 
-      data: { roleId: roleRecord.id },
-      include: { role: true }
-    });
+    await userApplicationService.changeRole(id, roleRecord.id);
+    finalUser = await prisma.user.findUnique({ where: { id }, include: { role: true } }) as any;
 
     if (newRoleLevel < currentRoleLevel) {
       // Revoke sessions on downgrade
@@ -144,10 +142,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
         where: { username: 'root', status: { not: UserStatus.BANNED } }
       });
       if (rootUser) {
-        await prisma.user.update({
-          where: { id: rootUser.id },
-          data: { status: UserStatus.BANNED }
-        });
+        await userApplicationService.changeStatus(rootUser.id, UserStatus.BANNED);
         // Revoke root sessions
         const rootSessions = await prisma.session.findMany({ where: { userId: rootUser.id } });
         if (rootSessions.length > 0) {
@@ -199,7 +194,8 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  const user = await prisma.user.update({ where: { id }, data: { status } });
+  await userApplicationService.changeStatus(id, status);
+  const user = await prisma.user.findUnique({ where: { id } }) as any;
 
   if (status === UserStatus.BANNED) {
     // Revoke sessions on ban
