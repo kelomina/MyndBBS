@@ -1,21 +1,19 @@
-import { systemQueryService } from '../queries/system/SystemQueryService';
+import { prisma } from '../db';
 import { redis } from './redis';
 
-const MODERATION_CACHE_KEY = 'moderation_words';
+const MODERATION_CACHE_KEY = 'moderation:words';
 
 /**
- * Callers: []
- * Callees: [get, parse, systemQueryService.getAllModeratedWords, push, set, stringify]
+ * Callers: [containsModeratedWord]
+ * Callees: [get, parse, prisma.moderatedWord.findMany, push, set, stringify]
  * Description: Handles the get moderation words logic for the application.
  * Keywords: getmoderationwords, get, moderation, words, auto-annotated
  */
 export const getModerationWords = async (): Promise<{ global: string[], category: Record<string, string[]> }> => {
   const cached = await redis.get(MODERATION_CACHE_KEY);
-  if (cached) {
-    return JSON.parse(cached);
-  }
+  if (cached) return JSON.parse(cached);
 
-  const words = await systemQueryService.getAllModeratedWords();
+  const words = await prisma.moderatedWord.findMany();
   const global: string[] = [];
   const category: Record<string, string[]> = {};
 

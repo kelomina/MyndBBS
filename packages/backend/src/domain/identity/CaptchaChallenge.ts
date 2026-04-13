@@ -81,6 +81,8 @@ export class CaptchaChallenge {
     for (let i = 1; i < dragPath.length; i++) {
       const prev = dragPath[i - 1];
       const curr = dragPath[i];
+      if (!prev || !curr) continue;
+
       sumY += curr.y;
       
       const dt = curr.t - prev.t;
@@ -98,7 +100,10 @@ export class CaptchaChallenge {
     let varSpeedX = 0;
 
     for (let i = 1; i < dragPath.length; i++) {
-      varY += Math.pow(dragPath[i].y - avgY, 2);
+      const p = dragPath[i];
+      if (p) {
+        varY += Math.pow(p.y - avgY, 2);
+      }
     }
     for (const speed of speedsX) {
       varSpeedX += Math.pow(speed - avgSpeedX, 2);

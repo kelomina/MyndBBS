@@ -59,17 +59,17 @@ export class ModerationApplicationService {
     comment.approve();
     await this.commentRepository.save(comment);
 
-    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.isDeleted };
+    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
   }
 
   public async rejectComment(commentId: string): Promise<any> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
 
-    comment.softDelete(); // Rejecting a comment acts as a soft delete
+    comment.delete(); // Rejecting a comment acts as a soft delete
     await this.commentRepository.save(comment);
 
-    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.isDeleted };
+    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
   }
 
   public async restoreComment(commentId: string): Promise<any> {
@@ -79,7 +79,7 @@ export class ModerationApplicationService {
     comment.restore();
     await this.commentRepository.save(comment);
 
-    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.isDeleted };
+    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
   }
 
   public async changePostStatus(postId: string, status: any): Promise<any> {
