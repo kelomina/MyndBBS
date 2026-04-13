@@ -7,6 +7,7 @@ import { generateRegistrationOptions, verifyRegistrationResponse } from '@simple
 import { OTP } from 'otplib';
 import QRCode from 'qrcode';
 import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { UserApplicationService } from '../application/identity/UserApplicationService';
 import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
 import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
@@ -41,18 +42,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        level: true,
-        role: { select: { name: true } },
-        isTotpEnabled: true,
-        _count: { select: { passkeys: true } }
-      }
-    });
+    const user = await identityQueryService.getProfile(userId);
 
     if (!user) {
       res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
@@ -80,40 +70,7 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
-    const postBookmarks = await prisma.bookmark.findMany({
-      where: { 
-        userId
-      },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        post: {
-          include: {
-            author: { select: { id: true, username: true } },
-            category: { select: { id: true, name: true, description: true } }
-          }
-        }
-      }
-    });
-
-    const commentBookmarks = await prisma.commentBookmark.findMany({
-      where: {
-        userId
-      },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        comment: {
-          include: {
-            author: { select: { id: true, username: true } },
-            post: { select: { id: true, title: true, status: true } }
-          }
-        }
-      }
-    });
-
-    const unifiedBookmarks = [
-      ...postBookmarks.map(b => ({ ...b.post, type: 'post', bookmarkedAt: b.createdAt })),
-      ...commentBookmarks.map(b => ({ ...b.comment, type: 'comment', bookmarkedAt: b.createdAt }))
-    ].sort((a, b) => b.bookmarkedAt.getTime() - a.bookmarkedAt.getTime());
+    const unifiedBookmarks = await identityQueryService.listBookmarks(userId);
 
     res.json(unifiedBookmarks);
   } catch (error) {
@@ -136,10 +93,7 @@ export const getPasskeys = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const passkeys = await prisma.passkey.findMany({
-      where: { userId },
-      select: { id: true, deviceType: true, backedUp: true, createdAt: true }
-    });
+    const passkeys = await identityQueryService.listPasskeys(userId);
 
     res.json({ passkeys });
   } catch (error) {
@@ -172,7 +126,7 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Check remaining passkeys. If 0, force level to 1 (Pragmatic CQRS read inside controller for flow control)
-    const remaining = await prisma.passkey.count({ where: { userId } });
+    const remaining = await identityQueryService.countPasskeys(userId);
     if (remaining === 0) {
       await userApplicationService.changeLevel(userId, 1);
     }
@@ -200,7 +154,7 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
 
     const { currentPassword, totpCode } = req.body;
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await identityQueryService.getUserWithRoleById(userId);
     if (!user) {
       res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
       return;
@@ -253,7 +207,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     const { email, username, password, currentPassword, totpCode } = req.body;
     
     // Check if user exists
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await identityQueryService.getUserWithRoleById(userId);
     if (!user) {
       res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
       return;
@@ -319,7 +273,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       const updatedUser = await userApplicationService.updateProfile(userId, updateData.email, updateData.username, hashedPassword);
       
       // We need to return role name, let's fetch it via Prisma CQRS read
-      const userRole = await prisma.user.findUnique({ where: { id: userId }, select: { role: { select: { name: true } } } });
+      const userRole = await identityQueryService.getUserWithRoleById(userId);
 
       res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: userRole?.role?.name || null } });
     } catch (error: any) {
@@ -346,7 +300,7 @@ export const generateTotp = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await identityQueryService.getUserWithRoleById(userId);
     if (!user) return;
 
     const secret = authenticator.generateSecret();
@@ -376,7 +330,7 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await identityQueryService.getUserWithRoleById(userId);
     if (!user) {
       res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
@@ -418,10 +372,10 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await identityQueryService.getUserWithRoleById(userId);
     if (!user) return;
 
-    const userPasskeys = await prisma.passkey.findMany({ where: { userId } });
+    const userPasskeys = await identityQueryService.listPasskeys(userId);
 
     const options = await generateRegistrationOptions({
         rpName,
@@ -504,7 +458,7 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
       credentialBackedUp
     );
 
-      const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+      const dbUser = await identityQueryService.getUserWithRoleById(userId);
       if (dbUser && dbUser.level === 1) {
         await userApplicationService.changeLevel(userId, 2);
       }
@@ -532,17 +486,7 @@ export const getSessions = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const sessions = await prisma.session.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        ipAddress: true,
-        userAgent: true,
-        createdAt: true,
-        expiresAt: true
-      }
-    });
+    const sessions = await identityQueryService.listSessions(userId);
 
     res.json({ sessions });
   } catch (error) {
@@ -573,11 +517,9 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Verify the session belongs to the user
-    const session = await prisma.session.findFirst({
-      where: { id: sessionId, userId }
-    });
+    const session = await identityQueryService.getSessionById(sessionId);
 
-    if (!session) {
+    if (!session || session.userId !== userId) {
       res.status(404).json({ error: 'ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED' });
       return;
     }
@@ -603,26 +545,7 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
 export const getPublicProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const username = req.params.username as string;
-    const user = await prisma.user.findUnique({
-      where: { username },
-      select: {
-        username: true,
-        role: { select: { name: true } },
-        createdAt: true,
-        posts: {
-          where: accessibleBy(req.ability!).Post,
-          select: {
-            id: true,
-            title: true,
-            content: true,
-            createdAt: true,
-            category: { select: { name: true } }
-          },
-          orderBy: { createdAt: 'desc' }
-        },
-        _count: { select: { posts: { where: accessibleBy(req.ability!).Post } } }
-      }
-    });
+    const user = await identityQueryService.getPublicProfile(username, req.ability!);
 
     if (!user) {
       res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
