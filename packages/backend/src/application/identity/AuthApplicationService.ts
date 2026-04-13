@@ -1,27 +1,36 @@
 import { ICaptchaChallengeRepository } from '../../domain/identity/ICaptchaChallengeRepository';
 import { IPasskeyRepository } from '../../domain/identity/IPasskeyRepository';
+import { ISessionRepository } from '../../domain/identity/ISessionRepository';
+import { IAuthChallengeRepository } from '../../domain/identity/IAuthChallengeRepository';
+import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { CaptchaChallenge } from '../../domain/identity/CaptchaChallenge';
 import { Passkey } from '../../domain/identity/Passkey';
+import { Session } from '../../domain/identity/Session';
+import { AuthChallenge } from '../../domain/identity/AuthChallenge';
+import { User } from '../../domain/identity/User';
 import { v4 as uuidv4 } from 'uuid';
 import * as argon2 from 'argon2';
-import { prisma } from '../../db'; // Still needed for User creation since User isn't fully DDD'd yet
+import { prisma } from '../../db';
 
 /**
- * Callers: [CaptchaController, RegisterController, AuthController, UserController, AdminController]
- * Callees: [ICaptchaChallengeRepository, IPasskeyRepository, argon2.hash, prisma.user.create]
- * Description: The Application Service for the Identity Domain. Orchestrates registration, captcha verification, and passkey management.
- * Keywords: identity, auth, service, application, orchestration, register, captcha, passkey
+ * Callers: [CaptchaController, RegisterController, AuthController, UserController, AdminController, SudoController]
+ * Callees: [ICaptchaChallengeRepository, IPasskeyRepository, ISessionRepository, IAuthChallengeRepository, IUserRepository]
+ * Description: The Application Service for the Identity Domain. Orchestrates registration, session management, auth challenges, captcha verification, and passkey management.
+ * Keywords: identity, auth, service, application, orchestration, register, session, challenge, captcha, passkey
  */
 export class AuthApplicationService {
   /**
-   * Callers: [CaptchaController, RegisterController, AuthController, UserController, AdminController]
+   * Callers: [CaptchaController, RegisterController, AuthController, UserController, AdminController, SudoController]
    * Callees: []
    * Description: Initializes the service with repository implementations via Dependency Injection.
    * Keywords: constructor, inject, repository, service, identity, auth
    */
   constructor(
     private captchaChallengeRepository: ICaptchaChallengeRepository,
-    private passkeyRepository: IPasskeyRepository
+    private passkeyRepository: IPasskeyRepository,
+    private sessionRepository: ISessionRepository,
+    private authChallengeRepository: IAuthChallengeRepository,
+    private userRepository: IUserRepository
   ) {}
 
   // --- Captcha Orchestration ---
@@ -92,8 +101,8 @@ export class AuthApplicationService {
 
   /**
    * Callers: [RegisterController.registerUser]
-   * Callees: [ICaptchaChallengeRepository.findById, CaptchaChallenge.validateForConsumption, ICaptchaChallengeRepository.delete, prisma.user.findUnique, argon2.hash, prisma.user.create]
-   * Description: Orchestrates user registration. Consumes the verified captcha, hashes the password, and creates the user.
+   * Callees: [ICaptchaChallengeRepository.findById, CaptchaChallenge.validateForConsumption, ICaptchaChallengeRepository.delete, IUserRepository.findByEmail, IUserRepository.findByUsername, argon2.hash, User.create, IUserRepository.save]
+   * Description: Orchestrates user registration. Consumes the verified captcha, hashes the password, and creates the user domain entity.
    * Keywords: register, user, captcha, consume, hash, command, identity
    */
   public async registerUser(email: string, username: string, password: string, captchaId: string): Promise<any> {
@@ -102,33 +111,118 @@ export class AuthApplicationService {
       throw new Error('ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA');
     }
 
-    // 2. Check uniqueness (this could be pushed to a Domain Service or handled by Prisma constraints, but explicit checks yield better errors)
-    const existingUser = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username }] }
-    });
-    if (existingUser) {
-      if (existingUser.email === email) throw new Error('ERR_EMAIL_ALREADY_EXISTS');
-      if (existingUser.username === username) throw new Error('ERR_USERNAME_ALREADY_EXISTS');
-    }
+    const existingEmail = await this.userRepository.findByEmail(email);
+    if (existingEmail) throw new Error('ERR_EMAIL_ALREADY_EXISTS');
 
-    // 3. Hash password
+    const existingUsername = await this.userRepository.findByUsername(username);
+    if (existingUsername) throw new Error('ERR_USERNAME_ALREADY_EXISTS');
+
     const hashedPassword = await argon2.hash(password);
-
-    // 4. Create User (Active Record style for now since User aggregate isn't fully DDD'd)
     const defaultRole = await prisma.role.findUnique({ where: { name: 'USER' } });
     
-    const user = await prisma.user.create({
-      data: {
-        email,
-        username,
-        password: hashedPassword,
-        roleId: defaultRole?.id,
-        level: 1,
-      },
-      select: { id: true, username: true, email: true, level: true, role: { select: { name: true } } }
+    const user = User.create({
+      id: uuidv4(),
+      email,
+      username,
+      password: hashedPassword,
+      roleId: defaultRole?.id || null,
+      level: 1,
+      status: 'ACTIVE',
+      isPasskeyMandatory: false,
+      totpSecret: null,
+      isTotpEnabled: false,
+      createdAt: new Date()
     });
 
-    return user;
+    await this.userRepository.save(user);
+
+    // Return DTO format expected by controller
+    return { 
+      id: user.id, 
+      username: user.username, 
+      email: user.email, 
+      level: user.level, 
+      role: { name: defaultRole?.name || null } 
+    };
+  }
+
+  // --- Session Orchestration ---
+
+  /**
+   * Callers: [AuthController.login, AuthController.verifyPasskeyAuthentication, RegisterController.registerUser]
+   * Callees: [Session.create, ISessionRepository.save]
+   * Description: Creates a new user session.
+   * Keywords: create, session, command, identity
+   */
+  public async createSession(userId: string, ipAddress: string | null, userAgent: string | null, expiresInMs: number = 7 * 24 * 60 * 60 * 1000): Promise<Session> {
+    const session = Session.create({
+      id: uuidv4(),
+      userId,
+      ipAddress,
+      userAgent,
+      expiresAt: new Date(Date.now() + expiresInMs),
+      createdAt: new Date()
+    });
+
+    await this.sessionRepository.save(session);
+    return session;
+  }
+
+  /**
+   * Callers: [AuthController.logout, UserController.revokeSession]
+   * Callees: [ISessionRepository.delete]
+   * Description: Revokes a specific user session.
+   * Keywords: revoke, session, command, identity
+   */
+  public async revokeSession(sessionId: string): Promise<void> {
+    await this.sessionRepository.delete(sessionId);
+  }
+
+  /**
+   * Callers: [UserController.revokeAllSessions, AdminController.kickUser, AdminController.updateUserRole, AdminController.updateUserLevel, AdminController.banUser, RegisterController.registerUser]
+   * Callees: [ISessionRepository.deleteManyByUserId]
+   * Description: Revokes all sessions for a specific user.
+   * Keywords: revoke, all, sessions, command, identity
+   */
+  public async revokeAllUserSessions(userId: string): Promise<void> {
+    await this.sessionRepository.deleteManyByUserId(userId);
+  }
+
+  // --- AuthChallenge Orchestration ---
+
+  /**
+   * Callers: [AuthController.getPasskeyOptions, SudoController.getSudoPasskeyOptions]
+   * Callees: [AuthChallenge.create, IAuthChallengeRepository.save]
+   * Description: Generates a new authentication challenge (e.g., for WebAuthn).
+   * Keywords: generate, authchallenge, command, identity
+   */
+  public async generateAuthChallenge(challengeString: string, expiresInMs: number = 5 * 60 * 1000): Promise<AuthChallenge> {
+    const challenge = AuthChallenge.create({
+      id: uuidv4(),
+      challenge: challengeString,
+      expiresAt: new Date(Date.now() + expiresInMs)
+    });
+
+    await this.authChallengeRepository.save(challenge);
+    return challenge;
+  }
+
+  /**
+   * Callers: [AuthController.verifyPasskeyAuthentication, AuthController.verifyPasskeyRegistration, SudoController.verifySudo]
+   * Callees: [IAuthChallengeRepository.findById, AuthChallenge.validateForConsumption, IAuthChallengeRepository.delete]
+   * Description: Validates that an auth challenge is not expired, then consumes (deletes) it.
+   * Keywords: verify, consume, authchallenge, identity
+   */
+  public async consumeAuthChallenge(challengeId: string): Promise<AuthChallenge> {
+    const challenge = await this.authChallengeRepository.findById(challengeId);
+    if (!challenge) {
+      throw new Error('ERR_CHALLENGE_NOT_FOUND');
+    }
+    
+    challenge.validateForConsumption();
+    await this.authChallengeRepository.delete(challengeId);
+    
+    return challenge;
   }
 
   // --- Passkey Orchestration ---

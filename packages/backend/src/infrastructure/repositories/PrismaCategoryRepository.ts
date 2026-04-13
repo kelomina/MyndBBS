@@ -22,6 +22,7 @@ export class PrismaCategoryRepository implements ICategoryRepository {
       description: raw.description,
       sortOrder: raw.sortOrder,
       minLevel: raw.minLevel,
+      moderatorIds: raw.moderators ? raw.moderators.map((m: any) => m.userId) : [],
       createdAt: raw.createdAt,
     };
     return Category.create(props);
@@ -34,7 +35,10 @@ export class PrismaCategoryRepository implements ICategoryRepository {
    * Keywords: find, id, prisma, repository, category
    */
   public async findById(id: string): Promise<Category | null> {
-    const raw = await prisma.category.findUnique({ where: { id } });
+    const raw = await prisma.category.findUnique({ 
+      where: { id },
+      include: { moderators: true } 
+    });
     if (!raw) return null;
     return this.toDomain(raw);
   }
@@ -46,22 +50,39 @@ export class PrismaCategoryRepository implements ICategoryRepository {
    * Keywords: save, upsert, update, create, prisma, repository, category
    */
   public async save(category: Category): Promise<void> {
-    await prisma.category.upsert({
-      where: { id: category.id },
-      create: {
-        id: category.id,
-        name: category.name,
-        description: category.description,
-        sortOrder: category.sortOrder,
-        minLevel: category.minLevel,
-        createdAt: category.createdAt,
-      },
-      update: {
-        name: category.name,
-        description: category.description,
-        sortOrder: category.sortOrder,
-        minLevel: category.minLevel,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.category.upsert({
+        where: { id: category.id },
+        create: {
+          id: category.id,
+          name: category.name,
+          description: category.description,
+          sortOrder: category.sortOrder,
+          minLevel: category.minLevel,
+          createdAt: category.createdAt,
+        },
+        update: {
+          name: category.name,
+          description: category.description,
+          sortOrder: category.sortOrder,
+          minLevel: category.minLevel,
+        },
+      });
+
+      // Sync moderators
+      await tx.categoryModerator.deleteMany({
+        where: { categoryId: category.id, userId: { notIn: category.moderatorIds } }
+      });
+
+      if (category.moderatorIds.length > 0) {
+        await tx.categoryModerator.createMany({
+          data: category.moderatorIds.map(userId => ({
+            categoryId: category.id,
+            userId
+          })),
+          skipDuplicates: true
+        });
+      }
     });
   }
 

@@ -4,7 +4,20 @@ import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import { AuthRequest } from '../middleware/auth';
 import { generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server';
-import crypto from 'crypto';
+import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
+import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
+import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
+import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+
+const authApplicationService = new AuthApplicationService(
+  new PrismaCaptchaChallengeRepository(),
+  new PrismaPasskeyRepository(),
+  new PrismaSessionRepository(),
+  new PrismaAuthChallengeRepository(),
+  new PrismaUserRepository()
+);
 
 const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.ORIGIN || `http://${rpID}:3000`;
@@ -33,14 +46,8 @@ export const getSudoPasskeyOptions = async (req: AuthRequest, res: Response): Pr
     userVerification: 'preferred',
   });
 
-  const challengeId = crypto.randomUUID();
-  await prisma.authChallenge.create({
-    data: {
-      id: challengeId,
-      challenge: options.challenge,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
-    }
-  });
+  const authChallenge = await authApplicationService.generateAuthChallenge(options.challenge);
+  const challengeId = authChallenge.id;
 
   res.json({ ...options, challengeId });
 };
@@ -88,9 +95,11 @@ export const verifySudo = async (req: AuthRequest, res: Response): Promise<void>
         return;
       }
 
-      const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
-      if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
-        res.status(400).json({ error: 'ERR_CHALLENGE_EXPIRED_OR_NOT_FOUND' });
+      let expectedChallenge;
+      try {
+        expectedChallenge = await authApplicationService.consumeAuthChallenge(challengeId);
+      } catch (error: any) {
+        res.status(400).json({ error: error.message });
         return;
       }
 
@@ -114,12 +123,8 @@ export const verifySudo = async (req: AuthRequest, res: Response): Promise<void>
 
       isValid = verification.verified;
       if (isValid && verification.authenticationInfo) {
-        await prisma.passkey.update({
-          where: { id: passkey.id },
-          data: { counter: BigInt(verification.authenticationInfo.newCounter) }
-        });
+        await authApplicationService.updatePasskeyCounter(passkey.id, BigInt(verification.authenticationInfo.newCounter));
       }
-      await prisma.authChallenge.delete({ where: { id: challengeId } });
     } else {
       res.status(400).json({ error: 'ERR_INVALID_SUDO_TYPE' });
       return;

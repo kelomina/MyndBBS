@@ -440,12 +440,8 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
       },
     });
 
-    const challengeId = crypto.randomUUID();
-    await prisma.authChallenge.upsert({
-      where: { id: challengeId },
-      update: { challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
-      create: { id: challengeId, challenge: options.challenge, expiresAt: new Date(Date.now() + 5 * 60 * 1000) }
-    });
+    const authChallenge = await authApplicationService.generateAuthChallenge(options.challenge);
+    const challengeId = authChallenge.id;
 
     res.json({ ...options, challengeId });
   } catch (error) {
@@ -473,9 +469,11 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const expectedChallenge = await prisma.authChallenge.findUnique({ where: { id: challengeId } });
-    if (!expectedChallenge || expectedChallenge.expiresAt < new Date()) {
-      res.status(400).json({ error: 'ERR_CHALLENGE_EXPIRED_OR_NOT_FOUND' });
+    let expectedChallenge;
+    try {
+      expectedChallenge = await authApplicationService.consumeAuthChallenge(challengeId);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
       return;
     }
 
@@ -505,8 +503,6 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
       credentialDeviceType,
       credentialBackedUp
     );
-
-    await prisma.authChallenge.delete({ where: { id: challengeId } });
 
       const dbUser = await prisma.user.findUnique({ where: { id: userId } });
       if (dbUser && dbUser.level === 1) {
@@ -586,9 +582,7 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    await prisma.session.delete({
-      where: { id: sessionId }
-    });
+    await authApplicationService.revokeSession(sessionId);
 
     await redis.del(`session:${sessionId}`);
     await redis.del(`session:${sessionId}:requires_refresh`);

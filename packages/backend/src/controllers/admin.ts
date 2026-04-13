@@ -6,7 +6,22 @@ import { redis } from '../lib/redis';
 import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
 import { UserApplicationService } from '../application/identity/UserApplicationService';
-import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
+import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
+import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
+import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
+import { SystemApplicationService } from '../application/system/SystemApplicationService';
+import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
+
+const systemApplicationService = new SystemApplicationService(new PrismaRouteWhitelistRepository());
+
+const authApplicationService = new AuthApplicationService(
+  new PrismaCaptchaChallengeRepository(),
+  new PrismaPasskeyRepository(),
+  new PrismaSessionRepository(),
+  new PrismaAuthChallengeRepository(),
+  new PrismaUserRepository()
+);
 import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
 import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
 import { PrismaEngagementRepository } from '../infrastructure/repositories/PrismaEngagementRepository';
@@ -142,7 +157,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
           pipeline.del(`session:${session.id}`);
         }
         await pipeline.exec();
-        await prisma.session.deleteMany({ where: { userId: id } });
+        await authApplicationService.revokeAllUserSessions(id);
       }
     } else if (newRoleLevel > currentRoleLevel) {
       // Mark sessions for refresh on promotion
@@ -171,7 +186,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
             pipeline.del(`session:${session.id}`);
           }
           await pipeline.exec();
-          await prisma.session.deleteMany({ where: { userId: rootUser.id } });
+          await authApplicationService.revokeAllUserSessions(rootUser.id);
         }
         await logAudit('system', 'AUTO_DISABLE_ROOT', 'root');
       }
@@ -226,7 +241,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
         pipeline.del(`session:${session.id}`);
       }
       await pipeline.exec();
-      await prisma.session.deleteMany({ where: { userId: id } });
+      await authApplicationService.revokeAllUserSessions(id);
     }
   }
 
@@ -318,23 +333,7 @@ export const assignCategoryModerator = async (req: AuthRequest, res: Response): 
     const userId = req.params.userId as string;
     const operatorId = req.user?.userId || 'unknown';
     
-    // Ensure both user and category exist, and user is a MODERATOR
-    const user = await prisma.user.findUnique({ 
-      where: { id: userId },
-      include: { role: true }
-    });
-    if (!user || user.role?.name !== 'MODERATOR') {
-      res.status(400).json({ error: 'ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR' });
-      return;
-    }
-
-    const assignment = await prisma.categoryModerator.upsert({
-      where: {
-        categoryId_userId: { categoryId, userId }
-      },
-      update: {},
-      create: { categoryId, userId }
-    });
+    const assignment = await communityApplicationService.assignCategoryModerator(categoryId, userId);
 
     await logAudit(operatorId, 'ASSIGN_CATEGORY_MODERATOR', `User:${userId} to Category:${categoryId}`);
 
@@ -356,11 +355,7 @@ export const removeCategoryModerator = async (req: AuthRequest, res: Response): 
     const userId = req.params.userId as string;
     const operatorId = req.user?.userId || 'unknown';
     
-    await prisma.categoryModerator.delete({
-      where: {
-        categoryId_userId: { categoryId, userId }
-      }
-    });
+    await communityApplicationService.removeCategoryModerator(categoryId, userId);
 
     await logAudit(operatorId, 'REMOVE_CATEGORY_MODERATOR', `User:${userId} from Category:${categoryId}`);
 
@@ -722,9 +717,7 @@ export const addRouteWhitelist = async (req: Request, res: Response) => {
     const { path, isPrefix, minRole, description } = req.body;
     if (!path) return res.status(400).json({ error: 'Path is required' });
 
-    const route = await prisma.routeWhitelist.create({
-      data: { path, isPrefix: !!isPrefix, minRole: minRole || null, description }
-    });
+    const route = await systemApplicationService.addRouteWhitelist(path, !!isPrefix, minRole || null, description);
     res.json(route);
   } catch (error) {
     res.status(500).json({ error: 'Failed to add route whitelist' });
@@ -742,10 +735,7 @@ export const updateRouteWhitelist = async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const { path, isPrefix, minRole, description } = req.body;
 
-    const route = await prisma.routeWhitelist.update({
-      where: { id },
-      data: { path, isPrefix: !!isPrefix, minRole: minRole || null, description }
-    });
+    const route = await systemApplicationService.updateRouteWhitelist(id, path, !!isPrefix, minRole || null, description);
     res.json(route);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update route whitelist' });
@@ -761,7 +751,7 @@ export const updateRouteWhitelist = async (req: Request, res: Response) => {
 export const deleteRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    await prisma.routeWhitelist.delete({ where: { id } });
+    await systemApplicationService.deleteRouteWhitelist(id);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete route whitelist' });
