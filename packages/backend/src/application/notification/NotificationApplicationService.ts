@@ -2,7 +2,7 @@ import { INotificationRepository } from '../../domain/notification/INotification
 import { Notification } from '../../domain/notification/Notification';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostApprovedEvent, PostRejectedEvent, PostRepliedEvent, CommentRepliedEvent } from '../../domain/shared/events/DomainEvents';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 import { identityQueryService } from '../../queries/identity/IdentityQueryService';
 
 /**

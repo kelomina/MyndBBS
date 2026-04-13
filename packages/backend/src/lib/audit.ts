@@ -1,7 +1,7 @@
 import { prisma } from '../db';
 import { AuditLog } from '../domain/system/AuditLog';
 import { PrismaAuditLogRepository } from '../infrastructure/repositories/PrismaAuditLogRepository';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 
 const auditLogRepository = new PrismaAuditLogRepository();
 
