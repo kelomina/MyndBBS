@@ -618,32 +618,26 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
     await fs.writeFile(envPath, envContent);
     process.env.DATABASE_URL = newDbUrl;
 
+    try {
+      await systemApplicationService.initializeDatabaseSchema();
+    } catch (err: any) {
+      console.error('Prisma Error on DB Update:', err.message);
+      res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });
+      return;
+    }
+
+    await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
+    res.json({ message: 'Database configuration updated successfully', config: { host, port, username, password, database } });
+
     /**
      * Callers: [updateDbConfig]
-     * Callees: [error, json, status, setTimeout, exit]
-     * Description: An anonymous callback executed after prisma db push completes.
-     * Keywords: admin, exec, prisma, push, callback, anonymous
+     * Callees: [exit]
+     * Description: An anonymous timeout callback that forcefully restarts the server.
+     * Keywords: admin, restart, exit, timeout, anonymous
      */
-    exec('npx prisma db push', { cwd: process.cwd() }, async (err, stdout, stderr) => {
-      if (err) {
-        console.error('Prisma Error on DB Update:', stderr || err.message);
-        res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });
-        return;
-      }
-
-      await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
-      res.json({ message: 'Database configuration updated successfully', config: { host, port, username, password, database } });
-
-      /**
-       * Callers: [exec]
-       * Callees: [exit]
-       * Description: An anonymous timeout callback that forcefully restarts the server.
-       * Keywords: admin, restart, exit, timeout, anonymous
-       */
-      setTimeout(() => {
-        process.exit(0);
-      }, 1000);
-    });
+    setTimeout(() => {
+      process.exit(0);
+    }, 1000);
   } catch (error) {
     console.error('DB Connection Test Failed:', error);
     res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED' });

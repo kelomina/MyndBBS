@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { prisma } from '../db';
 import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import { AuthRequest } from '../middleware/auth';

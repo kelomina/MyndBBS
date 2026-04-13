@@ -173,6 +173,14 @@ export class IdentityQueryService {
   public async getPasskeyById(passkeyId: string) {
     return prisma.passkey.findUnique({ where: { id: passkeyId } });
   }
+
+  public async listUserIdsByLevel(minLevel: number) {
+    return prisma.user.findMany({ where: { level: { gte: minLevel } }, select: { id: true } });
+  }
+
+  public async getUserByUsername(username: string) {
+    return prisma.user.findUnique({ where: { username } });
+  }
 }
 
 export const identityQueryService = new IdentityQueryService();

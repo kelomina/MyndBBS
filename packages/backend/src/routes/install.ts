@@ -6,6 +6,12 @@ import crypto from 'crypto';
 import * as argon2 from 'argon2';
 import { PrismaClient, UserStatus } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import { SystemApplicationService } from '../application/system/SystemApplicationService';
+import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
+
+const systemApplicationService = new SystemApplicationService(
+  new PrismaRouteWhitelistRepository()
+);
 
 const router: import('express').Router = Router();
 const envPath = path.resolve(__dirname, '../../.env');
@@ -649,48 +655,21 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
     process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
 
     // Run Prisma DB Push to initialize schema
-    exec('npx prisma db push', { cwd: path.resolve(__dirname, '../../') }, async (error, stdout, stderr) => {
-      if (error) {
-        console.error('Prisma Error:', stderr || error.message);
-        res.status(500).json({ error: '数据库初始化失败，请检查您的数据库凭据并确保 PostgreSQL 正在运行。' });
-        return;
-      }
+    try {
+      await systemApplicationService.initializeDatabaseSchema();
+    } catch (error: any) {
+      console.error('Prisma Error:', error.message);
+      res.status(500).json({ error: '数据库初始化失败，请检查您的数据库凭据并确保 PostgreSQL 正在运行。' });
+      return;
+    }
 
-      // Generate a temporary root token
-      installToken = crypto.randomBytes(16).toString('hex');
-
-      // Create a temporary root user in DB
-      const prisma = new PrismaClient();
-      try {
-        let role = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
-        if (!role) {
-          role = await prisma.role.create({ data: { name: 'SUPER_ADMIN', description: 'System Administrator' } });
-        }
-
-        const hashedPass = await argon2.hash(crypto.randomBytes(16).toString('hex'));
-        
-        // Upsert temp root user
-        await prisma.user.upsert({
-          where: { username: 'temp_root_install' },
-          update: { roleId: role.id, status: UserStatus.ACTIVE, password: hashedPass },
-          create: {
-            username: 'temp_root_install',
-            email: 'temp_root@install.local',
-            password: hashedPass,
-            roleId: role.id,
-            status: UserStatus.ACTIVE
-          }
-        });
-      } catch (dbErr) {
-        console.error('DB Seed Error:', dbErr);
-        res.status(500).json({ error: '创建临时管理员账户失败。' });
-        return;
-      } finally {
-        await prisma.$disconnect();
-      }
-
+    try {
+      installToken = await systemApplicationService.createTemporaryRootUser();
       res.json({ success: true, token: installToken });
-    });
+    } catch (dbErr) {
+      console.error('DB Seed Error:', dbErr);
+      res.status(500).json({ error: '创建临时管理员账户失败。' });
+    }
   } catch (err) {
     res.status(500).json({ error: '内部服务器错误' });
   }
@@ -715,54 +694,13 @@ router.post('/api/admin', async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
-  const prisma = new PrismaClient();
   try {
-    const role = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
-    if (!role) {
-      res.status(500).json({ error: '未找到 SUPER_ADMIN 角色' });
-      return;
-    }
-
-    const hashedPass = await argon2.hash(password);
-
-      // Check if user already exists (e.g. from a previous failed install attempt)
-      let user = await prisma.user.findFirst({
-        where: { OR: [{ username }, { email }] }
-      });
-
-      if (user) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            username,
-            email,
-            password: hashedPass,
-            roleId: role.id,
-            status: UserStatus.ACTIVE
-          }
-        });
-      } else {
-        user = await prisma.user.create({
-          data: {
-            username,
-            email,
-            password: hashedPass,
-            roleId: role.id,
-            status: UserStatus.ACTIVE
-          }
-        });
-      }
-
-    // Disable (ban) the temporary root account
-    await prisma.user.updateMany({
-      where: { username: 'temp_root_install' },
-      data: { status: UserStatus.BANNED }
-    });
+    const userId = await systemApplicationService.finalizeInstallation(username, email, password);
 
     // Lock the installation in .env
     fs.appendFileSync(envPath, '\nINSTALL_LOCKED=true\n');
 
-    const tempToken = jwt.sign({ userId: user.id, type: 'registration' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+    const tempToken = jwt.sign({ userId, type: 'registration' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
     res.cookie('tempToken', tempToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -787,9 +725,7 @@ router.post('/api/admin', async (req: Request, res: Response): Promise<void> => 
 
   } catch (err: any) {
     console.error('Admin Creation Error:', err);
-    res.status(500).json({ error: '创建管理员账户失败，请检查日志。' });
-  } finally {
-    await prisma.$disconnect();
+    res.status(500).json({ error: err.message || '初始化管理员账户失败。' });
   }
 });
 

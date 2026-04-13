@@ -3,7 +3,7 @@ import { Notification } from '../../domain/notification/Notification';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostApprovedEvent, PostRejectedEvent, PostRepliedEvent, CommentRepliedEvent } from '../../domain/shared/events/DomainEvents';
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../../db';
+import { identityQueryService } from '../../queries/identity/IdentityQueryService';
 
 /**
  * Callers: [Server initialization, Controllers]
@@ -100,10 +100,7 @@ export class NotificationApplicationService {
     // Emulates the old `notifyModerators` behavior using a generic event
     this.eventBus.subscribe<any>('SystemAlertEvent', async (event) => {
       if (!event.title || !event.content) return;
-      const moderators = await prisma.user.findMany({
-        where: { level: { gte: 3 } },
-        select: { id: true }
-      });
+      const moderators = await identityQueryService.listUserIdsByLevel(3);
       for (const mod of moderators) {
         await this.createNotification(mod.id, 'SYSTEM', event.title, event.content, null);
       }

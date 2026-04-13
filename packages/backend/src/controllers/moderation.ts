@@ -1,5 +1,4 @@
-import { Response } from 'express';
-import { prisma } from '../db';
+import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { adminQueryService } from '../queries/admin/AdminQueryService';
 import { clearModerationCache } from '../lib/moderation';
