@@ -6,12 +6,20 @@ import { AuthRequest } from '../middleware/auth';
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 import { OTP } from 'otplib';
 import QRCode from 'qrcode';
+import { AuthApplicationService } from '../application/identity/AuthApplicationService';
+import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
+import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
 
 const rpName = 'MyndBBS';
 const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 
 const authenticator = new OTP({ strategy: 'totp' });
+
+const authApplicationService = new AuthApplicationService(
+  new PrismaCaptchaChallengeRepository(),
+  new PrismaPasskeyRepository()
+);
 
 /**
  * Callers: []
@@ -136,9 +144,9 @@ export const getPasskeys = async (req: AuthRequest, res: Response): Promise<void
 
 /**
  * Callers: []
- * Callees: [json, status, deleteMany, count, update, error]
- * Description: Handles the delete passkey logic for the application.
- * Keywords: deletepasskey, delete, passkey, auto-annotated
+ * Callees: [AuthApplicationService.deletePasskey, count, update, json, status, error]
+ * Description: Orchestrates the deletion of a passkey via the domain service. Also handles automatic security level downgrades if no passkeys remain.
+ * Keywords: delete, passkey, webauthn, service, identity
  */
 export const deletePasskey = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -150,11 +158,14 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    await prisma.passkey.deleteMany({
-      where: { id: passkeyId, userId }
-    });
+    try {
+      await authApplicationService.deletePasskey(passkeyId, userId);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+      return;
+    }
 
-    // Check remaining passkeys. If 0, force level to 1
+    // Check remaining passkeys. If 0, force level to 1 (Pragmatic CQRS read inside controller for flow control)
     const remaining = await prisma.passkey.count({ where: { userId } });
     if (remaining === 0) {
       await prisma.user.update({
@@ -491,22 +502,20 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     if (verification.verified && verification.registrationInfo) {
-      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
-      const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
+    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+    const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
 
-      await prisma.passkey.create({
-        data: {
-          id: credentialID,
-          publicKey: Buffer.from(credentialPublicKey),
-          userId,
-          webAuthnUserID: userId,
-          counter: BigInt(counter),
-          deviceType: credentialDeviceType,
-          backedUp: credentialBackedUp,
-        }
-      });
+    await authApplicationService.addPasskey(
+      userId,
+      credentialID,
+      Buffer.from(credentialPublicKey),
+      userId,
+      BigInt(counter),
+      credentialDeviceType,
+      credentialBackedUp
+    );
 
-      await prisma.authChallenge.delete({ where: { id: challengeId } });
+    await prisma.authChallenge.delete({ where: { id: challengeId } });
 
       const dbUser = await prisma.user.findUnique({ where: { id: userId } });
       if (dbUser && dbUser.level === 1) {
