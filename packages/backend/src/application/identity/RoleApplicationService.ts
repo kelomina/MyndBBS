@@ -3,6 +3,8 @@ import { IPermissionRepository } from '../../domain/identity/IPermissionReposito
 import { Role } from '../../domain/identity/Role';
 import { Permission } from '../../domain/identity/Permission';
 import { v4 as uuidv4 } from 'uuid';
+import redis from '../../lib/redis';
+import { prisma } from '../../db';
 
 /**
  * Callers: [AdminController]
@@ -47,6 +49,18 @@ export class RoleApplicationService {
     return permission;
   }
 
+  private async invalidateCacheForRoleUsers(roleId: string): Promise<void> {
+    const users = await prisma.user.findMany({
+      where: { roleId },
+      select: { id: true }
+    });
+    const pipeline = redis.pipeline();
+    for (const user of users) {
+      pipeline.del(`ability_rules:user:${user.id}`);
+    }
+    await pipeline.exec();
+  }
+
   public async assignPermissionToRole(roleId: string, permissionId: string): Promise<Role> {
     const role = await this.roleRepository.findById(roleId);
     if (!role) throw new Error('ERR_ROLE_NOT_FOUND');
@@ -56,6 +70,9 @@ export class RoleApplicationService {
 
     role.assignPermission(permission);
     await this.roleRepository.save(role);
+    
+    await this.invalidateCacheForRoleUsers(roleId);
+
     return role;
   }
 
@@ -65,6 +82,9 @@ export class RoleApplicationService {
 
     role.revokePermission(permissionId);
     await this.roleRepository.save(role);
+    
+    await this.invalidateCacheForRoleUsers(roleId);
+
     return role;
   }
 }

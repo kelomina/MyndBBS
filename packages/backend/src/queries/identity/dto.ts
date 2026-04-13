@@ -1,0 +1,16 @@
+export interface AccessContextDTO {
+  userId: string;
+  roleName: string | null;
+  level: number;
+  moderatedCategoryIds: string[];
+}
+
+export interface RuleDescriptorDTO {
+  action: string;
+  subject: string;
+}
+
+export interface AbilityRulesDTO {
+  context: AccessContextDTO;
+  rules: RuleDescriptorDTO[];
+}

@@ -8,6 +8,7 @@ import { Comment } from '../../domain/community/Comment';
 import { PostUpvote, PostBookmark } from '../../domain/community/PostEngagement';
 import { CommentUpvote, CommentBookmark } from '../../domain/community/CommentEngagement';
 import { v4 as uuidv4 } from 'uuid';
+import redis from '../../lib/redis';
 import { prisma } from '../../db'; // Kept for CQRS read joins that return complex DTOs
 import { containsModeratedWord } from '../../lib/moderation';
 
@@ -65,6 +66,7 @@ export class CommunityApplicationService {
 
     category.addModerator(userId);
     await this.categoryRepository.save(category);
+    await redis.del(`ability_rules:user:${userId}`);
 
     return { categoryId, userId };
   }
@@ -75,6 +77,7 @@ export class CommunityApplicationService {
 
     category.removeModerator(userId);
     await this.categoryRepository.save(category);
+    await redis.del(`ability_rules:user:${userId}`);
   }
   public async deleteCategory(id: string): Promise<void> {
     const category = await this.categoryRepository.findById(id);

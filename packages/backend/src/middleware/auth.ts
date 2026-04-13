@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken';
 import { User, Session, UserStatus } from '@prisma/client';
 import { prisma } from '../db';
 import { redis } from '../lib/redis';
-import { defineAbilityFor, AppAbility, Action, AppSubjects } from '../lib/casl';
+import { defineAbilityForContext, AppAbility, Action, AppSubjects } from '../lib/casl';
+import { accessControlQueryService } from '../queries/identity/AccessControlQueryService';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -103,22 +104,12 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
     
     req.user = { userId: decoded.userId, role: decoded.role, sessionId: decoded.sessionId };
 
-    let moderatedCategories: { categoryId: string }[] = [];
-    if (decoded.role === 'MODERATOR') {
-      moderatedCategories = await prisma.categoryModerator.findMany({
-        where: { userId: decoded.userId },
-        select: { categoryId: true }
-      });
+    const rulesDTO = await accessControlQueryService.getAbilityRulesForUser(decoded.userId);
+    if (rulesDTO) {
+      req.ability = defineAbilityForContext(rulesDTO.context, rulesDTO.rules);
+    } else {
+      req.ability = defineAbilityForContext();
     }
-
-    const dbUser = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { level: true } });
-
-    req.ability = defineAbilityFor({
-      id: decoded.userId,
-      role: decoded.role,
-      level: dbUser?.level || 1,
-      moderatedCategories
-    });
 
     next();
   } catch (error) {
@@ -145,7 +136,7 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
   }
 
   if (!token) {
-    req.ability = defineAbilityFor(undefined);
+    req.ability = defineAbilityForContext();
     return next();
   }
 
@@ -153,24 +144,14 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
     req.user = { userId: decoded.userId, role: decoded.role, sessionId: decoded.sessionId };
 
-    let moderatedCategories: { categoryId: string }[] = [];
-    if (decoded.role === 'MODERATOR') {
-      moderatedCategories = await prisma.categoryModerator.findMany({
-        where: { userId: decoded.userId },
-        select: { categoryId: true }
-      });
+    const rulesDTO = await accessControlQueryService.getAbilityRulesForUser(decoded.userId);
+    if (rulesDTO) {
+      req.ability = defineAbilityForContext(rulesDTO.context, rulesDTO.rules);
+    } else {
+      req.ability = defineAbilityForContext();
     }
-
-    const dbUser = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { level: true } });
-
-    req.ability = defineAbilityFor({
-      id: decoded.userId,
-      role: decoded.role,
-      level: dbUser?.level || 1,
-      moderatedCategories
-    });
   } catch (error) {
-    req.ability = defineAbilityFor(undefined);
+    req.ability = defineAbilityForContext();
   }
   next();
 };

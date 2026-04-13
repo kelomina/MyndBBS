@@ -15,3 +15,4 @@
 - [2026-04-12] Migrated plan: history/2026-04/202604121600_ddd_messaging_audit
 - [2026-04-12] Migrated plan: history/2026-04/202604121700_ddd_rbac
 - [2026-04-12] Migrated plan: history/2026-04/202604121730_ddd_engagements
+- [2026-04-13] Migrated plan: history/2026-04/202604131800_rbac_casl_query
