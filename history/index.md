@@ -16,3 +16,4 @@
 - [2026-04-12] Migrated plan: history/2026-04/202604121700_ddd_rbac
 - [2026-04-12] Migrated plan: history/2026-04/202604121730_ddd_engagements
 - [2026-04-13] Migrated plan: history/2026-04/202604131800_rbac_casl_query
+- [202604131900_comprehensive_ddd_refactor](./2026-04/202604131900_comprehensive_ddd_refactor) - 全面一次性重构以满足 100% DDD 与 CQRS 架构规范

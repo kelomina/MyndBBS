@@ -1,15 +1,8 @@
-import { Router, Response, Request } from 'express';
-import { communityQueryService } from '../queries/community/CommunityQueryService';
+import { Router } from 'express';
+import { getCategoriesList } from '../controllers/category';
 
 const router: Router = Router();
 
-router.get('/', async (req: Request, res: Response) => {
-  try {
-    const categories = await communityQueryService.listCategories();
-    res.json(categories);
-  } catch (error) {
-    res.status(500).json({ error: 'ERR_FAILED_TO_FETCH_CATEGORIES' });
-  }
-});
+router.get('/', getCategoriesList);
 
 export default router;
