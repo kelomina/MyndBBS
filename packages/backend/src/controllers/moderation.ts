@@ -2,7 +2,8 @@ import { Response } from 'express';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
 import { clearModerationCache } from '../lib/moderation';
-import { sendNotification } from '../lib/notification';
+import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
+import { PostApprovedEvent, PostRejectedEvent } from '../domain/shared/events/DomainEvents';
 
 /**
  * Callers: []
@@ -176,13 +177,7 @@ export const approvePendingPost = async (req: AuthRequest, res: Response): Promi
       data: { status: 'PUBLISHED' }
     });
     
-    await sendNotification({
-      userId: post.authorId,
-      type: 'POST_APPROVED',
-      title: 'Post Approved',
-      content: `Your post "${post.title}" has been approved.`,
-      relatedId: post.id
-    });
+    globalEventBus.publish(new PostApprovedEvent(post.id, post.authorId, post.title));
     
     res.json({ message: 'Post approved' });
   } catch (error) {
@@ -205,13 +200,7 @@ export const rejectPendingPost = async (req: AuthRequest, res: Response): Promis
       data: { status: 'DELETED' }
     });
     
-    await sendNotification({
-      userId: post.authorId,
-      type: 'POST_REJECTED',
-      title: 'Post Rejected',
-      content: `Your post "${post.title}" has been rejected. Reason: ${reason || 'N/A'}`,
-      relatedId: post.id
-    });
+    globalEventBus.publish(new PostRejectedEvent(post.id, post.authorId, post.title, reason || 'N/A'));
     
     res.json({ message: 'Post rejected' });
   } catch (error) {
