@@ -87,7 +87,7 @@ export class CommunityApplicationService {
     await this.categoryRepository.delete(id);
   }
 
-  public async createPost(title: string, content: string, categoryId: string, authorId: string, userLevel: number): Promise<any> {
+  public async createPost(title: string, content: string, categoryId: string, authorId: string, userLevel: number): Promise<{ postId: string; isModerated: boolean }> {
     const category = await this.categoryRepository.findById(categoryId);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
     if (!category.isLevelSufficient(userLevel)) {
@@ -108,16 +108,10 @@ export class CommunityApplicationService {
 
     await this.postRepository.save(post);
 
-    // Pragmatic CQRS Read to return rich DTO for frontend
-    const postDto = await prisma.post.findUnique({
-      where: { id: post.id },
-      include: { author: { select: { username: true } }, category: { select: { name: true } } }
-    });
-
-    return { post: postDto, isModerated };
+    return { postId: post.id, isModerated };
   }
 
-  public async updatePost(postId: string, title: string, content: string, categoryId: string): Promise<any> {
+  public async updatePost(postId: string, title: string, content: string, categoryId: string): Promise<{ postId: string }> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
@@ -128,12 +122,7 @@ export class CommunityApplicationService {
     post.updateContent(title, content, categoryId, isModerated);
     await this.postRepository.save(post);
 
-    const postDto = await prisma.post.findUnique({
-      where: { id: post.id },
-      include: { author: { select: { id: true, username: true } }, category: { select: { name: true } } }
-    });
-
-    return postDto;
+    return { postId: post.id };
   }
 
   public async deletePost(postId: string): Promise<void> {
@@ -147,7 +136,7 @@ export class CommunityApplicationService {
 
   // --- Comment Management ---
 
-  public async createComment(content: string, postId: string, authorId: string, parentId?: string): Promise<any> {
+  public async createComment(content: string, postId: string, authorId: string, parentId?: string): Promise<{ commentId: string }> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
@@ -166,15 +155,10 @@ export class CommunityApplicationService {
 
     await this.commentRepository.save(comment);
 
-    const commentDto = await prisma.comment.findUnique({
-      where: { id: comment.id },
-      include: { author: { select: { id: true, username: true } } }
-    });
-
-    return commentDto;
+    return { commentId: comment.id };
   }
 
-  public async updateComment(commentId: string, content: string, categoryId: string): Promise<any> {
+  public async updateComment(commentId: string, content: string, categoryId: string): Promise<{ commentId: string }> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
 
@@ -182,12 +166,7 @@ export class CommunityApplicationService {
     comment.updateContent(content, isModerated);
     await this.commentRepository.save(comment);
 
-    const commentDto = await prisma.comment.findUnique({
-      where: { id: comment.id },
-      include: { author: { select: { id: true, username: true } } }
-    });
-
-    return commentDto;
+    return { commentId: comment.id };
   }
 
   public async deleteComment(commentId: string): Promise<void> {

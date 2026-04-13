@@ -130,6 +130,37 @@ export class CommunityQueryService {
       hasBookmarked: bookmarkedSet.has(comment.id),
     }));
   }
+
+  public async getCommentWithPost(commentId: string) {
+    return prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { post: true }
+    });
+  }
+
+  public async getPostWithCategory(postId: string) {
+    return prisma.post.findUnique({
+      where: { id: postId },
+      include: { category: true }
+    });
+  }
+
+  public async getUserLevel(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { level: true } });
+    return user?.level || 0;
+  }
+
+  public async getCommentById(commentId: string) {
+    return prisma.comment.findUnique({ where: { id: commentId } });
+  }
+
+  public async getPostBasicInfo(postId: string) {
+    return prisma.post.findUnique({ where: { id: postId }, select: { authorId: true, title: true } });
+  }
+
+  public async getCommentBasicInfo(commentId: string) {
+    return prisma.comment.findUnique({ where: { id: commentId }, select: { authorId: true } });
+  }
 }
 
 export const communityQueryService = new CommunityQueryService();
