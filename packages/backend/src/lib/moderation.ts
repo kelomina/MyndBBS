@@ -1,4 +1,4 @@
-import { prisma } from '../db';
+import { systemQueryService } from '../queries/system/SystemQueryService';
 import { redis } from './redis';
 
 const MODERATION_CACHE_KEY = 'moderation_words';
