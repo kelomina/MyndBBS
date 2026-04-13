@@ -1,20 +1,26 @@
 import { IFriendshipRepository } from '../../domain/messaging/IFriendshipRepository';
 import { IPrivateMessageRepository } from '../../domain/messaging/IPrivateMessageRepository';
+import { IUserKeyRepository } from '../../domain/messaging/IUserKeyRepository';
+import { IConversationSettingRepository } from '../../domain/messaging/IConversationSettingRepository';
 import { Friendship } from '../../domain/messaging/Friendship';
 import { PrivateMessage } from '../../domain/messaging/PrivateMessage';
+import { UserKey } from '../../domain/messaging/UserKey';
+import { ConversationSetting } from '../../domain/messaging/ConversationSetting';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../../db';
 
 /**
  * Callers: [FriendController, MessageController]
- * Callees: [IFriendshipRepository, IPrivateMessageRepository, Friendship.create, Friendship.accept, Friendship.reject, PrivateMessage.create, PrivateMessage.markAsRead, PrivateMessage.deleteForUser]
+ * Callees: [IFriendshipRepository, IPrivateMessageRepository, IUserKeyRepository, IConversationSettingRepository, Friendship.create, Friendship.accept, Friendship.reject, PrivateMessage.create, PrivateMessage.markAsRead, PrivateMessage.deleteForUser]
  * Description: The Application Service for the Messaging Domain. Orchestrates friend requests, private messages, and user keys.
  * Keywords: messaging, service, application, orchestration, friend, privatemessage, key
  */
 export class MessagingApplicationService {
   constructor(
     private friendshipRepository: IFriendshipRepository,
-    private privateMessageRepository: IPrivateMessageRepository
+    private privateMessageRepository: IPrivateMessageRepository,
+    private userKeyRepository: IUserKeyRepository,
+    private conversationSettingRepository: IConversationSettingRepository
   ) {}
 
   // --- Friendship Management ---
@@ -134,9 +140,7 @@ export class MessagingApplicationService {
     let canHardDelete = false;
     if (message.senderId === userId) {
       const partnerId = message.senderId === userId ? message.receiverId : message.senderId;
-      const partnerSetting = await prisma.conversationSetting.findUnique({
-        where: { userId_partnerId: { userId: partnerId, partnerId: userId } }
-      });
+      const partnerSetting = await this.conversationSettingRepository.findByUsers(partnerId, userId);
       canHardDelete = partnerSetting?.allowTwoSidedDelete || false;
     }
 
@@ -150,9 +154,7 @@ export class MessagingApplicationService {
   }
 
   public async clearChat(userId: string, partnerId: string): Promise<void> {
-    const partnerSetting = await prisma.conversationSetting.findUnique({
-      where: { userId_partnerId: { userId: partnerId, partnerId: userId } }
-    });
+    const partnerSetting = await this.conversationSettingRepository.findByUsers(partnerId, userId);
     const canHardDelete = partnerSetting?.allowTwoSidedDelete || false;
 
     const messages = await this.privateMessageRepository.findConversation(userId, partnerId);
@@ -179,23 +181,50 @@ export class MessagingApplicationService {
     }
   }
 
+  /**
+   * Callers: [MessageController.uploadKeys]
+   * Callees: [IUserKeyRepository.findByUserId, UserKey.updateKeys, UserKey.create, IUserKeyRepository.save]
+   * Description: Uploads or updates a user's cryptographic keys and encryption scheme.
+   * Keywords: upload, keys, userkey, crypto, scheme, messaging
+   */
   public async uploadKeys(userId: string, scheme: string, publicKey: string, encryptedPrivateKey: string, mlKemPublicKey?: string, encryptedMlKemPrivateKey?: string): Promise<void> {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.level < 2) throw new Error('ERR_LEVEL_TOO_LOW');
     if (scheme === 'X_WING_HYBRID' && user.level < 4) throw new Error('ERR_LEVEL_TOO_LOW_FOR_X_WING');
 
-    await prisma.userKey.upsert({
-      where: { userId },
-      update: { scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey },
-      create: { userId, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey }
-    });
+    let userKey = await this.userKeyRepository.findByUserId(userId);
+    if (userKey) {
+      userKey.updateKeys(scheme, publicKey, encryptedPrivateKey, mlKemPublicKey || null, encryptedMlKemPrivateKey || null);
+    } else {
+      userKey = UserKey.create({
+        userId,
+        scheme,
+        publicKey,
+        encryptedPrivateKey,
+        mlKemPublicKey: mlKemPublicKey || null,
+        encryptedMlKemPrivateKey: encryptedMlKemPrivateKey || null
+      });
+    }
+    await this.userKeyRepository.save(userKey);
   }
 
+  /**
+   * Callers: [MessageController.updateConversationSettings]
+   * Callees: [IConversationSettingRepository.findByUsers, ConversationSetting.updatePreference, ConversationSetting.create, IConversationSettingRepository.save]
+   * Description: Updates a user's preference regarding two-sided hard deletes for a specific conversation.
+   * Keywords: update, conversation, settings, preference, delete
+   */
   public async updateConversationSettings(userId: string, partnerId: string, allowTwoSidedDelete: boolean): Promise<void> {
-    await prisma.conversationSetting.upsert({
-      where: { userId_partnerId: { userId, partnerId } },
-      update: { allowTwoSidedDelete },
-      create: { userId, partnerId, allowTwoSidedDelete }
-    });
+    let setting = await this.conversationSettingRepository.findByUsers(userId, partnerId);
+    if (setting) {
+      setting.updatePreference(allowTwoSidedDelete);
+    } else {
+      setting = ConversationSetting.create({
+        userId,
+        partnerId,
+        allowTwoSidedDelete
+      });
+    }
+    await this.conversationSettingRepository.save(setting);
   }
 }
