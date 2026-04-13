@@ -1,26 +1,25 @@
 import { ICategoryRepository } from '../../domain/community/ICategoryRepository';
+import { IPostRepository } from '../../domain/community/IPostRepository';
+import { ICommentRepository } from '../../domain/community/ICommentRepository';
 import { IEngagementRepository } from '../../domain/community/IEngagementRepository';
 import { Category } from '../../domain/community/Category';
+import { Post } from '../../domain/community/Post';
+import { Comment } from '../../domain/community/Comment';
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../../db'; // Legacy Active Record fallback for Post/Comment models not yet extracted
+import { prisma } from '../../db'; // Kept for CQRS read joins that return complex DTOs
 import { containsModeratedWord } from '../../lib/moderation';
-import { PostStatus } from '@prisma/client';
 
 /**
  * Callers: [AdminController, PostController]
- * Callees: [ICategoryRepository, IEngagementRepository, prisma.post, prisma.comment, containsModeratedWord]
- * Description: The Application Service for the Community Domain. Orchestrates category management, post creation, and user engagements.
+ * Callees: [ICategoryRepository, IPostRepository, ICommentRepository, IEngagementRepository, containsModeratedWord]
+ * Description: The Application Service for the Community Domain. Orchestrates category management, post creation, and user engagements using true DDD.
  * Keywords: community, service, application, orchestration, category, post, comment, engagement
  */
 export class CommunityApplicationService {
-  /**
-   * Callers: [AdminController, PostController]
-   * Callees: []
-   * Description: Initializes the service with repository implementations via Dependency Injection.
-   * Keywords: constructor, inject, repository, service, community
-   */
   constructor(
     private categoryRepository: ICategoryRepository,
+    private postRepository: IPostRepository,
+    private commentRepository: ICommentRepository,
     private engagementRepository: IEngagementRepository
   ) {}
 
@@ -53,10 +52,8 @@ export class CommunityApplicationService {
     const category = await this.categoryRepository.findById(id);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
 
-    await prisma.$transaction([
-      prisma.post.deleteMany({ where: { categoryId: id } }),
-      prisma.category.delete({ where: { id } })
-    ]);
+    await this.postRepository.deleteManyByCategoryId(id);
+    await this.categoryRepository.delete(id);
   }
 
   public async createPost(title: string, content: string, categoryId: string, authorId: string, userLevel: number): Promise<any> {
@@ -67,93 +64,106 @@ export class CommunityApplicationService {
     }
 
     const isModerated = await containsModeratedWord(title + ' ' + content, categoryId);
-    const status: PostStatus = isModerated ? 'PENDING' : 'PUBLISHED';
 
-    const post = await prisma.post.create({
-      data: {
-        title,
-        content,
-        categoryId,
-        authorId,
-        status
-      },
-      include: {
-        author: { select: { username: true } },
-        category: { select: { name: true } }
-      }
+    const post = Post.create({
+      id: uuidv4(),
+      title,
+      content,
+      categoryId,
+      authorId,
+      status: isModerated ? 'PENDING' : 'PUBLISHED',
+      createdAt: new Date()
     });
 
-    return { post, isModerated };
+    await this.postRepository.save(post);
+
+    // Pragmatic CQRS Read to return rich DTO for frontend
+    const postDto = await prisma.post.findUnique({
+      where: { id: post.id },
+      include: { author: { select: { username: true } }, category: { select: { name: true } } }
+    });
+
+    return { post: postDto, isModerated };
   }
 
   public async updatePost(postId: string, title: string, content: string, categoryId: string): Promise<any> {
-    const existingPost = await prisma.post.findUnique({ where: { id: postId } });
-    if (!existingPost) throw new Error('ERR_POST_NOT_FOUND');
+    const post = await this.postRepository.findById(postId);
+    if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
-    let newStatus = existingPost.status;
-    if (title || content) {
-      const checkTitle = title || existingPost.title;
-      const checkContent = content || existingPost.content;
-      const isModerated = await containsModeratedWord(checkTitle + ' ' + checkContent, categoryId || existingPost.categoryId);
-      if (isModerated) newStatus = 'PENDING';
-    }
+    const checkTitle = title || post.title;
+    const checkContent = content || post.content;
+    const isModerated = await containsModeratedWord(checkTitle + ' ' + checkContent, categoryId || post.categoryId);
 
-    return await prisma.post.update({
-      where: { id: postId },
-      data: { title, content, categoryId, status: newStatus },
-      include: {
-        author: { select: { id: true, username: true } },
-        category: { select: { name: true } }
-      }
+    post.updateContent(title, content, categoryId, isModerated);
+    await this.postRepository.save(post);
+
+    const postDto = await prisma.post.findUnique({
+      where: { id: post.id },
+      include: { author: { select: { id: true, username: true } }, category: { select: { name: true } } }
     });
+
+    return postDto;
   }
 
   public async deletePost(postId: string): Promise<void> {
-    await prisma.$transaction([
-      prisma.post.update({ where: { id: postId }, data: { status: PostStatus.DELETED } }),
-      prisma.comment.updateMany({ where: { postId: postId }, data: { deletedAt: new Date() } })
-    ]);
+    const post = await this.postRepository.findById(postId);
+    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    post.delete();
+    await this.postRepository.save(post);
+    await this.commentRepository.softDeleteManyByPostId(postId);
   }
 
   // --- Comment Management ---
 
   public async createComment(content: string, postId: string, authorId: string, parentId?: string): Promise<any> {
-    const post = await prisma.post.findUnique({ where: { id: postId } });
+    const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
     const isModerated = await containsModeratedWord(content, post.categoryId);
 
-    return await prisma.comment.create({
-      data: {
-        content,
-        authorId,
-        postId,
-        parentId,
-        isPending: isModerated
-      },
-      include: {
-        author: { select: { id: true, username: true } }
-      }
+    const comment = Comment.create({
+      id: uuidv4(),
+      content,
+      postId,
+      authorId,
+      parentId: parentId || null,
+      isPending: isModerated,
+      deletedAt: null,
+      createdAt: new Date()
     });
+
+    await this.commentRepository.save(comment);
+
+    const commentDto = await prisma.comment.findUnique({
+      where: { id: comment.id },
+      include: { author: { select: { id: true, username: true } } }
+    });
+
+    return commentDto;
   }
 
   public async updateComment(commentId: string, content: string, categoryId: string): Promise<any> {
-    const isModerated = await containsModeratedWord(content, categoryId);
+    const comment = await this.commentRepository.findById(commentId);
+    if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
 
-    return await prisma.comment.update({
-      where: { id: commentId },
-      data: {
-        content,
-        isPending: isModerated
-      },
-      include: {
-        author: { select: { id: true, username: true } }
-      }
+    const isModerated = await containsModeratedWord(content, categoryId);
+    comment.updateContent(content, isModerated);
+    await this.commentRepository.save(comment);
+
+    const commentDto = await prisma.comment.findUnique({
+      where: { id: comment.id },
+      include: { author: { select: { id: true, username: true } } }
     });
+
+    return commentDto;
   }
 
   public async deleteComment(commentId: string): Promise<void> {
-    await prisma.comment.update({ where: { id: commentId }, data: { deletedAt: new Date() } });
+    const comment = await this.commentRepository.findById(commentId);
+    if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+    comment.delete();
+    await this.commentRepository.save(comment);
   }
 
   // --- Engagements ---

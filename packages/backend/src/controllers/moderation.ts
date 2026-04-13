@@ -3,7 +3,17 @@ import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
 import { clearModerationCache } from '../lib/moderation';
 import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
-import { PostApprovedEvent, PostRejectedEvent } from '../domain/shared/events/DomainEvents';
+import { ModerationApplicationService } from '../application/community/ModerationApplicationService';
+import { PrismaPostRepository } from '../infrastructure/repositories/PrismaPostRepository';
+import { PrismaCommentRepository } from '../infrastructure/repositories/PrismaCommentRepository';
+import { PrismaModeratedWordRepository } from '../infrastructure/repositories/PrismaModeratedWordRepository';
+
+const moderationApplicationService = new ModerationApplicationService(
+  new PrismaPostRepository(),
+  new PrismaCommentRepository(),
+  new PrismaModeratedWordRepository(),
+  globalEventBus
+);
 
 /**
  * Callers: []
@@ -69,12 +79,7 @@ export const addModeratedWord = async (req: AuthRequest, res: Response): Promise
   }
 
   try {
-    const newWord = await prisma.moderatedWord.create({
-      data: {
-        word,
-        categoryId: categoryId || null
-      }
-    });
+    const newWord = await moderationApplicationService.addModeratedWord(word, categoryId);
     await clearModerationCache();
     res.json({ word: newWord });
   } catch (error: any) {
@@ -122,7 +127,7 @@ export const deleteModeratedWord = async (req: AuthRequest, res: Response): Prom
   }
 
   try {
-    await prisma.moderatedWord.delete({ where: { id } });
+    await moderationApplicationService.removeModeratedWord(id);
     await clearModerationCache();
     res.json({ message: 'Word deleted successfully' });
   } catch (error) {
@@ -172,13 +177,7 @@ export const getPendingPosts = async (req: AuthRequest, res: Response): Promise<
 export const approvePendingPost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {
-    const post = await prisma.post.update({
-      where: { id },
-      data: { status: 'PUBLISHED' }
-    });
-    
-    globalEventBus.publish(new PostApprovedEvent(post.id, post.authorId, post.title));
-    
+    await moderationApplicationService.approvePost(id);
     res.json({ message: 'Post approved' });
   } catch (error) {
     res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
@@ -195,13 +194,7 @@ export const rejectPendingPost = async (req: AuthRequest, res: Response): Promis
   const id = req.params.id as string;
   const { reason } = req.body;
   try {
-    const post = await prisma.post.update({
-      where: { id },
-      data: { status: 'DELETED' }
-    });
-    
-    globalEventBus.publish(new PostRejectedEvent(post.id, post.authorId, post.title, reason || 'N/A'));
-    
+    await moderationApplicationService.rejectPost(id, reason);
     res.json({ message: 'Post rejected' });
   } catch (error) {
     res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
@@ -250,10 +243,7 @@ export const getPendingComments = async (req: AuthRequest, res: Response): Promi
 export const approvePendingComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {
-    await prisma.comment.update({
-      where: { id },
-      data: { isPending: false }
-    });
+    await moderationApplicationService.approveComment(id);
     res.json({ message: 'Comment approved' });
   } catch (error) {
     res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
@@ -269,10 +259,7 @@ export const approvePendingComment = async (req: AuthRequest, res: Response): Pr
 export const rejectPendingComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {
-    await prisma.comment.update({
-      where: { id },
-      data: { deletedAt: new Date() }
-    });
+    await moderationApplicationService.rejectComment(id);
     res.json({ message: 'Comment rejected' });
   } catch (error) {
     res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
