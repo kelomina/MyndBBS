@@ -19,6 +19,7 @@ import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPa
 import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
 import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+import { communityQueryService } from '../queries/community/CommunityQueryService';
 
 const communityApplicationService = new CommunityApplicationService(
   new PrismaCategoryRepository(),
@@ -36,85 +37,18 @@ const authApplicationService = new AuthApplicationService(
 import { AppAbility } from '../lib/casl';
 import { postLimiter } from '../lib/rateLimit';
 
-/**
- * Callers: []
- * Callees: [findFirst, accessibleBy]
- * Description: Handles the get accessible post logic for the application.
- * Keywords: getaccessiblepost, get, accessible, post, auto-annotated
- */
-const getAccessiblePost = async (postId: string, ability: AppAbility) => {
-  return prisma.post.findFirst({
-    where: {
-      AND: [
-        { id: postId },
-        accessibleBy(ability).Post
-      ]
-    }
-  });
-};
-
-
-/**
- * Callers: []
- * Callees: [findUnique]
- * Description: Handles the get comment with post logic for the application.
- * Keywords: getcommentwithpost, get, comment, with, post, auto-annotated
- */
-const getCommentWithPost = async (commentId: string) => {
-  return prisma.comment.findUnique({
-    where: { id: commentId },
-    include: { post: true }
-  });
-};
-
-
-
-
 const router: Router = Router();
 
 router.get('/', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { category, sortBy } = req.query;
-    
-    // Base accessibility check
-    const whereClause: any = {
-      AND: [
-        accessibleBy(req.ability!).Post
-      ]
-    };
-    
-    if (category) {
-      whereClause.AND.push({
-        category: { name: String(category) }
-      });
-    }
-
-    let orderByClause: any = { createdAt: 'desc' }; // default to latest
-    if (sortBy === 'popular') {
-      // Since we don't have upvotes or view metrics yet in the database, 
-      // we'll just sort by title or id for now to show a different order.
-      // Alternatively, we could just fallback to ascending order of creation date for 'popular' to differentiate from 'latest'.
-      orderByClause = { id: 'asc' }; 
-    }
-
-    const posts = await prisma.post.findMany({
-      take: 1000,
-      where: whereClause,
-      orderBy: orderByClause,
-      include: {
-        author: {
-          select: { id: true, username: true }
-        },
-        category: {
-          select: { id: true, name: true, description: true }
-        },
-        _count: {
-          select: { comments: true, upvotes: true }
-        }
-      }
+    const posts = await communityQueryService.listPosts({
+      ability: req.ability!,
+      category: req.query.category as string,
+      sortBy: req.query.sortBy as string,
     });
     res.json(posts);
   } catch (error) {
+    console.error('Error fetching posts:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_FETCH_POSTS' });
   }
 });
@@ -139,7 +73,7 @@ router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), asy
       return;
     }
 
-    const currentUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+    const userLevel = await communityQueryService.getUserLevel(req.user!.userId);
     
     try {
       const { post, isModerated } = await communityApplicationService.createPost(
@@ -147,7 +81,7 @@ router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), asy
         content, 
         categoryId, 
         req.user!.userId, 
-        currentUser?.level || 1
+        userLevel
       );
 
       if (isModerated) {
@@ -166,29 +100,12 @@ router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), asy
   }
 });
 
+// Get post details
 router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const postId = req.params.id as string;
     
-    const post = await prisma.post.findFirst({
-      where: { 
-        AND: [
-          { id: postId },
-          accessibleBy(req.ability!).Post
-        ]
-      },
-      include: {
-        author: {
-          select: { id: true, username: true }
-        },
-        category: {
-          select: { id: true, name: true, description: true }
-        },
-        _count: {
-          select: { comments: true, upvotes: true, bookmarks: true }
-        }
-      }
-    });
+    const post = await communityQueryService.getPostById(req.ability!, postId);
 
     if (!post) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
@@ -205,29 +122,12 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response): Promis
 // Get interaction status for a post (if upvoted/bookmarked by current user)
 router.get('/:id/interactions', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const postId = req.params.id as string;
-    const userId = req.user!.userId;
-
-    const post = await getAccessiblePost(postId, req.ability!);
-
-    if (!post) {
+    const dto = await communityQueryService.getPostInteractions(req.ability!, req.params.id as string, req.user!.userId);
+    if (!dto) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
       return;
     }
-
-    const [upvote, bookmark] = await Promise.all([
-      prisma.upvote.findUnique({
-        where: { userId_postId: { userId, postId } }
-      }),
-      prisma.bookmark.findUnique({
-        where: { userId_postId: { userId, postId } }
-      })
-    ]);
-
-    res.json({
-      upvoted: !!upvote,
-      bookmarked: !!bookmark
-    });
+    res.json(dto);
   } catch (error) {
     console.error('Error fetching interactions:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_FETCH_INTERACTION_STATUS' });
@@ -240,7 +140,7 @@ router.post('/:id/upvote', requireAuth, async (req: AuthRequest, res: Response):
     const postId = req.params.id as string;
     const userId = req.user!.userId;
 
-    const post = await getAccessiblePost(postId, req.ability!);
+    const post = await communityQueryService.getPostById(req.ability!, postId);
 
     if (!post) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
@@ -261,7 +161,7 @@ router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response
     const postId = req.params.id as string;
     const userId = req.user!.userId;
 
-    const post = await getAccessiblePost(postId, req.ability!);
+    const post = await communityQueryService.getPostById(req.ability!, postId);
 
     if (!post) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
@@ -279,62 +179,16 @@ router.post('/:id/bookmark', requireAuth, async (req: AuthRequest, res: Response
 // GET comments for a post
 router.get('/:id/comments', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const postId = req.params.id as string;
-    
-    // Verify user can read the post
-    const post = await getAccessiblePost(postId, req.ability!);
-
-    if (!post) {
+    const dto = await communityQueryService.listPostComments({
+      ability: req.ability!,
+      postId: req.params.id as string,
+      ...(req.user?.userId ? { currentUserId: req.user.userId } : {}),
+    });
+    if (!dto) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
       return;
     }
-
-    const comments = await prisma.comment.findMany({
-      take: 1000,
-      where: {
-        AND: [
-          { postId },
-          accessibleBy(req.ability!).Comment
-        ]
-      },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        author: {
-          select: { id: true, username: true }
-        },
-        _count: {
-          select: { upvotes: true, bookmarks: true, replies: true }
-        }
-      }
-    });
-
-    // If user is logged in, attach their interaction status
-    let interactedUpvotes = new Set<string>();
-    let interactedBookmarks = new Set<string>();
-
-    if (req.user?.userId) {
-      const userId = req.user.userId;
-      const [userUpvotes, userBookmarks] = await Promise.all([
-        prisma.commentUpvote.findMany({
-          where: { userId, comment: { postId } },
-          select: { commentId: true }
-        }),
-        prisma.commentBookmark.findMany({
-          where: { userId, comment: { postId } },
-          select: { commentId: true }
-        })
-      ]);
-      userUpvotes.forEach(u => interactedUpvotes.add(u.commentId));
-      userBookmarks.forEach(b => interactedBookmarks.add(b.commentId));
-    }
-
-    const formattedComments = comments.map(comment => ({
-      ...comment,
-      hasUpvoted: interactedUpvotes.has(comment.id),
-      hasBookmarked: interactedBookmarks.has(comment.id)
-    }));
-
-    res.json(formattedComments);
+    res.json(dto);
   } catch (error) {
     console.error('Error fetching comments:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_FETCH_COMMENTS' });
@@ -363,7 +217,7 @@ router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, 
       return;
     }
 
-    const post = await getAccessiblePost(postId, req.ability!);
+    const post = await communityQueryService.getPostById(req.ability!, postId);
 
     if (!post) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
@@ -371,7 +225,7 @@ router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, 
     }
 
     if (parentId) {
-      const parentComment = await prisma.comment.findUnique({ where: { id: parentId } });
+      const parentComment = await communityQueryService.getCommentById(parentId);
       if (!parentComment || parentComment.postId !== postId) {
         res.status(400).json({ error: 'ERR_INVALID_PARENT_COMMENT' });
         return;
@@ -385,12 +239,12 @@ router.post('/:id/comments', requireAuth, postLimiter, async (req: AuthRequest, 
       parentId || undefined
     );
 
-    const postObj = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true, title: true } });
+    const postObj = await communityQueryService.getPostBasicInfo(postId);
     if (postObj && postObj.authorId !== req.user!.userId) {
       globalEventBus.publish(new PostRepliedEvent(postId, postObj.authorId, postObj.title, req.user!.userId, comment.id));
     }
     if (parentId) {
-      const parentComment = await prisma.comment.findUnique({ where: { id: parentId }, select: { authorId: true } });
+      const parentComment = await communityQueryService.getCommentBasicInfo(parentId);
       if (parentComment && parentComment.authorId !== req.user!.userId) {
         globalEventBus.publish(new CommentRepliedEvent(parentId, parentComment.authorId, postId, req.user!.userId, comment.id));
       }
@@ -421,10 +275,7 @@ router.put('/:id', requireAuth, requireAbility('update', 'Post'), async (req: Au
       return;
     }
 
-    const post = await prisma.post.findUnique({
-      where: { id: postId },
-      include: { category: true }
-    });
+    const post = await communityQueryService.getPostWithCategory(postId);
 
     if (!post) {
       res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
@@ -455,9 +306,7 @@ router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), async (req:
   try {
     const postId = req.params.id as string;
     
-    const post = await prisma.post.findUnique({
-      where: { id: postId }
-    });
+    const post = await communityQueryService.getPostWithCategory(postId);
 
     if (!post) {
       res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
@@ -487,7 +336,7 @@ router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Commen
       return;
     }
 
-    const comment = await getCommentWithPost(commentId);
+    const comment = await communityQueryService.getCommentWithPost(commentId);
 
     if (!comment) {
       res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
@@ -518,7 +367,7 @@ router.delete('/comments/:commentId', requireAuth, requireAbility('delete', 'Com
   try {
     const commentId = req.params.commentId as string;
     
-    const comment = await getCommentWithPost(commentId);
+    const comment = await communityQueryService.getCommentWithPost(commentId);
 
     if (!comment) {
       res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
@@ -544,7 +393,7 @@ router.post('/comments/:commentId/upvote', requireAuth, async (req: AuthRequest,
     const commentId = req.params.commentId as string;
     const userId = req.user!.userId;
 
-    const comment = await getCommentWithPost(commentId);
+    const comment = await communityQueryService.getCommentWithPost(commentId);
 
     if (!comment) {
       res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
@@ -571,7 +420,7 @@ router.post('/comments/:commentId/bookmark', requireAuth, async (req: AuthReques
     const commentId = req.params.commentId as string;
     const userId = req.user!.userId;
 
-    const comment = await getCommentWithPost(commentId);
+    const comment = await communityQueryService.getCommentWithPost(commentId);
 
     if (!comment) {
       res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
