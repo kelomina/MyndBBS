@@ -24,5 +24,8 @@
     "ts-morph": "^27.0.2",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.58.0"
+  },
+  "dependencies": {
+    "puppeteer": "^24.40.0"
   }
 }
