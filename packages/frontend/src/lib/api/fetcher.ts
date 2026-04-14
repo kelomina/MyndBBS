@@ -12,6 +12,7 @@ export const fetcher = async (url: string, options?: RequestInit) => {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest', // CSRF protection
       ...options?.headers,
     },
     credentials: 'include',

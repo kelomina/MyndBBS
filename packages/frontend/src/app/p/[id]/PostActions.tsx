@@ -71,6 +71,9 @@ export function PostActions({
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/upvote`, {
         method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include'
       });
       if (res.ok) {
@@ -99,6 +102,9 @@ export function PostActions({
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/bookmark`, {
         method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include'
       });
       if (res.ok) {
@@ -145,6 +151,9 @@ export function PostActions({
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}`, {
         method: 'DELETE',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include'
       });
       if (res.ok) {
