@@ -26,7 +26,7 @@ const router: Router = Router();
  * Keywords: getclientip, get, client, ip, auto-annotated
  */
 const getClientIp = (req: Request): string => {
-  return req.ip || req.socket.remoteAddress || 'unknown';
+  return ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown');
 };
 
 // Rate limiting for general auth routes
