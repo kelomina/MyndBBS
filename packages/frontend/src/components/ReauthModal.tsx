@@ -81,7 +81,10 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
 
       const res = await fetch('/api/v1/user/sudo/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include',
         body: JSON.stringify({ type: method, password: method === 'password' ? password : undefined, totpCode: method === 'totp' ? totpCode : undefined })
       });

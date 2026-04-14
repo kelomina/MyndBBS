@@ -403,7 +403,8 @@
     "ERR_FAILED_TO_PUBLISH": "发布帖子失败",
     "ERR_FAILED_TO_UPDATE": "更新帖子失败",
     "ERR_DB_CONNECTION_FAILED": "数据库连接测试失败。请检查您的凭据并确保 PostgreSQL 正在运行。",
-    "ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY": "该用户未绑定通行密钥（Passkey），禁止提升权限级别。"
+    "ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY": "该用户未绑定通行密钥（Passkey），禁止提升权限级别。",
+    "ERR_CSRF_TOKEN_MISSING_OR_INVALID": "安全令牌丢失或无效，请刷新页面后重试 (CSRF)。"
   },
   "category": {
     "postsTitle": "帖子",

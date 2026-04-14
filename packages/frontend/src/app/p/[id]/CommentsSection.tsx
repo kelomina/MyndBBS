@@ -69,6 +69,9 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     try {
       const data = await fetcher(`/api/posts/${postId}/comments`, {
         method: 'POST',
+        headers: { 
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body: JSON.stringify({ content: newComment, parentId: replyTo?.id, captchaId })
       });
       

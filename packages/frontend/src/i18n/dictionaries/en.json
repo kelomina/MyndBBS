@@ -403,7 +403,8 @@
     "ERR_FAILED_TO_PUBLISH": "Failed to publish post",
     "ERR_FAILED_TO_UPDATE": "Failed to update post",
     "ERR_DB_CONNECTION_FAILED": "Database connection test failed. Please check your credentials and ensure PostgreSQL is running.",
-    "ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY": "Cannot promote user level without a bound Passkey."
+    "ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY": "Cannot promote user level without a bound Passkey.",
+    "ERR_CSRF_TOKEN_MISSING_OR_INVALID": "CSRF token missing or invalid. Please try again."
   },
   "category": {
     "postsTitle": "Posts",

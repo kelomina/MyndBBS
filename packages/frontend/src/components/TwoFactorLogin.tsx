@@ -71,7 +71,11 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
     try {
       const res = await fetch('/api/v1/auth/totp/login-verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'include',
         body: JSON.stringify({ code: totpCode }),
       });
       

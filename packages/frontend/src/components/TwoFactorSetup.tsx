@@ -82,7 +82,10 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       // 3. Verify on server
       const verifyRes = await fetch(getEndpoint('/passkey/verify-registration'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body: JSON.stringify({ response: attResp, challengeId: options.challengeId }),
       });
 
@@ -161,7 +164,10 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       const endpoint = getEndpoint('/totp/verify');
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body: JSON.stringify({ code: totpCode }),
       });
       

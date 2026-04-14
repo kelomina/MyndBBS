@@ -51,6 +51,9 @@ export function ComposeForm({ dict }: { dict: any }) {
     try {
       const data = await fetcher('/api/posts', {
         method: 'POST',
+        headers: { 
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body: JSON.stringify({ title, content, categoryId, captchaId })
       });
 

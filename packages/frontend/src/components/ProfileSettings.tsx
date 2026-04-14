@@ -79,7 +79,7 @@ export function ProfileSettings() {
         if (data.passwordChanged) {
           setMessage(dict.settings.passwordChangedRelogin || 'Password changed. Redirecting to login...');
           setTimeout(async () => {
-            await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' });
+            await fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'include' });
             window.location.href = '/login';
           }, 3000);
         } else {
