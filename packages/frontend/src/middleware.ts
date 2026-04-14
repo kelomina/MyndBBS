@@ -165,7 +165,7 @@ export async function middleware(request: NextRequest) {
 
     if (userRoleLevel < requiredRoleLevel) {
       const url = request.nextUrl.clone();
-      url.pathname = '/403';
+      url.pathname = token ? '/403' : '/login';
 
       // Preserve locale cookie on redirect
       const redirectResponse = NextResponse.redirect(url);
