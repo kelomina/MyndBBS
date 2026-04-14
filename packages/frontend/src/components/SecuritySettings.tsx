@@ -113,6 +113,7 @@ export function SecuritySettings() {
     try {
       const res = await fetch(`/api/v1/user/passkeys/${id}`, {
         method: 'DELETE',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include'
       });
       if (res.ok) {
@@ -138,6 +139,7 @@ export function SecuritySettings() {
     try {
       const res = await fetch('/api/v1/user/totp/disable', {
         method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include'
       });
       if (res.ok) {

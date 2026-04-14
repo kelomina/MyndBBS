@@ -40,6 +40,10 @@ export function AdminSetupClient() {
       const attResp = await startRegistration({ optionsJSON: authOptions });
       await fetcher('/api/v1/auth/passkey/verify-registration', {
         method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body: JSON.stringify({ response: attResp, challengeId: options.challengeId })
       });
       // Passkey verified! Now we must complete TOTP to finish setup.
