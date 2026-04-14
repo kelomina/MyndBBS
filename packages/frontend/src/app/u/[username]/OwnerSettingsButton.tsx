@@ -55,6 +55,9 @@ export function OwnerSettingsButton({ username }: { username: string }) {
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/auth/logout`, {
         method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include'
       });
       // Force a full page reload to clear all client-side state

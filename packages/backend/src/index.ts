@@ -75,6 +75,18 @@ if (!isInstalled) {
     credentials: true 
   }));
   app.use(helmet());
+  
+  // CSRF Protection Middleware
+  app.use('/api', (req, res, next) => {
+    const safeMethods = ['GET', 'HEAD', 'OPTIONS', 'TRACE'];
+    if (!safeMethods.includes(req.method)) {
+      const requestedWith = req.headers['x-requested-with'];
+      if (requestedWith !== 'XMLHttpRequest') {
+        return res.status(403).json({ error: 'ERR_CSRF_TOKEN_MISSING_OR_INVALID' });
+      }
+    }
+    next();
+  });
 
   const { APP_NAME } = require('@myndbbs/shared');
   /**
@@ -111,8 +123,19 @@ if (!isInstalled) {
   app.use('/api/v1/messages/upload', uploadRoutes);
   app.use('/api/v1/friends', friendRoutes);
 
-  // Serve static files from uploads directory
-  app.use('/uploads', express.static(require('path').join(process.cwd(), 'uploads')));
+  // Serve static files from uploads directory safely
+  app.use('/uploads', (req, res, next) => {
+    res.setHeader('Content-Disposition', 'attachment');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'");
+    next();
+  }, express.static(require('path').join(process.cwd(), 'uploads')));
+
+  // Global error handler
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('Unhandled Error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  });
 
   /**
    * Callers: []

@@ -55,6 +55,9 @@ export function SessionManagement() {
     try {
       const res = await fetch(`/api/v1/user/sessions/${id}`, {
         method: 'DELETE',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include'
       });
       if (res.ok) {
