@@ -32,7 +32,7 @@ export default async function ForbiddenPage() {
           
           <div className="relative group">
             <div className="absolute -inset-4 bg-red-500/20 dark:bg-red-500/10 rounded-full blur-xl group-hover:bg-red-500/30 transition-all duration-500"></div>
-            <div className="relative w-24 h-24 bg-red-100 dark:bg-red-950/50 rounded-2xl flex items-center justify-center rotate-3 group-hover:rotate-6 transition-transform duration-500 shadow-inner">
+            <div className="relative w-24 h-24 bg-red-100 dark:bg-red-950/50 rounded-2xl flex items-center justify-center transition-transform duration-500 shadow-inner">
               <ShieldAlert className="w-12 h-12 text-red-600 dark:text-red-500" aria-label={dict.forbidden?.lockIconAlt || "Access Denied"} />
             </div>
           </div>
