@@ -55,6 +55,20 @@ const EncryptedImage = ({ payload, onPreview, dict }: { payload: string, onPrevi
         const data = JSON.parse(payload);
         if (data.type !== 'image') return;
         
+        // Security Best Practice: Prevent SSRF by validating the image URL
+        // Ensure the URL is a valid relative path starting with /uploads/messages/
+        if (typeof data.url !== 'string' || !data.url.startsWith('/uploads/messages/')) {
+          console.error('Invalid or untrusted image URL');
+          return;
+        }
+
+        // Security Best Practice: Prevent XSS by validating MIME type
+        const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedMimes.includes(data.mime)) {
+          console.error('Invalid image MIME type');
+          return;
+        }
+
         const res = await fetch(data.url);
         const encryptedBuffer = await res.arrayBuffer();
         
