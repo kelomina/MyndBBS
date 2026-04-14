@@ -1,56 +1,61 @@
 # Security Best Practices Report
 
 ## Executive Summary
-A comprehensive security review of the `@myndbbs/backend` (Express) and `@myndbbs/frontend` (Next.js) applications was performed. Overall, the codebase uses strong foundational components (Argon2 for passwords, proper Cookie flags, Prisma ORM mitigating SQL injections, and React/Next.js mitigating raw HTML injection). However, a few critical and high-severity security issues were identified—most notably related to Cross-Site Request Forgery (CSRF), IP spoofing in the rate limiter, and missing Security Headers in the Next.js frontend.
-
----
+This report outlines the security posture of the MyndBBS application, reviewing both the Next.js frontend and Express.js backend. Overall, the application implements several robust security controls, including parameterized database queries (via Prisma), CSRF mitigation via custom headers, and secure authentication cookie attributes. However, there are a few critical and medium severity findings related to overly permissive Content Security Policies, untrusted URL fetches (SSRF risks), and technology fingerprinting that should be addressed.
 
 ## Findings
 
-### 1. Missing CSRF Protection on Cookie-Authenticated Endpoints (EXPRESS-CSRF-001)
-**Severity:** High
-**Location:** `backend/src/routes/auth.ts`, `backend/src/routes/post.ts`, `backend/src/index.ts`
-**Evidence:** The backend relies on `accessToken` cookies for authentication. The frontend passes `credentials: 'include'` on all `fetcher` requests. However, there is no CSRF token mechanism nor a strict custom header requirement (like `X-Requested-With: XMLHttpRequest`) implemented on state-changing endpoints (POST, PUT, DELETE).
-**Impact:** Attackers could trick an authenticated user's browser into issuing state-changing requests (like deleting posts or changing settings) by hosting a malicious `<form>` on a third-party domain.
-**Fix:** Introduce a custom header requirement for all state-changing API requests. Because modern browsers execute CORS preflight requests for custom headers, an attacker cannot force the browser to send this custom header across origins without explicit CORS permission.
-**Mitigation:** The `cors` middleware currently rejects unknown origins, but standard `application/x-www-form-urlencoded` forms bypass CORS preflight. Adding the custom header requirement closes this gap.
+### 1. [High] Unrestricted Outbound Fetch to User-Controlled URLs (SSRF / Data Leak)
+* **Rule ID**: NEXT-SSRF-001
+* **Severity**: High
+* **Location**: `packages/frontend/src/app/messages/[username]/page.tsx` (Line 58)
+* **Evidence**:
+  ```typescript
+  const data = JSON.parse(payload);
+  if (data.type !== 'image') return;
+  const res = await fetch(data.url);
+  ```
+* **Impact**: An attacker can send a chat message with an arbitrary `url`. When the victim's browser processes the message, it will automatically make a GET request to that URL. This can be abused for SSRF against the victim's local network or for tracking/IP enumeration.
+* **Fix**: Validate `data.url` before fetching. Ensure the URL is an expected backend API endpoint (e.g., `url.startsWith('/api/v1/messages/upload')` or a verified trusted domain) rather than a fully attacker-controlled absolute URL.
 
-### 2. Insecure IP Extraction for Rate Limiting (EXPRESS-PROXY-001)
-**Severity:** High (Resolved during audit)
-**Location:** `backend/src/lib/rateLimit.ts:8`
-**Evidence:** 
-```typescript
-const getClientIp = (req: Request, res: any): string => {
-  const xForwardedFor = req.headers['x-forwarded-for'];
-  if (xForwardedFor) {
-    // Manually extracting the first IP...
-```
-**Impact:** An attacker could easily bypass the login, registration, and 2FA rate limiters by injecting spoofed IP addresses into the `X-Forwarded-For` header. The custom parser prioritized the attacker's spoofed IP instead of relying on the proxy chain.
-**Fix:** The code was modified to use `req.ip`, which properly respects Express's `trust proxy` settings and uses the verified remote address.
+### 2. [Medium] Attacker-Controlled MIME Type in Decrypted Image Blobs
+* **Rule ID**: JS-XSS-001 / REACT-FILE-001
+* **Severity**: Medium
+* **Location**: `packages/frontend/src/app/messages/[username]/page.tsx` (Line 67)
+* **Evidence**:
+  ```typescript
+  const blob = new Blob([decryptedBuffer], { type: data.mime });
+  setBlobUrl(URL.createObjectURL(blob));
+  ```
+* **Impact**: The `data.mime` value comes directly from the parsed message payload, which is attacker-controlled. If an attacker sets this to `text/html` and the victim clicks the "Download" or "Full Screen" link to open the blob directly, it could lead to XSS within the application's origin.
+* **Fix**: Validate that `data.mime` is a safe image MIME type (e.g., `image/jpeg`, `image/png`, `image/gif`, `image/webp`) before creating the Blob.
 
-### 3. Missing Content Security Policy (CSP) and Security Headers on Frontend (NEXT-HEADERS-001 / NEXT-CSP-001)
-**Severity:** Medium
-**Location:** `frontend/next.config.ts`
-**Evidence:** The frontend Next.js application does not define `Content-Security-Policy`, `X-Content-Type-Options`, or `X-Frame-Options` headers in its configuration.
-**Impact:** Lack of CSP leaves the application more vulnerable to Cross-Site Scripting (XSS) if an injection vulnerability is ever introduced. Lack of frame-ancestors could allow clickjacking attacks.
-**Fix:** Define a baseline `headers()` function in `next.config.ts` that includes a restrictive CSP (avoiding `unsafe-inline` where possible), `X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY` (or CSP `frame-ancestors`).
+### 3. [Medium] Overly Permissive Content Security Policy (CSP)
+* **Rule ID**: NEXT-CSP-001
+* **Severity**: Medium
+* **Location**: `packages/frontend/next.config.ts` (Line 13)
+* **Evidence**:
+  ```typescript
+  { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; ..." }
+  ```
+* **Impact**: The CSP explicitly allows `'unsafe-inline'` and `'unsafe-eval'` for scripts. This significantly weakens the CSP's ability to mitigate Cross-Site Scripting (XSS) attacks, as any injected script tag will be executed.
+* **Fix**: Remove `'unsafe-eval'` and `'unsafe-inline'` from `script-src`. Use nonces or hashes for inline scripts if they are strictly required by the framework.
 
-### 4. Static Serving of Uploaded Files as Active Content (EXPRESS-STATIC-001)
-**Severity:** Low / Medium
-**Location:** `backend/src/index.ts:115`
-**Evidence:** `app.use('/uploads', express.static(require('path').join(process.cwd(), 'uploads')));`
-**Impact:** Serving user-uploaded files via `express.static` directly on the API domain can lead to Stored XSS if the user uploads HTML or SVG files.
-**Mitigation:** The current upload controller (`backend/src/controllers/upload.ts`) mitigates this strongly by appending a `.enc` extension to all uploaded files, preventing browsers from rendering them as active HTML.
-**Fix:** For defense-in-depth, configure the `/uploads` route to send a `Content-Disposition: attachment` header or enforce a strict `Content-Security-Policy` header on static files.
+### 4. [Low] Express.js Fingerprinting (X-Powered-By Header)
+* **Rule ID**: EXPRESS-FINGERPRINT-001
+* **Severity**: Low
+* **Location**: `packages/backend/src/index.ts`
+* **Evidence**: Missing `app.disable('x-powered-by')` configuration.
+* **Impact**: The backend API leaks the `X-Powered-By: Express` header, making it easier for automated scanners to identify the technology stack.
+* **Fix**: Add `app.disable('x-powered-by');` after initializing the Express app.
 
-### 5. Missing Centralized Error Handler (EXPRESS-ERROR-001)
-**Severity:** Low
-**Location:** `backend/src/index.ts`
-**Evidence:** There is no final `app.use((err, req, res, next) => { ... })` middleware defined.
-**Impact:** Unhandled errors may cause the default Express error handler to leak stack traces in non-production environments and lacks standardized JSON structure for API clients.
-**Fix:** Add a catch-all error handling middleware at the bottom of `backend/src/index.ts` to log errors internally and return a generic `500 Internal Server Error` JSON response.
+### 5. [Low] Next.js Fingerprinting (X-Powered-By Header)
+* **Rule ID**: NEXT-FINGERPRINT-001
+* **Severity**: Low
+* **Location**: `packages/frontend/next.config.ts`
+* **Evidence**: Missing `poweredByHeader: false` in the Next.js configuration.
+* **Impact**: The frontend server leaks the `X-Powered-By: Next.js` header.
+* **Fix**: Add `poweredByHeader: false` to the `nextConfig` object.
 
----
-
-## Next Steps
-I have already applied the fix for **Finding #2 (IP Spoofing in Rate Limiter)** during the audit. I am ready to implement fixes for the remaining findings. Please let me know if you would like me to proceed with applying these security fixes to the codebase!
+## Conclusion
+The application demonstrates a solid security foundation but requires hardening around user-supplied content within the encrypted messaging system. Addressing the SSRF and MIME type validation issues in the messaging component should be prioritized. I can start working on these fixes if you'd like.
