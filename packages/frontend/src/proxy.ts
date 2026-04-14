@@ -2,6 +2,23 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { defaultLocale, locales } from './i18n/config';
 
+function normalizePathname(pathname: string): string {
+  let p = pathname;
+  if (p.length > 1) {
+    p = p.replace(/\/+$/, '');
+  }
+
+  const parts = p.split('/');
+  const maybeLocale = parts[1];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (maybeLocale && locales.includes(maybeLocale as any)) {
+    const rest = parts.slice(2).join('/');
+    return rest ? `/${rest}` : '/';
+  }
+
+  return p;
+}
+
 /**
  * Callers: []
  * Callees: [get, includes]
@@ -83,7 +100,7 @@ async function getWhitelist() {
  */
 export async function proxy(request: NextRequest) {
   const locale = getLocale(request);
-  const pathname = request.nextUrl.pathname;
+  const pathname = normalizePathname(request.nextUrl.pathname);
 
   // Set response and locale header
   const response = NextResponse.next();
@@ -102,13 +119,14 @@ export async function proxy(request: NextRequest) {
   let matchedRoute: any = null;
 
   for (const route of whitelist) {
+    const routePath = normalizePathname(route.path);
     if (route.isPrefix) {
-      if (pathname.startsWith(route.path)) {
+      if (routePath === '/' || pathname === routePath || pathname.startsWith(`${routePath}/`)) {
         matchedRoute = route;
         break;
       }
     } else {
-      if (pathname === route.path) {
+      if (pathname === routePath) {
         matchedRoute = route;
         break;
       }
