@@ -7,18 +7,8 @@ import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
  * Description: Extracts the best possible IP address from the request for rate limiting, bypassing trust proxy reliance.
  * Keywords: rate, limit, ip, extract, proxy
  */
-export const getClientIp = (req: Request, res: any): string => {
-  const xForwardedFor = req.headers['x-forwarded-for'];
-  if (xForwardedFor) {
-    const headerValue = typeof xForwardedFor === 'string' ? xForwardedFor : xForwardedFor[0];
-    if (headerValue) {
-      const ips = headerValue.split(',').map(ip => ip.trim());
-      if (ips.length > 0 && ips[0]) {
-        return ipKeyGenerator(ips[0]);
-      }
-    }
-  }
-  return ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown');
+export const getClientIp = (req: Request): string => {
+  return req.ip || req.socket.remoteAddress || 'unknown';
 };
 
 /**
