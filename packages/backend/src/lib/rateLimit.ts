@@ -8,7 +8,7 @@ import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
  * Keywords: rate, limit, ip, extract, proxy
  */
 export const getClientIp = (req: Request): string => {
-  return req.ip || req.socket.remoteAddress || 'unknown';
+  return ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown');
 };
 
 /**
