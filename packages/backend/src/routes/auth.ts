@@ -25,19 +25,8 @@ const router: Router = Router();
  * Description: Handles the get client ip logic for the application.
  * Keywords: getclientip, get, client, ip, auto-annotated
  */
-const getClientIp = (req: Request, res: any): string => {
-  const xForwardedFor = req.headers['x-forwarded-for'];
-  if (xForwardedFor) {
-    const headerValue = typeof xForwardedFor === 'string' ? xForwardedFor : xForwardedFor[0];
-    if (headerValue) {
-      const ips = headerValue.split(',').map(ip => ip.trim());
-      // We take the FIRST IP in the chain, which represents the original client's IP.
-      if (ips.length > 0 && ips[0]) {
-        return ipKeyGenerator(ips[0]);
-      }
-    }
-  }
-  return ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown');
+const getClientIp = (req: Request): string => {
+  return req.ip || req.socket.remoteAddress || 'unknown';
 };
 
 // Rate limiting for general auth routes
