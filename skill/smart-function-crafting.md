@@ -1,189 +1,233 @@
-# Smart Function Crafting & Annotation Skill
+# 智能函数构建与注释规范 (Smart Function Crafting & Annotation Skill)
 
-## Overview
-This skill defines the mandatory workflow for AI agents when modifying existing functions or creating new ones in this codebase. The primary goals are to maximize code reuse, ensure the stability of the entire call chain, and strictly enforce a standardized, manually-generated JSDoc annotation format for future AI discoverability.
+## 概述
+本规范定义了 AI 代理在此代码库中修改现有函数或创建新函数时的**强制性工作流程**。主要目标是最大化代码复用，确保整个调用链的稳定性，并严格执行标准化的、由人工生成的 JSDoc 注释格式，以便未来的 AI 代理能够发现和理解代码。
 
-## 🚫 CRITICAL CONSTRAINT: NO SCRIPTS ALLOWED
-**UNDER NO CIRCUMSTANCES** are you allowed to write, execute, or rely on automated scripts (e.g., AST parsers, `ts-morph`, Python, Bash, or Node.js scripts) to analyze call chains or generate these annotations. 
-- You MUST analyze the codebase manually using search tools (`SearchCodebase`, `Grep`, `Glob`).
-- You MUST read the code and trace the logic function-by-function.
-- You MUST write the JSDoc comments manually using file editing tools (`SearchReplace`, `Write`).
-- You may complete large tasks in phases, but the process must remain entirely manual.
+## 🚫 关键约束：禁止使用脚本
+**在任何情况下**，你都不允许编写、执行或依赖自动化脚本（例如 AST 解析器、`ts-morph`、Python、Bash 或 Node.js 脚本）来分析调用链或生成这些注释。
+
+*   你**必须**使用搜索工具（`SearchCodebase`, `Grep`, `Glob`）**手动**分析代码库。
+*   你**必须**阅读代码并逐个函数地追踪逻辑。
+*   你**必须**使用文件编辑工具（`SearchReplace`, `Write`）**手动**编写 JSDoc 注释。
+*   你可以分阶段完成大型任务，但整个过程必须完全保持**人工操作**。
 
 ---
 
-## Phase 0: Requirement Analysis (需求分析)
+## 第 0 阶段：需求分析 (Phase 0: Requirement Analysis)
 
-**Objective:** Validate requirement completeness, analyze the current codebase, and lay the foundation for solution design.
-**Workflow:** `Step 0.0 (Requirement Assessment) -> Score ≥ 7? -> Yes -> Step 0.1 (Solution Ideation) | No -> Ask user to clarify.`
+**目标**：验证需求的完整性，分析当前代码库，并为方案设计奠定基础。
 
-### Step 0.0: Requirement Assessment & Scoring
-1. **Evaluate Request Completeness**: Assess the user's request across 4 dimensions (Total 10 points):
-   - **Goal Clarity (0-3)**: Is the objective clear?
-   - **Expected Results (0-3)**: Are success criteria and deliverables explicit?
-   - **Scope Boundaries (0-2)**: Is the task scope well-defined?
-   - **Constraints (0-2)**: Are performance, time, or business limits stated?
-   
-2. **Requirement Scoring Thinking**:
-   You MUST evaluate the score inside a `<thinking>` block:
-   ```xml
-   <thinking>
-   1. Analyze the 4 dimensions based on user input.
-   2. Cite evidence (quotes from the user) for the score.
-   3. Identify missing key information.
-   4. Calculate Total Score: X/10.
-   5. Determine if follow-up questions are needed.
-   </thinking>
-   ```
+**工作流**：
+`步骤 0.0 (需求评估) -> 分数 ≥ 7? -> 是 -> 步骤 0.1 (方案构思) | 否 -> 询问用户澄清。`
 
-3. **Handle Low Scores (Score < 7)**:
-   If the score is below 7, **DO NOT proceed to Solution Design**. You MUST use the `AskUserQuestion` tool to clarify the missing information. Do not just output text and wait.
-   
-   *Example `AskUserQuestion` configuration:*
-   - `header`: "需求澄清"
-   - `question`: "当前需求完整性评分为 [X]/10 分，无法明确 [缺失部分]。请问您具体期望如何处理？"
-   - `options`: Provide 2-3 logical paths or options based on the missing context, plus a "以现有需求继续 (Continue as-is)" option.
-   
-   *If the user selects "以现有需求继续", proceed to Phase 1. Otherwise, rescore based on their answers until Score ≥ 7.*
+### 步骤 0.0：需求评估与评分
 
-4. **Extract Objectives**: Once Score ≥ 7, extract the core goal and define verifiable success criteria before moving to Solution Design.
+**评估请求完整性**：从 4 个维度评估用户的请求（总分 10 分）：
+1.  **目标清晰度 (0-3)**：目标是否明确？
+2.  **预期结果 (0-3)**：成功标准和交付物是否明确？
+3.  **范围边界 (0-2)**：任务范围是否定义良好？
+4.  **约束条件 (0-2)**：是否说明了性能、时间或业务限制？
 
-## Phase 1: Solution Design & Planning (方案设计)
+**需求评分思考过程**：
+你**必须**在 `<thinking>` 块中评估分数：
 
-Before writing any code or making any modifications, you MUST design a solution and create a detailed plan to ensure alignment.
+```xml
+<thinking>
+1. 根据用户输入分析这 4 个维度。
+2. 引用证据（用户原话作为评分依据）。
+3. 识别缺失的关键信息。
+4. 计算总分：X/10。
+5. 确定是否需要后续追问。
+</thinking>
+```
 
-### Step 0.1: Solution Ideation (方案构思)
-*Prerequisite: Requirement Score ≥ 7 or user explicitly chose to continue.*
-1. **Assess Requirements & Complexity**: Determine if the task is a simple fix or a complex feature (e.g., involves new architecture, multiple paths, >1 module, >3 files, or user explicitly requested options).
-2. **Security & Performance Assessment**: Identify potential security vulnerabilities (e.g., EHRB) and performance bottlenecks.
-3. **Solution Design Thinking**: 
-   You MUST evaluate options inside a `<thinking>` block (do not output this block to the user):
-   ```xml
-   <thinking>
-   1. List all possible technical paths.
-   2. Evaluate pros, cons, risks, and costs for each.
-   3. Select 1 (for simple tasks) or 2-3 (for complex tasks) viable solutions.
-   4. Determine the recommended solution.
-   </thinking>
-   ```
-4. **Output Ideation Options**: 
-   You MUST present the evaluated options to the user using the `AskUserQuestion` tool.
-   - `header`: "方案选择"
-   - `question`: "发现多种实现路径。推荐方案是 [Name]（原因：[Brief Reason]）。请选择您倾向的方案："
-   - `options`: List the 2-3 solutions evaluated in your thinking block, including any potential Security/Performance risks in their descriptions.
-   
-   *Wait for user confirmation via the tool before proceeding. If the user selects "Other" to reject all, prompt to redesign or cancel.*
+**处理低分情况 (分数 < 7)**：
+如果分数低于 7，**不要**进入方案设计。你**必须**使用 `AskUserQuestion` 工具澄清缺失的信息。不要只输出文本等待。
 
-### Step 0.2: Detailed Planning (详细规划)
-Once the user confirms the solution, create a new plan package:
-1. **Create Plan Directory**: `plan/YYYYMMDDHHMM_<feature>/` (use `_v2` suffix if a directory with the same name exists). Do not reuse legacy plans.
-2. **Generate Plan Files**:
-   - `why.md`: Context, purpose, and value proposition.
-   - `how.md`: Technical design, architecture decisions, and specific security/performance mitigations.
-   - `task.md`: Granular task list. Keep code changes small (≤3 files per task) and strictly include verification/security check tasks.
-3. **Output Planning and Get Permission**:
-   You MUST present the plan summary and request explicit permission using the `AskUserQuestion` tool:
-   - `header`: "确认开发"
-   - `question`: "已生成方案包 `plan/YYYYMMDDHHMM_<feature>/` (含 [X] 个任务)。是否进入实际的开发实施？"
-   - `options`: Provide "Yes (Proceed)", "No (Cancel)", and "Need Adjustments" as options.
-   
-   *Wait for explicit user permission via the tool before touching actual codebase files. If unpushed commits exist on `main`, include a warning in the tool question.*
+`AskUserQuestion` 配置示例：
+*   `header`: "需求澄清"
+*   `question`: "当前需求完整性评分为 [X]/10 分，无法明确 [缺失部分]。请问您具体期望如何处理？"
+*   `options`: 提供 2-3 个基于缺失上下文的逻辑路径或选项，加上一个 "以现有需求继续 (Continue as-is)" 选项。
 
-## Phase 2: Implementation & Execution (开发实施)
+如果用户选择 "以现有需求继续"，则进入第 1 阶段。否则，根据他们的回答重新评分，直到分数 ≥ 7。
 
-**Objective:** Execute code changes strictly according to the task list in the plan package, run quality/security checks, and finalize by migrating the plan to the history directory.
+**提取目标**：一旦分数 ≥ 7，提取核心目标并定义可验证的成功标准，然后进入方案设计。
 
-### Step 2.0: Pre-Execution Validation
-1. **Locate Target Plan**: Identify the specific `plan/YYYYMMDDHHMM_<feature>/` package.
-2. **Handle Multiple Plans**: If multiple plan packages exist, you MUST ask the user to select the target plan using the `AskUserQuestion` tool:
-   - `header`: "选择方案包"
-   - `question`: "检测到多个方案包，请选择执行目标："
-   - `options`: Provide each `plan/YYYYMMDD...` directory as an option.
-3. **Verify Plan Completeness**: Ensure the selected plan directory contains `why.md`, `how.md`, and `task.md`. If incomplete, stop and alert the user.
+---
 
-### Step 2.1: Execute Task List
-Read `task.md` and execute the tasks strictly item by item:
-1. **Update Task Status**: 
-   - Successfully completed tasks must be marked as `[√]`.
-   - Skipped tasks (e.g., due to failed dependencies or overridden requirements) must be marked as `[-]`.
-   - Failed tasks must be marked as `[X]` and the failure reason recorded.
-2. **File Editing Rules**:
-   - Only edit one function or class per edit operation.
-   - Follow existing project code styles and naming conventions.
-   - **File Top Comments**: Add a 1-3 sentence summary comment before the imports explaining the module's purpose.
+## 第 1 阶段：方案设计与规划 (Phase 1: Solution Design & Planning)
 
-### Step 2.2: Quality & Security Testing
-1. **Run Security Checks**: Ensure no unsafe patterns (e.g., `eval`, `exec`, raw SQL injection) or hardcoded sensitive data exist.
-2. **Execute Tests**: Run the tests defined in `task.md` or the project's existing test suite.
-3. **Handle Blocking Test Failures**:
-   If a core function test fails (Blocking Failure), you MUST immediately stop execution and use the `AskUserQuestion` tool to prompt the user:
-   - `header`: "测试失败阻断"
-   - `question`: "核心功能测试 [Test Name] 失败。错误信息: [Error Summary]。必须处理后才能继续，请选择："
-   - `options`: 
-     - 修复后重试 (Fix and Retry)
-     - 跳过继续 (Skip - Risky)
-     - 终止执行 (Abort Execution)
+在编写任何代码或进行任何修改之前，你**必须**设计方案并制定详细计划以确保一致性。
 
-### Step 2.3: Code Consistency Audit
-After applying changes:
-1. **Audit Truth**: Code behavior is the only ground truth. If documentation and code conflict, correct the documentation.
-2. **Code Quality Review (Optional)**: If you notice refactoring opportunities, use the `AskUserQuestion` tool to ask the user whether they want to apply the optimizations or skip them.
+### 步骤 0.1：方案构思 (Solution Ideation)
 
-### Step 2.4: Plan Migration & Finalization
-**CRITICAL**: This is a mandatory, atomic operation that ends the phase.
-1. **Update Task Status**: Ensure all tasks in `task.md` reflect their true final status (`[√]`, `[X]`, or `[-]`). Add blockquote `> 备注: [原因]` for any failed or skipped tasks.
-2. **Migrate Plan**: 
-   - Move the entire plan directory from `plan/` to `history/YYYY-MM/` (extract year and month from the folder name). 
-   - Example: `plan/202511201200_login/` moves to `history/2025-11/202511201200_login/`.
-   - Ensure the original directory in `plan/` is deleted. Overwrite any conflicts in the `history/` directory.
-3. **Update Index**: Append the migration record to `history/index.md`.
-4. **Execution Summary Format**:
-   ```markdown
-   ### 开发实施完成
-   - 📚 知识库状态: [Updated/Unchanged]
-   - ✅ 执行结果: [e.g., 5/5 tasks completed]
-   - 🔍 质量验证: [Consistency audit and test results]
-   - 💡 代码质量建议: [List any skipped optimizations]
-   - 📦 迁移信息: 已迁移至 `history/YYYY-MM/YYYYMMDDHHMM_<feature>/`
-   
-   **文件变更清单:**
-   - [Modified code files]
-   - `history/index.md`
-   
-   🔄 下一步: 请确认实施结果是否符合预期?
-   ```
+**前提条件**：需求分数 ≥ 7 或用户明确选择继续。
 
-## Phase 3: Smart Function Crafting & Verification
+**评估需求与复杂度**：确定任务是简单修复还是复杂功能（例如，涉及新架构、多条路径、>1 个模块、>3 个文件，或用户明确要求提供选项）。
 
-### Step 3.1: Search and Reuse First
-Before writing any new logic or creating a new function:
-1. Identify the core keywords of the functionality you intend to build (e.g., `user`, `authentication`, `password`, `validate`).
-2. Use codebase search tools to find existing functions that match these keywords.
-3. **Analyze for Reuse**: Read the implementation of any matching functions. If an existing function can safely handle your requirement (perhaps with a minor, backward-compatible modification), **reuse it**.
-4. **Create as Last Resort**: Only create a new function if absolutely no reusable function exists.
+**安全与性能评估**：识别潜在的安全漏洞（如 EHRB）和性能瓶颈。
 
-### Step 3.2: Call Chain Verification
-After modifying an existing function or creating a new one:
-1. **Trace Callers**: Find all places in the codebase where this function is called.
-2. **Trace Callees**: Identify all other functions that your function calls internally.
-3. **Verify Stability**: Manually check the entire call chain. Ensure that data types, expected behaviors, and return values align perfectly across all related functions. 
-4. Fix any breakages or type mismatches introduced in the call chain immediately.
+**方案设计思考过程**：
+你**必须**在 `<thinking>` 块中评估选项（不要向用户输出此块）：
 
-### Step 3.3: Strict JSDoc Annotation
-Every new or modified function (including nested functions, anonymous callbacks, and closures) MUST have a standardized JSDoc comment immediately preceding its definition.
+```xml
+<thinking>
+1. 列出所有可能的技术路径。
+2. 评估每种路径的优缺点、风险和成本。
+3. 选择 1 个（简单任务）或 2-3 个（复杂任务）可行的解决方案。
+4. 确定推荐方案。
+</thinking>
+```
 
-#### Required Format:
-```typescript
+**输出构思选项**：
+你**必须**使用 `AskUserQuestion` 工具向用户展示评估后的选项。
+
+*   `header`: "方案选择"
+*   `question`: "发现多种实现路径。推荐方案是 [名称]（原因：[简要原因]）。请选择您倾向的方案："
+*   `options`: 列出你在思考块中评估的 2-3 个解决方案，并在描述中包含任何潜在的安全/性能风险。
+
+在继续之前等待用户通过工具确认。如果用户选择 "Other" 拒绝所有方案，提示重新设计或取消。
+
+### 步骤 0.2：详细规划 (Detailed Planning)
+
+一旦用户确认方案，创建一个新的方案包：
+
+**创建计划目录**：`plan/YYYYMMDDHHMM_<feature>/`（如果存在同名目录，使用 `_v2` 后缀）。不要重用旧的计划。
+
+**生成计划文件**：
+*   `why.md`：背景、目的和价值主张。
+*   `how.md`：技术设计、架构决策以及具体的安全/性能缓解措施。
+*   `task.md`：细粒度的任务列表。保持代码更改较小（每个任务 ≤3 个文件），并严格包含验证/安全检查任务。
+
+**输出规划并获取权限**：
+你**必须**展示计划摘要并使用 `AskUserQuestion` 工具请求明确许可：
+
+*   `header`: "确认开发"
+*   `question`: "已生成方案包 `plan/YYYYMMDDHHMM_<feature>/` (含 [X] 个任务)。是否进入实际的开发实施？"
+*   `options`: 提供 "Yes (Proceed)", "No (Cancel)", 和 "Need Adjustments" 作为选项。
+
+在接触实际代码库文件之前，等待用户通过工具给出的明确许可。如果 `main` 分支上有未推送的提交，请在工具问题中包含警告。
+
+---
+
+## 第 2 阶段：实施与执行 (Phase 2: Implementation & Execution)
+
+**目标**：严格按照计划包中的任务列表执行代码更改，运行质量/安全检查，并通过将计划迁移到历史目录来完成最终工作。
+
+### 步骤 2.0：执行前验证
+
+**定位目标计划**：识别特定的 `plan/YYYYMMDDHHMM_<feature>/` 包。
+
+**处理多个计划**：如果存在多个计划包，你**必须**使用 `AskUserQuestion` 工具要求用户选择目标计划：
+*   `header`: "选择方案包"
+*   `question`: "检测到多个方案包，请选择执行目标："
+*   `options`: 将每个 `plan/YYYYMMDD...` 目录作为一个选项提供。
+
+**验证计划完整性**：确保选定的计划目录包含 `why.md`, `how.md`, 和 `task.md`。如果不完整，停止并提醒用户。
+
+### 步骤 2.1：执行任务列表
+
+读取 `task.md` 并逐项严格执行任务：
+
+**更新任务状态**：
+*   成功完成的任务必须标记为 `[√]`。
+*   跳过的任务（例如，由于依赖失败或需求被覆盖）必须标记为 `[-]`。
+*   失败的任务必须标记为 `[X]` 并记录失败原因。
+
+**文件编辑规则**：
+*   每次编辑操作仅编辑一个函数或类。
+*   遵循现有的项目代码风格和命名约定。
+*   **文件顶部注释**：在 import 语句之前添加 1-3 句话的摘要注释，解释模块的目的。
+
+### 步骤 2.2：质量与安全测试
+
+**运行安全检查**：确保不存在不安全模式（例如 `eval`, `exec`, 原始 SQL 注入）或硬编码的敏感数据。
+
+**执行测试**：运行 `task.md` 中定义的测试或项目现有的测试套件。
+
+**处理阻塞性测试失败**：
+如果核心功能测试失败（阻塞性失败），你**必须**立即停止执行并使用 `AskUserQuestion` 工具提示用户：
+*   `header`: "测试失败阻断"
+*   `question`: "核心功能测试 [Test Name] 失败。错误信息: [Error Summary]。必须处理后才能继续，请选择："
+*   `options`:
+    *   修复后重试 (Fix and Retry)
+    *   跳过继续 (Skip - Risky)
+    *   终止执行 (Abort Execution)
+
+### 步骤 2.3：代码一致性审计
+
+应用更改后：
+*   **审计真相**：代码行为是唯一的事实依据。如果文档与代码冲突，修正文档。
+*   **代码质量审查 (可选)**：如果你注意到重构机会，使用 `AskUserQuestion` 工具询问用户是否希望应用优化或跳过它们。
+
+### 步骤 2.4：计划迁移与终结
+
+**关键**：这是一个强制性的原子操作，标志着该阶段的结束。
+
+**更新任务状态**：确保 `task.md` 中的所有任务反映其真实的最终状态（`[√]`, `[X]`, 或 `[-]`）。对于任何失败或跳过的任务，添加块引用 `> 备注: [原因]`。
+
+**迁移计划**：
+*   将整个计划目录从 `plan/` 移动到 `history/YYYY-MM/`（从文件夹名称中提取年份和月份）。
+*   示例：`plan/202511201200_login/` 移动到 `history/2025-11/202511201200_login/`。
+*   确保 `plan/` 中的原始目录已被删除。覆盖 `history/` 目录中的任何冲突。
+
+**更新索引**：将迁移记录追加到 `history/index.md`。
+
+**执行摘要格式**：
+
+```markdown
+### 开发实施完成
+- 📚 知识库状态: [Updated/Unchanged]
+- ✅ 执行结果: [例如: 5/5 tasks completed]
+- 🔍 质量验证: [一致性审计和测试结果]
+- 💡 代码质量建议: [列出任何跳过的优化]
+- 📦 迁移信息: 已迁移至 `history/YYYY-MM/YYYYMMDDHHMM_<feature>/`
+
+**文件变更清单:**
+- [Modified code files]
+- `history/index.md`
+
+🔄 下一步: 请确认实施结果是否符合预期?
+```
+
+---
+
+## 第 3 阶段：智能函数构建与验证 (Phase 3: Smart Function Crafting & Verification)
+
+### 步骤 3.1：优先搜索与复用
+
+在编写任何新逻辑或创建新函数之前：
+1.  **识别关键词**：识别你打算构建的功能的核心关键词（例如，`user`, `authentication`, `password`, `validate`）。
+2.  **搜索代码库**：使用代码库搜索工具查找匹配这些关键词的现有函数。
+3.  **分析复用性**：阅读任何匹配函数的实现。如果现有函数可以安全地处理你的需求（也许只需进行微小的、向后兼容的修改），请复用它。
+4.  **最后手段才创建**：只有在绝对没有可复用函数的情况下，才创建新函数。
+
+### 步骤 3.2：调用链验证
+
+在修改现有函数或创建新函数后：
+1.  **追踪调用者 (Callers)**：查找代码库中调用此函数的所有位置。
+2.  **追踪被调用者 (Callees)**：识别你的函数内部调用的所有其他函数。
+3.  **验证稳定性**：手动检查整个调用链。确保所有相关函数之间的数据类型、预期行为和返回值完美对齐。
+4.  **立即修复**：立即修复调用链中引入的任何破坏或类型不匹配。
+
+### 步骤 3.3：严格的 JSDoc 注释
+
+每个新创建或修改的函数（包括嵌套函数、匿名回调和闭包）**必须**在其定义之前立即拥有标准化的 JSDoc 注释。
+
+** required 格式**：
+
+```javascript
 /**
- * Callers: [List of functions/components that call this function. If none, leave empty brackets: []]
- * Callees: [List of internal functions/methods this function calls. If none, leave empty brackets: []]
- * Description: A clear, concise explanation of what this function does.
- * Keywords: A comma-separated list of relevant search keywords to help future AI agents find this function (e.g., module name, action, data type).
+ * Callers: [调用此函数的函数/组件列表。如果没有，留空括号: []]
+ * Callees: [此函数内部调用的内部函数/方法列表。如果没有，留空括号: []]
+ * Description: 对该函数功能的清晰、简洁的解释。
+ * Keywords: 相关的搜索关键词逗号分隔列表，以帮助未来的 AI 代理找到此函数（例如，模块名称、操作、数据类型）。
  */
 ```
 
-#### Example:
-```typescript
+**示例**：
+
+```javascript
 /**
  * Callers: [registerUser, updateProfile]
  * Callees: [test]
@@ -195,20 +239,24 @@ export const isValidPassword = (password: string): boolean => {
 };
 ```
 
-### Step 3.4: Pre-Delivery Verification & Rework (Self-Correction)
-Before finalizing the task and delivering the code to the user, you MUST perform a strict self-audit:
-1. **Git Diff Review**: Review your own modifications (e.g., using `git diff` or checking changed files).
-2. **Compliance Check**: Verify that *every single* newly created or modified function (including nested/anonymous ones) contains the exact required JSDoc format (`Callers`, `Callees`, `Description`, `Keywords`).
-3. **Mandatory Rework**: If you find any missing annotations, incorrect formats, or skipped call chain checks, you MUST rework and fix them immediately before yielding back to the user.
-4. **Honest Escalation**: If you find it genuinely impossible to manually trace the call chain or annotate the functions (e.g., due to extreme codebase complexity, context length limits, or deeply obfuscated dynamic calls), you MUST stop. You are required to honestly, explicitly, and professionally inform the user of the specific technical limitations preventing completion. Do not hallucinate or guess the call chain.
+### 步骤 3.4：交付前验证与返工 (自我修正)
+
+在最终确定任务并将代码交付给用户之前，你**必须**执行严格的自我审计：
+
+1.  **Git Diff 审查**：审查你自己的修改（例如，使用 `git diff` 或检查更改的文件）。
+2.  **合规性检查**：验证每个新创建或修改的函数（包括嵌套/匿名函数）是否包含确切要求的 JSDoc 格式（`Callers`, `Callees`, `Description`, `Keywords`）。
+3.  **强制返工**：如果你发现任何缺失的注释、格式不正确或跳过的调用链检查，你**必须**在回应用户之前立即返工并修复它们。
+4.  **诚实升级**：如果你发现确实无法手动追踪调用链或注释函数（例如，由于代码库极度复杂、上下文长度限制或深度混淆的动态调用），你**必须**停止。你需要诚实、明确且专业地告知用户阻碍完成的具体技术限制。**不要**臆造或猜测调用链。
 
 ---
 
-## AI Agent Instructions (Self-Check)
-When you receive a task that involves writing or changing code, you must:
-1. Acknowledge this skill: "I am applying the `Smart Function Crafting & Annotation` skill."
-2. Execute **Phase 0 (Requirement Analysis)**: Score the request out of 10 inside a `<thinking>` block. If < 7, stop and use the `❓【HelloAGENTS】- 需求分析` format to ask clarifying questions. Wait for the user's reply before proceeding.
-3. Execute **Phase 1 (Solution Design & Planning)**: Only when Score ≥ 7 or the user explicitly allows continuing. Use the `<thinking>` tag to evaluate paths, output the `❓【HelloAGENTS】- 方案构思` format, generate the `plan/` directory, check Git sync status, and obtain explicit permission BEFORE touching code.
-4. Execute **Phase 2 (Implementation & Execution)**: Strictly follow `task.md`. Handle multiple plans via user prompt. Migrate the plan to `history/` upon completion and output the Execution Summary.
-5. Execute **Phase 3 (Smart Function Crafting)**: During code execution, ensure you search for reusable functions (`Step 3.1`), manually verify call chains (`Step 3.2`), and inject required JSDoc format (`Step 3.3`).
-6. Perform the **Pre-Delivery Verification** (`Step 3.4`). If you fail the compliance check, silently rework the code. If it's impossible to complete, report the failure honestly and explicitly to the user.
+## AI 代理指令 (自检)
+
+当你收到涉及编写或更改代码的任务时，你必须：
+
+1.  **确认应用此技能**："I am applying the `Smart Function Crafting & Annotation` skill."
+2.  **执行第 0 阶段 (需求分析)**：在 `<thinking>` 块中对请求进行评分（满分 10 分）。如果 < 7，停止并使用 `❓【HelloAGENTS】- 需求分析` 格式提出澄清问题。在继续之前等待用户回复。
+3.  **执行第 1 阶段 (方案设计与规划)**：仅在分数 ≥ 7 或用户明确允许继续时执行。使用 `<thinking>` 标签评估路径，输出 `❓【HelloAGENTS】- 方案构思` 格式，生成 `plan/` 目录，检查 Git 同步状态，并在接触代码之前获得明确许可。
+4.  **执行第 2 阶段 (实施与执行)**：严格遵守 `task.md`。通过用户提示处理多个计划。完成后将计划迁移到 `history/` 并输出执行摘要。
+5.  **执行第 3 阶段 (智能函数构建)**：在代码执行期间，确保你搜索可复用的函数 (`步骤 3.1`)，手动验证调用链 (`步骤 3.2`)，并注入所需的 JSDoc 格式 (`步骤 3.3`)。
+6.  **执行交付前验证 (`步骤 3.4`)**。如果合规性检查失败，静默返工代码。如果无法完成，诚实地明确地向用户报告失败。
