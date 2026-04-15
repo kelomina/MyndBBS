@@ -14,7 +14,7 @@ export default async function ForbiddenPage() {
   const cookieStore = await cookies();
   const headersStore = await headers();
   const locale = cookieStore.get('NEXT_LOCALE')?.value || headersStore.get('x-locale') || defaultLocale;
-  // @ts-ignore
+  // @ts-expect-error locale typing
   const dict = await getDictionary(locale);
 
   return (
