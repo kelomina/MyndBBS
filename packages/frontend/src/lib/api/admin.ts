@@ -106,6 +106,14 @@ export const updateDbConfig = (data: any) =>
     body: JSON.stringify(data),
   });
 
+export const getDomainConfig = () => fetcher('/api/admin/domain-config');
+
+export const updateDomainConfig = (data: any) =>
+  fetcher('/api/admin/domain-config', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
 /**
  * Callers: []
  * Callees: [fetcher]

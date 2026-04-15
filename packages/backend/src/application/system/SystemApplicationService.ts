@@ -11,6 +11,7 @@ import crypto from 'crypto';
 import * as argon2 from 'argon2';
 import fs from 'fs/promises';
 import { PrismaClient } from '@prisma/client';
+import { getBackendEnvPath } from '../../lib/EnvFileService';
 
 /**
  * Callers: [AdminController, InstallController]
@@ -168,7 +169,7 @@ export class SystemApplicationService {
     await tempPrisma.$connect();
     await tempPrisma.$disconnect();
 
-    const envPath = path.resolve(process.cwd(), '../../.env');
+    const envPath = getBackendEnvPath(__dirname);
     let envContent = await fs.readFile(envPath, 'utf8').catch(() => '');
     
     if (envContent.includes('DATABASE_URL=')) {

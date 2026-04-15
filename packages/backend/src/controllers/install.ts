@@ -11,6 +11,7 @@ import { SystemApplicationService } from '../application/system/SystemApplicatio
 import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
+import { applyDomainConfigToEnv, buildOrigin, EnvFileService, getBackendEnvPath, validateHostname, validateRpId } from '../lib/EnvFileService';
 
 const systemApplicationService = new SystemApplicationService(
   new PrismaRouteWhitelistRepository(),
@@ -18,7 +19,7 @@ const systemApplicationService = new SystemApplicationService(
   new PrismaRoleRepository()
 );
 
-const envPath = path.resolve(__dirname, '../../../.env');
+const envPath = getBackendEnvPath(__dirname);
 
 // Temporary in-memory token for the install session
 export let installToken = '';
@@ -308,6 +309,10 @@ export const getInstallHtml = (req: Request, res: Response): void => {
         </div>
         <div id="nav-4" class="step-item">
           <div class="step-number">4</div>
+          <div class="step-text">域名与 Passkey</div>
+        </div>
+        <div id="nav-5" class="step-item">
+          <div class="step-number">5</div>
           <div class="step-text">超级管理员</div>
         </div>
       </div>
@@ -399,15 +404,60 @@ export const getInstallHtml = (req: Request, res: Response): void => {
             <div class="flex flex-col-reverse sm:flex-row gap-4 mt-8">
               <button type="button" onclick="goToStep(2)" class="btn-ghost sm:w-1/3" id="btnBackApp">上一步</button>
               <button type="submit" id="initBtn" class="btn-dark sm:w-2/3 sm:mt-0">
-                <span id="initBtnText">写入配置并初始化</span>
+                <span id="initBtnText">继续</span>
                 <svg id="initBtnSpinner" class="animate-spin ml-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
               </button>
             </div>
           </form>
         </div>
 
-        <!-- Step 4: Admin -->
+        <!-- Step 4: Domain -->
         <div id="step-4" class="step-section">
+          <h2 class="text-3xl font-bold mb-2 tracking-tight">域名与 Passkey</h2>
+          <p class="text-gray-500 mb-10">配置站点域名与 WebAuthn RP_ID（支持 localhost / IPv6）。</p>
+          
+          <form id="domainForm" onsubmit="handleDomainSubmit(event)">
+            <div class="flex gap-6">
+              <div class="input-wrapper w-1/3">
+                <label class="input-label">协议</label>
+                <select id="protocol" required class="minimal-input">
+                  <option value="https" selected>https</option>
+                  <option value="http">http</option>
+                </select>
+              </div>
+              <div class="input-wrapper flex-1">
+                <label class="input-label">站点域名 (hostname)</label>
+                <input type="text" id="hostname" value="localhost" required class="minimal-input" placeholder="localhost / ::1 / bbs.example.com">
+              </div>
+            </div>
+
+            <div class="input-wrapper mt-4">
+              <label class="input-label">RP_ID (WebAuthn)</label>
+              <input type="text" id="rpId" value="localhost" required class="minimal-input" placeholder="localhost / example.com / ::1">
+            </div>
+
+            <div class="input-wrapper mt-6">
+              <label class="input-label">使用反代模式</label>
+              <div class="flex items-center gap-2 mt-2 text-sm text-gray-600">
+                <input type="checkbox" id="reverseProxyMode">
+                <span>开启后写入 TRUST_PROXY=true（反代需转发 X-Forwarded-Proto / X-Forwarded-Host）</span>
+              </div>
+            </div>
+
+            <div id="domainInitError" class="hidden mt-6 p-4 bg-red-50 text-red-600 text-sm border-l-4 border-red-500"></div>
+
+            <div class="flex flex-col-reverse sm:flex-row gap-4 mt-8">
+              <button type="button" onclick="goToStep(3)" class="btn-ghost sm:w-1/3" id="btnBackDomain">上一步</button>
+              <button type="submit" id="domainInitBtn" class="btn-dark sm:w-2/3 sm:mt-0">
+                <span id="domainInitBtnText">写入配置并初始化</span>
+                <svg id="domainInitBtnSpinner" class="animate-spin ml-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Step 5: Admin -->
+        <div id="step-5" class="step-section">
           <h2 class="text-3xl font-bold mb-2 tracking-tight">超级管理员</h2>
           <p class="text-gray-500 mb-10">数据库已准备就绪，请创建您的最高权限账户。</p>
           
@@ -438,8 +488,8 @@ export const getInstallHtml = (req: Request, res: Response): void => {
           </form>
         </div>
 
-        <!-- Step 5: Success -->
-        <div id="step-5" class="step-section text-center">
+        <!-- Step 6: Success -->
+        <div id="step-6" class="step-section text-center">
           <div class="w-20 h-20 bg-ink text-white rounded-full flex items-center justify-center mx-auto mb-8 animate-slide-up">
             <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
           </div>
@@ -457,10 +507,11 @@ export const getInstallHtml = (req: Request, res: Response): void => {
   <script>
     let dbConfig = {};
     let appConfig = {};
+    let domainConfig = {};
     let installToken = '';
 
     function updateNav(step) {
-      for(let i=1; i<=4; i++) {
+      for(let i=1; i<=5; i++) {
         const navEl = document.getElementById('nav-'+i);
         if(!navEl) continue;
         
@@ -484,7 +535,7 @@ export const getInstallHtml = (req: Request, res: Response): void => {
         void target.offsetWidth; // trigger reflow
         target.classList.add('active');
       }
-      if (step <= 4) updateNav(step);
+      if (step <= 5) updateNav(step);
     }
 
     function handleDbSubmit(e) {
@@ -499,7 +550,7 @@ export const getInstallHtml = (req: Request, res: Response): void => {
       goToStep(3);
     }
 
-    async function handleAppSubmit(e) {
+    function handleAppSubmit(e) {
       e.preventDefault();
       appConfig = {
         port: document.getElementById('appPort').value,
@@ -507,11 +558,21 @@ export const getInstallHtml = (req: Request, res: Response): void => {
         uploadDir: document.getElementById('uploadDir').value,
         webRoot: document.getElementById('webRoot').value
       };
+      goToStep(4);
+    }
+
+    async function handleDomainSubmit(e) {
+      e.preventDefault();
+      domainConfig = {
+        protocol: document.getElementById('protocol').value,
+        hostname: document.getElementById('hostname').value.trim(),
+        rpId: document.getElementById('rpId').value.trim(),
+        reverseProxyMode: document.getElementById('reverseProxyMode').checked
+      };
 
       const { user, pass, host, port: dbPort, name } = dbConfig;
       const encodedUser = encodeURIComponent(user);
       const encodedPass = encodeURIComponent(pass);
-      // ESCAPED TO AVOID TS ERRORS
       const dbUrl = 'postgresql://' + encodedUser + ':' + encodedPass + '@' + host + ':' + dbPort + '/' + name + '?schema=public';
 
       const payload = {
@@ -519,14 +580,18 @@ export const getInstallHtml = (req: Request, res: Response): void => {
         PORT: appConfig.port,
         FRONTEND_URL: appConfig.frontendUrl,
         UPLOAD_DIR: appConfig.uploadDir,
-        WEB_ROOT: appConfig.webRoot
+        WEB_ROOT: appConfig.webRoot,
+        PROTOCOL: domainConfig.protocol,
+        HOSTNAME: domainConfig.hostname,
+        RP_ID: domainConfig.rpId,
+        REVERSE_PROXY_MODE: domainConfig.reverseProxyMode
       };
 
-      const btn = document.getElementById('initBtn');
-      const btnBack = document.getElementById('btnBackApp');
-      const btnText = document.getElementById('initBtnText');
-      const spinner = document.getElementById('initBtnSpinner');
-      const errBox = document.getElementById('initError');
+      const btn = document.getElementById('domainInitBtn');
+      const btnBack = document.getElementById('btnBackDomain');
+      const btnText = document.getElementById('domainInitBtnText');
+      const spinner = document.getElementById('domainInitBtnSpinner');
+      const errBox = document.getElementById('domainInitError');
 
       btn.disabled = true;
       btnBack.disabled = true;
@@ -545,7 +610,7 @@ export const getInstallHtml = (req: Request, res: Response): void => {
         if (res.ok) {
           installToken = data.token;
           document.getElementById('goFrontend').href = appConfig.frontendUrl;
-          goToStep(4);
+          goToStep(5);
         } else {
           errBox.textContent = data.error || '初始化失败';
           errBox.classList.remove('hidden');
@@ -631,32 +696,63 @@ export const getInstallHtml = (req: Request, res: Response): void => {
  */
 export const setupEnv = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { DATABASE_URL, PORT, FRONTEND_URL, UPLOAD_DIR, WEB_ROOT } = req.body;
+    const { DATABASE_URL, PORT, FRONTEND_URL, UPLOAD_DIR, WEB_ROOT, PROTOCOL, HOSTNAME, RP_ID, REVERSE_PROXY_MODE } = req.body;
     
     if (!DATABASE_URL) {
       res.status(400).json({ error: '缺少 DATABASE_URL' });
       return;
     }
 
+    const protocol = PROTOCOL === 'https' ? 'https' : 'http';
+    const hostname = String(HOSTNAME || 'localhost').trim();
+    if (!validateHostname(hostname)) {
+      res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
+      return;
+    }
+
+    const rpId = String(RP_ID || hostname).trim();
+    if (!validateRpId(rpId)) {
+      res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
+      return;
+    }
+
+    const reverseProxyMode = !!REVERSE_PROXY_MODE;
+    const origin = buildOrigin(protocol, hostname);
+
     const jwtSecret = crypto.randomBytes(32).toString('hex');
     const jwtRefreshSecret = crypto.randomBytes(32).toString('hex');
 
-    const envContent = `
+    const frontendUrlValue = FRONTEND_URL || origin;
+    let envContent = `
 DATABASE_URL="${DATABASE_URL}"
 PORT=${PORT || 3001}
-FRONTEND_URL="${FRONTEND_URL || 'http://localhost:3000'}"
+FRONTEND_URL="${frontendUrlValue}"
 UPLOAD_DIR="${UPLOAD_DIR || './uploads'}"
 WEB_ROOT="${WEB_ROOT || '/'}"
 JWT_SECRET="${jwtSecret}"
 JWT_REFRESH_SECRET="${jwtRefreshSecret}"
-`.trim();
+`.trim() + '\n';
 
-    fs.writeFileSync(envPath, envContent);
+    envContent = applyDomainConfigToEnv(envContent, {
+      protocol,
+      hostname,
+      rpId,
+      reverseProxyMode,
+    });
+
+    await new EnvFileService(envPath).write(envContent);
 
     // Update process.env for Prisma in current runtime
     process.env.DATABASE_URL = DATABASE_URL;
     process.env.JWT_SECRET = jwtSecret;
     process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
+    process.env.ORIGIN = origin;
+    process.env.RP_ID = rpId;
+    process.env.TRUST_PROXY = reverseProxyMode ? 'true' : 'false';
+    const m = envContent.match(/^FRONTEND_URL=(.*)$/m);
+    if (m?.[1]) {
+      process.env.FRONTEND_URL = m[1].trim().replace(/^"(.*)"$/, '$1');
+    }
 
     // Run Prisma DB Push to initialize schema
     try {
