@@ -1,7 +1,7 @@
 "use client";
 import { useToast } from "../../../components/ui/Toast";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useCategories } from '../../../lib/hooks';
 import { fetcher } from '../../../lib/api/fetcher';
 import { Trash2, Check, X, ShieldAlert } from 'lucide-react';
@@ -30,7 +30,7 @@ export default function ModerationClient({ dict }: { dict: any }) {
      * Description: Handles the fetch queue logic for the application.
      * Keywords: fetchqueue, fetch, queue, auto-annotated
      */
-    const fetchQueue = async () => {
+    const fetchQueue = useCallback(async () => {
     setLoading(true);
     try {
       if (activeTab === 'posts') {
@@ -47,11 +47,14 @@ export default function ModerationClient({ dict }: { dict: any }) {
       console.error(e);
     }
     setLoading(false);
-  };
+  }, [activeTab]);
 
   useEffect(() => {
-    fetchQueue();
-  }, [activeTab]);
+    const id = setTimeout(() => {
+      void fetchQueue();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [fetchQueue]);
 
   /**
      * Callers: []

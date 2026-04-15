@@ -203,7 +203,7 @@ export default function MessagesPage() {
       }
 
       // Extract PRF
-      // @ts-ignore
+      // @ts-expect-error prf typing
       const prfResults = authResponse.clientExtensionResults?.prf?.results?.first;
       
       let aesKey: CryptoKey;
@@ -405,4 +405,3 @@ export default function MessagesPage() {
     </div>
   );
 }
-

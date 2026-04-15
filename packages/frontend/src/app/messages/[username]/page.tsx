@@ -88,21 +88,21 @@ const EncryptedImage = ({ payload, onPreview, dict }: { payload: string, onPrevi
     return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
   }, [payload]);
 
-  let pressTimer: any;
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
      * Callers: []
      * Callees: [setTimeout, setShowMenu]
      * Description: Handles the handle touch start logic for the application.
      * Keywords: handletouchstart, handle, touch, start, auto-annotated
      */
-    const handleTouchStart = () => { pressTimer = setTimeout(() => setShowMenu(true), 500); };
+    const handleTouchStart = () => { pressTimerRef.current = setTimeout(() => setShowMenu(true), 500); };
   /**
      * Callers: []
      * Callees: [clearTimeout]
      * Description: Handles the handle touch end logic for the application.
      * Keywords: handletouchend, handle, touch, end, auto-annotated
      */
-    const handleTouchEnd = () => { clearTimeout(pressTimer); };
+    const handleTouchEnd = () => { if (pressTimerRef.current) clearTimeout(pressTimerRef.current); };
 
   if (!blobUrl) return <Loader2 className="animate-spin h-5 w-5" />;
   if (blobUrl === 'error') return <div className="flex flex-col items-center gap-1 p-4 bg-destructive/10 text-destructive rounded text-xs border border-destructive/20"><AlertCircle className="h-5 w-5" /><span>{dict.messages?.imageLoadError || "Failed to load image"}</span></div>;
@@ -307,7 +307,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       }
 
       // Extract PRF
-      // @ts-ignore
+      // @ts-expect-error prf typing
       const prfResults = authResponse.clientExtensionResults?.prf?.results?.first;
       
       let aesKey: CryptoKey;
@@ -951,4 +951,3 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     </div>
   );
 }
-

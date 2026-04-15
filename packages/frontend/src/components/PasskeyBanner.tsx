@@ -18,15 +18,19 @@ export function PasskeyBanner() {
   const [show, setShow] = useState(false);
   const [closed, setClosed] = useState(false);
   const pathname = usePathname();
+  const excluded =
+    pathname?.startsWith('/login') ||
+    pathname?.startsWith('/register') ||
+    pathname?.startsWith('/admin-setup') ||
+    pathname?.startsWith('/install');
 
   useEffect(() => {
-    if (pathname?.startsWith('/login') || pathname?.startsWith('/register') || pathname?.startsWith('/admin-setup') || pathname?.startsWith('/install')) {
-      setShow(false);
-      return;
-    }
+    if (excluded) return;
+    let cancelled = false;
 
     fetcher('/api/v1/user/profile')
       .then(data => {
+        if (cancelled) return;
         if (data?.user) {
           if (data.user._count?.passkeys === 0) {
             setShow(true);
@@ -36,11 +40,15 @@ export function PasskeyBanner() {
         }
       })
       .catch(() => {
+        if (cancelled) return;
         setShow(false);
       });
-  }, [pathname]);
+    return () => {
+      cancelled = true;
+    };
+  }, [excluded]);
 
-  if (!show || closed) return null;
+  if (excluded || !show || closed) return null;
 
   return (
     <div className="bg-destructive text-destructive-foreground relative z-[60]">

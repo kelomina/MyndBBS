@@ -18,14 +18,6 @@ export default function FriendsPage() {
   const [myId, setMyId] = useState('');
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetch('/api/v1/user/profile', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => setMyId(d.user.id))
-      .catch(e => console.error(e));
-    loadFriends();
-  }, []);
-
   /**
      * Callers: []
      * Callees: [fetch, json, setFriendships, error]
@@ -43,6 +35,17 @@ export default function FriendsPage() {
       console.error(e);
     }
   };
+
+  useEffect(() => {
+    fetch('/api/v1/user/profile', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setMyId(d.user.id))
+      .catch(e => console.error(e));
+    const id = setTimeout(() => {
+      void loadFriends();
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   /**
      * Callers: []
