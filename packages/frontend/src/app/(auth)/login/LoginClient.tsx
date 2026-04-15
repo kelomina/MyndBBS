@@ -69,7 +69,7 @@ export function LoginClient({ dict }: { dict: any }) {
      * Description: Handles the handle passkey login logic for the application.
      * Keywords: handlepasskeylogin, handle, passkey, login, auto-annotated
      */
-    const handlePasskeyLogin = async () => {
+  const handlePasskeyLogin = async () => {
     executePasskeyFlow(
       'login',
       '/api/v1/auth/passkey/generate-authentication-options',
@@ -138,7 +138,7 @@ export function LoginClient({ dict }: { dict: any }) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || passkeyLoading}
           className="flex w-full justify-center rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
         >
           {loading ? dict.auth.signingIn : dict.auth.signIn}
@@ -154,11 +154,11 @@ export function LoginClient({ dict }: { dict: any }) {
           <button 
             type="button"
             onClick={handlePasskeyLogin}
-            disabled={loading}
+            disabled={loading || passkeyLoading}
             className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors disabled:opacity-50"
           >
             <Fingerprint className="h-5 w-5 text-primary" />
-            {dict.auth.signInWithPasskey}
+            {passkeyLoading ? dict.auth.signingIn : dict.auth.signInWithPasskey}
           </button>
         </div>
       </div>

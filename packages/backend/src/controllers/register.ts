@@ -123,8 +123,8 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       const tempToken = jwt.sign({ userId: user.id, type: 'login' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
       res.cookie('tempToken', tempToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production' && req.secure,
+        sameSite: 'lax',
         maxAge: 60 * 60 * 1000 // 1 hour
       });
       res.json({ requires2FA: true, methods });
@@ -230,8 +230,8 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production' && req.secure,
+      sameSite: 'lax',
       maxAge: 15 * 60 * 1000 // 15 minutes
     });
 
