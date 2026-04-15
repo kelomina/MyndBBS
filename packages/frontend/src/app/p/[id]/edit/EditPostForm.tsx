@@ -6,9 +6,7 @@ import { fetcher } from '../../../../lib/api/fetcher';
 import { useRouter } from 'next/navigation';
 import { PostEditor } from '../../../../components/PostEditor';
 import { useToast } from '../../../../components/ui/Toast';
-import type { Dictionary } from '../../../../i18n/types';
-
-type EditablePost = { id: string; title: string; content: string; categoryId: string };
+import type { Dictionary, EditablePost } from '../../../../types';
 
 /**
  * Callers: []

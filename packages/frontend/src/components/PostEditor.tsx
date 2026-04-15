@@ -1,5 +1,5 @@
 import { Image as ImageIcon, Link as LinkIcon, List, Bold, Italic } from 'lucide-react';
-import type { Dictionary } from '../i18n/types';
+import type { Dictionary } from '../types';
 
 interface PostEditorProps {
   dict: Dictionary;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
-import type { Dictionary } from '../../i18n/types';
+import type { Dictionary } from '../../types';
 
 /**
  * Callers: []

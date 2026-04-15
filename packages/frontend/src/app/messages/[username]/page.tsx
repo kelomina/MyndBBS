@@ -17,22 +17,7 @@ import { useToast } from '../../../components/ui/Toast';
 import { Shield, Loader2, Send, Lock, ArrowLeft, Flame, Trash2, Settings, Clock, Trash, Image as ImageIcon, X, UserPlus, Check, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import type { Dictionary } from '../../../i18n/types';
-
-interface Message {
-  id: string;
-  senderId: string;
-  receiverId: string;
-  ephemeralPublicKey: string;
-  encryptedContent: string;
-  senderEncryptedContent?: string;
-  createdAt: string;
-  isRead: boolean;
-  isSystem: boolean;
-  plaintext?: string;
-  sender: { username: string };
-  receiver: { username: string };
-}
+import type { ChatMessage, Dictionary } from '../../../types';
 
 
 /**
@@ -155,7 +140,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const [error, setError] = useState('');
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [unlocking, setUnlocking] = useState(false);

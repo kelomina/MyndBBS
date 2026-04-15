@@ -1,6 +1,6 @@
 'use client';
 import React, { createContext, useContext } from 'react';
-import type { Dictionary } from '../i18n/types';
+import type { Dictionary } from '../types';
 
 const TranslationContext = createContext<Dictionary | null>(null);
 

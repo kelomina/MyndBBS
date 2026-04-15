@@ -8,22 +8,7 @@ import { CommentItem } from './CommentItem';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
 import { useToast } from '../../../components/ui/Toast';
 import { fetcher } from '../../../lib/api/fetcher';
-import type { Dictionary } from '../../../i18n/types';
-
-type CommentAuthor = { username?: string | null };
-type PostComment = {
-  id: string;
-  content: string;
-  createdAt: string;
-  updatedAt?: string | null;
-  deletedAt?: string | null;
-  parentId?: string | null;
-  author?: CommentAuthor | null;
-  _count?: { upvotes?: number };
-  hasUpvoted?: boolean;
-  hasBookmarked?: boolean;
-};
-type CommentNode = PostComment & { children: CommentNode[] };
+import type { Dictionary, PostComment, CommentNode } from '../../../types';
 
 
 /**
