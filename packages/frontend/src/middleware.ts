@@ -2,6 +2,43 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { defaultLocale, locales } from './i18n/config';
 
+const isDev = process.env.NODE_ENV !== 'production';
+
+function toBase64(bytes: Uint8Array): string {
+  let str = '';
+  for (let i = 0; i < bytes.length; i++) {
+    str += String.fromCharCode(bytes[i]);
+  }
+  return btoa(str);
+}
+
+function generateNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return toBase64(bytes);
+}
+
+function buildCsp(nonce: string | null): string {
+  const scriptSrc = nonce
+    ? `script-src 'self' 'nonce-${nonce}'`
+    : `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`;
+
+  const connectSrc = isDev ? `connect-src 'self' ws:` : `connect-src 'self'`;
+
+  return [
+    `default-src 'self'`,
+    scriptSrc,
+    `style-src 'self' 'unsafe-inline'`,
+    `img-src 'self' blob: data:`,
+    `font-src 'self' data:`,
+    connectSrc,
+    `object-src 'none'`,
+    `base-uri 'self'`,
+    `form-action 'self'`,
+    `frame-ancestors 'none'`,
+  ].join('; ');
+}
+
 function normalizePathname(pathname: string): string {
   let p = pathname;
   if (p.length > 1) {
@@ -99,15 +136,20 @@ async function getWhitelist() {
  * Keywords: proxy, auto-annotated
  */
 export async function middleware(request: NextRequest) {
+  const nonce = isDev ? null : generateNonce();
+  const requestHeaders = new Headers(request.headers);
+  if (nonce) requestHeaders.set('x-nonce', nonce);
+
   const locale = getLocale(request);
   const pathname = normalizePathname(request.nextUrl.pathname);
 
   // Set response and locale header
-  const response = NextResponse.next();
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {
     response.cookies.set('NEXT_LOCALE', locale, { path: '/' });
   }
   response.headers.set('x-locale', locale);
+  if (!isDev) response.headers.set('Content-Security-Policy', buildCsp(nonce));
 
   // 1. Essential paths to prevent lock-out
   const isEssentialPublic = pathname === '/login' || pathname === '/register' || pathname === '/403' || pathname === '/admin-setup' || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/uploads') || pathname === '/favicon.ico';
@@ -172,6 +214,7 @@ export async function middleware(request: NextRequest) {
       if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {
         redirectResponse.cookies.set('NEXT_LOCALE', locale, { path: '/' });
       }
+      if (!isDev) redirectResponse.headers.set('Content-Security-Policy', buildCsp(nonce));
       return redirectResponse;
     }
   }

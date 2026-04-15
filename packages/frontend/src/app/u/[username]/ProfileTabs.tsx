@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from '../../../components/TranslationProvider';
 import Link from 'next/link';
-import { PostStatus } from '@prisma/client';
 import { BookmarkMinus } from 'lucide-react';
 
 import { getCategoryTranslation } from '../../../lib/utils';
 import { fetcher } from '../../../lib/api/fetcher';
+
+const POST_STATUS = {
+  DELETED: 'DELETED',
+} as const;
 
 /**
  * Callers: []
@@ -188,7 +191,7 @@ export function ProfileTabs({
               }
               
               // Post bookmark
-              const isDeleted = item.status === PostStatus.DELETED;
+              const isDeleted = item.status === POST_STATUS.DELETED;
               
               if (isDeleted) {
                 return (
