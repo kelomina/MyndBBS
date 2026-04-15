@@ -549,6 +549,7 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
 import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
+import { applyDomainConfigToEnv, buildOrigin, EnvFileService, getBackendEnvPath } from '../lib/EnvFileService';
 
 /**
  * Callers: []
@@ -630,6 +631,74 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
     console.error('DB Connection Test Failed:', error);
     res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED' });
   }
+};
+
+export const getDomainConfig = async (req: AuthRequest, res: Response): Promise<void> => {
+  if (req.user?.role !== 'SUPER_ADMIN') {
+    res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
+    return;
+  }
+
+  const originRaw = process.env.ORIGIN || 'http://localhost';
+  const splitIndex = originRaw.indexOf('://');
+  const protocol = splitIndex > -1 ? originRaw.slice(0, splitIndex) : 'http';
+  const hostname = splitIndex > -1 ? originRaw.slice(splitIndex + 3) : originRaw;
+  const rpId = process.env.RP_ID || hostname || 'localhost';
+  const reverseProxyMode = process.env.TRUST_PROXY === 'true';
+
+  res.json({
+    protocol,
+    hostname,
+    rpId,
+    reverseProxyMode,
+    origin: buildOrigin(protocol, hostname),
+  });
+};
+
+export const updateDomainConfig = async (req: AuthRequest, res: Response): Promise<void> => {
+  if (req.user?.role !== 'SUPER_ADMIN') {
+    res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
+    return;
+  }
+
+  const { protocol, hostname, rpId, reverseProxyMode } = req.body;
+  const normalizedProtocol = protocol === 'https' ? 'https' : 'http';
+  const normalizedHostname = String(hostname || '').trim();
+  const normalizedRpId = String(rpId || '').trim();
+
+  const envFile = new EnvFileService(getBackendEnvPath(__dirname));
+  const before = await envFile.read();
+  let after: string;
+
+  try {
+    after = applyDomainConfigToEnv(before, {
+      protocol: normalizedProtocol,
+      hostname: normalizedHostname,
+      rpId: normalizedRpId,
+      reverseProxyMode: !!reverseProxyMode,
+    });
+  } catch {
+    res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
+    return;
+  }
+
+  await envFile.write(after);
+
+  const origin = buildOrigin(normalizedProtocol, normalizedHostname);
+  process.env.ORIGIN = origin;
+  process.env.RP_ID = normalizedRpId;
+  process.env.TRUST_PROXY = !!reverseProxyMode ? 'true' : 'false';
+
+  const m = after.match(/^FRONTEND_URL=(.*)$/m);
+  if (m?.[1]) {
+    process.env.FRONTEND_URL = m[1].trim().replace(/^"(.*)"$/, '$1');
+  }
+
+  res.json({ message: 'Domain configuration updated. Restarting...' });
+
+  setTimeout(() => {
+    process.exit(0);
+  }, 1000);
 };
 
 

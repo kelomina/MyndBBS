@@ -5,7 +5,7 @@ import { getDictionary } from '../../i18n/get-dictionary';
 import { defaultLocale, Locale } from '../../i18n/config';
 import { headers, cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { ShieldCheck, Users, FolderTree, LayoutDashboard, Trash2, Database, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Users, FolderTree, LayoutDashboard, Trash2, Database, ShieldAlert, Globe } from 'lucide-react';
 
 /**
  * Callers: []
@@ -99,6 +99,15 @@ export default async function AdminLayout({
               >
                 <Database className="h-5 w-5" />
                 <span>{dict.admin?.database || "Database"}</span>
+              </Link>
+            )}
+            {isSuperAdmin && (
+              <Link
+                href="/admin/domain"
+                className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                <Globe className="h-5 w-5" />
+                <span>{(dict.admin as any)?.domainConfig || "Domain & Passkey"}</span>
               </Link>
             )}
           </nav>

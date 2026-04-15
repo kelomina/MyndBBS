@@ -12,6 +12,7 @@ import {
   getPosts, updatePostStatus,
   getDeletedPosts, getDeletedComments, restorePost, hardDeletePost, restoreComment, hardDeleteComment,
   getDbConfig, updateDbConfig,
+  getDomainConfig, updateDomainConfig,
   getRouteWhitelist, addRouteWhitelist, updateRouteWhitelist, deleteRouteWhitelist
 } from '../controllers/admin';
 
@@ -51,6 +52,10 @@ router.delete('/recycle/comments/:id', requireAbility('read', 'AdminPanel'), har
 // Database Config routes (SUPER_ADMIN only)
 router.get('/db-config', getDbConfig);
 router.post('/db-config', updateDbConfig);
+
+// Domain Config routes (SUPER_ADMIN only)
+router.get('/domain-config', getDomainConfig);
+router.post('/domain-config', updateDomainConfig);
 
 
 // Moderation routes
