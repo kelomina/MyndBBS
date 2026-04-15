@@ -1,23 +1,13 @@
 import Link from 'next/link';
 import { MessageSquare, ArrowBigUp } from 'lucide-react';
 import { getCategoryTranslation } from '../lib/utils';
-import type { Dictionary } from '../i18n/types';
+import type { Dictionary, PostListPost } from '../types';
 
 interface PostListProps {
   posts: PostListPost[];
   emptyMessage?: string;
   dict: Dictionary;
 }
-
-type PostListPost = {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  author?: { username?: string | null } | null;
-  category?: { name?: string | null } | null;
-  _count?: { upvotes?: number; comments?: number };
-};
 
 /**
  * Callers: []

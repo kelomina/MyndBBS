@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
 import { TwoFactorSetup } from '../../../components/TwoFactorSetup';
 import { isValidPassword } from '@myndbbs/shared';
-import type { Dictionary } from '../../../i18n/types';
+import type { Dictionary } from '../../../types';
 
 /**
  * Callers: []

@@ -6,18 +6,11 @@ import { BookmarkMinus } from 'lucide-react';
 
 import { getCategoryTranslation } from '../../../lib/utils';
 import { fetcher } from '../../../lib/api/fetcher';
-import type { Dictionary } from '../../../i18n/types';
+import type { Dictionary, ProfileUser, BookmarkItem } from '../../../types';
 
 const POST_STATUS = {
   DELETED: 'DELETED',
 } as const;
-
-type ProfilePost = { id: string; title: string; content: string; createdAt: string; category?: { name?: string } | null };
-type ProfileUser = { username: string; _count: { posts: number }; posts?: ProfilePost[] | null };
-
-type CommentBookmark = { type: 'comment'; id: string; postId: string; content: string; createdAt: string; bookmarkedAt: string; author?: { username?: string } | null; post?: { title?: string } | null; deletedAt?: string | null };
-type PostBookmark = { type: 'post'; id: string; title: string; content: string; createdAt: string; bookmarkedAt: string; category?: { name?: string } | null; status?: string | null };
-type BookmarkItem = CommentBookmark | PostBookmark;
 
 /**
  * Callers: []

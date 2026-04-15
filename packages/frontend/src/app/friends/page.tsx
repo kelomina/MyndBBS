@@ -4,9 +4,7 @@ import { UserPlus, Check, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from '../../components/TranslationProvider';
 import { useToast } from '../../components/ui/Toast';
-
-type FriendshipUser = { username: string };
-type Friendship = { id: string; requesterId: string; addresseeId: string; status: 'PENDING' | 'ACCEPTED' | 'REJECTED'; requester: FriendshipUser; addressee: FriendshipUser };
+import type { Friendship } from '../../types';
 
 /**
  * Callers: []

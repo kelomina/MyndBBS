@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Fingerprint } from 'lucide-react';
 import { usePasskey } from '../../../lib/hooks/usePasskey';
 import { TwoFactorLogin } from '../../../components/TwoFactorLogin';
-import type { Dictionary } from '../../../i18n/types';
+import type { Dictionary } from '../../../types';
 
 /**
  * Callers: []

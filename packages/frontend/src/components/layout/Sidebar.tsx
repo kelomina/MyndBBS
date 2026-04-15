@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Home, TrendingUp, Clock, Hash } from 'lucide-react';
 import { useCategories } from '../../lib/hooks';
-import type { Dictionary } from '../../i18n/types';
+import type { Dictionary } from '../../types';
 
 /**
  * Callers: []

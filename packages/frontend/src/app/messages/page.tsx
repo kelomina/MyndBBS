@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from '../../components/TranslationProvider';
+import type { InboxMessage, MessageThread } from '../../types';
 import { 
   generateECDHKeyPair, 
   exportKeyToBase64, 
@@ -11,29 +12,6 @@ import {
 import { startAuthentication } from '@simplewebauthn/browser';
 import { Shield, Loader2, MessageSquare, UserPlus } from 'lucide-react';
 import Link from 'next/link';
-
-interface MessageThread {
-  id: string;
-  withUser: {
-    id: string;
-    username: string;
-  };
-  lastMessage: {
-    encryptedContent: string;
-    createdAt: string;
-    isRead: boolean;
-  };
-}
-
-type InboxMessage = {
-  senderId: string;
-  receiverId: string;
-  encryptedContent: string;
-  createdAt: string;
-  isRead: boolean;
-  sender: { username: string };
-  receiver: { username: string };
-};
 
 /**
  * Callers: []

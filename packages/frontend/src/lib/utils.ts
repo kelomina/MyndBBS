@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import type { Dictionary } from '../i18n/types';
+import type { Dictionary } from '../types';
 
 /**
  * Callers: []

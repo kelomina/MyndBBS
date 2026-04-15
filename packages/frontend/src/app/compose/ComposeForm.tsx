@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { PostEditor } from '../../components/PostEditor';
 import { SliderCaptcha } from '../../components/SliderCaptcha';
 import { useToast } from '../../components/ui/Toast';
-import type { Dictionary } from '../../i18n/types';
+import type { Dictionary } from '../../types';
 
 /**
  * Callers: []

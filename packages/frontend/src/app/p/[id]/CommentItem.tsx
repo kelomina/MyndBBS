@@ -4,21 +4,7 @@ import { useToast } from '../../../components/ui/Toast';
 import { useState } from 'react';
 import { fetcher } from '../../../lib/api/fetcher';
 import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2, Edit2, X, Check } from 'lucide-react';
-import type { Dictionary } from '../../../i18n/types';
-
-type CommentAuthor = { username?: string | null };
-type Comment = {
-  id: string;
-  content: string;
-  createdAt: string;
-  updatedAt?: string | null;
-  deletedAt?: string | null;
-  hasUpvoted?: boolean;
-  hasBookmarked?: boolean;
-  _count?: { upvotes?: number };
-  author?: CommentAuthor | null;
-};
-type CurrentUser = { username: string; role?: 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN' };
+import type { Dictionary, PostComment, CurrentUser } from '../../../types';
 
 /**
  * Callers: []
@@ -33,7 +19,7 @@ export function CommentItem({
   onDelete,
   currentUser
 }: { 
-  comment: Comment; 
+  comment: PostComment; 
   dict: Dictionary; 
   onReply: (parentId: string) => void;
   onDelete?: () => void;

@@ -5,11 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useCategories } from '../../../lib/hooks';
 import { fetcher } from '../../../lib/api/fetcher';
 import { Trash2, Check, X, ShieldAlert } from 'lucide-react';
-import type { Dictionary } from '../../../i18n/types';
-
-type ModerationPost = { id: string; title: string; content: string; author?: { username?: string }; category?: { name?: string } };
-type ModerationComment = { id: string; content: string; author?: { username?: string }; post?: { title?: string } };
-type ModerationWord = { id: string; word: string; categoryId?: string | null; category?: { name?: string } };
+import type { Dictionary, ModerationPost, ModerationComment, ModerationWord } from '../../../types';
 
 /**
  * Callers: []
