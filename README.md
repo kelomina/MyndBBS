@@ -78,6 +78,21 @@ MyndBBS/
 pnpm install
 ```
 
+### 2) 配置环境变量
+
+- 后端：复制 [backend/.env.example](file:///workspace/packages/backend/.env.example) 到 `packages/backend/.env` 并按需修改
+- 前端：复制 [frontend/.env.example](file:///workspace/packages/frontend/.env.example) 到 `packages/frontend/.env.local`（或 `.env`）并按需修改
+
+生产部署必须关注的变量：
+
+- 后端
+  - `FRONTEND_URL`：允许跨域的前端 Origin 列表（可用逗号分隔）
+  - `TRUST_PROXY`：如果后端在反向代理/LB 后面，需设为 `true`
+  - `RP_ID` / `ORIGIN`：PassKey(WebAuthn) 依赖，生产必须设置为真实域名与 HTTPS origin
+- 前端
+  - `API_URL` / `NEXT_PUBLIC_API_URL`：用于 Next.js rewrites 的后端地址（默认本地 `http://localhost:3001`）
+  - `ALLOWED_DEV_ORIGINS`：开发环境下允许访问 Next.js dev resources 的额外域名（逗号分隔）
+
 ### 2) 启动后端
 
 后端位于 `packages/backend`，启动示例：
@@ -103,6 +118,11 @@ pnpm --filter frontend dev
 默认访问：
 
 - http://localhost:3000
+
+## 生产部署要点（与登录/PassKey 相关）
+
+- 前端启用基于 nonce 的 CSP（在 [middleware.ts](file:///workspace/packages/frontend/src/middleware.ts) 中动态生成），避免由于 CSP 拦截内联脚本导致 hydration 失败进而出现“按钮不可点/一直加载/PassKey 无效”等问题
+- PassKey(WebAuthn) 生产必须使用 HTTPS（除 localhost 外），并正确设置后端 `RP_ID`/`ORIGIN`
 
 ## 开发与规范
 
@@ -203,6 +223,21 @@ From repository root:
 pnpm install
 ```
 
+### 2) Environment variables
+
+- Backend: copy [backend/.env.example](file:///workspace/packages/backend/.env.example) to `packages/backend/.env`
+- Frontend: copy [frontend/.env.example](file:///workspace/packages/frontend/.env.example) to `packages/frontend/.env.local` (or `.env`)
+
+Key production variables:
+
+- Backend
+  - `FRONTEND_URL`: allowed frontend origins (comma-separated)
+  - `TRUST_PROXY`: set to `true` behind a reverse proxy / load balancer
+  - `RP_ID` / `ORIGIN`: required for Passkeys (WebAuthn) and must match your real HTTPS domain
+- Frontend
+  - `API_URL` / `NEXT_PUBLIC_API_URL`: backend base URL for Next.js rewrites (defaults to `http://localhost:3001`)
+  - `ALLOWED_DEV_ORIGINS`: extra dev origins allowed to access Next.js dev resources (comma-separated)
+
 ### 2) Start backend
 
 Backend lives in `packages/backend`:
@@ -228,6 +263,11 @@ pnpm --filter frontend dev
 Default URL:
 
 - http://localhost:3000
+
+## Production notes (Login/Passkeys)
+
+- Frontend uses a nonce-based CSP generated in [middleware.ts](file:///workspace/packages/frontend/src/middleware.ts) to prevent hydration from being blocked by CSP (which would otherwise break login and Passkeys)
+- Passkeys (WebAuthn) require HTTPS in production (except localhost), and backend `RP_ID`/`ORIGIN` must match the deployed domain
 
 ## Development & Conventions
 

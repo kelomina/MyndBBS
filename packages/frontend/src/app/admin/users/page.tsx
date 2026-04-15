@@ -12,7 +12,14 @@ import {
   TableRow,
 } from '../../../components/ui/Table';
 import { getUsers, updateUserRole, updateUserStatus } from '../../../lib/api/admin';
-import { UserStatus } from '@prisma/client';
+
+const USER_STATUS = {
+  ACTIVE: 'ACTIVE',
+  BANNED: 'BANNED',
+  PENDING: 'PENDING',
+} as const;
+
+type UserStatus = (typeof USER_STATUS)[keyof typeof USER_STATUS];
 
 interface User {
   id: string;
@@ -131,9 +138,9 @@ export default function UsersPage() {
                 <TableCell>
                   <span
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      user.status === UserStatus.ACTIVE
+                      user.status === USER_STATUS.ACTIVE
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : user.status === UserStatus.BANNED
+                        : user.status === USER_STATUS.BANNED
                         ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                         : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                     }`}
@@ -145,16 +152,16 @@ export default function UsersPage() {
                   {new Date(user.createdAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
-                  {user.status === UserStatus.BANNED ? (
+                  {user.status === USER_STATUS.BANNED ? (
                     <button
-                      onClick={() => handleStatusChange(user.id, UserStatus.ACTIVE)}
+                      onClick={() => handleStatusChange(user.id, USER_STATUS.ACTIVE)}
                       className="text-sm font-medium text-green-600 hover:text-green-500 dark:text-green-400"
                     >
                       Unban
                     </button>
                   ) : (
                     <button
-                      onClick={() => handleStatusChange(user.id, UserStatus.BANNED)}
+                      onClick={() => handleStatusChange(user.id, USER_STATUS.BANNED)}
                       className="text-sm font-medium text-red-600 hover:text-red-500 dark:text-red-400"
                     >
                       Ban
