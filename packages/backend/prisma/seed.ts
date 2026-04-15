@@ -70,9 +70,21 @@ async function main() {
       });
       console.log('Root account created successfully: username "root", password "root"');
     }
-  } else {
-    console.log('A SUPER_ADMIN account already exists. Skipping root account creation.');
+  // 3. Ensure /api is in route whitelist
+  const apiRoute = await prisma.routeWhitelist.findFirst({ where: { path: '/api' } });
+  if (!apiRoute) {
+    await prisma.routeWhitelist.create({
+      data: {
+        id: '00000000-0000-0000-0000-000000000000',
+        path: '/api',
+        isPrefix: true,
+        minRole: null,
+        description: 'Global API prefix whitelist (managed internally)',
+      }
+    });
+    console.log('Added /api to route whitelist');
   }
+
 }
 
 main()
