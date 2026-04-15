@@ -38,3 +38,16 @@ test('frontend lint passes', { timeout: 10 * 60 * 1000 }, async () => {
     `pnpm lint failed\n\nstdout:\n${result.stdout}\n\nstderr:\n${result.stderr}\n`,
   );
 });
+
+test('frontend lint has zero warnings', { timeout: 10 * 60 * 1000 }, async () => {
+  const result = await run(
+    'pnpm',
+    ['exec', 'eslint', '--max-warnings', '0'],
+    { cwd: new URL('../', import.meta.url) },
+  );
+  assert.equal(
+    result.code,
+    0,
+    `pnpm exec eslint --max-warnings 0 failed\n\nstdout:\n${result.stdout}\n\nstderr:\n${result.stderr}\n`,
+  );
+});

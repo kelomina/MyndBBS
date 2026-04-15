@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { usePasskey } from '../lib/hooks/usePasskey';
 import { useTranslation } from './TranslationProvider';
 
@@ -19,16 +19,10 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [totpCode, setTotpCode] = useState('');
-  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
+  const { executePasskeyFlow, setPasskeyError } = usePasskey();
   const [currentMethod, setCurrentMethod] = useState<'passkey' | 'totp' | null>(
     methods.includes('passkey') ? 'passkey' : 'totp'
   );
-
-  useEffect(() => {
-    if (currentMethod === 'passkey') {
-      tryPasskeyLogin();
-    }
-  }, [currentMethod]);
 
   /**
      * Callers: []
@@ -36,7 +30,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
      * Description: Handles the try passkey login logic for the application.
      * Keywords: trypasskeylogin, try, passkey, login, auto-annotated
      */
-    const tryPasskeyLogin = async () => {
+    const tryPasskeyLogin = useCallback(async () => {
     setPasskeyError('');
     executePasskeyFlow(
       'login',
@@ -56,7 +50,13 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
         }
       }
     );
-  };
+  }, [dict, executePasskeyFlow, methods, setPasskeyError]);
+
+  useEffect(() => {
+    if (currentMethod === 'passkey') {
+      void tryPasskeyLogin();
+    }
+  }, [currentMethod, tryPasskeyLogin]);
 
   /**
      * Callers: []
@@ -85,7 +85,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
         const data = await res.json();
         setError(dict.apiErrors?.[data.error] || data.error || dict.twoFactor.invalidTotpCode);
       }
-    } catch (err) {
+    } catch {
       setError(dict.auth.networkError);
     } finally {
       setLoading(false);

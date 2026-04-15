@@ -1,11 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
-import { useTranslation } from '../../components/TranslationProvider';
 import { getDictionary } from '../../i18n/get-dictionary';
 import { defaultLocale, Locale } from '../../i18n/config';
 import { headers, cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { ShieldCheck, Users, FolderTree, LayoutDashboard, Trash2, Database, ShieldAlert, Globe } from 'lucide-react';
+import { ShieldCheck, Users, FolderTree, Trash2, Database, ShieldAlert, Globe } from 'lucide-react';
 
 /**
  * Callers: []
@@ -107,7 +106,7 @@ export default async function AdminLayout({
                 className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
               >
                 <Globe className="h-5 w-5" />
-                <span>{(dict.admin as any)?.domainConfig || "Domain & Passkey"}</span>
+                <span>{(dict.admin as unknown as { domainConfig?: string }).domainConfig || "Domain & Passkey"}</span>
               </Link>
             )}
           </nav>
@@ -133,7 +132,7 @@ export default async function AdminLayout({
         </div>
       </div>
     );
-  } catch (error) {
+  } catch {
     redirect('/');
   }
 }

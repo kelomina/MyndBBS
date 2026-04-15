@@ -1,5 +1,4 @@
 import { Sidebar } from "../../../components/layout/Sidebar";
-import { MessageSquare } from "lucide-react";
 import { headers } from "next/headers";
 import { Locale, defaultLocale } from "../../../i18n/config";
 import { getDictionary } from "../../../i18n/get-dictionary";

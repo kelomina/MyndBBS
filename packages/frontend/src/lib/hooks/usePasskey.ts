@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
+import type { Dictionary } from '../../i18n/types';
 
 /**
  * Callers: []
@@ -21,10 +22,10 @@ export function usePasskey() {
     type: 'login' | 'register',
     generateEndpoint: string,
     verifyEndpoint: string,
-    dict: any,
+    dict: Dictionary,
     onSuccess: () => void,
     onError?: (err: Error) => void,
-    extraPayload?: Record<string, any>
+    extraPayload?: Record<string, unknown>
   ) => {
     setError('');
     setLoading(true);

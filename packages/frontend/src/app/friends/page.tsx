@@ -1,9 +1,12 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Shield, UserPlus, Check, X, ArrowLeft } from 'lucide-react';
+import { UserPlus, Check, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from '../../components/TranslationProvider';
 import { useToast } from '../../components/ui/Toast';
+
+type FriendshipUser = { username: string };
+type Friendship = { id: string; requesterId: string; addresseeId: string; status: 'PENDING' | 'ACCEPTED' | 'REJECTED'; requester: FriendshipUser; addressee: FriendshipUser };
 
 /**
  * Callers: []
@@ -13,7 +16,7 @@ import { useToast } from '../../components/ui/Toast';
  */
 export default function FriendsPage() {
   const dict = useTranslation();
-  const [friendships, setFriendships] = useState<any[]>([]);
+  const [friendships, setFriendships] = useState<Friendship[]>([]);
   const [targetUsername, setTargetUsername] = useState('');
   const [myId, setMyId] = useState('');
   const { toast } = useToast();
@@ -75,7 +78,7 @@ export default function FriendsPage() {
         const err = await reqRes.json();
         toast(err.error || dict.messages?.failedToSendRequest || 'Failed to send request', 'error');
       }
-    } catch (e) { 
+    } catch { 
       toast(dict.messages?.errorSendingRequest || 'Error sending request', 'error'); 
     }
   };

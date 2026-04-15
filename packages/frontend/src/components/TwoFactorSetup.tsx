@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { startRegistration } from '@simplewebauthn/browser';
-import { QRCodeSVG } from 'qrcode.react';
+import Image from 'next/image';
 import { useTranslation } from './TranslationProvider';
 
 /**
@@ -19,49 +19,51 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
   const [totpCode, setTotpCode] = useState('');
   const [setupMethod, setSetupMethod] = useState<'passkey' | 'totp' | null>(null);
 
-  useEffect(() => {
-    initiateSetup();
-  }, []);
-
   /**
      * Callers: []
      * Callees: []
      * Description: Handles the get endpoint logic for the application.
      * Keywords: getendpoint, get, endpoint, auto-annotated
      */
-    const getEndpoint = (path: string) => {
+    const getEndpoint = useCallback((path: string) => {
     return context === 'user' ? `/api/v1/user${path}` : `/api/v1/auth${path}`;
-  };
+  }, [context]);
 
   /**
      * Callers: []
-     * Callees: [fallbackToTotp, setSetupMethod, tryPasskeyRegistration, error]
-     * Description: Handles the initiate setup logic for the application.
-     * Keywords: initiatesetup, initiate, setup, auto-annotated
+     * Callees: [setSetupMethod, setLoading, setError, fetch, getEndpoint, json, setTotpSetup]
+     * Description: Handles the load totp logic for the application.
+     * Keywords: loadtotp, load, totp, auto-annotated
      */
-    const initiateSetup = async () => {
+    const loadTotp = useCallback(async () => {
+    setSetupMethod('totp');
+    setLoading(true);
+    setError('');
     try {
-      if (forceTotp) {
-        await fallbackToTotp();
-      } else if (window.PublicKeyCredential) {
-        setSetupMethod('passkey');
-        await tryPasskeyRegistration();
+      const res = await fetch(getEndpoint('/totp/generate'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTotpSetup(data);
       } else {
-        await fallbackToTotp();
+        setError(dict.apiErrors?.[data.error] || data.error || dict.twoFactor.failedGenerateTotp);
       }
-    } catch (err) {
-      console.error(err);
-      await fallbackToTotp();
+    } catch {
+      setError(dict.auth.networkError);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [dict, getEndpoint]);
 
   /**
      * Callers: []
-     * Callees: [fetch, getEndpoint, json, startRegistration, stringify, loadTotp, onComplete, error, includes, setError, fallbackToTotp]
+     * Callees: [fetch, getEndpoint, json, startRegistration, stringify, loadTotp, onComplete, error, includes, setError]
      * Description: Handles the try passkey registration logic for the application.
      * Keywords: trypasskeyregistration, try, passkey, registration, auto-annotated
      */
-    const tryPasskeyRegistration = async () => {
+    const tryPasskeyRegistration = useCallback(async () => {
     try {
       // 1. Get options from server
       const optionsRes = await fetch(getEndpoint('/passkey/generate-registration-options'), {
@@ -108,47 +110,35 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       if (!isCancel) {
         setError(errorObj.message || dict.twoFactor.passkeySetupFailed);
       }
-      await fallbackToTotp();
+      await loadTotp();
     }
-  };
+  }, [context, dict, forceTotp, getEndpoint, loadTotp, onComplete]);
 
   /**
      * Callers: []
-     * Callees: [setSetupMethod, setLoading, setError, fetch, getEndpoint, json, setTotpSetup]
-     * Description: Handles the load totp logic for the application.
-     * Keywords: loadtotp, load, totp, auto-annotated
+     * Callees: [loadTotp, setSetupMethod, tryPasskeyRegistration]
+     * Description: Handles the initiate setup logic for the application.
+     * Keywords: initiatesetup, initiate, setup, auto-annotated
      */
-    const loadTotp = async () => {
-    setSetupMethod('totp');
-    setLoading(true);
-    setError('');
+    const initiateSetup = useCallback(async () => {
     try {
-      const res = await fetch(getEndpoint('/totp/generate'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setTotpSetup(data);
+      if (forceTotp) {
+        await loadTotp();
+      } else if (window.PublicKeyCredential) {
+        setSetupMethod('passkey');
+        await tryPasskeyRegistration();
       } else {
-        setError(dict.apiErrors?.[data.error] || data.error || dict.twoFactor.failedGenerateTotp);
+        await loadTotp();
       }
     } catch (err) {
-      setError(dict.auth.networkError);
-    } finally {
-      setLoading(false);
+      console.error(err);
+      await loadTotp();
     }
-  };
+  }, [forceTotp, loadTotp, tryPasskeyRegistration]);
 
-  /**
-     * Callers: []
-     * Callees: [loadTotp]
-     * Description: Handles the fallback to totp logic for the application.
-     * Keywords: fallbacktototp, fallback, to, totp, auto-annotated
-     */
-    const fallbackToTotp = async () => {
-    await loadTotp();
-  };
+  useEffect(() => {
+    void initiateSetup();
+  }, [initiateSetup]);
 
   /**
      * Callers: []
@@ -180,7 +170,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
         const data = await res.json();
         setError(dict.apiErrors?.[data.error] || data.error || dict.twoFactor.invalidTotpCode);
       }
-    } catch (err) {
+    } catch {
       setError(dict.auth.networkError);
     } finally {
       setLoading(false);
@@ -202,7 +192,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
           <p className="text-muted text-sm">{dict.twoFactor.waitingPasskeySetup}</p>
           <div className="animate-pulse bg-primary/20 h-2 w-full rounded"></div>
           <button 
-            onClick={fallbackToTotp}
+            onClick={() => void loadTotp()}
             className="text-sm text-primary hover:underline mt-4 block mx-auto"
           >
             {dict.twoFactor.useAuthenticatorApp}
@@ -214,8 +204,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
         <div className="space-y-6">
           <p className="text-sm text-muted">{dict.twoFactor.scanQrHint}</p>
           <div className="flex justify-center p-4 bg-white rounded-xl inline-block mx-auto border border-gray-200">
-            {/* The qrCodeUrl from backend is a Data URL, we can use an img tag */}
-            <img src={totpSetup.qrCodeUrl} alt="TOTP QR Code" className="w-48 h-48" />
+            <Image src={totpSetup.qrCodeUrl} alt="TOTP QR Code" width={192} height={192} unoptimized />
           </div>
           <div className="text-sm text-muted">
             <p>{dict.twoFactor.enterSecretManually}</p>
