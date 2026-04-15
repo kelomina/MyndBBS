@@ -1,16 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslation } from '../../../components/TranslationProvider';
 import Link from 'next/link';
 import { BookmarkMinus } from 'lucide-react';
 
 import { getCategoryTranslation } from '../../../lib/utils';
 import { fetcher } from '../../../lib/api/fetcher';
+import type { Dictionary } from '../../../i18n/types';
 
 const POST_STATUS = {
   DELETED: 'DELETED',
 } as const;
+
+type ProfilePost = { id: string; title: string; content: string; createdAt: string; category?: { name?: string } | null };
+type ProfileUser = { username: string; _count: { posts: number }; posts?: ProfilePost[] | null };
+
+type CommentBookmark = { type: 'comment'; id: string; postId: string; content: string; createdAt: string; bookmarkedAt: string; author?: { username?: string } | null; post?: { title?: string } | null; deletedAt?: string | null };
+type PostBookmark = { type: 'post'; id: string; title: string; content: string; createdAt: string; bookmarkedAt: string; category?: { name?: string } | null; status?: string | null };
+type BookmarkItem = CommentBookmark | PostBookmark;
 
 /**
  * Callers: []
@@ -23,12 +30,12 @@ export function ProfileTabs({
   dict, 
   locale 
 }: { 
-  user: any; 
-  dict: any; 
+  user: ProfileUser; 
+  dict: Dictionary; 
   locale: string;
 }) {
   const [activeTab, setActiveTab] = useState<'posts' | 'bookmarks'>('posts');
-  const [bookmarks, setBookmarks] = useState<any[] | null>(null);
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
 
@@ -46,8 +53,7 @@ export function ProfileTabs({
         if (data.user?.username === user.username) {
           setIsOwner(true);
         }
-      } catch (err) {
-        // ignore
+      } catch {
       }
     };
     checkOwner();
@@ -121,7 +127,7 @@ export function ProfileTabs({
           !user.posts || user.posts.length === 0 ? (
             <p className="text-muted text-sm">{dict.profile?.noPostsYet || 'No posts yet.'}</p>
           ) : (
-            user.posts.map((post: any) => (
+            user.posts.map((post) => (
               <div key={post.id} className="rounded-xl bg-card p-5 shadow-sm border border-border/50 transition-shadow hover:shadow-md cursor-pointer">
                 <Link href={`/p/${post.id}`}>
                   <h2 className="text-lg font-bold text-foreground mb-2 hover:text-primary">{post.title}</h2>
@@ -143,7 +149,7 @@ export function ProfileTabs({
           ) : !bookmarks || bookmarks.length === 0 ? (
             <p className="text-muted text-sm">{dict.profile?.noBookmarksYet || 'No bookmarks yet.'}</p>
           ) : (
-            bookmarks.map((item: any) => {
+            bookmarks.map((item) => {
               if (item.type === 'comment') {
                 const isDeleted = item.deletedAt != null;
                 

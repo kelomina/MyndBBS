@@ -1,10 +1,24 @@
 'use client';
 import { useToast } from '../../../components/ui/Toast';
-import { useTranslation } from '../../../components/TranslationProvider';
 
 import { useState } from 'react';
 import { fetcher } from '../../../lib/api/fetcher';
 import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2, Edit2, X, Check } from 'lucide-react';
+import type { Dictionary } from '../../../i18n/types';
+
+type CommentAuthor = { username?: string | null };
+type Comment = {
+  id: string;
+  content: string;
+  createdAt: string;
+  updatedAt?: string | null;
+  deletedAt?: string | null;
+  hasUpvoted?: boolean;
+  hasBookmarked?: boolean;
+  _count?: { upvotes?: number };
+  author?: CommentAuthor | null;
+};
+type CurrentUser = { username: string; role?: 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN' };
 
 /**
  * Callers: []
@@ -19,11 +33,11 @@ export function CommentItem({
   onDelete,
   currentUser
 }: { 
-  comment: any; 
-  dict: any; 
+  comment: Comment; 
+  dict: Dictionary; 
   onReply: (parentId: string) => void;
   onDelete?: () => void;
-  currentUser?: any;
+  currentUser?: CurrentUser | null;
 }) {
   const { toast } = useToast();
   const [upvotes, setUpvotes] = useState(comment._count?.upvotes || 0);
@@ -50,9 +64,10 @@ export function CommentItem({
       const data = await fetcher(`/api/posts/comments/${comment.id}/upvote`, { method: 'POST' });
       setHasUpvoted(data.upvoted);
       setUpvotes((prev: number) => data.upvoted ? prev + 1 : prev - 1);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Upvote failed:', error);
-      if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('login') || error.message?.includes('401')) {
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('UNAUTHORIZED') || msg.includes('login') || msg.includes('401')) {
         toast(dict.auth?.pleaseLogin || 'Please login to upvote.', 'error');
       }
     } finally {
@@ -72,9 +87,10 @@ export function CommentItem({
     try {
       const data = await fetcher(`/api/posts/comments/${comment.id}/bookmark`, { method: 'POST' });
       setHasBookmarked(data.bookmarked);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Bookmark failed:', error);
-      if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('login') || error.message?.includes('401')) {
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('UNAUTHORIZED') || msg.includes('login') || msg.includes('401')) {
         toast(dict.auth?.pleaseLogin || 'Please login to bookmark.', 'error');
       }
     } finally {
@@ -127,9 +143,11 @@ export function CommentItem({
       setContent(data.content);
       setUpdatedAt(data.updatedAt);
       setIsEditing(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Update failed:', error);
-      toast(error.message || dict.apiErrors?.ERR_FAILED_TO_UPDATE_COMMENT || 'Failed to update comment', 'error');
+      const msg = error instanceof Error ? error.message : 'Failed to update comment';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg || apiErrors?.ERR_FAILED_TO_UPDATE_COMMENT || 'Failed to update comment', 'error');
     } finally {
       setIsUpdating(false);
     }

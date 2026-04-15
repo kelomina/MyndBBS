@@ -5,6 +5,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useCategories } from '../../../lib/hooks';
 import { fetcher } from '../../../lib/api/fetcher';
 import { Trash2, Check, X, ShieldAlert } from 'lucide-react';
+import type { Dictionary } from '../../../i18n/types';
+
+type ModerationPost = { id: string; title: string; content: string; author?: { username?: string }; category?: { name?: string } };
+type ModerationComment = { id: string; content: string; author?: { username?: string }; post?: { title?: string } };
+type ModerationWord = { id: string; word: string; categoryId?: string | null; category?: { name?: string } };
 
 /**
  * Callers: []
@@ -12,12 +17,12 @@ import { Trash2, Check, X, ShieldAlert } from 'lucide-react';
  * Description: Handles the moderation client logic for the application.
  * Keywords: moderationclient, moderation, client, auto-annotated
  */
-export default function ModerationClient({ dict }: { dict: any }) {
+export default function ModerationClient({ dict }: { dict: Dictionary }) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'posts' | 'comments' | 'words'>('posts');
-  const [posts, setPosts] = useState<any[]>([]);
-  const [comments, setComments] = useState<any[]>([]);
-  const [words, setWords] = useState<any[]>([]);
+  const [posts, setPosts] = useState<ModerationPost[]>([]);
+  const [comments, setComments] = useState<ModerationComment[]>([]);
+  const [words, setWords] = useState<ModerationWord[]>([]);
   const [loading, setLoading] = useState(true);
   const [newWord, setNewWord] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -133,8 +138,10 @@ export default function ModerationClient({ dict }: { dict: any }) {
       setNewWord('');
       setSelectedCategory('');
       fetchQueue();
-    } catch (err: any) {
-      toast(dict.apiErrors?.[err.message] || err.message || dict.admin?.failedToAddWord || 'Failed to add word', 'error');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to add word';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg || dict.admin?.failedToAddWord || 'Failed to add word', 'error');
     }
   };
 
@@ -157,10 +164,10 @@ export default function ModerationClient({ dict }: { dict: any }) {
     <div className="space-y-6">
       <div className="border-b border-border">
         <nav className="-mb-px flex space-x-8">
-          {['posts', 'comments', 'words'].map((tab) => (
+          {(['posts', 'comments', 'words'] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab as any)}
+              onClick={() => setActiveTab(tab)}
               className={`
                 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
                 ${activeTab === tab
@@ -202,7 +209,7 @@ export default function ModerationClient({ dict }: { dict: any }) {
                     className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="">{dict.admin?.globalWord || "Global (All Categories)"}</option>
-                    {categories.map((c: any) => (
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>

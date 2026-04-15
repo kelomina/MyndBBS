@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useCategories } from '../../../../lib/hooks';
 import { fetcher } from '../../../../lib/api/fetcher';
 import { useRouter } from 'next/navigation';
 import { PostEditor } from '../../../../components/PostEditor';
 import { useToast } from '../../../../components/ui/Toast';
+import type { Dictionary } from '../../../../i18n/types';
+
+type EditablePost = { id: string; title: string; content: string; categoryId: string };
 
 /**
  * Callers: []
@@ -13,7 +16,7 @@ import { useToast } from '../../../../components/ui/Toast';
  * Description: Handles the edit post form logic for the application.
  * Keywords: editpostform, edit, post, form, auto-annotated
  */
-export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: any }) {
+export function EditPostForm({ dict, initialPost }: { dict: Dictionary; initialPost: EditablePost }) {
   const { toast } = useToast();
   const router = useRouter();
   const [title, setTitle] = useState(initialPost.title);
@@ -47,9 +50,11 @@ export function EditPostForm({ dict, initialPost }: { dict: any, initialPost: an
       } else {
         router.push(`/p/${initialPost.id}`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast(err.message || dict.apiErrors?.ERR_FAILED_TO_UPDATE || 'Failed to update post', 'error');
+      const msg = err instanceof Error ? err.message : 'Failed to update post';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg || apiErrors?.ERR_FAILED_TO_UPDATE || 'Failed to update post', 'error');
     } finally {
       setLoading(false);
     }

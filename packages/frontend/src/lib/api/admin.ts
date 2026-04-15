@@ -100,7 +100,7 @@ export const getDbConfig = () => fetcher('/api/admin/db-config');
  * Description: Handles the update db config logic for the application.
  * Keywords: updatedbconfig, update, db, config, auto-annotated
  */
-export const updateDbConfig = (data: any) =>
+export const updateDbConfig = (data: Record<string, unknown>) =>
   fetcher('/api/admin/db-config', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -108,7 +108,7 @@ export const updateDbConfig = (data: any) =>
 
 export const getDomainConfig = () => fetcher('/api/admin/domain-config');
 
-export const updateDomainConfig = (data: any) =>
+export const updateDomainConfig = (data: Record<string, unknown>) =>
   fetcher('/api/admin/domain-config', {
     method: 'POST',
     body: JSON.stringify(data),

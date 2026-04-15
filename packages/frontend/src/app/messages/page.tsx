@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from '../../components/TranslationProvider';
 import { 
   generateECDHKeyPair, 
@@ -9,7 +9,7 @@ import {
   encryptPrivateKey 
 } from '../../lib/crypto/e2ee';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { Shield, Loader2, MessageSquare, Plus, UserPlus } from 'lucide-react';
+import { Shield, Loader2, MessageSquare, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 
 interface MessageThread {
@@ -25,6 +25,16 @@ interface MessageThread {
   };
 }
 
+type InboxMessage = {
+  senderId: string;
+  receiverId: string;
+  encryptedContent: string;
+  createdAt: string;
+  isRead: boolean;
+  sender: { username: string };
+  receiver: { username: string };
+};
+
 /**
  * Callers: []
  * Callees: [useTranslation, useState, setPasswordPrompt, useEffect, checkStatus, all, fetch, json, setUserLevel, setCurrentUser, setHasKey, loadInbox, error, setError, setLoading, forEach, has, set, get, setThreads, sort, from, values, getTime, setInitializing, generateECDHKeyPair, exportKeyToBase64, map, startAuthentication, requestPassword, importKey, encode, deriveKey, getAesKeyFromPrf, encryptPrivateKey, stringify, charAt, toLocaleDateString, resolve, getElementById]
@@ -39,7 +49,7 @@ export default function MessagesPage() {
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const [error, setError] = useState('');
   const [userLevel, setUserLevel] = useState(1);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string; level: number } | null>(null);
   const [passwordPrompt, setPasswordPrompt] = useState<{ isOpen: boolean; message: string; resolve: (value: string | null) => void } | null>(null);
   
   /**
@@ -54,74 +64,23 @@ export default function MessagesPage() {
     });
   };
 
-  useEffect(() => {
-    checkStatus();
-  }, []);
-
-  /**
-     * Callers: []
-     * Callees: [all, fetch, json, setUserLevel, setCurrentUser, setHasKey, loadInbox, error, setError, setLoading]
-     * Description: Handles the check status logic for the application.
-     * Keywords: checkstatus, check, status, auto-annotated
-     */
-    const checkStatus = async () => {
-    try {
-      const [profileRes, keyRes] = await Promise.all([
-        fetch('/api/v1/user/profile', { credentials: 'include' }),
-        fetch('/api/v1/messages/keys/me', { credentials: 'include' })
-      ]);
-
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        setUserLevel(profileData.user.level);
-        setCurrentUser(profileData.user);
-      }
-
-      if (keyRes.ok) {
-        const keyData = await keyRes.json();
-        if (keyData.key) {
-          setHasKey(true);
-          await loadInbox();
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load messages status', err);
-      setError('Failed to load status');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   /**
      * Callers: []
      * Callees: [fetch, json, forEach, has, set, get, setThreads, sort, from, values, getTime, error]
      * Description: Handles the load inbox logic for the application.
      * Keywords: loadinbox, load, inbox, auto-annotated
      */
-    const loadInbox = async () => {
+    const loadInbox = useCallback(async () => {
     try {
       const res = await fetch('/api/v1/messages/inbox', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        // Group messages by user
-        const grouped = new Map<string, any>();
-        data.messages.forEach((msg: any) => {
-          // Find the other user (not me)
-          const isSender = msg.senderId !== msg.receiverId && msg.sender; // Need actual myId, but we can assume we know from context.
-          // Wait, backend inbox returns sender and receiver.
-          // Better yet, we can group by the other person's ID.
-          const otherUser = msg.sender ? msg.sender : msg.receiver; 
-          // We need my userId to know who is the other person.
-        });
-        
-        // Wait, the task says "fetch and list inbox conversations (grouped by user)."
-        // Let's just show a simple list of unique users we have talked to.
         const threadsMap = new Map<string, MessageThread>();
         // We'll need my user ID. Let's fetch it if we don't have it.
         const profileRes = await fetch('/api/v1/user/profile', { credentials: 'include' });
         const myId = profileRes.ok ? (await profileRes.json()).user.id : '';
 
-        data.messages.forEach((msg: any) => {
+        (data.messages as InboxMessage[]).forEach((msg) => {
           const otherUserId = msg.senderId === myId ? msg.receiverId : msg.senderId;
           const otherUsername = msg.senderId === myId ? msg.receiver.username : msg.sender.username;
           
@@ -153,7 +112,45 @@ export default function MessagesPage() {
     } catch (err) {
       console.error('Failed to load inbox', err);
     }
-  };
+  }, []);
+
+  /**
+     * Callers: []
+     * Callees: [all, fetch, json, setUserLevel, setCurrentUser, setHasKey, loadInbox, error, setError, setLoading]
+     * Description: Handles the check status logic for the application.
+     * Keywords: checkstatus, check, status, auto-annotated
+     */
+    const checkStatus = useCallback(async () => {
+    try {
+      const [profileRes, keyRes] = await Promise.all([
+        fetch('/api/v1/user/profile', { credentials: 'include' }),
+        fetch('/api/v1/messages/keys/me', { credentials: 'include' })
+      ]);
+
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        setUserLevel(profileData.user.level);
+        setCurrentUser(profileData.user);
+      }
+
+      if (keyRes.ok) {
+        const keyData = await keyRes.json();
+        if (keyData.key) {
+          setHasKey(true);
+          await loadInbox();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load messages status', err);
+      setError('Failed to load status');
+    } finally {
+      setLoading(false);
+    }
+  }, [loadInbox]);
+
+  useEffect(() => {
+    void checkStatus();
+  }, [checkStatus]);
 
   /**
      * Callers: []
@@ -182,7 +179,7 @@ export default function MessagesPage() {
       // Ensure we request PRF extension
       const authOptions = optionsData;
       if (passkeysData.passkeys && passkeysData.passkeys.length > 0) {
-        authOptions.allowCredentials = passkeysData.passkeys.map((pk: any) => ({
+        authOptions.allowCredentials = (passkeysData.passkeys as { id: Uint8Array }[]).map((pk) => ({
           id: pk.id,
           type: 'public-key',
           transports: ['internal', 'usb', 'ble', 'nfc']
@@ -198,8 +195,8 @@ export default function MessagesPage() {
       let authResponse;
       try {
         authResponse = await startAuthentication({ optionsJSON: authOptions });
-      } catch (err: any) {
-        throw new Error(err.message || 'Passkey authentication failed or cancelled.');
+      } catch (err: unknown) {
+        throw new Error(err instanceof Error ? err.message : 'Passkey authentication failed or cancelled.');
       }
 
       // Extract PRF
@@ -221,7 +218,7 @@ export default function MessagesPage() {
         aesKey = await window.crypto.subtle.deriveKey(
           {
             name: 'PBKDF2',
-            salt: enc.encode(currentUser.username + 'MyndBBS'), // Fixed salt based on username
+            salt: enc.encode((currentUser?.username ?? '') + 'MyndBBS'),
             iterations: 100000,
             hash: 'SHA-256'
           },
@@ -257,9 +254,9 @@ export default function MessagesPage() {
 
       setHasKey(true);
       await loadInbox();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || dict.messages.initError);
+      setError((err instanceof Error ? err.message : '') || dict.messages.initError);
     } finally {
       setInitializing(false);
     }

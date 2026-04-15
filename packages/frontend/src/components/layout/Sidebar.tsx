@@ -3,15 +3,15 @@
 import Link from 'next/link';
 import { Home, TrendingUp, Clock, Hash } from 'lucide-react';
 import { useCategories } from '../../lib/hooks';
+import type { Dictionary } from '../../i18n/types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 /**
  * Callers: []
  * Callees: [useCategories, map, encodeURIComponent, toUpperCase, charAt, slice]
  * Description: Handles the sidebar logic for the application.
  * Keywords: sidebar, auto-annotated
  */
-export function Sidebar({ dict }: { dict: any }) {
+export function Sidebar({ dict }: { dict: Dictionary }) {
   const MAIN_NAV = [
     { name: dict.nav.home, href: '/', icon: Home },
     { name: dict.nav.popular, href: '/popular', icon: TrendingUp },

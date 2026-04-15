@@ -1,12 +1,23 @@
 import Link from 'next/link';
 import { MessageSquare, ArrowBigUp } from 'lucide-react';
 import { getCategoryTranslation } from '../lib/utils';
+import type { Dictionary } from '../i18n/types';
 
 interface PostListProps {
-  posts: any[];
+  posts: PostListPost[];
   emptyMessage?: string;
-  dict?: any;
+  dict: Dictionary;
 }
+
+type PostListPost = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  author?: { username?: string | null } | null;
+  category?: { name?: string | null } | null;
+  _count?: { upvotes?: number; comments?: number };
+};
 
 /**
  * Callers: []
@@ -25,7 +36,7 @@ export function PostList({ posts, emptyMessage = "No posts found.", dict }: Post
 
   return (
     <>
-      {posts.map((post: any) => (
+      {posts.map((post) => (
         <article key={post.id} className="rounded-xl bg-card p-5 shadow-sm transition-shadow hover:shadow-md border border-border/50">
           <div className="mb-3 flex items-center justify-between text-xs text-muted">
             <div className="flex items-center space-x-2">
