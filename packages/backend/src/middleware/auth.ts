@@ -85,8 +85,8 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
           
           res.cookie('accessToken', newAccessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production' && req.secure,
+            sameSite: 'lax',
             maxAge: 15 * 60 * 1000 // 15 minutes
           });
 
