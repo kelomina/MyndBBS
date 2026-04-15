@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { defaultLocale, locales } from './i18n/config';
+import { getAccessRedirectPath } from './lib/routingGuard';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -205,9 +206,10 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    if (userRoleLevel < requiredRoleLevel) {
+    const redirectPath = getAccessRedirectPath(requiredRoleLevel, userRoleLevel);
+    if (redirectPath) {
       const url = request.nextUrl.clone();
-      url.pathname = token ? '/403' : '/login';
+      url.pathname = redirectPath;
 
       // Preserve locale cookie on redirect
       const redirectResponse = NextResponse.redirect(url);
