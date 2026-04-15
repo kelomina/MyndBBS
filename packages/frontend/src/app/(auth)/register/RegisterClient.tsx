@@ -6,15 +6,15 @@ import Link from 'next/link';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
 import { TwoFactorSetup } from '../../../components/TwoFactorSetup';
 import { isValidPassword } from '@myndbbs/shared';
+import type { Dictionary } from '../../../types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 /**
  * Callers: []
  * Callees: [useState, preventDefault, setError, isValidPassword, setLoading, fetch, stringify, json, setRequires2FA, setCaptchaId, setEmail, setUsername, setPassword]
  * Description: Handles the register client logic for the application.
  * Keywords: registerclient, register, client, auto-annotated
  */
-export function RegisterClient({ dict }: { dict: any }) {
+export function RegisterClient({ dict }: { dict: Dictionary }) {
   
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -69,7 +69,7 @@ export function RegisterClient({ dict }: { dict: any }) {
         setError(dict.apiErrors?.[data.error] || data.error || dict.auth.registrationFailed);
         setCaptchaId(null); // Force re-verification on fail
       }
-    } catch (err) {
+    } catch {
       setError(dict.auth.networkError);
     } finally {
       setLoading(false);

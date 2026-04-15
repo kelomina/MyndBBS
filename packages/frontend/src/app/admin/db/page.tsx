@@ -63,7 +63,8 @@ export default function DatabaseConfigPage() {
       setSuccess(dict.admin?.dbSaveSuccess || "Database configuration saved. The server is restarting to apply changes.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save database config';
-      setError((dict.apiErrors as any)?.[msg] || msg);
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      setError(apiErrors?.[msg] || msg);
     } finally {
       setSaving(false);
     }

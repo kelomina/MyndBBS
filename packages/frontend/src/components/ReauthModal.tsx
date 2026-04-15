@@ -22,7 +22,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [availableMethods, setAvailableMethods] = useState<{ hasTotp: boolean, hasPasskey: boolean, hasPassword: boolean }>({ hasTotp: false, hasPasskey: false, hasPassword: true });
-  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
+  const { executePasskeyFlow, passkeyError, setPasskeyError } = usePasskey();
 
   useEffect(() => {
     if (isOpen) {
@@ -44,7 +44,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
         })
         .catch(() => {});
     }
-  }, [isOpen]);
+  }, [isOpen, setPasskeyError]);
 
   if (!isOpen) return null;
 
@@ -95,7 +95,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
         const data = await res.json();
         setError(dict.apiErrors?.[data.error] || data.error || dict.reauth?.verificationFailed || 'Verification failed');
       }
-    } catch (err) {
+    } catch {
       setError(dict.reauth?.networkError || 'Network error');
     } finally {
       if (method !== 'passkey') {

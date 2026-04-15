@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Settings, LogOut } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 import { useTranslation } from '../../../components/TranslationProvider';
 
@@ -15,10 +14,9 @@ import { Mail } from 'lucide-react';
  * Keywords: ownersettingsbutton, owner, settings, button, auto-annotated
  */
 export function OwnerSettingsButton({ username }: { username: string }) {
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ username: string } | null>(null);
   
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const router = useRouter();
   const dict = useTranslation();
 
   useEffect(() => {
@@ -37,8 +35,7 @@ export function OwnerSettingsButton({ username }: { username: string }) {
           const data = await res.json();
           setCurrentUser(data.user);
         }
-      } catch (err) {
-        // ignore
+      } catch {
       }
     };
     checkOwner();

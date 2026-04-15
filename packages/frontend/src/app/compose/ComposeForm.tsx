@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useCategories } from '../../lib/hooks';
 import { useRouter } from 'next/navigation';
 import { PostEditor } from '../../components/PostEditor';
 import { SliderCaptcha } from '../../components/SliderCaptcha';
-import { fetcher } from '../../lib/api/fetcher';
-import { useTranslation } from '../../components/TranslationProvider';
 import { useToast } from '../../components/ui/Toast';
+import type { Dictionary } from '../../types';
 
 /**
  * Callers: []
@@ -15,7 +14,7 @@ import { useToast } from '../../components/ui/Toast';
  * Description: Handles the compose form logic for the application.
  * Keywords: composeform, compose, form, auto-annotated
  */
-export function ComposeForm({ dict }: { dict: any }) {
+export function ComposeForm({ dict }: { dict: Dictionary }) {
   const { toast } = useToast();
   const router = useRouter();
   const [title, setTitle] = useState('');
@@ -63,9 +62,11 @@ export function ComposeForm({ dict }: { dict: any }) {
       } else {
         router.push(`/p/${data.id}`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast(err.message || dict.apiErrors?.ERR_FAILED_TO_PUBLISH || 'Failed to publish post', 'error');
+      const msg = err instanceof Error ? err.message : 'Failed to publish post';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg || apiErrors?.ERR_FAILED_TO_PUBLISH || 'Failed to publish post', 'error');
     } finally {
       setLoading(false);
     }

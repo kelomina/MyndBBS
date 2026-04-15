@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Mail, Lock } from 'lucide-react';
 import { useTranslation } from './TranslationProvider';
 import { isValidPassword } from '@myndbbs/shared';
@@ -24,7 +24,7 @@ export function ProfileSettings() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showReauth, setShowReauth] = useState(false);
-  const [pendingUpdate, setPendingUpdate] = useState<any>(null);
+  const [pendingUpdate, setPendingUpdate] = useState<{ email?: string; username?: string; password?: string } | null>(null);
 
   /**
      * Callers: []
@@ -32,7 +32,7 @@ export function ProfileSettings() {
      * Description: Handles the fetch profile logic for the application.
      * Keywords: fetchprofile, fetch, profile, auto-annotated
      */
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
     try {
       const data = await fetcher('/api/v1/user/profile');
       if (data.user) {
@@ -48,11 +48,11 @@ export function ProfileSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dict]);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    void fetchProfile();
+  }, [fetchProfile]);
 
   /**
      * Callers: []
@@ -60,7 +60,7 @@ export function ProfileSettings() {
      * Description: Handles the execute update logic for the application.
      * Keywords: executeupdate, execute, update, auto-annotated
      */
-    const executeUpdate = async (updateData: any) => {
+    const executeUpdate = async (updateData: { email?: string; username?: string; password?: string }) => {
       setSaving(true);
       const res = await fetch('/api/v1/user/profile', {
         method: 'PUT',

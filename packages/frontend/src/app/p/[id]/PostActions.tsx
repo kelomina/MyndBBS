@@ -27,6 +27,7 @@ export function PostActions({
   const { toast } = useToast();
   const dict = useTranslation();
   const [upvotes, setUpvotes] = useState(initialUpvotes);
+  const [bookmarks, setBookmarks] = useState(initialBookmarks);
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [hasBookmarked, setHasBookmarked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -110,6 +111,7 @@ export function PostActions({
       if (res.ok) {
         const data = await res.json();
         setHasBookmarked(data.bookmarked);
+        setBookmarks((prev) => (data.bookmarked ? prev + 1 : Math.max(0, prev - 1)));
       } else {
         if (res.status === 401) toast(dict.auth?.pleaseLogin || 'Please login to bookmark.', 'error');
       }
@@ -194,9 +196,10 @@ export function PostActions({
         <button 
           onClick={handleBookmark}
           disabled={loading}
-          className={`transition-colors hover:text-primary ${hasBookmarked ? 'text-primary fill-primary' : ''}`}
+          className={`flex items-center space-x-2 transition-colors hover:text-primary ${hasBookmarked ? 'text-primary fill-primary' : ''}`}
         >
           <Bookmark className="h-5 w-5" />
+          <span className="text-sm font-medium">{bookmarks}</span>
         </button>
         <button 
           onClick={handleShare}

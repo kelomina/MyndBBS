@@ -5,22 +5,22 @@ import Link from 'next/link';
 import { Fingerprint } from 'lucide-react';
 import { usePasskey } from '../../../lib/hooks/usePasskey';
 import { TwoFactorLogin } from '../../../components/TwoFactorLogin';
+import type { Dictionary } from '../../../types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 /**
  * Callers: []
  * Callees: [useState, usePasskey, preventDefault, setError, setLoading, fetch, stringify, json, setRequires2FA, setTwoFactorMethods, executePasskeyFlow, setEmail, setPassword]
  * Description: Handles the login client logic for the application.
  * Keywords: loginclient, login, client, auto-annotated
  */
-export function LoginClient({ dict }: { dict: any }) {
+export function LoginClient({ dict }: { dict: Dictionary }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorMethods, setTwoFactorMethods] = useState<string[]>([]);
-  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
+  const { executePasskeyFlow, passkeyLoading, passkeyError } = usePasskey();
 
   /**
      * Callers: []

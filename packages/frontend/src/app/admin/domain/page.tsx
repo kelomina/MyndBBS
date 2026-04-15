@@ -55,7 +55,8 @@ export default function DomainConfigPage() {
       setSuccess('配置已保存，服务正在重启以应用变更。');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save config';
-      setError((dict.apiErrors as any)?.[msg] || msg);
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      setError(apiErrors?.[msg] || msg);
     } finally {
       setSaving(false);
     }
@@ -140,4 +141,3 @@ export default function DomainConfigPage() {
     </div>
   );
 }
-

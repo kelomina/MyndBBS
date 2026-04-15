@@ -65,8 +65,7 @@ function normalizePathname(pathname: string): string {
  */
 function getLocale(request: NextRequest): string {
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (cookieLocale && locales.includes(cookieLocale as any)) {
+  if (cookieLocale && locales.includes(cookieLocale as (typeof locales)[number])) {
     return cookieLocale;
   }
 
@@ -80,7 +79,9 @@ function getLocale(request: NextRequest): string {
 
 
 
-let cachedWhitelist: any[] | null = null;
+type WhitelistRoute = { path: string; isPrefix: boolean; minRole?: string | null };
+
+let cachedWhitelist: WhitelistRoute[] | null = null;
 let lastFetchTime = 0;
 
 const ROLE_LEVELS: Record<string, number> = {
@@ -96,7 +97,7 @@ const ROLE_LEVELS: Record<string, number> = {
  * Description: Handles the get whitelist logic for the application.
  * Keywords: getwhitelist, get, whitelist, auto-annotated
  */
-async function getWhitelist() {
+async function getWhitelist(): Promise<WhitelistRoute[]> {
   const now = Date.now();
   if (cachedWhitelist && now - lastFetchTime < 30000) {
     return cachedWhitelist;
@@ -107,7 +108,7 @@ async function getWhitelist() {
       next: { revalidate: 30 }
     });
     if (res.ok) {
-      const data = await res.json();
+      const data = (await res.json()) as WhitelistRoute[];
       // Sort: exact matches first, then longest prefixes
 /**
  * Callers: [getWhitelist]
@@ -115,7 +116,7 @@ async function getWhitelist() {
  * Description: An anonymous sorting callback to order whitelist paths.
  * Keywords: proxy, sort, whitelist, paths, anonymous
  */
-      data.sort((a: any, b: any) => {
+      data.sort((a, b) => {
         if (!a.isPrefix && b.isPrefix) return -1;
         if (a.isPrefix && !b.isPrefix) return 1;
         return b.path.length - a.path.length;
@@ -159,7 +160,7 @@ export async function middleware(request: NextRequest) {
 
   // 2. Fetch dynamic whitelist & find matching route
   const whitelist = (await getWhitelist()) || [];
-  let matchedRoute: any = null;
+  let matchedRoute: WhitelistRoute | null = null;
 
   for (const route of whitelist) {
     const routePath = normalizePathname(route.path);
@@ -201,8 +202,7 @@ export async function middleware(request: NextRequest) {
         const parsed = JSON.parse(decoded);
         
         userRoleLevel = ROLE_LEVELS[parsed.role] || 0;
-      } catch (e) {
-        // ignore
+      } catch {
       }
     }
 
