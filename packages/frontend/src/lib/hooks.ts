@@ -8,7 +8,7 @@ import { fetcher } from './api/fetcher';
  * Keywords: usecurrentuser, use, current, user, auto-annotated
  */
 export function useCurrentUser() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: string; username: string; level: number; role?: string; _count?: { passkeys?: number } } | null>(null);
   const [loading, setLoading] = useState(true);
 
 /**
@@ -28,7 +28,7 @@ export function useCurrentUser() {
       try {
         const data = await fetcher('/api/v1/user/profile');
         setUser(data.user);
-      } catch (err) {
+      } catch {
         // Not logged in or error
       } finally {
         setLoading(false);

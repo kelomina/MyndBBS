@@ -8,6 +8,7 @@ import { CommentItem } from './CommentItem';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
 import { useToast } from '../../../components/ui/Toast';
 import { fetcher } from '../../../lib/api/fetcher';
+import type { Dictionary, PostComment, CommentNode } from '../../../types';
 
 
 /**
@@ -16,10 +17,10 @@ import { fetcher } from '../../../lib/api/fetcher';
  * Description: Handles the comments section logic for the application.
  * Keywords: commentssection, comments, section, auto-annotated
  */
-export function CommentsSection({ postId, dict, initialCount }: { postId: string, dict: any, initialCount: number }) {
+export function CommentsSection({ postId, dict, initialCount }: { postId: string; dict: Dictionary; initialCount: number }) {
   const { toast } = useToast();
   const router = useRouter();
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<PostComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(initialCount);
@@ -37,8 +38,8 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       const fetchComments = async () => {
       try {
         const data = await fetcher(`/api/posts/${postId}/comments`);
-        setComments(data);
-        setCount(data.length);
+        setComments(data as PostComment[]);
+        setCount((data as PostComment[]).length);
       } catch (err) {
         console.error('Failed to load comments', err);
       }
@@ -87,9 +88,11 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       setNewComment('');
       setReplyTo(null);
       router.refresh();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast(err.message || dict.apiErrors?.ERR_FAILED_TO_POST_COMMENT || 'Failed to post comment', 'error');
+      const msg = err instanceof Error ? err.message : 'Failed to post comment';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg || apiErrors?.ERR_FAILED_TO_POST_COMMENT || 'Failed to post comment', 'error');
     } finally {
       setLoading(false);
     }
@@ -111,8 +114,8 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   };
 
   const commentTree = useMemo(() => {
-    const map = new Map<string, any>();
-    const roots: any[] = [];
+    const map = new Map<string, CommentNode>();
+    const roots: CommentNode[] = [];
 
     comments.forEach(c => {
       map.set(c.id, { ...c, children: [] });
@@ -141,9 +144,11 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     try {
       await fetcher(`/api/posts/comments/${commentId}`, { method: 'DELETE' });
       setComments(comments.map(c => c.id === commentId ? { ...c, deletedAt: new Date().toISOString() } : c));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast(err.message || dict.apiErrors?.ERR_FAILED_TO_DELETE_COMMENT || 'Failed to delete comment', 'error');
+      const msg = err instanceof Error ? err.message : 'Failed to delete comment';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg || apiErrors?.ERR_FAILED_TO_DELETE_COMMENT || 'Failed to delete comment', 'error');
     }
   };
 
@@ -153,7 +158,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
      * Description: Handles the render comment node logic for the application.
      * Keywords: rendercommentnode, render, comment, node, auto-annotated
      */
-    const renderCommentNode = (node: any, depth = 0) => (
+    const renderCommentNode = (node: CommentNode, depth = 0) => (
     <div key={node.id} className={`${depth > 0 ? 'ml-8 mt-4 border-l-2 border-border pl-4' : 'mt-4'}`}>
       <CommentItem 
         comment={node} 
@@ -164,7 +169,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       />
       {node.children && node.children.length > 0 && (
         <div className="space-y-4">
-          {node.children.map((child: any) => renderCommentNode(child, depth + 1))}
+          {node.children.map((child) => renderCommentNode(child, depth + 1))}
         </div>
       )}
     </div>

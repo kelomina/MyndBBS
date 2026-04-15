@@ -1,9 +1,10 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Shield, UserPlus, Check, X, ArrowLeft } from 'lucide-react';
+import { UserPlus, Check, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from '../../components/TranslationProvider';
 import { useToast } from '../../components/ui/Toast';
+import type { Friendship } from '../../types';
 
 /**
  * Callers: []
@@ -13,18 +14,10 @@ import { useToast } from '../../components/ui/Toast';
  */
 export default function FriendsPage() {
   const dict = useTranslation();
-  const [friendships, setFriendships] = useState<any[]>([]);
+  const [friendships, setFriendships] = useState<Friendship[]>([]);
   const [targetUsername, setTargetUsername] = useState('');
   const [myId, setMyId] = useState('');
   const { toast } = useToast();
-
-  useEffect(() => {
-    fetch('/api/v1/user/profile', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => setMyId(d.user.id))
-      .catch(e => console.error(e));
-    loadFriends();
-  }, []);
 
   /**
      * Callers: []
@@ -43,6 +36,17 @@ export default function FriendsPage() {
       console.error(e);
     }
   };
+
+  useEffect(() => {
+    fetch('/api/v1/user/profile', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setMyId(d.user.id))
+      .catch(e => console.error(e));
+    const id = setTimeout(() => {
+      void loadFriends();
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   /**
      * Callers: []
@@ -72,7 +76,7 @@ export default function FriendsPage() {
         const err = await reqRes.json();
         toast(err.error || dict.messages?.failedToSendRequest || 'Failed to send request', 'error');
       }
-    } catch (e) { 
+    } catch { 
       toast(dict.messages?.errorSendingRequest || 'Error sending request', 'error'); 
     }
   };

@@ -19,6 +19,7 @@ import {
   restoreComment,
   hardDeleteComment,
 } from '../../../lib/api/admin';
+import type { RecyclePost, RecycleComment } from '../../../types';
 
 /**
  * Callers: []
@@ -29,8 +30,8 @@ import {
 export default function RecycleBinPage() {
   const { toast } = useToast();
   const dict = useTranslation();
-  const [posts, setPosts] = useState<any[]>([]);
-  const [comments, setComments] = useState<any[]>([]);
+  const [posts, setPosts] = useState<RecyclePost[]>([]);
+  const [comments, setComments] = useState<RecycleComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'posts' | 'comments'>('posts');

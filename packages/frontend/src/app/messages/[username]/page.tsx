@@ -16,21 +16,8 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { useToast } from '../../../components/ui/Toast';
 import { Shield, Loader2, Send, Lock, ArrowLeft, Flame, Trash2, Settings, Clock, Trash, Image as ImageIcon, X, UserPlus, Check, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-
-interface Message {
-  id: string;
-  senderId: string;
-  receiverId: string;
-  ephemeralPublicKey: string;
-  encryptedContent: string;
-  senderEncryptedContent?: string;
-  createdAt: string;
-  isRead: boolean;
-  isSystem: boolean;
-  plaintext?: string;
-  sender: { username: string };
-  receiver: { username: string };
-}
+import Image from 'next/image';
+import type { ChatMessage, Dictionary } from '../../../types';
 
 
 /**
@@ -39,11 +26,13 @@ interface Message {
  * Description: Handles the encrypted image logic for the application.
  * Keywords: encryptedimage, encrypted, image, auto-annotated
  */
-const EncryptedImage = ({ payload, onPreview, dict }: { payload: string, onPreview: (url: string) => void, dict: any }) => {
+const EncryptedImage = ({ payload, onPreview, dict }: { payload: string; onPreview: (url: string) => void; dict: Dictionary }) => {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   
   useEffect(() => {
+    let cancelled = false;
+    let url: string | null = null;
     /**
        * Callers: []
        * Callees: [parse, fetch, arrayBuffer, from, atob, charCodeAt, importKey, decrypt, setBlobUrl, createObjectURL, error]
@@ -79,39 +68,47 @@ const EncryptedImage = ({ payload, onPreview, dict }: { payload: string, onPrevi
         const decryptedBuffer = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, aesKey, encryptedBuffer);
         
         const blob = new Blob([decryptedBuffer], { type: data.mime });
-        setBlobUrl(URL.createObjectURL(blob));
+        url = URL.createObjectURL(blob);
+        if (cancelled) return;
+        setBlobUrl(url);
       } catch (e) {
         console.error('Failed to decrypt image', e);
       }
     };
     decryptImage();
-    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
   }, [payload]);
 
-  let pressTimer: any;
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
      * Callers: []
      * Callees: [setTimeout, setShowMenu]
      * Description: Handles the handle touch start logic for the application.
      * Keywords: handletouchstart, handle, touch, start, auto-annotated
      */
-    const handleTouchStart = () => { pressTimer = setTimeout(() => setShowMenu(true), 500); };
+    const handleTouchStart = () => { pressTimerRef.current = setTimeout(() => setShowMenu(true), 500); };
   /**
      * Callers: []
      * Callees: [clearTimeout]
      * Description: Handles the handle touch end logic for the application.
      * Keywords: handletouchend, handle, touch, end, auto-annotated
      */
-    const handleTouchEnd = () => { clearTimeout(pressTimer); };
+    const handleTouchEnd = () => { if (pressTimerRef.current) clearTimeout(pressTimerRef.current); };
 
   if (!blobUrl) return <Loader2 className="animate-spin h-5 w-5" />;
   if (blobUrl === 'error') return <div className="flex flex-col items-center gap-1 p-4 bg-destructive/10 text-destructive rounded text-xs border border-destructive/20"><AlertCircle className="h-5 w-5" /><span>{dict.messages?.imageLoadError || "Failed to load image"}</span></div>;
 
   return (
     <div className="relative">
-      <img 
-        src={blobUrl} 
-        alt="Encrypted" 
+      <Image
+        src={blobUrl}
+        alt="Encrypted"
+        width={200}
+        height={200}
+        unoptimized
         className="max-w-[200px] rounded cursor-pointer"
         onClick={() => onPreview(blobUrl)}
         onContextMenu={(e) => { e.preventDefault(); setShowMenu(true); }}
@@ -143,7 +140,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const [error, setError] = useState('');
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
@@ -169,7 +166,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const [theirPublicKey, setTheirPublicKey] = useState<CryptoKey | null>(null);
   const [targetUserId, setTargetUserId] = useState('');
   const [myUserId, setMyUserId] = useState('');
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string; level: number; role?: string } | null>(null);
   const [passwordPrompt, setPasswordPrompt] = useState<{ isOpen: boolean; message: string; resolve: (value: string | null) => void } | null>(null);
   
   /**
@@ -185,17 +182,105 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   };
 
   useEffect(() => {
-    params.then(p => {
+    let cancelled = false;
+    const run = async () => {
+      const p = await params;
+      if (cancelled) return;
       setUsername(p.username);
-      loadInitialData(p.username);
-    });
+      try {
+        const [profileRes, targetKeyRes] = await Promise.all([
+          fetch('/api/v1/user/profile', { credentials: 'include' }),
+          fetch(`/api/v1/messages/keys/${p.username}`, { credentials: 'include' })
+        ]);
+
+        if (cancelled) return;
+
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (cancelled) return;
+          setMyUserId(profileData.user.id);
+          setCurrentUser(profileData.user);
+        }
+
+        if (targetKeyRes.ok) {
+          const targetData = await targetKeyRes.json();
+          if (cancelled) return;
+          setTargetUserId(targetData.userId);
+          const importedTheirKey = await importPublicKeyFromBase64(targetData.publicKey);
+          if (cancelled) return;
+          setTheirPublicKey(importedTheirKey);
+
+          const inboxRes = await fetch(`/api/v1/messages/inbox?withUserId=${targetData.userId}`, { credentials: 'include' });
+          if (inboxRes.ok) {
+            const inboxData = await inboxRes.json();
+            if (cancelled) return;
+            setMessages(inboxData.messages);
+            requestAnimationFrame(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            });
+          }
+
+          const settingsRes = await fetch(`/api/v1/messages/settings/${targetData.userId}`, { credentials: 'include' });
+          if (settingsRes.ok) {
+            const settingsData = await settingsRes.json();
+            if (cancelled) return;
+            setAllowTwoSidedDelete(settingsData.allowTwoSidedDelete);
+          }
+        } else {
+          setError(`User ${p.username} has not initialized secure messaging.`);
+        }
+      } catch {
+        setError('Failed to load chat data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
   }, [params]);
 
   useEffect(() => {
-    if (unlocked && myPrivateKey && theirPublicKey && messages.length > 0) {
-      decryptAllMessages();
-    }
-  }, [unlocked, myPrivateKey, theirPublicKey, messages]);
+    if (!unlocked || !myPrivateKey || !theirPublicKey || messages.length === 0) return;
+    let cancelled = false;
+    const run = async () => {
+      let needsUpdate = false;
+      const updatedMessages = await Promise.all(messages.map(async (msg) => {
+        if (msg.plaintext) return msg;
+        needsUpdate = true;
+        if (msg.isSystem) return { ...msg, plaintext: msg.encryptedContent };
+        try {
+          if (msg.senderId === myUserId) {
+            if (msg.senderEncryptedContent && myPrivateKey) {
+              const ephemeralPublicKey = await importPublicKeyFromBase64(msg.ephemeralPublicKey);
+              const decrypted = await decryptMessage(msg.senderEncryptedContent, myPrivateKey, ephemeralPublicKey);
+              return { ...msg, plaintext: decrypted };
+            }
+            return { ...msg, plaintext: '[阅后即焚消息 / Burn-after-reading message]' };
+          }
+          const ephemeralPublicKey = await importPublicKeyFromBase64(msg.ephemeralPublicKey);
+          const decrypted = await decryptMessage(msg.encryptedContent, myPrivateKey, ephemeralPublicKey);
+          return { ...msg, plaintext: decrypted };
+        } catch (err) {
+          console.error('Failed to decrypt message', msg.id, err);
+          return { ...msg, plaintext: '[Decryption Failed]' };
+        }
+      }));
+
+      if (cancelled) return;
+      if (needsUpdate) {
+        setMessages(updatedMessages);
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        });
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, myPrivateKey, myUserId, theirPublicKey, unlocked]);
 
   /**
      * Callers: []
@@ -205,55 +290,6 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
      */
     const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  /**
-     * Callers: []
-     * Callees: [all, fetch, json, setMyUserId, setCurrentUser, setTargetUserId, importPublicKeyFromBase64, setTheirPublicKey, setMessages, scrollToBottom, setAllowTwoSidedDelete, setError, setLoading]
-     * Description: Handles the load initial data logic for the application.
-     * Keywords: loadinitialdata, load, initial, data, auto-annotated
-     */
-    const loadInitialData = async (targetUsername: string) => {
-    try {
-      const [profileRes, targetKeyRes] = await Promise.all([
-        fetch('/api/v1/user/profile', { credentials: 'include' }),
-        fetch(`/api/v1/messages/keys/${targetUsername}`, { credentials: 'include' })
-      ]);
-
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        setMyUserId(profileData.user.id);
-      setCurrentUser(profileData.user);
-      }
-
-      if (targetKeyRes.ok) {
-        const targetData = await targetKeyRes.json();
-        setTargetUserId(targetData.userId);
-        const importedTheirKey = await importPublicKeyFromBase64(targetData.publicKey);
-        setTheirPublicKey(importedTheirKey);
-
-        // Load messages history
-        const inboxRes = await fetch(`/api/v1/messages/inbox?withUserId=${targetData.userId}`, { credentials: 'include' });
-        if (inboxRes.ok) {
-          const inboxData = await inboxRes.json();
-          setMessages(inboxData.messages);
-          scrollToBottom();
-        }
-
-        // Load conversation settings
-        const settingsRes = await fetch(`/api/v1/messages/settings/${targetData.userId}`, { credentials: 'include' });
-        if (settingsRes.ok) {
-          const settingsData = await settingsRes.json();
-          setAllowTwoSidedDelete(settingsData.allowTwoSidedDelete);
-        }
-      } else {
-        setError(`User ${targetUsername} has not initialized secure messaging.`);
-      }
-    } catch (err) {
-      setError('Failed to load chat data');
-    } finally {
-      setLoading(false);
-    }
   };
 
   /**
@@ -286,7 +322,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
       const authOptions = optionsData;
       if (passkeysData.passkeys && passkeysData.passkeys.length > 0) {
-        authOptions.allowCredentials = passkeysData.passkeys.map((pk: any) => ({
+        authOptions.allowCredentials = (passkeysData.passkeys as { id: Uint8Array }[]).map((pk) => ({
           id: pk.id,
           type: 'public-key',
           transports: ['internal', 'usb', 'ble', 'nfc']
@@ -302,12 +338,12 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       let authResponse;
       try {
         authResponse = await startAuthentication({ optionsJSON: authOptions });
-      } catch (err: any) {
-        throw new Error(err.message || 'Authentication failed or cancelled.');
+      } catch (err: unknown) {
+        throw new Error(err instanceof Error ? err.message : 'Authentication failed or cancelled.');
       }
 
       // Extract PRF
-      // @ts-ignore
+      // @ts-expect-error prf typing
       const prfResults = authResponse.clientExtensionResults?.prf?.results?.first;
       
       let aesKey: CryptoKey;
@@ -349,51 +385,12 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
       setMyPrivateKey(privateKey);
       setUnlocked(true);
-    } catch (err: any) {
-      setError(err.message || 'Failed to unlock messages');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to unlock messages');
     } finally {
       setUnlocking(false);
     }
   };
-
-  /**
-     * Callers: []
-     * Callees: [all, map, importPublicKeyFromBase64, decryptMessage, error, setMessages, scrollToBottom]
-     * Description: Handles the decrypt all messages logic for the application.
-     * Keywords: decryptallmessages, decrypt, all, messages, auto-annotated
-     */
-    const decryptAllMessages = async () => {
-    let needsUpdate = false;
-    const updatedMessages = await Promise.all(messages.map(async (msg) => {
-      if (msg.plaintext) return msg; // Already decrypted
-      needsUpdate = true;
-      if (msg.isSystem) return { ...msg, plaintext: msg.encryptedContent };
-      try {
-        if (msg.senderId === myUserId) {
-          if (msg.senderEncryptedContent && myPrivateKey) {
-             const ephemeralPublicKey = await importPublicKeyFromBase64(msg.ephemeralPublicKey);
-             const decrypted = await decryptMessage(msg.senderEncryptedContent, myPrivateKey, ephemeralPublicKey);
-             return { ...msg, plaintext: decrypted };
-          }
-          return { ...msg, plaintext: '[阅后即焚消息 / Burn-after-reading message]' };
-        } else {
-          // We are the receiver. We use our static private key and the sender's ephemeral public key.
-          const ephemeralPublicKey = await importPublicKeyFromBase64(msg.ephemeralPublicKey);
-          const decrypted = await decryptMessage(msg.encryptedContent, myPrivateKey!, ephemeralPublicKey);
-          return { ...msg, plaintext: decrypted };
-        }
-      } catch (err) {
-        console.error('Failed to decrypt message', msg.id, err);
-        return { ...msg, plaintext: '[Decryption Failed]' };
-      }
-    }));
-    
-    if (needsUpdate) {
-      setMessages(updatedMessages);
-      scrollToBottom();
-    }
-  };
-
 
   /**
      * Callers: []
@@ -509,8 +506,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
         }
         throw new Error(err.error || 'Failed to send image');
       }
-    } catch (err: any) {
-      setError(err.message || 'Error sending image');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error sending image');
     } finally {
       setSending(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -578,8 +575,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
         }
         throw new Error(err.error || 'Failed to send message');
       }
-    } catch (err: any) {
-      setError(err.message || dict.messages.sendError);
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : '') || dict.messages.sendError);
     } finally {
       setSending(false);
       setIsCoolingDown(true);
@@ -694,7 +691,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     <div className="mx-auto max-w-3xl px-4 py-8 h-[calc(100vh-4rem)] flex flex-col">
       {previewImage && (
         <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setPreviewImage(null)}>
-          <img src={previewImage} className="max-w-full max-h-full object-contain animate-in zoom-in-95 duration-200" alt="Preview" />
+          <Image src={previewImage} width={1600} height={900} unoptimized className="max-w-full max-h-full object-contain animate-in zoom-in-95 duration-200" alt="Preview" />
           <button className="absolute top-4 right-4 text-white p-2" onClick={() => setPreviewImage(null)}>
             <X className="w-6 h-6" />
           </button>
@@ -951,4 +948,3 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     </div>
   );
 }
-

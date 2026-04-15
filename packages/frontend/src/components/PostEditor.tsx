@@ -1,7 +1,8 @@
 import { Image as ImageIcon, Link as LinkIcon, List, Bold, Italic } from 'lucide-react';
+import type { Dictionary } from '../types';
 
 interface PostEditorProps {
-  dict: any;
+  dict: Dictionary;
   title: string;
   setTitle: (t: string) => void;
   content: string;
@@ -27,6 +28,7 @@ export function PostEditor({
   setCategoryId,
   categories
 }: PostEditorProps) {
+  const common = dict.common as unknown as Record<string, string | undefined>;
   return (
     <div className="space-y-6">
       <div className="flex gap-4">
@@ -38,7 +40,7 @@ export function PostEditor({
           <option value="">{dict.post?.selectCategory || 'Select Category'}</option>
           {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>
-              {dict.common?.[`category${cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}`] || cat.name}
+              {common[`category${cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}`] || cat.name}
             </option>
           ))}
         </select>

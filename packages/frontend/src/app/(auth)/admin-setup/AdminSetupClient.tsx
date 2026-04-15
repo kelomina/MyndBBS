@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { startRegistration } from '@simplewebauthn/browser';
+import Image from 'next/image';
 
 import { useTranslation } from '../../../components/TranslationProvider';
 import { fetcher } from '../../../lib/api/fetcher';
@@ -49,12 +50,13 @@ export function AdminSetupClient() {
       // Passkey verified! Now we must complete TOTP to finish setup.
       setStep('totp');
       loadTotp(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      if (err.name === 'NotAllowedError') {
+      const name = err instanceof Error ? err.name : '';
+      if (name === 'NotAllowedError') {
         setError(dict.settings?.passkeyNotSupported || 'Passkey is not supported or canceled on this device.');
       } else {
-        setError(err.message || dict.settings?.failedLoadProfile || 'Failed to setup Passkey');
+        setError((err instanceof Error ? err.message : '') || dict.settings?.failedLoadProfile || 'Failed to setup Passkey');
       }
     } finally {
       setLoading(false);
@@ -87,8 +89,8 @@ export function AdminSetupClient() {
       const endpoint = isAuthContext ? '/api/v1/auth/totp/generate' : '/api/v1/user/totp/generate';
       const data = await fetcher(endpoint, { method: 'POST' });
       setTotpSetup(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load TOTP');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create admin user');
     } finally {
       setLoading(false);
     }
@@ -116,8 +118,8 @@ export function AdminSetupClient() {
       });
       setStep('done');
       setTimeout(() => router.push('/admin'), 1500);
-    } catch (err: any) {
-      setError(err.message || dict.auth?.invalidTotp || 'Invalid code');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : '') || dict.auth?.invalidTotp || 'Invalid code');
     } finally {
       setLoading(false);
     }
@@ -181,7 +183,7 @@ export function AdminSetupClient() {
               <p className="text-sm text-muted mt-1">{dict.auth?.step2Desc || 'Scan the QR code with Google Authenticator or Authy.'}</p>
             </div>
             <div className="flex justify-center bg-white p-4 rounded-lg">
-              <img src={totpSetup.qrCodeUrl} alt="TOTP QR Code" className="w-48 h-48" />
+              <Image src={totpSetup.qrCodeUrl} alt="TOTP QR Code" width={192} height={192} unoptimized />
             </div>
             <div className="text-center mt-2">
               <p className="text-xs text-muted font-mono">{totpSetup.secret}</p>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Monitor, Trash2 } from 'lucide-react';
 import { useTranslation } from './TranslationProvider';
 
@@ -17,17 +17,13 @@ export function SessionManagement() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    fetchSessions();
-  }, []);
-
   /**
      * Callers: []
      * Callees: [fetch, json, setSessions, setError, setLoading]
      * Description: Handles the fetch sessions logic for the application.
      * Keywords: fetchsessions, fetch, sessions, auto-annotated
      */
-    const fetchSessions = async () => {
+    const fetchSessions = useCallback(async () => {
     try {
       const res = await fetch('/api/v1/user/sessions', { credentials: 'include' });
       if (res.ok) {
@@ -36,12 +32,16 @@ export function SessionManagement() {
       } else {
         throw new Error('Failed to fetch sessions');
       }
-    } catch (err) {
+    } catch {
       setError(dict.settings.failedFetchSessions);
     } finally {
       setLoading(false);
     }
-  };
+  }, [dict]);
+
+  useEffect(() => {
+    void fetchSessions();
+  }, [fetchSessions]);
 
   /**
      * Callers: []

@@ -23,7 +23,7 @@ export function SecuritySettings() {
   const [showTotpSetup, setShowTotpSetup] = useState(false);
   const [showReauth, setShowReauth] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
-  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
+  const { executePasskeyFlow, passkeyError, setPasskeyError } = usePasskey();
 
   useEffect(() => {
     fetchSecurityData();
@@ -74,7 +74,7 @@ export function SecuritySettings() {
         setPendingAction(() => action);
         setShowReauth(true);
       }
-    } catch (err) {
+    } catch {
       setError('Network error');
     }
   };
