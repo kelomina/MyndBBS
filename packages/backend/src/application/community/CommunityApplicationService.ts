@@ -5,13 +5,18 @@ import { IEngagementRepository } from '../../domain/community/IEngagementReposit
 import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { Category } from '../../domain/community/Category';
-import { Post, PostStatus } from '../../domain/community/Post';
+import { Post } from '../../domain/community/Post';
+import { PostStatus } from '@myndbbs/shared';
 import { Comment } from '../../domain/community/Comment';
 import { PostUpvote, PostBookmark } from '../../domain/community/PostEngagement';
 import { CommentUpvote, CommentBookmark } from '../../domain/community/CommentEngagement';
 import { randomUUID as uuidv4 } from 'crypto';
-import redis from '../../lib/redis';
 import { IModerationPolicy } from '../../domain/community/IModerationPolicy';
+import { IAbilityCache } from '../../domain/identity/IAbilityCache';
+
+import { ICaptchaValidator } from '../../domain/community/ICaptchaValidator';
+import { IEventBus } from '../../domain/shared/events/IEventBus';
+import { PostRepliedEvent, CommentRepliedEvent } from '../../domain/shared/events/DomainEvents';
 
 /**
  * Callers: [AdminController, PostController]
@@ -27,7 +32,10 @@ export class CommunityApplicationService {
     private engagementRepository: IEngagementRepository,
     private userRepository: IUserRepository,
     private roleRepository: IRoleRepository,
-    private moderationPolicy: IModerationPolicy
+    private moderationPolicy: IModerationPolicy,
+    private abilityCache: IAbilityCache,
+    private captchaValidator: ICaptchaValidator,
+    private eventBus: IEventBus
   ) {}
 
   // --- Category Management ---
@@ -76,7 +84,7 @@ export class CommunityApplicationService {
 
     category.addModerator(userId);
     await this.categoryRepository.save(category);
-    await redis.del(`ability_rules:user:${userId}`);
+    await this.abilityCache.invalidateUserRules(userId);
 
     return { categoryId, userId };
   }
@@ -87,7 +95,7 @@ export class CommunityApplicationService {
 
     category.removeModerator(userId);
     await this.categoryRepository.save(category);
-    await redis.del(`ability_rules:user:${userId}`);
+    await this.abilityCache.invalidateUserRules(userId);
   }
   public async deleteCategory(id: string): Promise<void> {
     const category = await this.categoryRepository.findById(id);
@@ -97,7 +105,10 @@ export class CommunityApplicationService {
     await this.categoryRepository.delete(id);
   }
 
-  public async createPost(title: string, content: string, categoryId: string, authorId: string, userLevel: number): Promise<{ postId: string; isModerated: boolean }> {
+  public async createPost(title: string, content: string, categoryId: string, authorId: string, userLevel: number, captchaId: string): Promise<{ postId: string; isModerated: boolean }> {
+    const isCaptchaValid = await this.captchaValidator.consumeCaptcha(captchaId);
+    if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA');
+
     const category = await this.categoryRepository.findById(categoryId);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
     if (!category.isLevelSufficient(userLevel)) {
@@ -145,9 +156,20 @@ export class CommunityApplicationService {
 
   // --- Comment Management ---
 
-  public async createComment(content: string, postId: string, authorId: string, parentId?: string): Promise<{ commentId: string }> {
+  public async createComment(content: string, postId: string, authorId: string, captchaId: string, parentId?: string): Promise<{ commentId: string }> {
+    const isCaptchaValid = await this.captchaValidator.consumeCaptcha(captchaId);
+    if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA');
+
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    let parentComment;
+    if (parentId) {
+      parentComment = await this.commentRepository.findById(parentId);
+      if (!parentComment || parentComment.postId !== postId) {
+        throw new Error('ERR_INVALID_PARENT_COMMENT');
+      }
+    }
 
     const isModerated = await this.moderationPolicy.containsModeratedWord(content, post.categoryId);
 
@@ -162,6 +184,13 @@ export class CommunityApplicationService {
     }, isModerated);
 
     await this.commentRepository.save(comment);
+
+    if (post.authorId !== authorId) {
+      this.eventBus.publish(new PostRepliedEvent(postId, post.authorId, post.title, authorId, comment.id));
+    }
+    if (parentComment && parentComment.authorId !== authorId) {
+      this.eventBus.publish(new CommentRepliedEvent(parentId!, parentComment.authorId, postId, authorId, comment.id));
+    }
 
     return { commentId: comment.id };
   }

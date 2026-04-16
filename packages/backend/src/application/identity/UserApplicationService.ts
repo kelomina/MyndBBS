@@ -1,6 +1,11 @@
 import { IUserRepository } from '../../domain/identity/IUserRepository';
-import { User, UserStatus } from '../../domain/identity/User';
-import redis from '../../lib/redis';
+import { IAbilityCache } from '../../domain/identity/IAbilityCache';
+import { User } from '../../domain/identity/User';
+import { UserStatus } from '@myndbbs/shared';
+import { IPasswordHasher } from '../../domain/identity/IPasswordHasher';
+import { OTP } from 'otplib';
+
+const authenticator = new OTP({ strategy: 'totp' });
 
 /**
  * Callers: [UserController, AdminController]
@@ -15,7 +20,80 @@ export class UserApplicationService {
    * Description: Initializes the service with the User repository.
    * Keywords: constructor, inject, repository, service, identity, user
    */
-  constructor(private userRepository: IUserRepository) {}
+  constructor(
+    private userRepository: IUserRepository,
+    private abilityCache: IAbilityCache,
+    private passwordHasher: IPasswordHasher
+  ) {}
+
+  public async changePasswordWithVerification(
+    userId: string,
+    currentPassword?: string,
+    totpCode?: string,
+    newPassword?: string,
+    newEmail?: string,
+    newUsername?: string
+  ): Promise<any> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error('ERR_USER_NOT_FOUND');
+
+    if (newEmail || newPassword) {
+      if (!currentPassword && !totpCode) {
+        throw new Error('ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES');
+      }
+      if (currentPassword && user.password) {
+        const isValid = await this.passwordHasher.verify(user.password, currentPassword);
+        if (!isValid) throw new Error('ERR_INVALID_CURRENT_PASSWORD');
+      }
+      if (totpCode && user.totpSecret) {
+        const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
+        if (!result || !result.valid) throw new Error('ERR_INVALID_TOTP_CODE');
+      }
+    }
+
+    if (newEmail && newEmail !== user.email) {
+      const existing = await this.userRepository.findByEmail(newEmail);
+      if (existing) throw new Error('ERR_EMAIL_ALREADY_IN_USE');
+    }
+    if (newUsername && newUsername !== user.username) {
+      const existing = await this.userRepository.findByUsername(newUsername);
+      if (existing) throw new Error('ERR_USERNAME_ALREADY_IN_USE');
+    }
+
+    let hashedPassword;
+    if (newPassword) {
+      hashedPassword = await this.passwordHasher.hash(newPassword);
+    }
+
+    user.updateProfile(newEmail, newUsername, hashedPassword);
+    await this.userRepository.save(user);
+
+    return { id: user.id, email: user.email, username: user.username, roleId: user.roleId };
+  }
+
+  public async disableTotpWithVerification(
+    userId: string,
+    currentPassword?: string,
+    totpCode?: string
+  ): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error('ERR_USER_NOT_FOUND');
+
+    if (!currentPassword && !totpCode) {
+      throw new Error('ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_TO_DISABLE_2FA');
+    }
+    if (currentPassword && user.password) {
+      const isValid = await this.passwordHasher.verify(user.password, currentPassword);
+      if (!isValid) throw new Error('ERR_INVALID_CURRENT_PASSWORD');
+    }
+    if (totpCode && user.totpSecret) {
+      const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
+      if (!result || !result.valid) throw new Error('ERR_INVALID_TOTP_CODE');
+    }
+
+    user.disableTotp();
+    await this.userRepository.save(user);
+  }
 
   public async updateProfile(userId: string, email?: string, username?: string, hashedPassword?: string): Promise<any> {
     const user = await this.userRepository.findById(userId);
@@ -55,7 +133,7 @@ export class UserApplicationService {
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
     user.changeRole(roleId);
     await this.userRepository.save(user);
-    await redis.del(`ability_rules:user:${userId}`);
+    await this.abilityCache.invalidateUserRules(userId);
   }
 
   public async changeLevel(userId: string, level: number): Promise<void> {
@@ -63,7 +141,7 @@ export class UserApplicationService {
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
     user.changeLevel(level);
     await this.userRepository.save(user);
-    await redis.del(`ability_rules:user:${userId}`);
+    await this.abilityCache.invalidateUserRules(userId);
   }
 
   public async changeStatus(userId: string, status: UserStatus): Promise<void> {
@@ -71,6 +149,6 @@ export class UserApplicationService {
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
     user.changeStatus(status);
     await this.userRepository.save(user);
-    await redis.del(`ability_rules:user:${userId}`);
+    await this.abilityCache.invalidateUserRules(userId);
   }
 }

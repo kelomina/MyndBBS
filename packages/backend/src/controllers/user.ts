@@ -140,32 +140,15 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
 
     const { currentPassword, totpCode } = req.body;
 
-    const user = await identityQueryService.getUserWithRoleById(userId);
-    if (!user) {
-      res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
-      return;
-    }
-
-    if (!currentPassword && !totpCode) {
-      res.status(401).json({ error: 'ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_TO_DISABLE_2FA' });
-      return;
-    }
-    if (currentPassword && user.password) {
-      const isValid = await argon2.verify(user.password, currentPassword);
-      if (!isValid) {
-        res.status(401).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
+    try {
+      await userApplicationService.disableTotpWithVerification(userId, currentPassword, totpCode);
+    } catch (error: any) {
+      if (error.message.startsWith('ERR_')) {
+        res.status(400).json({ error: error.message });
         return;
       }
+      throw error;
     }
-    if (totpCode && user.totpSecret) {
-      const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
-      if (!result || !result.valid) {
-        res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
-        return;
-      }
-    }
-
-    await userApplicationService.disableTotp(userId);
 
     res.json({ message: 'TOTP disabled successfully' });
   } catch (error) {
@@ -192,79 +175,40 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
 
     const { email, username, password, currentPassword, totpCode } = req.body;
     
-    // Check if user exists
-    const user = await identityQueryService.getUserWithRoleById(userId);
-    if (!user) {
-      res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
-      return;
-    }
-
-    if (email || password) {
-      if (!currentPassword && !totpCode) {
-        res.status(401).json({ error: 'ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES' });
-        return;
-      }
-      if (currentPassword && user.password) {
-        const isValid = await argon2.verify(user.password, currentPassword);
-        if (!isValid) {
-          res.status(401).json({ error: 'ERR_INVALID_CURRENT_PASSWORD' });
-          return;
-        }
-      }
-      if (totpCode && user.totpSecret) {
-        const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
-        if (!result || !result.valid) {
-          res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
-          return;
-        }
-      }
-    }
-
-    const updateData: any = {};
-    let hashedPassword: string | undefined = undefined;
-
-    if (email && email !== user.email) {
-      updateData.email = email;
-    }
-
-    if (username && username !== user.username) {
-      updateData.username = username;
-    }
-
-    if (password) {
-      if (password.length < 8 || password.length > 128) {
-        res.status(400).json({ error: 'ERR_PASSWORD_MUST_BE_BETWEEN_8_AND_128_CHARACTERS' });
-        return;
-      }
-      
-      if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}/.test(password)) {
-        res.status(400).json({ error: 'ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER' });
-        return;
-      }
-      // Restrict to ASCII characters to prevent Unicode bypass
-      if (!/^[ -~]+$/.test(password)) {
-        res.status(400).json({ error: 'ERR_PASSWORD_CONTAINS_INVALID_CHARACTERS' });
-        return;
-      }
-      hashedPassword = await argon2.hash(password);
-      updateData.password = true;
-    }
-
-    if (Object.keys(updateData).length === 0) {
+    if (!email && !username && !password) {
       res.status(400).json({ error: 'ERR_NO_FIELDS_TO_UPDATE' });
       return;
     }
 
+    if (password) {
+      try {
+        authApplicationService.validatePasswordPolicy(password);
+      } catch (error: any) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+    }
+
     try {
-      const updatedUser = await userApplicationService.updateProfile(userId, updateData.email, updateData.username, hashedPassword);
+      const updatedUser = await userApplicationService.changePasswordWithVerification(
+        userId,
+        currentPassword,
+        totpCode,
+        password,
+        email,
+        username
+      );
       
       // We need to return role name, let's fetch it via Prisma CQRS read
       const userRole = await identityQueryService.getUserWithRoleById(userId);
 
       res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: userRole?.role?.name || null } });
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
-      return;
+      if (error.message.startsWith('ERR_')) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
     }
   } catch (error) {
     console.error(error);

@@ -1,10 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { User, Session, UserStatus } from '@prisma/client';
-import { prisma } from '../db';
-import { redis } from '../lib/redis';
 import { defineAbilityForContext, AppAbility, Action, AppSubjects } from '../lib/casl';
 import { accessControlQueryService } from '../queries/identity/AccessControlQueryService';
+import { authApplicationService, authCache, sudoApplicationService } from '../registry';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -41,8 +39,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
     
     // Check session validity using Redis cache
     if (decoded.sessionId) {
-      const cacheKey = `session:${decoded.sessionId}`;
-      const cachedSession = await redis.get(cacheKey);
+      const cachedSession = await authCache.getSessionValidity(decoded.sessionId);
 
       if (cachedSession === 'invalid') {
         res.clearCookie('accessToken');
@@ -52,29 +49,23 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
       }
 
       if (!cachedSession) {
-        const session = await prisma.session.findUnique({ where: { id: decoded.sessionId } });
-        if (!session) {
-          await redis.set(cacheKey, 'invalid', 'EX', 300); // Cache invalid state briefly
+        const { isValid } = await authApplicationService.validateSession(decoded.sessionId, decoded.userId);
+        if (!isValid) {
+          await authCache.setSessionValidity(decoded.sessionId, 'invalid', 300); // Cache invalid state briefly
           res.clearCookie('accessToken');
           res.clearCookie('refreshToken');
           res.status(401).json({ error: 'ERR_SESSION_REVOKED_OR_INVALID' });
           return;
         }
-        await redis.set(cacheKey, 'valid', 'EX', 3600); // Cache valid session state
+        await authCache.setSessionValidity(decoded.sessionId, 'valid', 3600); // Cache valid session state
       }
 
-      const refreshKey = `${cacheKey}:requires_refresh`;
-      const requiresRefresh = await redis.get(refreshKey);
+      const requiresRefresh = await authCache.checkRequiresRefresh(decoded.sessionId);
 
-      if (requiresRefresh === 'true') {
-        const user = await prisma.user.findUnique({
-          where: { id: decoded.userId },
-          include: { role: true }
-        });
+      if (requiresRefresh) {
+        const { isValid, user, roleName, reason } = await authApplicationService.validateSession(decoded.sessionId, decoded.userId);
 
-        if (user && user.status !== UserStatus.BANNED) {
-          const roleName = user.role?.name || 'USER';
-          
+        if (isValid && user) {
           const newAccessToken = jwt.sign(
             { userId: user.id, role: roleName, sessionId: decoded.sessionId },
             process.env.JWT_SECRET as string,
@@ -92,11 +83,16 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
 
           // Instead of deleting immediately, keep it for 1 minute to allow
           // concurrent requests or SSR -> CSR transitions to also refresh
-          await redis.expire(refreshKey, 60);
-        } else if (user?.status === UserStatus.BANNED) {
+          await authCache.extendRefreshGracePeriod(decoded.sessionId, 60);
+        } else if (reason === 'USER_BANNED') {
           res.clearCookie('accessToken');
           res.clearCookie('refreshToken');
           res.status(401).json({ error: 'ERR_USER_BANNED' });
+          return;
+        } else {
+          res.clearCookie('accessToken');
+          res.clearCookie('refreshToken');
+          res.status(401).json({ error: 'ERR_SESSION_REVOKED_OR_INVALID' });
           return;
         }
       }
@@ -167,8 +163,8 @@ export const requireSudo = async (req: AuthRequest, res: Response, next: NextFun
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
     return;
   }
-  const isSudo = await redis.get(`sudo:${req.user.sessionId}`);
-  if (isSudo === 'true') {
+  const isSudo = await sudoApplicationService.check(req.user.sessionId);
+  if (isSudo) {
     next();
   } else {
     res.status(403).json({ error: 'ERR_SUDO_REQUIRED', message: 'Re-authentication required for this action' });

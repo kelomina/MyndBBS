@@ -2,8 +2,7 @@ import { Request, Response } from 'express';
 import { adminQueryService } from '../queries/admin/AdminQueryService';
 import { systemQueryService } from '../queries/system/SystemQueryService';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
-import { UserStatus } from '../domain/identity/User';
-import { PostStatus } from '@prisma/client';
+import { UserStatus, PostStatus } from '@myndbbs/shared';
 import { redis } from '../lib/redis';
 import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
@@ -98,7 +97,7 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
   const operatorId = req.user?.userId || 'unknown';
 
   try {
-    if (!([UserStatus.ACTIVE, UserStatus.BANNED, UserStatus.PENDING_VERIFICATION, UserStatus.INACTIVE] as UserStatus[]).includes(status as UserStatus)) {
+    if (!([UserStatus.ACTIVE, UserStatus.BANNED, UserStatus.PENDING, UserStatus.INACTIVE] as UserStatus[]).includes(status as UserStatus)) {
       res.status(400).json({ error: 'ERR_INVALID_STATUS' });
       return;
     }

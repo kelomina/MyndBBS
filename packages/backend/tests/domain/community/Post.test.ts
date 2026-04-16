@@ -1,4 +1,5 @@
-import { Post, PostStatus, CreatePostProps } from '../../../src/domain/community/Post';
+import { PostStatus } from '@myndbbs/shared';
+import { Post, CreatePostProps } from '../../../src/domain/community/Post';
 
 describe('Post Aggregate Root', () => {
   const validProps: CreatePostProps = {
@@ -25,7 +26,7 @@ describe('Post Aggregate Root', () => {
 
     it('should create a pending moderation post when isModerated is true', () => {
       const post = Post.create(validProps, true);
-      expect(post.status).toBe(PostStatus.PENDING_MODERATION);
+      expect(post.status).toBe(PostStatus.PENDING);
     });
 
     it('should throw an error if title is empty', () => {
@@ -82,17 +83,17 @@ describe('Post Aggregate Root', () => {
       expect(post.categoryId).toBe(validProps.categoryId);
     });
 
-    it('should change status to PENDING_MODERATION if isModerated is true', () => {
+    it('should change status to PENDING if isModerated is true', () => {
       const post = Post.create(validProps, false);
       expect(post.status).toBe(PostStatus.PUBLISHED);
       
       post.updateContent('New Title', 'New Content', 'cat-2', true);
-      expect(post.status).toBe(PostStatus.PENDING_MODERATION);
+      expect(post.status).toBe(PostStatus.PENDING);
     });
 
     it('should change status to PUBLISHED if updated and isModerated is false, and was pending', () => {
       const post = Post.create(validProps, true);
-      expect(post.status).toBe(PostStatus.PENDING_MODERATION);
+      expect(post.status).toBe(PostStatus.PENDING);
       
       post.updateContent('New Title', 'New Content', 'cat-2', false);
       expect(post.status).toBe(PostStatus.PUBLISHED);
@@ -128,13 +129,13 @@ describe('Post Aggregate Root', () => {
     it('should reject a pending moderation post', () => {
       const post = Post.create(validProps, true);
       post.reject();
-      expect(post.status).toBe(PostStatus.REJECTED);
+      expect(post.status).toBe(PostStatus.DELETED);
     });
 
     it('should reject a PENDING post', () => {
       const post = Post.load({ ...validProps, status: PostStatus.PENDING });
       post.reject();
-      expect(post.status).toBe(PostStatus.REJECTED);
+      expect(post.status).toBe(PostStatus.DELETED);
     });
 
     it('should throw an error if not pending', () => {

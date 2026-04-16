@@ -37,12 +37,12 @@ export class CommunityQueryService {
   public async listPosts(params: ListPostsParams): Promise<PostListItemDTO[]> {
     const { ability, category, sortBy, take = 1000 } = params;
 
-    const whereClause: any = { AND: [accessibleBy(ability).Post] };
+    const whereClause: import('@prisma/client').Prisma.PostWhereInput = { AND: [accessibleBy(ability).Post] };
     if (category) {
-      whereClause.AND.push({ category: { name: String(category) } });
+      (whereClause.AND as import('@prisma/client').Prisma.PostWhereInput[]).push({ category: { name: String(category) } });
     }
 
-    let orderByClause: any = { createdAt: 'desc' };
+    let orderByClause: import('@prisma/client').Prisma.PostOrderByWithRelationInput = { createdAt: 'desc' };
     if (sortBy === 'popular') orderByClause = { id: 'asc' }; // In real app, order by score/upvotes
 
     const rows = await prisma.post.findMany({
@@ -59,7 +59,7 @@ export class CommunityQueryService {
       id: p.id,
       title: p.title,
       createdAt: p.createdAt,
-      status: p.status,
+      status: p.status as unknown as import('@myndbbs/shared').PostStatus,
       author: p.author,
       category: p.category,
       _count: p._count,
@@ -89,7 +89,7 @@ export class CommunityQueryService {
       title: post.title,
       content: post.content,
       createdAt: post.createdAt,
-      status: post.status,
+      status: post.status as unknown as import('@myndbbs/shared').PostStatus,
       author: post.author,
       category: post.category,
       _count: post._count,
@@ -154,7 +154,7 @@ export class CommunityQueryService {
     const upvotedSet = new Set(userUpvotes.map((u) => u.commentId));
     const bookmarkedSet = new Set(userBookmarks.map((b) => b.commentId));
 
-    return comments.map((comment: any) => ({
+    return comments.map((comment) => ({
       id: comment.id,
       content: comment.content,
       createdAt: comment.createdAt,

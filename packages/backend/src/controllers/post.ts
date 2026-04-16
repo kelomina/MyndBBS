@@ -5,10 +5,8 @@
 import { Response, Request } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { subject } from '@casl/ability';
-import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
-import { PostRepliedEvent, CommentRepliedEvent } from '../domain/shared/events/DomainEvents';
 
-import { authApplicationService, communityApplicationService } from '../registry';
+import { communityApplicationService } from '../registry';
 import { communityQueryService } from '../queries/community/CommunityQueryService';
 
 /**
@@ -51,12 +49,6 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const isCaptchaValid = await authApplicationService.consumeCaptcha(captchaId);
-    if (!isCaptchaValid) {
-      res.status(400).json({ error: 'ERR_INVALID_OR_EXPIRED_CAPTCHA' });
-      return;
-    }
-
     const userLevel = await communityQueryService.getUserLevel(req.user!.userId);
     
     try {
@@ -65,9 +57,14 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
         content, 
         categoryId, 
         req.user!.userId, 
-        userLevel
+        userLevel,
+        captchaId
       );
       const postDto = await communityQueryService.getPostById(req.ability!, result.postId);
+      if (postDto?.status === 'PENDING') {
+        res.status(201).json({ message: 'ERR_PENDING_MODERATION', post: postDto });
+        return;
+      }
       res.status(201).json({ post: postDto, isModerated: result.isModerated });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -220,53 +217,27 @@ export const createComment = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const isCaptchaValid = await authApplicationService.consumeCaptcha(captchaId);
-    if (!isCaptchaValid) {
-      res.status(400).json({ error: 'ERR_INVALID_OR_EXPIRED_CAPTCHA' });
-      return;
-    }
+    try {
+      const result = await communityApplicationService.createComment(
+        content,
+        postId,
+        req.user!.userId,
+        captchaId,
+        parentId || undefined
+      );
 
-    const post = await communityQueryService.getPostById(req.ability!, postId);
-
-    if (!post) {
-      res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
-      return;
-    }
-
-    if (parentId) {
-      const parentComment = await communityQueryService.getCommentById(parentId);
-      if (!parentComment || parentComment.postId !== postId) {
-        res.status(400).json({ error: 'ERR_INVALID_PARENT_COMMENT' });
+      const commentDto = await communityQueryService.getCommentById(result.commentId);
+      
+      if (commentDto?.isPending) {
+        res.status(201).json({ message: 'ERR_PENDING_MODERATION', comment: commentDto });
         return;
       }
-    }
 
-    const result = await communityApplicationService.createComment(
-      content,
-      postId,
-      req.user!.userId,
-      parentId || undefined
-    );
-
-    const postObj = await communityQueryService.getPostBasicInfo(postId);
-    if (postObj && postObj.authorId !== req.user!.userId) {
-      globalEventBus.publish(new PostRepliedEvent(postId, postObj.authorId, postObj.title, req.user!.userId, result.commentId));
-    }
-    if (parentId) {
-      const parentComment = await communityQueryService.getCommentBasicInfo(parentId);
-      if (parentComment && parentComment.authorId !== req.user!.userId) {
-        globalEventBus.publish(new CommentRepliedEvent(parentId, parentComment.authorId, postId, req.user!.userId, result.commentId));
-      }
-    }
-
-    const commentDto = await communityQueryService.getCommentById(result.commentId);
-    
-    if (commentDto?.isPending) {
-      res.status(201).json({ message: 'ERR_PENDING_MODERATION', comment: commentDto });
+      res.status(201).json(commentDto);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
       return;
     }
-
-    res.status(201).json(commentDto);
   } catch (error) {
     console.error('Error creating comment:', error);
     res.status(500).json({ error: 'ERR_FAILED_TO_CREATE_COMMENT' });

@@ -60,7 +60,7 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
         toast(dict.apiErrors?.ERR_PENDING_MODERATION || "Your content contains moderated words and has been submitted for manual review.", 'info');
         router.push('/');
       } else {
-        router.push(`/p/${data.id}`);
+        router.push(`/p/${data.post?.id || data.id}`);
       }
     } catch (err: unknown) {
       console.error(err);

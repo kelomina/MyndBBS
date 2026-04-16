@@ -1,10 +1,10 @@
 import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { IPermissionRepository } from '../../domain/identity/IPermissionRepository';
 import { IUserRepository } from '../../domain/identity/IUserRepository';
+import { IAbilityCache } from '../../domain/identity/IAbilityCache';
 import { Role } from '../../domain/identity/Role';
 import { Permission } from '../../domain/identity/Permission';
 import { randomUUID as uuidv4 } from 'crypto';
-import redis from '../../lib/redis';
 
 /**
  * Callers: [AdminController]
@@ -16,7 +16,8 @@ export class RoleApplicationService {
   constructor(
     private roleRepository: IRoleRepository,
     private permissionRepository: IPermissionRepository,
-    private userRepository: IUserRepository
+    private userRepository: IUserRepository,
+    private abilityCache: IAbilityCache
   ) {}
 
   public async createRole(name: string, description: string | null): Promise<Role> {
@@ -52,11 +53,7 @@ export class RoleApplicationService {
 
   private async invalidateCacheForRoleUsers(roleId: string): Promise<void> {
     const users = await this.userRepository.findByRoleId(roleId);
-    const pipeline = redis.pipeline();
-    for (const user of users) {
-      pipeline.del(`ability_rules:user:${user.id}`);
-    }
-    await pipeline.exec();
+    await this.abilityCache.invalidateUsersRules(users.map(u => u.id));
   }
 
   public async assignPermissionToRole(roleId: string, permissionId: string): Promise<Role> {

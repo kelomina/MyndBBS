@@ -1,9 +1,4 @@
-export enum UserStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  BANNED = 'BANNED',
-  PENDING_VERIFICATION = 'PENDING_VERIFICATION'
-}
+import { UserStatus } from '@myndbbs/shared';
 
 export interface UserProps {
   id: string;

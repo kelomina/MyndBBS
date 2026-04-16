@@ -1,12 +1,4 @@
-export enum PostStatus {
-  PUBLISHED = 'PUBLISHED',
-  DRAFT = 'DRAFT',
-  ARCHIVED = 'ARCHIVED',
-  PENDING_MODERATION = 'PENDING_MODERATION',
-  REJECTED = 'REJECTED',
-  PENDING = 'PENDING',
-  DELETED = 'DELETED'
-}
+import { PostStatus } from '@myndbbs/shared';
 
 export interface PostProps {
   id: string;
@@ -53,7 +45,7 @@ export class Post {
       throw new Error('ERR_POST_CONTENT_CANNOT_BE_EMPTY');
     }
     
-    const status = isModerated ? PostStatus.PENDING_MODERATION : PostStatus.PUBLISHED;
+    const status = isModerated ? PostStatus.PENDING : PostStatus.PUBLISHED;
     
     return new Post({
       ...props,
@@ -95,8 +87,8 @@ export class Post {
     if (categoryId) this.props.categoryId = categoryId;
     
     if (isModerated) {
-      this.props.status = PostStatus.PENDING_MODERATION;
-    } else if (this.props.status === 'PENDING' || this.props.status === PostStatus.PENDING_MODERATION) {
+      this.props.status = PostStatus.PENDING;
+    } else if (this.props.status === PostStatus.PENDING) {
       this.props.status = PostStatus.PUBLISHED;
     }
   }
@@ -108,7 +100,7 @@ export class Post {
    * Keywords: approve, post, moderation, status
    */
   public approve(): void {
-    if (this.props.status !== PostStatus.PENDING_MODERATION && this.props.status !== PostStatus.PENDING) {
+    if (this.props.status !== PostStatus.PENDING) {
       throw new Error('ERR_POST_NOT_PENDING');
     }
     this.props.status = PostStatus.PUBLISHED;
@@ -121,10 +113,10 @@ export class Post {
    * Keywords: reject, post, moderation, status
    */
   public reject(): void {
-    if (this.props.status !== PostStatus.PENDING_MODERATION && this.props.status !== PostStatus.PENDING) {
+    if (this.props.status !== PostStatus.PENDING) {
       throw new Error('ERR_POST_NOT_PENDING');
     }
-    this.props.status = PostStatus.REJECTED;
+    this.props.status = PostStatus.DELETED;
   }
 
   /**

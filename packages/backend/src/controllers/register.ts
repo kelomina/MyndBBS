@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
-import { UserStatus } from '@prisma/client';
+import { UserStatus } from '@myndbbs/shared';
 import { redis } from '../lib/redis';
 import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { finalizeAuth } from './auth';
-import { isValidPassword } from '@myndbbs/shared';
 import { authApplicationService } from '../registry';
 
 /**
@@ -20,22 +19,6 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
 
     if (!email || !username || !password || !captchaId) {
       res.status(400).json({ error: 'ERR_MISSING_REQUIRED_FIELDS' });
-      return;
-    }
-
-    if (password.length < 8 || password.length > 128) {
-      res.status(400).json({ error: 'ERR_PASSWORD_MUST_BE_BETWEEN_8_AND_128_CHARACTERS' });
-      return;
-    }
-    
-    // Add comprehensive strength check (uppercase, lowercase, number, special char)
-    if (!isValidPassword(password)) {
-      res.status(400).json({ error: 'ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER' });
-      return;
-    }
-    // Restrict to ASCII characters to prevent Unicode bypass
-    if (!/^[ -~]+$/.test(password)) {
-      res.status(400).json({ error: 'ERR_PASSWORD_CONTAINS_INVALID_CHARACTERS' });
       return;
     }
 
