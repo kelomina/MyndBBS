@@ -68,7 +68,9 @@
     "registerPasskey": "Register Passkey",
     "verifyTotp": "Verify",
     "retry": "Retry",
-    "failedLoadTotp": "Failed to load Authenticator setup. The server might be restarting, please try again."
+    "failedLoadTotp": "Failed to load Authenticator setup. The server might be restarting, please try again.",
+    "cannotUsePasskey": "I can't use Passkey login",
+    "passwordLoginNotRecommended": "For security reasons, we do not recommend logging in with email and password."
   },
   "home": {
     "mockPosts": [
