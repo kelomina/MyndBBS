@@ -4,6 +4,7 @@ packages:
 onlyBuiltDependencies:
   - '@prisma/client'
   - '@prisma/engines'
+  - argon2
   - prisma
   - puppeteer
   - sharp
