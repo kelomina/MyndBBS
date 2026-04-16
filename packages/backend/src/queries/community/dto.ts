@@ -1,31 +1,47 @@
-import type { Prisma } from '@prisma/client';
+import { PostStatus } from '@prisma/client';
 
-export type PostListItemDTO = Prisma.PostGetPayload<{
-  include: {
-    author: { select: { id: true; username: true } };
-    category: { select: { id: true; name: true; description: true } };
-    _count: { select: { comments: true; upvotes: true } };
-  };
-}>;
+export type CategoryListItemDTO = {
+  id: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  minLevel: number;
+};
 
-export type PostDetailDTO = Prisma.PostGetPayload<{
-  include: {
-    author: { select: { id: true; username: true } };
-    category: { select: { id: true; name: true; description: true } };
-    _count: { select: { comments: true; upvotes: true; bookmarks: true } };
-  };
-}>;
+export type PostListItemDTO = {
+  id: string;
+  title: string;
+  createdAt: Date;
+  status: PostStatus;
+  author: { id: string; username: string };
+  category: { id: string; name: string; description: string | null };
+  _count: { comments: number; upvotes: number };
+};
+
+export type PostDetailDTO = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: Date;
+  status: PostStatus;
+  author: { id: string; username: string };
+  category: { id: string; name: string; description: string | null };
+  _count: { comments: number; upvotes: number; bookmarks: number };
+};
 
 export type PostInteractionDTO = { upvoted: boolean; bookmarked: boolean };
 
-export type CommentListItemDTO = Prisma.CommentGetPayload<{
-  include: {
-    author: { select: { id: true; username: true } };
-    _count: { select: { upvotes: true; bookmarks: true; replies: true } };
-  };
-}> & { hasUpvoted?: boolean; hasBookmarked?: boolean };
-
-export type CategoryListItemDTO = Prisma.CategoryGetPayload<{}>;
+export type CommentListItemDTO = {
+  id: string;
+  content: string;
+  createdAt: Date;
+  deletedAt: Date | null;
+  isPending: boolean;
+  author: { id: string; username: string };
+  _count: { upvotes: number; bookmarks: number; replies: number };
+  hasUpvoted?: boolean;
+  hasBookmarked?: boolean;
+};
 
 export type ListPostsParams = {
   ability: import('../../lib/casl').AppAbility;

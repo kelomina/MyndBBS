@@ -3,6 +3,8 @@ import { accessibleBy } from '@casl/prisma';
 import type { AppAbility } from '../../lib/casl';
 import { PostStatus, UserStatus } from '@prisma/client';
 
+import { AdminUserListDTO, AdminCategoryListDTO, AdminPostListDTO, AdminDeletedPostListDTO, AdminDeletedCommentListDTO } from './dto';
+
 /**
  * Callers: [adminController, moderationController]
  * Callees: [prisma.user, prisma.category, prisma.post, prisma.comment, prisma.moderatedWord]
@@ -16,12 +18,12 @@ export class AdminQueryService {
    * Description: Lists all users with their roles for the admin panel.
    * Keywords: admin, users, list
    */
-  public async listUsers() {
+  public async listUsers(): Promise<AdminUserListDTO[]> {
     const users = await prisma.user.findMany({
       take: 1000,
-      select: { id: true, username: true, email: true, role: { select: { name: true } }, status: true, createdAt: true },
+      select: { id: true, username: true, email: true, role: { select: { id: true, name: true } }, status: true, level: true },
     });
-    return users.map((u) => ({ ...u, role: u.role?.name || null }));
+    return users.map((u) => ({ ...u, role: u.role || null }));
   }
 
   /**
@@ -30,7 +32,7 @@ export class AdminQueryService {
    * Description: Lists all categories ordered by sortOrder.
    * Keywords: admin, categories, list
    */
-  public async listCategories() {
+  public async listCategories(): Promise<AdminCategoryListDTO[]> {
     return prisma.category.findMany({ take: 1000, orderBy: { sortOrder: 'asc' } });
   }
 
@@ -40,28 +42,38 @@ export class AdminQueryService {
    * Description: Lists all accessible posts for the admin panel.
    * Keywords: admin, posts, list
    */
-  public async listPosts(ability: AppAbility) {
-    return prisma.post.findMany({
+  public async listPosts(ability: AppAbility): Promise<AdminPostListDTO[]> {
+    const posts = await prisma.post.findMany({
       take: 1000,
       where: accessibleBy(ability, 'read').Post,
-      include: { author: { select: { username: true } }, category: { select: { name: true } } },
+      include: { author: { select: { id: true, username: true } }, category: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    return posts.map(p => ({
+      id: p.id,
+      title: p.title,
+      status: p.status,
+      author: p.author,
+      category: p.category,
+      createdAt: p.createdAt,
+    }));
   }
 
-  /**
-   * Callers: [adminController.getDeletedPosts]
-   * Callees: [accessibleBy, prisma.post.findMany]
-   * Description: Lists all logically deleted posts accessible to the admin/moderator.
-   * Keywords: admin, deleted, posts, list
-   */
-  public async listDeletedPosts(ability: AppAbility) {
-    return prisma.post.findMany({
+  public async listDeletedPosts(ability: AppAbility): Promise<AdminDeletedPostListDTO[]> {
+    const posts = await prisma.post.findMany({
       take: 1000,
       where: { AND: [accessibleBy(ability, 'manage').Post, { status: PostStatus.DELETED }] },
-      include: { author: { select: { username: true } }, category: { select: { name: true } } },
+      include: { author: { select: { id: true, username: true } }, category: { select: { id: true, name: true } } },
       orderBy: { updatedAt: 'desc' },
     });
+    return posts.map(p => ({
+      id: p.id,
+      title: p.title,
+      status: p.status,
+      author: p.author,
+      category: p.category,
+      createdAt: p.createdAt,
+    }));
   }
 
   /**
@@ -80,8 +92,8 @@ export class AdminQueryService {
    * Description: Lists all logically deleted comments for the admin panel.
    * Keywords: admin, deleted, comments, list
    */
-  public async listDeletedComments(ability: AppAbility) {
-    return prisma.comment.findMany({
+  public async listDeletedComments(ability: AppAbility): Promise<AdminDeletedCommentListDTO[]> {
+    const comments = await prisma.comment.findMany({
       take: 1000,
       where: {
         AND: [
@@ -89,9 +101,16 @@ export class AdminQueryService {
           { deletedAt: { not: null } }
         ]
       },
-      include: { author: { select: { username: true } }, post: { select: { id: true, title: true, category: { select: { name: true } } } } },
+      include: { author: { select: { id: true, username: true } }, post: { select: { id: true, title: true } } },
       orderBy: { deletedAt: 'desc' }
     });
+    return comments.map(c => ({
+      id: c.id,
+      content: c.content,
+      author: c.author,
+      post: c.post,
+      createdAt: c.createdAt,
+    }));
   }
 
   /**

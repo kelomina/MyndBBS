@@ -11,4 +11,5 @@ export interface ISessionRepository {
   save(session: Session): Promise<void>;
   delete(id: string): Promise<void>;
   deleteManyByUserId(userId: string): Promise<void>;
+  findByUserId(userId: string): Promise<Session[]>;
 }

@@ -1,5 +1,7 @@
 import { prisma } from '../../db';
 
+import { FriendshipDTO, ConversationSettingsDTO } from './dto';
+
 /**
  * Callers: [messageController, friendController]
  * Callees: [prisma.userKey, prisma.user, prisma.conversationSetting, prisma.privateMessage, prisma.friendship]
@@ -33,7 +35,7 @@ export class MessagingQueryService {
    * Description: Fetches the conversation settings between two users.
    * Keywords: conversation, settings, user, partner
    */
-  public async getConversationSettings(userId: string, partnerId: string) {
+  public async getConversationSettings(userId: string, partnerId: string): Promise<ConversationSettingsDTO> {
     const setting = await prisma.conversationSetting.findUnique({ where: { userId_partnerId: { userId, partnerId } } });
     return { allowTwoSidedDelete: setting?.allowTwoSidedDelete || false };
   }
@@ -54,14 +56,21 @@ export class MessagingQueryService {
    * Description: Lists all friendships for a given user, including requester and addressee usernames.
    * Keywords: friendships, list, user
    */
-  public async listFriends(userId: string) {
-    return prisma.friendship.findMany({
+  public async listFriends(userId: string): Promise<FriendshipDTO[]> {
+    const friends = await prisma.friendship.findMany({
       where: { OR: [{ requesterId: userId }, { addresseeId: userId }] },
       include: {
         requester: { select: { id: true, username: true } },
         addressee: { select: { id: true, username: true } },
       },
     });
+    return friends.map(f => ({
+      id: f.id,
+      requesterId: f.requesterId,
+      addresseeId: f.addresseeId,
+      status: f.status,
+      createdAt: f.createdAt,
+    }));
   }
 
   public async getMessages(userId: string, limit: number, cursor?: string, withUserId?: string) {

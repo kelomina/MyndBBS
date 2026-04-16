@@ -5,6 +5,8 @@ import { IdentityBootstrapApplicationService } from './application/identity/Iden
 import { InstallationApplicationService } from './application/provisioning/InstallationApplicationService';
 import { CommunityApplicationService } from './application/community/CommunityApplicationService';
 import { MessagingApplicationService } from './application/messaging/MessagingApplicationService';
+import { RoleApplicationService } from './application/identity/RoleApplicationService';
+import { ModerationApplicationService } from './application/community/ModerationApplicationService';
 
 import { PrismaUserRepository } from './infrastructure/repositories/PrismaUserRepository';
 import { PrismaCaptchaChallengeRepository } from './infrastructure/repositories/PrismaCaptchaChallengeRepository';
@@ -22,6 +24,8 @@ import { PrismaFriendshipRepository } from './infrastructure/repositories/Prisma
 import { PrismaPrivateMessageRepository } from './infrastructure/repositories/PrismaPrivateMessageRepository';
 import { PrismaUserKeyRepository } from './infrastructure/repositories/PrismaUserKeyRepository';
 import { PrismaConversationSettingRepository } from './infrastructure/repositories/PrismaConversationSettingRepository';
+import { PrismaPermissionRepository } from './infrastructure/repositories/PrismaPermissionRepository';
+import { PrismaModeratedWordRepository } from './infrastructure/repositories/PrismaModeratedWordRepository';
 
 import { Argon2PasswordHasher } from './infrastructure/services/Argon2PasswordHasher';
 import { EnvStoreAdapter } from './infrastructure/services/provisioning/EnvStoreAdapter';
@@ -31,9 +35,26 @@ import { RedisModerationPolicy } from './infrastructure/services/RedisModeration
 import { ModerationCacheInvalidationHandler } from './infrastructure/events/handlers/ModerationCacheInvalidationHandler';
 import { globalEventBus } from './infrastructure/events/InMemoryEventBus';
 
+import { AdminUserManagementApplicationService } from './application/identity/AdminUserManagementApplicationService';
+import { RedisSessionCache } from './infrastructure/services/RedisSessionCache';
+import { RoleHierarchyPolicy } from './application/identity/policies/RoleHierarchyPolicy';
+
 export const userApplicationService = new UserApplicationService(
   new PrismaUserRepository()
 );
+
+export const adminUserManagementApplicationService = new AdminUserManagementApplicationService(
+  new PrismaUserRepository(),
+  new PrismaRoleRepository(),
+  new PrismaPasskeyRepository(),
+  new PrismaSessionRepository(),
+  new RedisSessionCache(),
+  new RoleHierarchyPolicy()
+);
+
+import { SudoApplicationService } from './application/identity/SudoApplicationService';
+import { RedisSudoStore } from './infrastructure/services/RedisSudoStore';
+import { identityQueryService } from './queries/identity/IdentityQueryService';
 
 export const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
@@ -45,8 +66,23 @@ export const authApplicationService = new AuthApplicationService(
   new Argon2PasswordHasher()
 );
 
+export const sudoApplicationService = new SudoApplicationService(
+  identityQueryService,
+  authApplicationService,
+  new RedisSudoStore(),
+  process.env.RP_ID || 'localhost',
+  process.env.ORIGIN || `http://${process.env.RP_ID || 'localhost'}:3000`
+);
+
+import { AuditApplicationService } from './application/system/AuditApplicationService';
+import { PrismaAuditLogRepository } from './infrastructure/repositories/PrismaAuditLogRepository';
+
 export const systemApplicationService = new SystemApplicationService(
   new PrismaRouteWhitelistRepository()
+);
+
+export const auditApplicationService = new AuditApplicationService(
+  new PrismaAuditLogRepository()
 );
 
 export const identityBootstrapApplicationService = new IdentityBootstrapApplicationService(
@@ -63,7 +99,9 @@ export const installationApplicationService = new InstallationApplicationService
   identityBootstrapApplicationService
 );
 
-export const redisModerationPolicy = new RedisModerationPolicy();
+export const redisModerationPolicy = new RedisModerationPolicy(
+  new PrismaModeratedWordRepository()
+);
 export const moderationCacheInvalidationHandler = new ModerationCacheInvalidationHandler(
   globalEventBus,
   redisModerationPolicy
@@ -84,4 +122,17 @@ export const messagingApplicationService = new MessagingApplicationService(
   new PrismaPrivateMessageRepository(),
   new PrismaUserKeyRepository(),
   new PrismaConversationSettingRepository()
+);
+
+export const roleApplicationService = new RoleApplicationService(
+  new PrismaRoleRepository(),
+  new PrismaPermissionRepository(),
+  new PrismaUserRepository()
+);
+
+export const moderationApplicationService = new ModerationApplicationService(
+  new PrismaPostRepository(),
+  new PrismaCommentRepository(),
+  new PrismaModeratedWordRepository(),
+  globalEventBus
 );

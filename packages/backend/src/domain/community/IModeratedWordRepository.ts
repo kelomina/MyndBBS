@@ -8,6 +8,7 @@ import { ModeratedWord } from './ModeratedWord';
  */
 export interface IModeratedWordRepository {
   findById(id: string): Promise<ModeratedWord | null>;
+  findAll(): Promise<ModeratedWord[]>;
   save(word: ModeratedWord): Promise<void>;
   delete(id: string): Promise<void>;
 }
