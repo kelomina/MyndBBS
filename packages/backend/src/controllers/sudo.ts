@@ -4,24 +4,7 @@ import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import { AuthRequest } from '../middleware/auth';
 import { generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server';
-import { AuthApplicationService } from '../application/identity/AuthApplicationService';
-import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
-import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
-import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
-import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
-import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
-import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
-import { Argon2PasswordHasher } from '../infrastructure/services/Argon2PasswordHasher';
-
-const authApplicationService = new AuthApplicationService(
-  new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository(),
-  new PrismaSessionRepository(),
-  new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository(),
-  new Argon2PasswordHasher()
-);
+import { authApplicationService } from '../registry';
 
 const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.ORIGIN || `http://${rpID}:3000`;

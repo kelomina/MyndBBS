@@ -12,27 +12,7 @@ import jwt from 'jsonwebtoken';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { redis } from '../lib/redis';
 import { APP_NAME } from '@myndbbs/shared';
-import { AuthApplicationService } from '../application/identity/AuthApplicationService';
-import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
-import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
-import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
-import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
-import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
-import { UserApplicationService } from '../application/identity/UserApplicationService';
-import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
-import { Argon2PasswordHasher } from '../infrastructure/services/Argon2PasswordHasher';
-
-const userApplicationService = new UserApplicationService(new PrismaUserRepository());
-
-const authApplicationService = new AuthApplicationService(
-  new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository(),
-  new PrismaSessionRepository(),
-  new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository(),
-  new Argon2PasswordHasher()
-);
+import { authApplicationService, userApplicationService } from '../registry';
 
 const rpName = APP_NAME;
 const rpID = process.env.RP_ID || 'localhost';

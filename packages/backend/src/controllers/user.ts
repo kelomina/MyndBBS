@@ -5,37 +5,14 @@ import { AuthRequest } from '../middleware/auth';
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 import { OTP } from 'otplib';
 import QRCode from 'qrcode';
-import { AuthApplicationService } from '../application/identity/AuthApplicationService';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
-import { UserApplicationService } from '../application/identity/UserApplicationService';
-import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
-import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
-import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+import { authApplicationService, userApplicationService } from '../registry';
 
 const rpName = 'MyndBBS';
 const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 
 const authenticator = new OTP({ strategy: 'totp' });
-
-import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
-import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
-import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
-import { Argon2PasswordHasher } from '../infrastructure/services/Argon2PasswordHasher';
-
-const authApplicationService = new AuthApplicationService(
-  new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository(),
-  new PrismaSessionRepository(),
-  new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository(),
-  new Argon2PasswordHasher()
-);
-
-const userApplicationService = new UserApplicationService(
-  new PrismaUserRepository()
-);
 
 /**
  * Callers: []
