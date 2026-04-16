@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { adminQueryService } from '../queries/admin/AdminQueryService';
-import { clearModerationCache } from '../lib/moderation';
 import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
 import { ModerationApplicationService } from '../application/community/ModerationApplicationService';
 import { PrismaPostRepository } from '../infrastructure/repositories/PrismaPostRepository';
@@ -57,7 +56,6 @@ export const addModeratedWord = async (req: AuthRequest, res: Response): Promise
 
   try {
     const newWord = await moderationApplicationService.addModeratedWord(word, categoryId);
-    await clearModerationCache();
     res.json({ word: newWord });
   } catch (error: any) {
     if (error.code === 'P2002') {
@@ -100,7 +98,6 @@ export const deleteModeratedWord = async (req: AuthRequest, res: Response): Prom
 
   try {
     await moderationApplicationService.removeModeratedWord(id);
-    await clearModerationCache();
     res.json({ message: 'Word deleted successfully' });
   } catch (error) {
     res.status(404).json({ error: 'ERR_WORD_NOT_FOUND' });
