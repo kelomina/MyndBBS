@@ -193,11 +193,17 @@ export class MessagingApplicationService {
   public async uploadKeys(userId: string, scheme: string, publicKey: string, encryptedPrivateKey: string, mlKemPublicKey?: string, encryptedMlKemPrivateKey?: string): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user || user.level < 2) throw new Error('ERR_LEVEL_TOO_LOW');
-    if (scheme === 'X_WING_HYBRID' && user.level < 4) throw new Error('ERR_LEVEL_TOO_LOW_FOR_X_WING');
 
     let userKey = await this.userKeyRepository.findByUserId(userId);
     if (userKey) {
-      userKey.updateKeys(scheme, publicKey, encryptedPrivateKey, mlKemPublicKey || null, encryptedMlKemPrivateKey || null);
+      userKey.updateKeys(
+        scheme,
+        publicKey,
+        encryptedPrivateKey,
+        mlKemPublicKey || null,
+        encryptedMlKemPrivateKey || null,
+        user.level
+      );
     } else {
       userKey = UserKey.create({
         userId,
@@ -206,7 +212,7 @@ export class MessagingApplicationService {
         encryptedPrivateKey,
         mlKemPublicKey: mlKemPublicKey || null,
         encryptedMlKemPrivateKey: encryptedMlKemPrivateKey || null
-      });
+      }, user.level);
     }
     await this.userKeyRepository.save(userKey);
   }
