@@ -45,7 +45,7 @@ export class CommunityQueryService {
     let orderByClause: any = { createdAt: 'desc' };
     if (sortBy === 'popular') orderByClause = { id: 'asc' }; // In real app, order by score/upvotes
 
-    return prisma.post.findMany({
+    const rows = await prisma.post.findMany({
       take,
       where: whereClause,
       orderBy: orderByClause,
@@ -55,6 +55,15 @@ export class CommunityQueryService {
         _count: { select: { comments: true, upvotes: true } },
       },
     });
+    return rows.map((p) => ({
+      id: p.id,
+      title: p.title,
+      createdAt: p.createdAt,
+      status: p.status,
+      author: p.author,
+      category: p.category,
+      _count: p._count,
+    }));
   }
 
   /**
@@ -64,7 +73,7 @@ export class CommunityQueryService {
    * Keywords: post, detail, findFirst, id
    */
   public async getPostById(ability: AppAbility, postId: string): Promise<PostDetailDTO | null> {
-    return prisma.post.findFirst({
+    const post = await prisma.post.findFirst({
       where: { AND: [{ id: postId }, accessibleBy(ability).Post] },
       include: {
         author: { select: { id: true, username: true } },
@@ -72,6 +81,19 @@ export class CommunityQueryService {
         _count: { select: { comments: true, upvotes: true, bookmarks: true } },
       },
     });
+
+    if (!post) return null;
+
+    return {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      createdAt: post.createdAt,
+      status: post.status,
+      author: post.author,
+      category: post.category,
+      _count: post._count,
+    };
   }
 
   /**
@@ -114,7 +136,15 @@ export class CommunityQueryService {
       },
     });
 
-    if (!currentUserId) return comments as any;
+    if (!currentUserId) return comments.map(c => ({
+      id: c.id,
+      content: c.content,
+      createdAt: c.createdAt,
+      deletedAt: c.deletedAt,
+      isPending: c.isPending,
+      author: c.author,
+      _count: c._count,
+    }));
 
     const [userUpvotes, userBookmarks] = await Promise.all([
       prisma.commentUpvote.findMany({ where: { userId: currentUserId, comment: { postId } }, select: { commentId: true } }),
@@ -124,8 +154,14 @@ export class CommunityQueryService {
     const upvotedSet = new Set(userUpvotes.map((u) => u.commentId));
     const bookmarkedSet = new Set(userBookmarks.map((b) => b.commentId));
 
-    return (comments as any).map((comment: any) => ({
-      ...comment,
+    return comments.map((comment: any) => ({
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.createdAt,
+      deletedAt: comment.deletedAt,
+      isPending: comment.isPending,
+      author: comment.author,
+      _count: comment._count,
       hasUpvoted: upvotedSet.has(comment.id),
       hasBookmarked: bookmarkedSet.has(comment.id),
     }));

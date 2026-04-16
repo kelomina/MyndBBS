@@ -7,29 +7,8 @@ import { PostStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
 import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
-import { RoleApplicationService } from '../application/identity/RoleApplicationService';
-import { PrismaPermissionRepository } from '../infrastructure/repositories/PrismaPermissionRepository';
-import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
-import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
 
-import { authApplicationService, userApplicationService, installationApplicationService, systemApplicationService, communityApplicationService } from '../registry';
-const roleApplicationService = new RoleApplicationService(
-  new PrismaRoleRepository(),
-  new PrismaPermissionRepository(),
-  new PrismaUserRepository()
-);
-import { ModerationApplicationService } from '../application/community/ModerationApplicationService';
-import { PrismaPostRepository } from '../infrastructure/repositories/PrismaPostRepository';
-import { PrismaCommentRepository } from '../infrastructure/repositories/PrismaCommentRepository';
-import { PrismaModeratedWordRepository } from '../infrastructure/repositories/PrismaModeratedWordRepository';
-import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
-
-const moderationApplicationService = new ModerationApplicationService(
-  new PrismaPostRepository(),
-  new PrismaCommentRepository(),
-  new PrismaModeratedWordRepository(),
-  globalEventBus
-);
+import { adminUserManagementApplicationService, authApplicationService, userApplicationService, installationApplicationService, systemApplicationService, communityApplicationService, roleApplicationService, moderationApplicationService } from '../registry';
 
 // Users
 /**
@@ -54,116 +33,57 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
   const { role, level } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  const currentUser = await identityQueryService.getUserWithRoleById(id);
-
-  if (!currentUser) {
-    res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
-    return;
-  }
-
-  let finalUser = currentUser;
-
-  if (level !== undefined) {
-    if (level < 1 || level > 6) {
-      res.status(400).json({ error: 'ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6' });
-      return;
-    }
-
-    if (level > 1) {
-      const passkeys = await identityQueryService.listPasskeys(id);
-      if (passkeys.length === 0) {
-        res.status(400).json({ error: 'ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY' });
+  try {
+    if (level !== undefined) {
+      if (level < 1 || level > 6) {
+        res.status(400).json({ error: 'ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6' });
         return;
       }
-    }
-    await userApplicationService.changeLevel(id, level);
-    finalUser = await identityQueryService.getUserWithRoleById(id) as any;
-    await logAudit(operatorId, 'UPDATE_USER_LEVEL', `User:${id} to Level:${level}`);
-  }
-
-  if (role) {
-    if (!['USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN'].includes(role)) {
-      res.status(400).json({ error: 'ERR_INVALID_ROLE' });
-      return;
-    }
-    
-    const roleRecord = await adminQueryService.getRoleByName(role);
-    if (!roleRecord) {
-      res.status(400).json({ error: 'ERR_ROLE_NOT_FOUND_IN_DATABASE' });
-      return;
+      await adminUserManagementApplicationService.changeUserLevel(id, level);
+      await logAudit(operatorId, 'UPDATE_USER_LEVEL', `User:${id} to Level:${level}`);
     }
 
-    const roleLevels: Record<string, number> = {
-      'SUPER_ADMIN': 4,
-      'ADMIN': 3,
-      'MODERATOR': 2,
-      'USER': 1
-    };
-
-    const currentRoleLevel = roleLevels[currentUser.role?.name || 'USER'] || 1;
-    const newRoleLevel = roleLevels[role] || 1;
-
-    // Prevent managing users with equal or higher roles than the operator
-    const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
-    if (currentRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
-      res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE' });
-      return;
-    }
-
-    if (newRoleLevel > operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
-      res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_GRANT_A_ROLE_HIGHER_THAN_YOUR_OWN' });
-      return;
-    }
-
-    await userApplicationService.changeRole(id, roleRecord.id);
-    finalUser = await identityQueryService.getUserWithRoleById(id) as any;
-
-    if (newRoleLevel < currentRoleLevel) {
-      // Revoke sessions on downgrade
-      const sessions = await identityQueryService.listSessions(id);
-      if (sessions.length > 0) {
-        const pipeline = redis.pipeline();
-        for (const session of sessions) {
-          pipeline.del(`session:${session.id}`);
-        }
-        await pipeline.exec();
-        await authApplicationService.revokeAllUserSessions(id);
+    if (role) {
+      if (!['USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN'].includes(role)) {
+        res.status(400).json({ error: 'ERR_INVALID_ROLE' });
+        return;
       }
-    } else if (newRoleLevel > currentRoleLevel) {
-      // Mark sessions for refresh on promotion
-      const sessions = await identityQueryService.listSessions(id);
-      if (sessions.length > 0) {
-        const pipeline = redis.pipeline();
-        for (const session of sessions) {
-          pipeline.set(`session:${session.id}:requires_refresh`, 'true', 'EX', 7 * 24 * 60 * 60); // same as session expiry
-        }
-        await pipeline.exec();
-      }
-    }
 
-    // Auto-disable root if another user gets SUPER_ADMIN role
-    if (role === 'SUPER_ADMIN' && finalUser.username !== 'root') {
-      const rootUser = await adminQueryService.getRootUser();
-      if (rootUser) {
-        await userApplicationService.changeStatus(rootUser.id, UserStatus.BANNED);
-        // Revoke root sessions
-        const rootSessions = await identityQueryService.listSessions(rootUser.id);
-        if (rootSessions.length > 0) {
-          const pipeline = redis.pipeline();
-          for (const session of rootSessions) {
-            pipeline.del(`session:${session.id}`);
+      await adminUserManagementApplicationService.changeUserRole(
+        { userId: operatorId, role: (req.user?.role || 'USER') as any },
+        id,
+        role as any
+      );
+
+      // Auto-disable root if another user gets SUPER_ADMIN role
+      if (role === 'SUPER_ADMIN') {
+        const targetUser = await identityQueryService.getUserWithRoleById(id);
+        if (targetUser && targetUser.username !== 'root') {
+          const rootUser = await adminQueryService.getRootUser();
+          if (rootUser) {
+            await adminUserManagementApplicationService.changeUserStatus(
+              { userId: 'system', role: 'SUPER_ADMIN' },
+              rootUser.id,
+              UserStatus.BANNED
+            );
+            await logAudit('system', 'AUTO_DISABLE_ROOT', 'root');
           }
-          await pipeline.exec();
-          await authApplicationService.revokeAllUserSessions(rootUser.id);
         }
-        await logAudit('system', 'AUTO_DISABLE_ROOT', 'root');
       }
+
+      await logAudit(operatorId, 'UPDATE_USER_ROLE', `User:${id} to ${role}`);
     }
 
-    await logAudit(operatorId, 'UPDATE_USER_ROLE', `User:${id} to ${role}`);
+    const finalUser = await identityQueryService.getUserWithRoleById(id);
+    res.json({ message: 'User updated', user: { id: finalUser?.id, role: finalUser?.role?.name, level: (finalUser as any)?.level } });
+  } catch (error: any) {
+    if (error.message.startsWith('ERR_')) {
+      const status = error.message.includes('NOT_FOUND') ? 404 : error.message.includes('FORBIDDEN') ? 403 : 400;
+      res.status(status).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
   }
-
-  res.json({ message: 'User updated', user: { id: finalUser.id, role: finalUser.role?.name, level: (finalUser as any).level } });
 };
 
 /**
@@ -177,45 +97,30 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
   const { status } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  if (!([UserStatus.ACTIVE, UserStatus.BANNED, UserStatus.PENDING_VERIFICATION, UserStatus.INACTIVE] as UserStatus[]).includes(status as UserStatus)) {
-    res.status(400).json({ error: 'ERR_INVALID_STATUS' });
-    return;
-  }
+  try {
+    if (!([UserStatus.ACTIVE, UserStatus.BANNED, UserStatus.PENDING_VERIFICATION, UserStatus.INACTIVE] as UserStatus[]).includes(status as UserStatus)) {
+      res.status(400).json({ error: 'ERR_INVALID_STATUS' });
+      return;
+    }
 
-  const targetUser = await identityQueryService.getUserWithRoleById(id);
-  if (!targetUser) {
-    res.status(404).json({ error: 'ERR_USER_NOT_FOUND' });
-    return;
-  }
+    await adminUserManagementApplicationService.changeUserStatus(
+      { userId: operatorId, role: (req.user?.role || 'USER') as any },
+      id,
+      status as UserStatus
+    );
 
-  const roleLevels: Record<string, number> = { 'SUPER_ADMIN': 4, 'ADMIN': 3, 'MODERATOR': 2, 'USER': 1 };
-  const targetRoleLevel = roleLevels[targetUser.role?.name || 'USER'] || 1;
-  const operatorRoleLevel = roleLevels[req.user?.role || 'USER'] || 1;
+    const user = await identityQueryService.getUserWithRoleById(id);
+    await logAudit(operatorId, 'UPDATE_USER_STATUS', `User:${id} to ${status}`);
 
-  if (targetRoleLevel >= operatorRoleLevel && req.user?.role !== 'SUPER_ADMIN') {
-    res.status(403).json({ error: 'ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE' });
-    return;
-  }
-
-  await userApplicationService.changeStatus(id, status);
-  const user = await identityQueryService.getUserWithRoleById(id) as any;
-
-  if (status === UserStatus.BANNED) {
-    // Revoke sessions on ban
-    const sessions = await identityQueryService.listSessions(id);
-    if (sessions.length > 0) {
-      const pipeline = redis.pipeline();
-      for (const session of sessions) {
-        pipeline.del(`session:${session.id}`);
-      }
-      await pipeline.exec();
-      await authApplicationService.revokeAllUserSessions(id);
+    res.json({ message: 'Status updated', user: { id: user?.id, status: user?.status } });
+  } catch (error: any) {
+    if (error.message.startsWith('ERR_')) {
+      const statusCode = error.message.includes('NOT_FOUND') ? 404 : error.message.includes('FORBIDDEN') ? 403 : 400;
+      res.status(statusCode).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
     }
   }
-
-  await logAudit(operatorId, 'UPDATE_USER_STATUS', `User:${id} to ${status}`);
-
-  res.json({ message: 'Status updated', user: { id: user.id, status: user.status } });
 };
 
 // Categories

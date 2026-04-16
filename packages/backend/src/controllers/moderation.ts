@@ -1,18 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { adminQueryService } from '../queries/admin/AdminQueryService';
-import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
-import { ModerationApplicationService } from '../application/community/ModerationApplicationService';
-import { PrismaPostRepository } from '../infrastructure/repositories/PrismaPostRepository';
-import { PrismaCommentRepository } from '../infrastructure/repositories/PrismaCommentRepository';
-import { PrismaModeratedWordRepository } from '../infrastructure/repositories/PrismaModeratedWordRepository';
-
-const moderationApplicationService = new ModerationApplicationService(
-  new PrismaPostRepository(),
-  new PrismaCommentRepository(),
-  new PrismaModeratedWordRepository(),
-  globalEventBus
-);
+import { moderationApplicationService } from '../registry';
 
 /**
  * Callers: []

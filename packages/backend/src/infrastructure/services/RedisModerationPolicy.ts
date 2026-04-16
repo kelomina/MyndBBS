@@ -1,21 +1,23 @@
 import { IModerationPolicy } from '../../domain/community/IModerationPolicy';
-import { prisma } from '../../db';
+import { IModeratedWordRepository } from '../../domain/community/IModeratedWordRepository';
 import { redis } from '../../lib/redis';
 
 const MODERATION_CACHE_KEY = 'moderation:words';
 
 export class RedisModerationPolicy implements IModerationPolicy {
+  constructor(private moderatedWordRepository: IModeratedWordRepository) {}
+
   private async getModerationWords(): Promise<{ global: string[], category: Record<string, string[]> }> {
     const cached = await redis.get(MODERATION_CACHE_KEY);
     if (cached) return JSON.parse(cached);
 
-    const words = await prisma.moderatedWord.findMany();
+    const words = await this.moderatedWordRepository.findAll();
     const global: string[] = [];
     const category: Record<string, string[]> = {};
 
     for (const w of words) {
       if (w.categoryId) {
-        const catId = w.categoryId as string;
+        const catId = w.categoryId;
         if (!category[catId]) category[catId] = [];
         category[catId]!.push(w.word);
       } else {

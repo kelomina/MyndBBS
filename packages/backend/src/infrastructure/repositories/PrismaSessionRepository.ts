@@ -46,4 +46,9 @@ export class PrismaSessionRepository implements ISessionRepository {
   public async deleteManyByUserId(userId: string): Promise<void> {
     await prisma.session.deleteMany({ where: { userId } });
   }
+
+  public async findByUserId(userId: string): Promise<Session[]> {
+    const rows = await prisma.session.findMany({ where: { userId } });
+    return rows.map(r => this.toDomain(r));
+  }
 }

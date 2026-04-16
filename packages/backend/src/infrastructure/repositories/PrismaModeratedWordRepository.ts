@@ -19,6 +19,11 @@ export class PrismaModeratedWordRepository implements IModeratedWordRepository {
     return this.toDomain(raw);
   }
 
+  public async findAll(): Promise<ModeratedWord[]> {
+    const raw = await prisma.moderatedWord.findMany();
+    return raw.map((r: any) => this.toDomain(r));
+  }
+
   public async save(word: ModeratedWord): Promise<void> {
     await prisma.moderatedWord.upsert({
       where: { id: word.id },

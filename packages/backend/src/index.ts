@@ -108,12 +108,10 @@ if (!isInstalled) {
   const messageRoutes = require('./routes/message').default;
   const uploadRoutes = require('./routes/upload').default;
   const friendRoutes = require('./routes/friend').default;
-
+  
   // Initialize Domain Event Subscribers
-  const { NotificationApplicationService } = require('./application/notification/NotificationApplicationService');
-  const { PrismaNotificationRepository } = require('./infrastructure/repositories/PrismaNotificationRepository');
-  const { globalEventBus } = require('./infrastructure/events/InMemoryEventBus');
-  new NotificationApplicationService(new PrismaNotificationRepository(), globalEventBus);
+  const { bootstrapDomainSubscribers } = require('./startup/bootstrapDomainSubscribers');
+  bootstrapDomainSubscribers();
 
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/user', userRoutes);

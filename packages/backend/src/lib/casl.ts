@@ -1,7 +1,7 @@
 import { AbilityBuilder, PureAbility } from '@casl/ability';
 import { createPrismaAbility, PrismaQuery, Subjects } from '@casl/prisma';
 import { User, Post, Category, Role, Permission, Comment, UserStatus, PostStatus } from '@prisma/client';
-import { AccessContextDTO, RuleDescriptorDTO } from '../queries/identity/dto';
+import { AccessContextDTO, RuleDescriptorDTO } from '../application/identity/contracts/AbilityContracts';
 
 export type Action = 'manage' | 'create' | 'read' | 'update' | 'delete' | 'update_status';
 
