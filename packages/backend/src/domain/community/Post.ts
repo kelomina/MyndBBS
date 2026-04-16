@@ -18,6 +18,8 @@ export interface PostProps {
   createdAt: Date;
 }
 
+export type CreatePostProps = Omit<PostProps, 'status'>;
+
 /**
  * Callers: [PrismaPostRepository, CommunityApplicationService, ModerationApplicationService]
  * Callees: []
@@ -28,7 +30,7 @@ export class Post {
   private props: PostProps;
 
   /**
-   * Callers: [Post.create, PrismaPostRepository.toDomain]
+   * Callers: [Post.create, Post.load, PrismaPostRepository.toDomain]
    * Callees: []
    * Description: Private constructor to enforce instantiation via static factory methods.
    * Keywords: constructor, post, entity, instantiation
@@ -38,18 +40,34 @@ export class Post {
   }
 
   /**
-   * Callers: [PrismaPostRepository, CommunityApplicationService]
+   * Callers: [CommunityApplicationService]
    * Callees: [Post.constructor]
-   * Description: Static factory method creating a new Post entity. Validates basic title and content requirements.
+   * Description: Static factory method creating a new Post entity. Validates basic title and content requirements, and sets initial status based on moderation.
    * Keywords: create, factory, post, domain, instantiation
    */
-  public static create(props: PostProps): Post {
+  public static create(props: CreatePostProps, isModerated: boolean): Post {
     if (!props.title || props.title.trim().length === 0) {
       throw new Error('ERR_POST_TITLE_CANNOT_BE_EMPTY');
     }
     if (!props.content || props.content.trim().length === 0) {
       throw new Error('ERR_POST_CONTENT_CANNOT_BE_EMPTY');
     }
+    
+    const status = isModerated ? PostStatus.PENDING_MODERATION : PostStatus.PUBLISHED;
+    
+    return new Post({
+      ...props,
+      status
+    });
+  }
+
+  /**
+   * Callers: [PrismaPostRepository]
+   * Callees: [Post.constructor]
+   * Description: Reconstitutes a Post entity from persistence without applying creation domain rules.
+   * Keywords: load, reconstitute, post, domain, persistence
+   */
+  public static load(props: PostProps): Post {
     return new Post(props);
   }
 

@@ -111,9 +111,8 @@ export class CommunityApplicationService {
       content,
       categoryId,
       authorId,
-      status: isModerated ? PostStatus.PENDING_MODERATION : PostStatus.PUBLISHED,
       createdAt: new Date()
-    });
+    }, isModerated);
 
     await this.postRepository.save(post);
 
@@ -157,10 +156,9 @@ export class CommunityApplicationService {
       postId,
       authorId,
       parentId: parentId || null,
-      isPending: isModerated,
       deletedAt: null,
       createdAt: new Date()
-    });
+    }, isModerated);
 
     await this.commentRepository.save(comment);
 
