@@ -20,7 +20,7 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorMethods, setTwoFactorMethods] = useState<string[]>([]);
-  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
+  const { executePasskeyFlow, passkeyLoading, passkeyError } = usePasskey();
   const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
   const [uiMode, setUiMode] = useState<'passkey' | 'password'>('password');
 
