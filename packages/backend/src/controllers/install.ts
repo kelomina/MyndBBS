@@ -7,25 +7,10 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { SystemApplicationService } from '../application/system/SystemApplicationService';
-import { InstallationApplicationService } from '../application/provisioning/InstallationApplicationService';
-import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
-import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
-import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
-import { getBackendEnvPath } from '../lib/EnvFileService';
-
-const systemApplicationService = new SystemApplicationService(
-  new PrismaRouteWhitelistRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository()
-);
-
-const installationApplicationService = new InstallationApplicationService(systemApplicationService);
+import { installationApplicationService } from '../registry';
+import { applyDomainConfigToEnv, buildOrigin, EnvFileService, getBackendEnvPath, validateHostname, validateRpId } from '../lib/EnvFileService';
 
 const envPath = getBackendEnvPath(__dirname);
-
-// Temporary in-memory token for the install session
-export let installToken = '';
 
 /**
  * Callers: []
@@ -699,20 +684,76 @@ export const getInstallHtml = (req: Request, res: Response): void => {
  */
 export const setupEnv = async (req: Request, res: Response): Promise<void> => {
   try {
-    const config = req.body;
+    const { DATABASE_URL, PORT, FRONTEND_URL, UPLOAD_DIR, WEB_ROOT, PROTOCOL, HOSTNAME, RP_ID, REVERSE_PROXY_MODE } = req.body;
+
+    if (!DATABASE_URL) {
+      res.status(400).json({ error: '缺少 DATABASE_URL' });
+      return;
+    }
+
+    const protocol = PROTOCOL === 'https' ? 'https' : 'http';
+    const hostname = String(HOSTNAME || 'localhost').trim();
+    if (!validateHostname(hostname)) {
+      res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
+      return;
+    }
+
+    const rpId = String(RP_ID || hostname).trim();
+    if (!validateRpId(rpId)) {
+      res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
+      return;
+    }
+
+    const reverseProxyMode = !!REVERSE_PROXY_MODE;
+    const origin = buildOrigin(protocol, hostname);
+
+    const jwtSecret = crypto.randomBytes(32).toString('hex');
+    const jwtRefreshSecret = crypto.randomBytes(32).toString('hex');
+
+    const frontendUrlValue = FRONTEND_URL || origin;
+    let envContent = `
+PORT=${PORT || 3001}
+FRONTEND_URL="${frontendUrlValue}"
+UPLOAD_DIR="${UPLOAD_DIR || './uploads'}"
+WEB_ROOT="${WEB_ROOT || '/'}"
+JWT_SECRET="${jwtSecret}"
+JWT_REFRESH_SECRET="${jwtRefreshSecret}"
+`.trim() + '\n';
+
+    envContent = applyDomainConfigToEnv(envContent, {
+      protocol,
+      hostname,
+      rpId,
+      reverseProxyMode,
+    });
+
+    const envFile = new EnvFileService(envPath);
+    await envFile.write(envContent);
+
+    // Update process.env for current runtime
+    process.env.JWT_SECRET = jwtSecret;
+    process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
+    process.env.ORIGIN = origin;
+    process.env.RP_ID = rpId;
+    process.env.TRUST_PROXY = reverseProxyMode ? 'true' : 'false';
+    const m = envContent.match(/^FRONTEND_URL=(.*)$/m);
+    if (m?.[1]) {
+      process.env.FRONTEND_URL = m[1].trim().replace(/^"(.*)"$/, '$1');
+    }
+
     try {
-      installToken = await installationApplicationService.startInstallation(config);
-      res.json({ success: true, token: installToken });
+      const sessionId = await installationApplicationService.startInstallation();
+      await installationApplicationService.configureDatabase(sessionId, DATABASE_URL);
+      await installationApplicationService.applySchema(sessionId);
+      
+      res.json({ success: true, token: sessionId });
     } catch (err: any) {
-        if (err.message === '缺少 DATABASE_URL' || err.message === 'ERR_INVALID_DOMAIN_CONFIG') {
-          res.status(400).json({ error: err.message });
-        } else if (err.message.includes('数据库初始化失败')) {
-          res.status(500).json({ error: err.message });
-        } else {
-          console.error('DB Seed Error:', err);
-          res.status(500).json({ error: '创建临时管理员账户失败。' });
-        }
+      if (err.message === 'ERR_DB_CONNECTION_FAILED') {
+        res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });
+      } else {
+        res.status(500).json({ error: err.message || '初始化失败' });
       }
+    }
   } catch (err) {
     res.status(500).json({ error: '内部服务器错误' });
   }
@@ -726,10 +767,11 @@ export const setupEnv = async (req: Request, res: Response): Promise<void> => {
  */
 export const setupAdmin = async (req: Request, res: Response): Promise<void> => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== `Bearer ${installToken}`) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ error: '未授权，无效的安装令牌。' });
     return;
   }
+  const sessionId = authHeader.replace('Bearer ', '');
 
   const { username, email, password } = req.body;
   if (!username || !email || !password) {
@@ -738,7 +780,7 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
   }
 
   try {
-    const userId = await installationApplicationService.finalizeInstallation(username, email, password);
+    const userId = await installationApplicationService.finalizeInstallation(sessionId, username, email, password);
 
     const tempToken = jwt.sign({ userId, type: 'registration' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
     res.cookie('tempToken', tempToken, {
