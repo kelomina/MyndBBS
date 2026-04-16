@@ -2,8 +2,7 @@ import { ICategoryRepository } from '../../domain/community/ICategoryRepository'
 import { IPostRepository } from '../../domain/community/IPostRepository';
 import { ICommentRepository } from '../../domain/community/ICommentRepository';
 import { IEngagementRepository } from '../../domain/community/IEngagementRepository';
-import { IUserRepository } from '../../domain/identity/IUserRepository';
-import { IRoleRepository } from '../../domain/identity/IRoleRepository';
+import { IIdentityIntegrationPort } from '../../domain/community/IIdentityIntegrationPort';
 import { Category } from '../../domain/community/Category';
 import { Post } from '../../domain/community/Post';
 import { PostStatus } from '@myndbbs/shared';
@@ -12,11 +11,10 @@ import { PostUpvote, PostBookmark } from '../../domain/community/PostEngagement'
 import { CommentUpvote, CommentBookmark } from '../../domain/community/CommentEngagement';
 import { randomUUID as uuidv4 } from 'crypto';
 import { IModerationPolicy } from '../../domain/community/IModerationPolicy';
-import { IAbilityCache } from '../../domain/identity/IAbilityCache';
 
 import { ICaptchaValidator } from '../../domain/community/ICaptchaValidator';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
-import { PostRepliedEvent, CommentRepliedEvent } from '../../domain/shared/events/DomainEvents';
+import { PostRepliedEvent, CommentRepliedEvent, CategoryModeratorAssignedEvent, CategoryModeratorRemovedEvent } from '../../domain/shared/events/DomainEvents';
 
 /**
  * Callers: [AdminController, PostController]
@@ -30,10 +28,8 @@ export class CommunityApplicationService {
     private postRepository: IPostRepository,
     private commentRepository: ICommentRepository,
     private engagementRepository: IEngagementRepository,
-    private userRepository: IUserRepository,
-    private roleRepository: IRoleRepository,
+    private identityIntegrationPort: IIdentityIntegrationPort,
     private moderationPolicy: IModerationPolicy,
-    private abilityCache: IAbilityCache,
     private captchaValidator: ICaptchaValidator,
     private eventBus: IEventBus
   ) {}
@@ -66,7 +62,7 @@ export class CommunityApplicationService {
 
   /**
    * Callers: [AdminController]
-   * Callees: [categoryRepository.findById, userRepository.findById, roleRepository.findById, category.addModerator, categoryRepository.save, redis.del]
+   * Callees: [categoryRepository.findById, identityIntegrationPort.isModerator, category.addModerator, categoryRepository.save, eventBus.publish]
    * Description: Assigns a moderator role to a user for a specific category.
    * Keywords: assign, moderator, category, community, user
    */
@@ -74,17 +70,14 @@ export class CommunityApplicationService {
     const category = await this.categoryRepository.findById(categoryId);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
 
-    const user = await this.userRepository.findById(userId);
-    if (!user || !user.roleId) throw new Error('ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR');
-
-    const role = await this.roleRepository.findById(user.roleId);
-    if (!role || role.name !== 'MODERATOR') {
+    const isModerator = await this.identityIntegrationPort.isModerator(userId);
+    if (!isModerator) {
       throw new Error('ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR');
     }
 
     category.addModerator(userId);
     await this.categoryRepository.save(category);
-    await this.abilityCache.invalidateUserRules(userId);
+    this.eventBus.publish(new CategoryModeratorAssignedEvent(categoryId, userId));
 
     return { categoryId, userId };
   }
@@ -95,7 +88,7 @@ export class CommunityApplicationService {
 
     category.removeModerator(userId);
     await this.categoryRepository.save(category);
-    await this.abilityCache.invalidateUserRules(userId);
+    this.eventBus.publish(new CategoryModeratorRemovedEvent(categoryId, userId));
   }
   public async deleteCategory(id: string): Promise<void> {
     const category = await this.categoryRepository.findById(id);

@@ -33,6 +33,7 @@ import { PrismaDatabaseConnectionValidator } from './infrastructure/services/pro
 import { PrismaDatabaseSchemaApplier } from './infrastructure/services/provisioning/PrismaDatabaseSchemaApplier';
 import { RedisModerationPolicy } from './infrastructure/services/RedisModerationPolicy';
 import { ModerationCacheInvalidationHandler } from './infrastructure/events/handlers/ModerationCacheInvalidationHandler';
+import { AbilityCacheInvalidationHandler } from './infrastructure/events/handlers/AbilityCacheInvalidationHandler';
 import { globalEventBus } from './infrastructure/events/InMemoryEventBus';
 
 import { AdminUserManagementApplicationService } from './application/identity/AdminUserManagementApplicationService';
@@ -42,6 +43,11 @@ import { RoleHierarchyPolicy } from './application/identity/policies/RoleHierarc
 
 export const redisAbilityCache = new RedisAbilityCache();
 export const authCache = new RedisSessionCache();
+
+export const abilityCacheInvalidationHandler = new AbilityCacheInvalidationHandler(
+  globalEventBus,
+  redisAbilityCache
+);
 
 export const userApplicationService = new UserApplicationService(
   new PrismaUserRepository(),
@@ -70,7 +76,8 @@ export const authApplicationService = new AuthApplicationService(
   new PrismaAuthChallengeRepository(),
   new PrismaUserRepository(),
   new PrismaRoleRepository(),
-  new Argon2PasswordHasher()
+  new Argon2PasswordHasher(),
+  authCache
 );
 
 export const sudoApplicationService = new SudoApplicationService(
@@ -114,15 +121,17 @@ export const moderationCacheInvalidationHandler = new ModerationCacheInvalidatio
   redisModerationPolicy
 );
 
+import { IdentityIntegrationPort } from './infrastructure/services/IdentityIntegrationPort';
+
+export const identityIntegrationPort = new IdentityIntegrationPort(identityQueryService);
+
 export const communityApplicationService = new CommunityApplicationService(
   new PrismaCategoryRepository(),
   new PrismaPostRepository(),
   new PrismaCommentRepository(),
   new PrismaEngagementRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository(),
+  identityIntegrationPort,
   redisModerationPolicy,
-  redisAbilityCache,
   authApplicationService,
   globalEventBus
 );

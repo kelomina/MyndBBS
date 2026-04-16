@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { UserStatus } from '@myndbbs/shared';
-import { redis } from '../lib/redis';
 import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
@@ -137,8 +136,6 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
 
     if (sessionId) {
       await authApplicationService.revokeSession(sessionId);
-      await redis.del(`session:${sessionId}`);
-      await redis.del(`session:${sessionId}:requires_refresh`);
     }
 
     res.clearCookie('accessToken');

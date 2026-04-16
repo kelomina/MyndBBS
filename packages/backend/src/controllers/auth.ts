@@ -10,9 +10,8 @@ import { OTP } from 'otplib';
 import QRCode from 'qrcode';
 import jwt from 'jsonwebtoken';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
-import { redis } from '../lib/redis';
 import { APP_NAME } from '@myndbbs/shared';
-import { authApplicationService, userApplicationService } from '../registry';
+import { userApplicationService, authApplicationService } from '../registry';
 
 const rpName = APP_NAME;
 const rpID = process.env.RP_ID || 'localhost';
@@ -95,7 +94,7 @@ export const generateTotp = async (req: Request, res: Response): Promise<void> =
   const otpauth = authenticator.generateURI({ issuer: rpName, label: user.email, secret });
   const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
-  await redis.set(`totp_setup:${user.id}`, secret, 'EX', 300); // 5 minutes
+  await authApplicationService.storeTotpSecret(user.id, secret, 300); // 5 minutes
 
   res.json({ secret, qrCodeUrl });
 };
@@ -114,7 +113,7 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
     return;
   }
 
-  const pendingSecret = await redis.get(`totp_setup:${user.id}`);
+  const pendingSecret = await authApplicationService.getTotpSecret(user.id);
   if (!pendingSecret) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED' });
     return;
@@ -128,7 +127,7 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
 
   await userApplicationService.enableTotp(user.id, pendingSecret);
 
-  await redis.del(`totp_setup:${user.id}`);
+  await authApplicationService.removeTotpSecret(user.id);
 
   await finalizeAuth(user, req, res);
 };

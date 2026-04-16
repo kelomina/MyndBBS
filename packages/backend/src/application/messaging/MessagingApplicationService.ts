@@ -8,6 +8,8 @@ import { UserKey } from '../../domain/messaging/UserKey';
 import { ConversationSetting } from '../../domain/messaging/ConversationSetting';
 import { randomUUID as uuidv4 } from 'crypto';
 
+import { identityQueryService } from '../../queries/identity/IdentityQueryService';
+
 /**
  * Callers: [FriendController, MessageController]
  * Callees: [IFriendshipRepository, IPrivateMessageRepository, IUserKeyRepository, IConversationSettingRepository, Friendship.create, Friendship.accept, Friendship.reject, PrivateMessage.create, PrivateMessage.markAsRead, PrivateMessage.deleteForUser]
@@ -24,13 +26,40 @@ export class MessagingApplicationService {
 
   // --- Friendship Management ---
 
+  public async sendFriendRequestWithValidation(requesterId: string, addresseeId: string): Promise<void> {
+    const requester = await identityQueryService.getProfile(requesterId);
+    if (!requester) throw new Error('ERR_USER_NOT_FOUND');
+
+    const systemUser = await identityQueryService.getUserByUsername('system');
+
+    const friendship = await this.sendFriendRequest(requesterId, addresseeId);
+
+    const payload = {
+      title: 'Friend Request',
+      content: `${requester.username} wants to be your friend.`,
+      relatedId: friendship.id,
+      type: 'FRIEND_REQUEST'
+    };
+
+    if (systemUser) {
+      await this.sendMessage(
+        systemUser.id,
+        6, // system level
+        addresseeId,
+        JSON.stringify(payload),
+        false, // isBurnAfterRead
+        true   // isSystem
+      );
+    }
+  }
+
   /**
    * Callers: [FriendController]
    * Callees: [friendshipRepository.findByUsers, Friendship.create, friendshipRepository.save, userRepository.findById, userRepository.findByUsername, PrivateMessage.create, privateMessageRepository.save]
    * Description: Sends a friend request from one user to another, also dispatching a system notification.
    * Keywords: friend, request, send, messaging, friendship
    */
-  public async sendFriendRequest(requesterId: string, requesterUsername: string, receiverId: string, systemUserId: string): Promise<void> {
+  public async sendFriendRequest(requesterId: string, receiverId: string): Promise<Friendship> {
     const existing = await this.friendshipRepository.findByUsers(requesterId, receiverId);
     if (existing) throw new Error('ERR_FRIENDSHIP_EXISTS');
 
@@ -43,32 +72,7 @@ export class MessagingApplicationService {
     });
 
     await this.friendshipRepository.save(friendship);
-
-    // Send system notification message
-    const payload = {
-      title: 'Friend Request',
-      content: `${requesterUsername} wants to be your friend.`,
-      relatedId: friendship.id,
-      type: 'FRIEND_REQUEST'
-    };
-
-    if (systemUserId) {
-      const systemMessage = PrivateMessage.create({
-        id: uuidv4(),
-        senderId: systemUserId,
-        receiverId: receiverId,
-        ephemeralPublicKey: 'system',
-        ephemeralMlKemCiphertext: null,
-        encryptedContent: JSON.stringify(payload),
-        senderEncryptedContent: null,
-        isRead: false,
-        isSystem: true,
-        expiresAt: null,
-        deletedBy: [],
-        createdAt: new Date()
-      }, 6, true, 0);
-      await this.privateMessageRepository.save(systemMessage);
-    }
+    return friendship;
   }
 
   public async respondFriendRequest(friendshipId: string, userId: string, accept: boolean): Promise<void> {
@@ -86,15 +90,36 @@ export class MessagingApplicationService {
 
   // --- Private Message Management ---
 
+  public async sendMessageWithValidation(
+    senderId: string, 
+    receiverId: string, 
+    content: string, 
+    isSystem: boolean = false,
+    isBurnAfterRead: boolean = false
+  ): Promise<string> {
+    const sender = await identityQueryService.getProfile(senderId);
+    if (!sender) throw new Error('ERR_USER_NOT_FOUND');
+
+    return this.sendMessage(
+      senderId, 
+      sender.level, 
+      receiverId, 
+      content, 
+      isBurnAfterRead,
+      isSystem
+    );
+  }
+
   public async sendMessage(
     senderId: string, 
     senderLevel: number, 
     receiverId: string, 
     encryptedContent: string, 
-    isBurnAfterRead: boolean
+    isBurnAfterRead: boolean,
+    isSystem: boolean = false
   ): Promise<string> {
     const friendship = await this.friendshipRepository.findByUsers(senderId, receiverId);
-    const isFriend = !!(friendship && friendship.status === 'ACCEPTED');
+    const isFriend = !!(friendship && friendship.status === 'ACCEPTED') || isSystem;
 
     let sentCount = 0;
     if (!isFriend) {
@@ -110,12 +135,12 @@ export class MessagingApplicationService {
       id: uuidv4(),
       senderId,
       receiverId,
-      ephemeralPublicKey: '',
+      ephemeralPublicKey: isSystem ? 'system' : '',
       ephemeralMlKemCiphertext: null,
       encryptedContent,
       senderEncryptedContent: null,
       isRead: false,
-      isSystem: false,
+      isSystem,
       expiresAt,
       deletedBy: [],
       createdAt: new Date()
@@ -171,6 +196,28 @@ export class MessagingApplicationService {
         await this.privateMessageRepository.save(msg);
       }
     }
+  }
+
+  public async uploadKeysWithValidation(
+    userId: string, 
+    scheme: string, 
+    publicKey: string, 
+    encryptedPrivateKey: string, 
+    mlKemPublicKey?: string, 
+    encryptedMlKemPrivateKey?: string
+  ): Promise<void> {
+    const user = await identityQueryService.getProfile(userId);
+    if (!user) throw new Error('ERR_USER_NOT_FOUND');
+
+    await this.uploadKeys(
+      userId, 
+      user.level, 
+      scheme, 
+      publicKey, 
+      encryptedPrivateKey, 
+      mlKemPublicKey, 
+      encryptedMlKemPrivateKey
+    );
   }
 
   /**

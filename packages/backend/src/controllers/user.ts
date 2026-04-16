@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { redis } from '../lib/redis';
 import * as argon2 from 'argon2';
 import { AuthRequest } from '../middleware/auth';
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
@@ -157,7 +156,6 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-import { accessibleBy } from '@casl/prisma';
 
 /**
  * Callers: []
@@ -237,7 +235,7 @@ export const generateTotp = async (req: AuthRequest, res: Response): Promise<voi
     const otpauth = authenticator.generateURI({ issuer: rpName, label: user.email, secret });
     const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
-    await redis.set(`totp_setup:${userId}`, secret, 'EX', 300); // 5 minutes
+    await authApplicationService.storeTotpSecret(userId, secret, 300); // 5 minutes
 
     res.json({ secret, qrCodeUrl });
   } catch (error) {
@@ -266,9 +264,14 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const pendingSecret = await redis.get(`totp_setup:${userId}`);
+    if (user.isTotpEnabled) {
+      res.status(400).json({ error: 'ERR_TOTP_ALREADY_ENABLED' });
+      return;
+    }
+
+    const pendingSecret = await authApplicationService.getTotpSecret(userId);
     if (!pendingSecret) {
-      res.status(401).json({ error: 'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED' });
+      res.status(400).json({ error: 'ERR_TOTP_SETUP_NOT_INITIATED_OR_EXPIRED' });
       return;
     }
 
@@ -280,7 +283,7 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
 
     await userApplicationService.enableTotp(userId, pendingSecret);
 
-    await redis.del(`totp_setup:${userId}`);
+    await authApplicationService.removeTotpSecret(userId);
 
     res.json({ message: 'TOTP setup successful' });
   } catch (error) {
@@ -455,9 +458,6 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     await authApplicationService.revokeSession(sessionId);
-
-    await redis.del(`session:${sessionId}`);
-    await redis.del(`session:${sessionId}:requires_refresh`);
 
     res.json({ message: 'Session revoked successfully' });
   } catch (error) {
