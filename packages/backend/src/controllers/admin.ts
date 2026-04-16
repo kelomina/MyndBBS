@@ -7,20 +7,14 @@ import { PostStatus } from '@prisma/client';
 import { redis } from '../lib/redis';
 import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
-import { UserApplicationService } from '../application/identity/UserApplicationService';
 import { RoleApplicationService } from '../application/identity/RoleApplicationService';
 import { PrismaPermissionRepository } from '../infrastructure/repositories/PrismaPermissionRepository';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
 
 import { SystemApplicationService } from '../application/system/SystemApplicationService';
-import { AuthApplicationService } from '../application/identity/AuthApplicationService';
-import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
-import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
-import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
-import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
-import { Argon2PasswordHasher } from '../infrastructure/services/Argon2PasswordHasher';
+import { authApplicationService, userApplicationService } from '../registry';
 
 const systemApplicationService = new SystemApplicationService(
   new PrismaRouteWhitelistRepository(),
@@ -32,16 +26,6 @@ const roleApplicationService = new RoleApplicationService(
   new PrismaPermissionRepository(),
   new PrismaUserRepository()
 );
-
-const authApplicationService = new AuthApplicationService(
-  new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository(),
-  new PrismaSessionRepository(),
-  new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository(),
-  new Argon2PasswordHasher()
-);
 import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
 import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
 import { PrismaEngagementRepository } from '../infrastructure/repositories/PrismaEngagementRepository';
@@ -51,7 +35,6 @@ import { PrismaCommentRepository } from '../infrastructure/repositories/PrismaCo
 import { PrismaModeratedWordRepository } from '../infrastructure/repositories/PrismaModeratedWordRepository';
 import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
 
-const userApplicationService = new UserApplicationService(new PrismaUserRepository());
 const communityApplicationService = new CommunityApplicationService(
   new PrismaCategoryRepository(),
   new PrismaPostRepository(),

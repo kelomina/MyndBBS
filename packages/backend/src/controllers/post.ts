@@ -13,15 +13,10 @@ import { PrismaCommentRepository } from '../infrastructure/repositories/PrismaCo
 import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
 import { PrismaEngagementRepository } from '../infrastructure/repositories/PrismaEngagementRepository';
 import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
-import { AuthApplicationService } from '../application/identity/AuthApplicationService';
-import { PrismaCaptchaChallengeRepository } from '../infrastructure/repositories/PrismaCaptchaChallengeRepository';
-import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPasskeyRepository';
-import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
-import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 import { communityQueryService } from '../queries/community/CommunityQueryService';
 import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
-import { Argon2PasswordHasher } from '../infrastructure/services/Argon2PasswordHasher';
+import { authApplicationService } from '../registry';
 
 const communityApplicationService = new CommunityApplicationService(
   new PrismaCategoryRepository(),
@@ -30,16 +25,6 @@ const communityApplicationService = new CommunityApplicationService(
   new PrismaEngagementRepository(),
   new PrismaUserRepository(),
   new PrismaRoleRepository()
-);
-
-const authApplicationService = new AuthApplicationService(
-  new PrismaCaptchaChallengeRepository(),
-  new PrismaPasskeyRepository(),
-  new PrismaSessionRepository(),
-  new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository(),
-  new Argon2PasswordHasher()
 );
 
 /**
