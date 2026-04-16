@@ -17,6 +17,9 @@ import { Argon2PasswordHasher } from './infrastructure/services/Argon2PasswordHa
 import { EnvStoreAdapter } from './infrastructure/services/provisioning/EnvStoreAdapter';
 import { PrismaDatabaseConnectionValidator } from './infrastructure/services/provisioning/PrismaDatabaseConnectionValidator';
 import { PrismaDatabaseSchemaApplier } from './infrastructure/services/provisioning/PrismaDatabaseSchemaApplier';
+import { RedisModerationPolicy } from './infrastructure/services/RedisModerationPolicy';
+import { ModerationCacheInvalidationHandler } from './infrastructure/events/handlers/ModerationCacheInvalidationHandler';
+import { globalEventBus } from './infrastructure/events/InMemoryEventBus';
 
 export const userApplicationService = new UserApplicationService(
   new PrismaUserRepository()
@@ -48,4 +51,10 @@ export const installationApplicationService = new InstallationApplicationService
   new PrismaDatabaseSchemaApplier(),
   new InMemoryInstallationSessionRepository(),
   identityBootstrapApplicationService
+);
+
+export const redisModerationPolicy = new RedisModerationPolicy();
+export const moderationCacheInvalidationHandler = new ModerationCacheInvalidationHandler(
+  globalEventBus,
+  redisModerationPolicy
 );

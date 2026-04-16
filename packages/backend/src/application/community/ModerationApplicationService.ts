@@ -3,7 +3,7 @@ import { ICommentRepository } from '../../domain/community/ICommentRepository';
 import { IModeratedWordRepository } from '../../domain/community/IModeratedWordRepository';
 import { ModeratedWord } from '../../domain/community/ModeratedWord';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
-import { PostApprovedEvent, PostRejectedEvent } from '../../domain/shared/events/DomainEvents';
+import { PostApprovedEvent, PostRejectedEvent, ModeratedWordAddedEvent, ModeratedWordDeletedEvent } from '../../domain/shared/events/DomainEvents';
 import { randomUUID as uuidv4 } from 'crypto';
 
 /**
@@ -113,6 +113,8 @@ export class ModerationApplicationService {
     });
 
     await this.moderatedWordRepository.save(moderatedWord);
+    
+    this.eventBus.publish(new ModeratedWordAddedEvent(moderatedWord.id, moderatedWord.word, moderatedWord.categoryId));
 
     return { id: moderatedWord.id, word: moderatedWord.word, categoryId: moderatedWord.categoryId };
   }
@@ -122,5 +124,7 @@ export class ModerationApplicationService {
     if (!word) throw new Error('ERR_WORD_NOT_FOUND');
 
     await this.moderatedWordRepository.delete(id);
+    
+    this.eventBus.publish(new ModeratedWordDeletedEvent(word.id, word.word, word.categoryId));
   }
 }
