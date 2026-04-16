@@ -8,16 +8,19 @@ import path from 'path';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { SystemApplicationService } from '../application/system/SystemApplicationService';
+import { InstallationApplicationService } from '../application/provisioning/InstallationApplicationService';
 import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
-import { applyDomainConfigToEnv, buildOrigin, EnvFileService, getBackendEnvPath, validateHostname, validateRpId } from '../lib/EnvFileService';
+import { getBackendEnvPath } from '../lib/EnvFileService';
 
 const systemApplicationService = new SystemApplicationService(
   new PrismaRouteWhitelistRepository(),
   new PrismaUserRepository(),
   new PrismaRoleRepository()
 );
+
+const installationApplicationService = new InstallationApplicationService(systemApplicationService);
 
 const envPath = getBackendEnvPath(__dirname);
 
@@ -696,80 +699,20 @@ export const getInstallHtml = (req: Request, res: Response): void => {
  */
 export const setupEnv = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { DATABASE_URL, PORT, FRONTEND_URL, UPLOAD_DIR, WEB_ROOT, PROTOCOL, HOSTNAME, RP_ID, REVERSE_PROXY_MODE } = req.body;
-    
-    if (!DATABASE_URL) {
-      res.status(400).json({ error: '缺少 DATABASE_URL' });
-      return;
-    }
-
-    const protocol = PROTOCOL === 'https' ? 'https' : 'http';
-    const hostname = String(HOSTNAME || 'localhost').trim();
-    if (!validateHostname(hostname)) {
-      res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
-      return;
-    }
-
-    const rpId = String(RP_ID || hostname).trim();
-    if (!validateRpId(rpId)) {
-      res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
-      return;
-    }
-
-    const reverseProxyMode = !!REVERSE_PROXY_MODE;
-    const origin = buildOrigin(protocol, hostname);
-
-    const jwtSecret = crypto.randomBytes(32).toString('hex');
-    const jwtRefreshSecret = crypto.randomBytes(32).toString('hex');
-
-    const frontendUrlValue = FRONTEND_URL || origin;
-    let envContent = `
-DATABASE_URL="${DATABASE_URL}"
-PORT=${PORT || 3001}
-FRONTEND_URL="${frontendUrlValue}"
-UPLOAD_DIR="${UPLOAD_DIR || './uploads'}"
-WEB_ROOT="${WEB_ROOT || '/'}"
-JWT_SECRET="${jwtSecret}"
-JWT_REFRESH_SECRET="${jwtRefreshSecret}"
-`.trim() + '\n';
-
-    envContent = applyDomainConfigToEnv(envContent, {
-      protocol,
-      hostname,
-      rpId,
-      reverseProxyMode,
-    });
-
-    await new EnvFileService(envPath).write(envContent);
-
-    // Update process.env for Prisma in current runtime
-    process.env.DATABASE_URL = DATABASE_URL;
-    process.env.JWT_SECRET = jwtSecret;
-    process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
-    process.env.ORIGIN = origin;
-    process.env.RP_ID = rpId;
-    process.env.TRUST_PROXY = reverseProxyMode ? 'true' : 'false';
-    const m = envContent.match(/^FRONTEND_URL=(.*)$/m);
-    if (m?.[1]) {
-      process.env.FRONTEND_URL = m[1].trim().replace(/^"(.*)"$/, '$1');
-    }
-
-    // Run Prisma DB Push to initialize schema
+    const config = req.body;
     try {
-      await systemApplicationService.initializeDatabaseSchema();
-    } catch (error: any) {
-      console.error('Prisma Error:', error.message);
-      res.status(500).json({ error: '数据库初始化失败，请检查您的数据库凭据并确保 PostgreSQL 正在运行。' });
-      return;
-    }
-
-    try {
-      installToken = await systemApplicationService.createTemporaryRootUser();
+      installToken = await installationApplicationService.startInstallation(config);
       res.json({ success: true, token: installToken });
-    } catch (dbErr) {
-      console.error('DB Seed Error:', dbErr);
-      res.status(500).json({ error: '创建临时管理员账户失败。' });
-    }
+    } catch (err: any) {
+        if (err.message === '缺少 DATABASE_URL' || err.message === 'ERR_INVALID_DOMAIN_CONFIG') {
+          res.status(400).json({ error: err.message });
+        } else if (err.message.includes('数据库初始化失败')) {
+          res.status(500).json({ error: err.message });
+        } else {
+          console.error('DB Seed Error:', err);
+          res.status(500).json({ error: '创建临时管理员账户失败。' });
+        }
+      }
   } catch (err) {
     res.status(500).json({ error: '内部服务器错误' });
   }
@@ -795,10 +738,7 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
   }
 
   try {
-    const userId = await systemApplicationService.finalizeInstallation(username, email, password);
-
-    // Lock the installation in .env
-    fs.appendFileSync(envPath, '\nINSTALL_LOCKED=true\n');
+    const userId = await installationApplicationService.finalizeInstallation(username, email, password);
 
     const tempToken = jwt.sign({ userId, type: 'registration' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
     res.cookie('tempToken', tempToken, {
