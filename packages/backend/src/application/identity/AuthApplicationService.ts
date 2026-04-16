@@ -9,12 +9,12 @@ import { Passkey } from '../../domain/identity/Passkey';
 import { Session } from '../../domain/identity/Session';
 import { AuthChallenge } from '../../domain/identity/AuthChallenge';
 import { User, UserStatus } from '../../domain/identity/User';
+import { IPasswordHasher } from '../../domain/identity/IPasswordHasher';
 import { randomUUID as uuidv4 } from 'crypto';
-import * as argon2 from 'argon2';
 
 /**
  * Callers: [CaptchaController, RegisterController, AuthController, UserController, AdminController, SudoController]
- * Callees: [ICaptchaChallengeRepository, IPasskeyRepository, ISessionRepository, IAuthChallengeRepository, IUserRepository]
+ * Callees: [ICaptchaChallengeRepository, IPasskeyRepository, ISessionRepository, IAuthChallengeRepository, IUserRepository, IPasswordHasher]
  * Description: The Application Service for the Identity Domain. Orchestrates registration, session management, auth challenges, captcha verification, and passkey management.
  * Keywords: identity, auth, service, application, orchestration, register, session, challenge, captcha, passkey
  */
@@ -31,7 +31,8 @@ export class AuthApplicationService {
     private sessionRepository: ISessionRepository,
     private authChallengeRepository: IAuthChallengeRepository,
     private userRepository: IUserRepository,
-    private roleRepository: IRoleRepository
+    private roleRepository: IRoleRepository,
+    private passwordHasher: IPasswordHasher
   ) {}
 
   // --- Captcha Orchestration ---
@@ -102,7 +103,7 @@ export class AuthApplicationService {
 
   /**
    * Callers: [RegisterController.registerUser]
-   * Callees: [ICaptchaChallengeRepository.findById, CaptchaChallenge.validateForConsumption, ICaptchaChallengeRepository.delete, IUserRepository.findByEmail, IUserRepository.findByUsername, argon2.hash, User.create, IUserRepository.save]
+   * Callees: [ICaptchaChallengeRepository.findById, CaptchaChallenge.validateForConsumption, ICaptchaChallengeRepository.delete, IUserRepository.findByEmail, IUserRepository.findByUsername, IPasswordHasher.hash, User.create, IUserRepository.save]
    * Description: Orchestrates user registration. Consumes the verified captcha, hashes the password, and creates the user domain entity.
    * Keywords: register, user, captcha, consume, hash, command, identity
    */
@@ -118,7 +119,7 @@ export class AuthApplicationService {
     const existingUsername = await this.userRepository.findByUsername(username);
     if (existingUsername) throw new Error('ERR_USERNAME_ALREADY_EXISTS');
 
-    const hashedPassword = await argon2.hash(password);
+    const hashedPassword = await this.passwordHasher.hash(password);
     const defaultRole = await this.roleRepository.findByName('USER');
     
     const user = User.create({

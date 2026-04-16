@@ -21,6 +21,7 @@ const authenticator = new OTP({ strategy: 'totp' });
 import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
 import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
+import { Argon2PasswordHasher } from '../infrastructure/services/Argon2PasswordHasher';
 
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
@@ -28,7 +29,8 @@ const authApplicationService = new AuthApplicationService(
   new PrismaSessionRepository(),
   new PrismaAuthChallengeRepository(),
   new PrismaUserRepository(),
-  new PrismaRoleRepository()
+  new PrismaRoleRepository(),
+  new Argon2PasswordHasher()
 );
 
 const userApplicationService = new UserApplicationService(
