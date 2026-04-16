@@ -7,14 +7,13 @@ import { PrismaPrivateMessageRepository } from '../infrastructure/repositories/P
 
 import { PrismaUserKeyRepository } from '../infrastructure/repositories/PrismaUserKeyRepository';
 import { PrismaConversationSettingRepository } from '../infrastructure/repositories/PrismaConversationSettingRepository';
-import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+import { prisma } from '../db';
 
 const messagingApplicationService = new MessagingApplicationService(
   new PrismaFriendshipRepository(),
   new PrismaPrivateMessageRepository(),
   new PrismaUserKeyRepository(),
-  new PrismaConversationSettingRepository(),
-  new PrismaUserRepository()
+  new PrismaConversationSettingRepository()
 );
 
 
@@ -28,11 +27,15 @@ export const uploadKeys = async (req: AuthRequest, res: Response): Promise<void>
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
+  // Extract userLevel from DB using Query Service or Prisma directly since controller can do it
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
+
   const { scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey } = req.body;
   if (!publicKey || !encryptedPrivateKey) { res.status(400).json({ error: 'ERR_MISSING_KEYS' }); return; }
 
   try {
-    await messagingApplicationService.uploadKeys(userId, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey);
+    await messagingApplicationService.uploadKeys(userId, user.level, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey);
     res.json({ success: true });
   } catch (error: any) {
     res.status(403).json({ error: error.message });
@@ -77,19 +80,20 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   const senderId = req.user?.userId;
   if (!senderId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const { receiverId, ephemeralPublicKey, ephemeralMlKemCiphertext, encryptedContent, senderEncryptedContent, expiresIn } = req.body;
+  const sender = await prisma.user.findUnique({ where: { id: senderId } });
+  if (!sender) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
+
+  const { receiverId, encryptedContent, isBurnAfterRead } = req.body;
 
   try {
-    const msg = await messagingApplicationService.sendMessage(
+    const msgId = await messagingApplicationService.sendMessage(
       senderId,
+      sender.level,
       receiverId,
-      ephemeralPublicKey,
-      ephemeralMlKemCiphertext,
       encryptedContent,
-      senderEncryptedContent,
-      expiresIn
+      !!isBurnAfterRead
     );
-    res.json({ success: true, message: msg });
+    res.json({ success: true, messageId: msgId });
   } catch (error: any) {
     res.status(403).json({ error: error.message });
   }

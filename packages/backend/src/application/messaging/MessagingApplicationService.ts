@@ -6,7 +6,6 @@ import { Friendship } from '../../domain/messaging/Friendship';
 import { PrivateMessage } from '../../domain/messaging/PrivateMessage';
 import { UserKey } from '../../domain/messaging/UserKey';
 import { ConversationSetting } from '../../domain/messaging/ConversationSetting';
-import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { randomUUID as uuidv4 } from 'crypto';
 
 /**
@@ -20,8 +19,7 @@ export class MessagingApplicationService {
     private friendshipRepository: IFriendshipRepository,
     private privateMessageRepository: IPrivateMessageRepository,
     private userKeyRepository: IUserKeyRepository,
-    private conversationSettingRepository: IConversationSettingRepository,
-    private userRepository: IUserRepository
+    private conversationSettingRepository: IConversationSettingRepository
   ) {}
 
   // --- Friendship Management ---
@@ -32,14 +30,14 @@ export class MessagingApplicationService {
    * Description: Sends a friend request from one user to another, also dispatching a system notification.
    * Keywords: friend, request, send, messaging, friendship
    */
-  public async sendFriendRequest(requesterId: string, addresseeId: string): Promise<Friendship> {
-    const existing = await this.friendshipRepository.findByUsers(requesterId, addresseeId);
+  public async sendFriendRequest(requesterId: string, requesterUsername: string, receiverId: string, systemUserId: string): Promise<void> {
+    const existing = await this.friendshipRepository.findByUsers(requesterId, receiverId);
     if (existing) throw new Error('ERR_FRIENDSHIP_EXISTS');
 
     const friendship = Friendship.create({
       id: uuidv4(),
       requesterId,
-      addresseeId,
+      addresseeId: receiverId,
       status: 'PENDING',
       createdAt: new Date()
     });
@@ -47,20 +45,18 @@ export class MessagingApplicationService {
     await this.friendshipRepository.save(friendship);
 
     // Send system notification message
-    const requester = await this.userRepository.findById(requesterId);
     const payload = {
       title: 'Friend Request',
-      content: `${requester?.username} wants to be your friend.`,
+      content: `${requesterUsername} wants to be your friend.`,
       relatedId: friendship.id,
       type: 'FRIEND_REQUEST'
     };
 
-    const systemUser = await this.userRepository.findByUsername('system');
-    if (systemUser) {
+    if (systemUserId) {
       const systemMessage = PrivateMessage.create({
         id: uuidv4(),
-        senderId: systemUser.id,
-        receiverId: addresseeId,
+        senderId: systemUserId,
+        receiverId: receiverId,
         ephemeralPublicKey: 'system',
         ephemeralMlKemCiphertext: null,
         encryptedContent: JSON.stringify(payload),
@@ -70,11 +66,9 @@ export class MessagingApplicationService {
         expiresAt: null,
         deletedBy: [],
         createdAt: new Date()
-      }, systemUser.level, true, 0);
+      }, 6, true, 0);
       await this.privateMessageRepository.save(systemMessage);
     }
-
-    return friendship;
   }
 
   public async respondFriendRequest(friendshipId: string, userId: string, accept: boolean): Promise<void> {
@@ -94,16 +88,11 @@ export class MessagingApplicationService {
 
   public async sendMessage(
     senderId: string, 
+    senderLevel: number, 
     receiverId: string, 
-    ephemeralPublicKey: string, 
-    ephemeralMlKemCiphertext: string | null, 
     encryptedContent: string, 
-    senderEncryptedContent: string | null, 
-    expiresIn?: number
-  ): Promise<PrivateMessage> {
-    const sender = await this.userRepository.findById(senderId);
-    if (!sender) throw new Error('ERR_LEVEL_TOO_LOW');
-
+    isBurnAfterRead: boolean
+  ): Promise<string> {
     const friendship = await this.friendshipRepository.findByUsers(senderId, receiverId);
     const isFriend = !!(friendship && friendship.status === 'ACCEPTED');
 
@@ -113,27 +102,27 @@ export class MessagingApplicationService {
     }
 
     let expiresAt: Date | null = null;
-    if (expiresIn && typeof expiresIn === 'number') {
-      expiresAt = new Date(Date.now() + expiresIn);
+    if (isBurnAfterRead) {
+      expiresAt = new Date(Date.now() + 60 * 1000);
     }
 
     const message = PrivateMessage.create({
       id: uuidv4(),
       senderId,
       receiverId,
-      ephemeralPublicKey,
-      ephemeralMlKemCiphertext,
+      ephemeralPublicKey: '',
+      ephemeralMlKemCiphertext: null,
       encryptedContent,
-      senderEncryptedContent,
+      senderEncryptedContent: null,
       isRead: false,
       isSystem: false,
       expiresAt,
       deletedBy: [],
       createdAt: new Date()
-    }, sender.level, isFriend, sentCount);
+    }, senderLevel, isFriend, sentCount);
 
     await this.privateMessageRepository.save(message);
-    return message;
+    return message.id;
   }
 
   public async deleteMessage(messageId: string, userId: string): Promise<void> {
@@ -190,9 +179,8 @@ export class MessagingApplicationService {
    * Description: Uploads public and private encryption keys for a user.
    * Keywords: upload, keys, encryption, messaging, user
    */
-  public async uploadKeys(userId: string, scheme: string, publicKey: string, encryptedPrivateKey: string, mlKemPublicKey?: string, encryptedMlKemPrivateKey?: string): Promise<void> {
-    const user = await this.userRepository.findById(userId);
-    if (!user || user.level < 2) throw new Error('ERR_LEVEL_TOO_LOW');
+  public async uploadKeys(userId: string, userLevel: number, scheme: string, publicKey: string, encryptedPrivateKey: string, mlKemPublicKey?: string, encryptedMlKemPrivateKey?: string): Promise<void> {
+    if (userLevel < 2) throw new Error('ERR_LEVEL_TOO_LOW');
 
     let userKey = await this.userKeyRepository.findByUserId(userId);
     if (userKey) {
@@ -202,7 +190,7 @@ export class MessagingApplicationService {
         encryptedPrivateKey,
         mlKemPublicKey || null,
         encryptedMlKemPrivateKey || null,
-        user.level
+        userLevel
       );
     } else {
       userKey = UserKey.create({
@@ -212,7 +200,7 @@ export class MessagingApplicationService {
         encryptedPrivateKey,
         mlKemPublicKey: mlKemPublicKey || null,
         encryptedMlKemPrivateKey: encryptedMlKemPrivateKey || null
-      }, user.level);
+      }, userLevel);
     }
     await this.userKeyRepository.save(userKey);
   }
