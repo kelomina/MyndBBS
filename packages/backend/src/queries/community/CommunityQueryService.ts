@@ -11,6 +11,15 @@ import {
   PostListItemDTO,
 } from './dto';
 
+type LocalPostWhereInput = {
+  AND?: any[];
+};
+
+type LocalPostOrderByInput = {
+  id?: 'asc' | 'desc';
+  createdAt?: 'asc' | 'desc';
+};
+
 /**
  * Callers: [categoryRouter, postRouter]
  * Callees: [prisma.category, prisma.post, prisma.comment, prisma.upvote, prisma.bookmark]
@@ -37,13 +46,12 @@ export class CommunityQueryService {
   public async listPosts(params: ListPostsParams): Promise<PostListItemDTO[]> {
     const { ability, category, sortBy, take = 1000 } = params;
 
-    const whereClause: import('@prisma/client').Prisma.PostWhereInput = { AND: [accessibleBy(ability).Post] };
+    const whereClause: LocalPostWhereInput = { AND: [accessibleBy(ability).Post] };
     if (category) {
-      (whereClause.AND as import('@prisma/client').Prisma.PostWhereInput[]).push({ category: { name: String(category) } });
+      whereClause.AND!.push({ category: { name: String(category) } });
     }
 
-    let orderByClause: import('@prisma/client').Prisma.PostOrderByWithRelationInput = { createdAt: 'desc' };
-    if (sortBy === 'popular') orderByClause = { id: 'asc' }; // In real app, order by score/upvotes
+    const orderByClause: LocalPostOrderByInput = sortBy === 'popular' ? { id: 'asc' } : { createdAt: 'desc' };
 
     const rows = await prisma.post.findMany({
       take,

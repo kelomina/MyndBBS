@@ -2,13 +2,12 @@ import { IFriendshipRepository } from '../../domain/messaging/IFriendshipReposit
 import { IPrivateMessageRepository } from '../../domain/messaging/IPrivateMessageRepository';
 import { IUserKeyRepository } from '../../domain/messaging/IUserKeyRepository';
 import { IConversationSettingRepository } from '../../domain/messaging/IConversationSettingRepository';
+import { IIdentityIntegrationPort } from '../../domain/messaging/IIdentityIntegrationPort';
 import { Friendship } from '../../domain/messaging/Friendship';
 import { PrivateMessage } from '../../domain/messaging/PrivateMessage';
 import { UserKey } from '../../domain/messaging/UserKey';
 import { ConversationSetting } from '../../domain/messaging/ConversationSetting';
 import { randomUUID as uuidv4 } from 'crypto';
-
-import { identityQueryService } from '../../queries/identity/IdentityQueryService';
 
 /**
  * Callers: [FriendController, MessageController]
@@ -21,16 +20,17 @@ export class MessagingApplicationService {
     private friendshipRepository: IFriendshipRepository,
     private privateMessageRepository: IPrivateMessageRepository,
     private userKeyRepository: IUserKeyRepository,
-    private conversationSettingRepository: IConversationSettingRepository
+    private conversationSettingRepository: IConversationSettingRepository,
+    private identityIntegrationPort: IIdentityIntegrationPort
   ) {}
 
   // --- Friendship Management ---
 
   public async sendFriendRequestWithValidation(requesterId: string, addresseeId: string): Promise<void> {
-    const requester = await identityQueryService.getProfile(requesterId);
+    const requester = await this.identityIntegrationPort.getUserProfile(requesterId);
     if (!requester) throw new Error('ERR_USER_NOT_FOUND');
 
-    const systemUser = await identityQueryService.getUserByUsername('system');
+    const systemUser = await this.identityIntegrationPort.getUserByUsername('system');
 
     const friendship = await this.sendFriendRequest(requesterId, addresseeId);
 
@@ -97,7 +97,7 @@ export class MessagingApplicationService {
     isSystem: boolean = false,
     isBurnAfterRead: boolean = false
   ): Promise<string> {
-    const sender = await identityQueryService.getProfile(senderId);
+    const sender = await this.identityIntegrationPort.getUserProfile(senderId);
     if (!sender) throw new Error('ERR_USER_NOT_FOUND');
 
     return this.sendMessage(
@@ -206,7 +206,7 @@ export class MessagingApplicationService {
     mlKemPublicKey?: string, 
     encryptedMlKemPrivateKey?: string
   ): Promise<void> {
-    const user = await identityQueryService.getProfile(userId);
+    const user = await this.identityIntegrationPort.getUserProfile(userId);
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
 
     await this.uploadKeys(

@@ -31,7 +31,8 @@ import { Argon2PasswordHasher } from './infrastructure/services/Argon2PasswordHa
 import { EnvStoreAdapter } from './infrastructure/services/provisioning/EnvStoreAdapter';
 import { PrismaDatabaseConnectionValidator } from './infrastructure/services/provisioning/PrismaDatabaseConnectionValidator';
 import { PrismaDatabaseSchemaApplier } from './infrastructure/services/provisioning/PrismaDatabaseSchemaApplier';
-import { RedisModerationPolicy } from './infrastructure/services/RedisModerationPolicy';
+import { RedisModeratedWordsCache } from './infrastructure/services/RedisModeratedWordsCache';
+import { ModerationPolicy } from './domain/community/ModerationPolicy';
 import { ModerationCacheInvalidationHandler } from './infrastructure/events/handlers/ModerationCacheInvalidationHandler';
 import { AbilityCacheInvalidationHandler } from './infrastructure/events/handlers/AbilityCacheInvalidationHandler';
 import { globalEventBus } from './infrastructure/events/InMemoryEventBus';
@@ -105,20 +106,27 @@ export const identityBootstrapApplicationService = new IdentityBootstrapApplicat
   new Argon2PasswordHasher()
 );
 
+import { IdentityBootstrapServiceAdapter } from './infrastructure/services/provisioning/IdentityBootstrapServiceAdapter';
+export const identityBootstrapServiceAdapter = new IdentityBootstrapServiceAdapter(
+  identityBootstrapApplicationService
+);
+
 export const installationApplicationService = new InstallationApplicationService(
   new EnvStoreAdapter(),
   new PrismaDatabaseConnectionValidator(),
   new PrismaDatabaseSchemaApplier(),
   new InMemoryInstallationSessionRepository(),
-  identityBootstrapApplicationService
+  identityBootstrapServiceAdapter
 );
 
-export const redisModerationPolicy = new RedisModerationPolicy(
+export const redisModeratedWordsCache = new RedisModeratedWordsCache(
   new PrismaModeratedWordRepository()
 );
+export const moderationPolicy = new ModerationPolicy(redisModeratedWordsCache);
+
 export const moderationCacheInvalidationHandler = new ModerationCacheInvalidationHandler(
   globalEventBus,
-  redisModerationPolicy
+  moderationPolicy
 );
 
 import { IdentityIntegrationPort } from './infrastructure/services/IdentityIntegrationPort';
@@ -131,7 +139,7 @@ export const communityApplicationService = new CommunityApplicationService(
   new PrismaCommentRepository(),
   new PrismaEngagementRepository(),
   identityIntegrationPort,
-  redisModerationPolicy,
+  moderationPolicy,
   authApplicationService,
   globalEventBus
 );
@@ -140,7 +148,8 @@ export const messagingApplicationService = new MessagingApplicationService(
   new PrismaFriendshipRepository(),
   new PrismaPrivateMessageRepository(),
   new PrismaUserKeyRepository(),
-  new PrismaConversationSettingRepository()
+  new PrismaConversationSettingRepository(),
+  identityIntegrationPort
 );
 
 export const roleApplicationService = new RoleApplicationService(
