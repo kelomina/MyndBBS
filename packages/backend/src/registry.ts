@@ -4,6 +4,7 @@ import { SystemApplicationService } from './application/system/SystemApplication
 import { IdentityBootstrapApplicationService } from './application/identity/IdentityBootstrapApplicationService';
 import { InstallationApplicationService } from './application/provisioning/InstallationApplicationService';
 import { CommunityApplicationService } from './application/community/CommunityApplicationService';
+import { MessagingApplicationService } from './application/messaging/MessagingApplicationService';
 
 import { PrismaUserRepository } from './infrastructure/repositories/PrismaUserRepository';
 import { PrismaCaptchaChallengeRepository } from './infrastructure/repositories/PrismaCaptchaChallengeRepository';
@@ -17,6 +18,10 @@ import { PrismaCategoryRepository } from './infrastructure/repositories/PrismaCa
 import { PrismaPostRepository } from './infrastructure/repositories/PrismaPostRepository';
 import { PrismaCommentRepository } from './infrastructure/repositories/PrismaCommentRepository';
 import { PrismaEngagementRepository } from './infrastructure/repositories/PrismaEngagementRepository';
+import { PrismaFriendshipRepository } from './infrastructure/repositories/PrismaFriendshipRepository';
+import { PrismaPrivateMessageRepository } from './infrastructure/repositories/PrismaPrivateMessageRepository';
+import { PrismaUserKeyRepository } from './infrastructure/repositories/PrismaUserKeyRepository';
+import { PrismaConversationSettingRepository } from './infrastructure/repositories/PrismaConversationSettingRepository';
 
 import { Argon2PasswordHasher } from './infrastructure/services/Argon2PasswordHasher';
 import { EnvStoreAdapter } from './infrastructure/services/provisioning/EnvStoreAdapter';
@@ -72,4 +77,11 @@ export const communityApplicationService = new CommunityApplicationService(
   new PrismaUserRepository(),
   new PrismaRoleRepository(),
   redisModerationPolicy
+);
+
+export const messagingApplicationService = new MessagingApplicationService(
+  new PrismaFriendshipRepository(),
+  new PrismaPrivateMessageRepository(),
+  new PrismaUserKeyRepository(),
+  new PrismaConversationSettingRepository()
 );
