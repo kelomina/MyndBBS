@@ -32,9 +32,12 @@ export class UserKey {
    * Description: Static factory method creating a new UserKey entity. Validates essential key components.
    * Keywords: create, factory, userkey, domain, instantiation
    */
-  public static create(props: UserKeyProps): UserKey {
+  public static create(props: UserKeyProps, userLevel: number): UserKey {
     if (!props.userId || !props.scheme || !props.publicKey || !props.encryptedPrivateKey) {
       throw new Error('ERR_USER_KEY_MISSING_REQUIRED_FIELDS');
+    }
+    if (props.scheme === 'X_WING_HYBRID' && userLevel < 4) {
+      throw new Error('ERR_LEVEL_TOO_LOW_FOR_X_WING');
     }
     return new UserKey(props);
   }
@@ -66,9 +69,19 @@ export class UserKey {
    * Description: Updates the user's cryptographic keys and scheme.
    * Keywords: update, keys, userkey, crypto, scheme
    */
-  public updateKeys(scheme: string, publicKey: string, encryptedPrivateKey: string, mlKemPublicKey: string | null, encryptedMlKemPrivateKey: string | null): void {
+  public updateKeys(
+    scheme: string,
+    publicKey: string,
+    encryptedPrivateKey: string,
+    mlKemPublicKey: string | null,
+    encryptedMlKemPrivateKey: string | null,
+    userLevel: number
+  ): void {
     if (!scheme || !publicKey || !encryptedPrivateKey) {
       throw new Error('ERR_USER_KEY_MISSING_REQUIRED_FIELDS');
+    }
+    if (scheme === 'X_WING_HYBRID' && userLevel < 4) {
+      throw new Error('ERR_LEVEL_TOO_LOW_FOR_X_WING');
     }
     this.props.scheme = scheme;
     this.props.publicKey = publicKey;
