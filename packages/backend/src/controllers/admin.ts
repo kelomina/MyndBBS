@@ -12,15 +12,7 @@ import { PrismaPermissionRepository } from '../infrastructure/repositories/Prism
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
 
-import { SystemApplicationService } from '../application/system/SystemApplicationService';
-import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
-import { authApplicationService, userApplicationService } from '../registry';
-
-const systemApplicationService = new SystemApplicationService(
-  new PrismaRouteWhitelistRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository()
-);
+import { authApplicationService, userApplicationService, installationApplicationService, systemApplicationService } from '../registry';
 const roleApplicationService = new RoleApplicationService(
   new PrismaRoleRepository(),
   new PrismaPermissionRepository(),
@@ -593,7 +585,9 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
 
   try {
     try {
-      await systemApplicationService.updateDatabaseConfiguration(newDbUrl);
+      const sessionId = await installationApplicationService.startInstallation();
+      await installationApplicationService.configureDatabase(sessionId, newDbUrl);
+      await installationApplicationService.applySchema(sessionId);
     } catch (err: any) {
       console.error('Prisma Error on DB Update:', err.message);
       res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });
