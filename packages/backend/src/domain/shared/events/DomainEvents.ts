@@ -56,3 +56,29 @@ export class CommentRepliedEvent implements IDomainEvent {
     this.occurredOn = new Date();
   }
 }
+
+export class ModeratedWordAddedEvent implements IDomainEvent {
+  public readonly eventName = 'ModeratedWordAddedEvent';
+  public readonly occurredOn: Date;
+
+  constructor(
+    public readonly id: string,
+    public readonly word: string,
+    public readonly categoryId: string | null
+  ) {
+    this.occurredOn = new Date();
+  }
+}
+
+export class ModeratedWordDeletedEvent implements IDomainEvent {
+  public readonly eventName = 'ModeratedWordDeletedEvent';
+  public readonly occurredOn: Date;
+
+  constructor(
+    public readonly id: string,
+    public readonly word: string,
+    public readonly categoryId: string | null
+  ) {
+    this.occurredOn = new Date();
+  }
+}
