@@ -7,6 +7,7 @@ import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/Pr
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 
 import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
+import { Argon2PasswordHasher } from '../infrastructure/services/Argon2PasswordHasher';
 
 const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
@@ -14,7 +15,8 @@ const authApplicationService = new AuthApplicationService(
   new PrismaSessionRepository(),
   new PrismaAuthChallengeRepository(),
   new PrismaUserRepository(),
-  new PrismaRoleRepository()
+  new PrismaRoleRepository(),
+  new Argon2PasswordHasher()
 );
 
 /**

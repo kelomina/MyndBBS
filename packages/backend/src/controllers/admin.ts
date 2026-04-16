@@ -20,6 +20,7 @@ import { PrismaPasskeyRepository } from '../infrastructure/repositories/PrismaPa
 import { PrismaSessionRepository } from '../infrastructure/repositories/PrismaSessionRepository';
 import { PrismaAuthChallengeRepository } from '../infrastructure/repositories/PrismaAuthChallengeRepository';
 import { PrismaRouteWhitelistRepository } from '../infrastructure/repositories/PrismaRouteWhitelistRepository';
+import { Argon2PasswordHasher } from '../infrastructure/services/Argon2PasswordHasher';
 
 const systemApplicationService = new SystemApplicationService(
   new PrismaRouteWhitelistRepository(),
@@ -38,7 +39,8 @@ const authApplicationService = new AuthApplicationService(
   new PrismaSessionRepository(),
   new PrismaAuthChallengeRepository(),
   new PrismaUserRepository(),
-  new PrismaRoleRepository()
+  new PrismaRoleRepository(),
+  new Argon2PasswordHasher()
 );
 import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
 import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
