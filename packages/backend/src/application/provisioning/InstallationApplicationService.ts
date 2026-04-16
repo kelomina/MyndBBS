@@ -1,101 +1,52 @@
-import { SystemApplicationService } from '../system/SystemApplicationService';
-import { applyDomainConfigToEnv, buildOrigin, EnvFileService, getBackendEnvPath, validateHostname, validateRpId } from '../../lib/EnvFileService';
-import crypto from 'crypto';
-import fs from 'fs';
-
-export interface InstallationConfig {
-  DATABASE_URL: string;
-  PORT?: number;
-  FRONTEND_URL?: string;
-  UPLOAD_DIR?: string;
-  WEB_ROOT?: string;
-  PROTOCOL?: string;
-  HOSTNAME?: string;
-  RP_ID?: string;
-  REVERSE_PROXY_MODE?: boolean;
-}
+import { IEnvStore } from '../../domain/provisioning/IEnvStore';
+import { IDatabaseConnectionValidator } from '../../domain/provisioning/IDatabaseConnectionValidator';
+import { IDatabaseSchemaApplier } from '../../domain/provisioning/IDatabaseSchemaApplier';
+import { IInstallationSessionRepository } from '../../domain/provisioning/IInstallationSessionRepository';
+import { IdentityBootstrapApplicationService } from '../identity/IdentityBootstrapApplicationService';
 
 export class InstallationApplicationService {
-  constructor(private systemApplicationService: SystemApplicationService) {}
+  constructor(
+    private envStore: IEnvStore,
+    private dbValidator: IDatabaseConnectionValidator,
+    private dbSchemaApplier: IDatabaseSchemaApplier,
+    private sessionRepository: IInstallationSessionRepository,
+    private identityBootstrap: IdentityBootstrapApplicationService
+  ) {}
 
-  public async startInstallation(config: InstallationConfig): Promise<string> {
-    await this.configureDatabase(config);
-    await this.applySchema();
-    const token = await this.systemApplicationService.createTemporaryRootUser();
-    return token;
+  public async startInstallation(): Promise<string> {
+    const session = await this.sessionRepository.createSession();
+    return session.id;
   }
 
-  public async configureDatabase(config: InstallationConfig): Promise<void> {
-    if (!config.DATABASE_URL) {
-      throw new Error('缺少 DATABASE_URL');
-    }
+  public async configureDatabase(sessionId: string, dbUrl: string): Promise<void> {
+    const session = await this.sessionRepository.getSession(sessionId);
+    if (!session || session.isCompleted) throw new Error('ERR_INVALID_SESSION');
 
-    const protocol = config.PROTOCOL === 'https' ? 'https' : 'http';
-    const hostname = String(config.HOSTNAME || 'localhost').trim();
-    if (!validateHostname(hostname)) {
-      throw new Error('ERR_INVALID_DOMAIN_CONFIG');
-    }
+    const isValid = await this.dbValidator.validate(dbUrl);
+    if (!isValid) throw new Error('ERR_DB_CONNECTION_FAILED');
 
-    const rpId = String(config.RP_ID || hostname).trim();
-    if (!validateRpId(rpId)) {
-      throw new Error('ERR_INVALID_DOMAIN_CONFIG');
-    }
-
-    const reverseProxyMode = !!config.REVERSE_PROXY_MODE;
-    const origin = buildOrigin(protocol, hostname);
-
-    const jwtSecret = crypto.randomBytes(32).toString('hex');
-    const jwtRefreshSecret = crypto.randomBytes(32).toString('hex');
-
-    const frontendUrlValue = config.FRONTEND_URL || origin;
-    let envContent = `
-DATABASE_URL="${config.DATABASE_URL}"
-PORT=${config.PORT || 3001}
-FRONTEND_URL="${frontendUrlValue}"
-UPLOAD_DIR="${config.UPLOAD_DIR || './uploads'}"
-WEB_ROOT="${config.WEB_ROOT || '/'}"
-JWT_SECRET="${jwtSecret}"
-JWT_REFRESH_SECRET="${jwtRefreshSecret}"
-`.trim() + '\n';
-
-    envContent = applyDomainConfigToEnv(envContent, {
-      protocol,
-      hostname,
-      rpId,
-      reverseProxyMode,
-    });
-
-    const envPath = getBackendEnvPath(__dirname);
-    await new EnvFileService(envPath).write(envContent);
-
-    // Update process.env for Prisma in current runtime
-    process.env.DATABASE_URL = config.DATABASE_URL;
-    process.env.JWT_SECRET = jwtSecret;
-    process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
-    process.env.ORIGIN = origin;
-    process.env.RP_ID = rpId;
-    process.env.TRUST_PROXY = reverseProxyMode ? 'true' : 'false';
-    const m = envContent.match(/^FRONTEND_URL=(.*)$/m);
-    if (m?.[1]) {
-      process.env.FRONTEND_URL = m[1].trim().replace(/^"(.*)"$/, '$1');
-    }
+    await this.envStore.updateDatabaseUrl(dbUrl);
   }
 
-  public async applySchema(): Promise<void> {
-    try {
-      await this.systemApplicationService.initializeDatabaseSchema();
-    } catch (error: any) {
-      console.error('Prisma Error:', error.message);
-      throw new Error('数据库初始化失败，请检查您的数据库凭据并确保 PostgreSQL 正在运行。');
-    }
+  public async applySchema(sessionId: string): Promise<void> {
+    const session = await this.sessionRepository.getSession(sessionId);
+    if (!session || session.isCompleted) throw new Error('ERR_INVALID_SESSION');
+
+    await this.dbSchemaApplier.applySchema();
   }
 
-  public async finalizeInstallation(username: string, email: string, password: string): Promise<string> {
-    const userId = await this.systemApplicationService.finalizeInstallation(username, email, password);
+  public async finalizeInstallation(sessionId: string, username: string, email: string, password: string): Promise<string> {
+    const session = await this.sessionRepository.getSession(sessionId);
+    if (!session || session.isCompleted) throw new Error('ERR_INVALID_SESSION');
 
-    const envPath = getBackendEnvPath(__dirname);
-    fs.appendFileSync(envPath, '\nINSTALL_LOCKED=true\n');
-
+    const userId = await this.identityBootstrap.bootstrapSuperAdmin(username, email, password);
+    await this.sessionRepository.markCompleted(sessionId);
+    
+    // Mark system as installed in .env
+    let envContent = await this.envStore.read();
+    envContent += '\nINSTALL_LOCKED=true\n';
+    await this.envStore.write(envContent);
+    
     return userId;
   }
 }
