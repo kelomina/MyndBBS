@@ -1,19 +1,8 @@
 import { Response } from 'express';
 import { messagingQueryService } from '../queries/messaging/MessagingQueryService';
+import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { AuthRequest } from '../middleware/auth';
-import { MessagingApplicationService } from '../application/messaging/MessagingApplicationService';
-import { PrismaFriendshipRepository } from '../infrastructure/repositories/PrismaFriendshipRepository';
-import { PrismaPrivateMessageRepository } from '../infrastructure/repositories/PrismaPrivateMessageRepository';
-import { PrismaUserKeyRepository } from '../infrastructure/repositories/PrismaUserKeyRepository';
-import { PrismaConversationSettingRepository } from '../infrastructure/repositories/PrismaConversationSettingRepository';
-import { prisma } from '../db';
-
-const messagingApplicationService = new MessagingApplicationService(
-  new PrismaFriendshipRepository(),
-  new PrismaPrivateMessageRepository(),
-  new PrismaUserKeyRepository(),
-  new PrismaConversationSettingRepository()
-);
+import { messagingApplicationService } from '../registry';
 
 /**
  * Callers: []
@@ -26,10 +15,10 @@ export const requestFriend = async (req: AuthRequest, res: Response): Promise<vo
   const { addresseeId } = req.body;
   if (!requesterId || !addresseeId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
-  const requester = await prisma.user.findUnique({ where: { id: requesterId } });
+  const requester = await identityQueryService.getProfile(requesterId);
   if (!requester) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
 
-  const systemUser = await prisma.user.findUnique({ where: { username: 'system' } });
+  const systemUser = await identityQueryService.getUserByUsername('system');
 
   try {
     await messagingApplicationService.sendFriendRequest(

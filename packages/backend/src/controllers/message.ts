@@ -1,20 +1,8 @@
 import { Response } from 'express';
 import { messagingQueryService } from '../queries/messaging/MessagingQueryService';
+import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { AuthRequest } from '../middleware/auth';
-import { MessagingApplicationService } from '../application/messaging/MessagingApplicationService';
-import { PrismaFriendshipRepository } from '../infrastructure/repositories/PrismaFriendshipRepository';
-import { PrismaPrivateMessageRepository } from '../infrastructure/repositories/PrismaPrivateMessageRepository';
-
-import { PrismaUserKeyRepository } from '../infrastructure/repositories/PrismaUserKeyRepository';
-import { PrismaConversationSettingRepository } from '../infrastructure/repositories/PrismaConversationSettingRepository';
-import { prisma } from '../db';
-
-const messagingApplicationService = new MessagingApplicationService(
-  new PrismaFriendshipRepository(),
-  new PrismaPrivateMessageRepository(),
-  new PrismaUserKeyRepository(),
-  new PrismaConversationSettingRepository()
-);
+import { messagingApplicationService } from '../registry';
 
 
 /**
@@ -28,7 +16,7 @@ export const uploadKeys = async (req: AuthRequest, res: Response): Promise<void>
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
   // Extract userLevel from DB using Query Service or Prisma directly since controller can do it
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await identityQueryService.getProfile(userId);
   if (!user) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
 
   const { scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey } = req.body;
@@ -80,7 +68,7 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   const senderId = req.user?.userId;
   if (!senderId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const sender = await prisma.user.findUnique({ where: { id: senderId } });
+  const sender = await identityQueryService.getProfile(senderId);
   if (!sender) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
 
   const { receiverId, encryptedContent, isBurnAfterRead } = req.body;
