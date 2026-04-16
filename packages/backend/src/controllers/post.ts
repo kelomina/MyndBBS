@@ -8,24 +8,8 @@ import { subject } from '@casl/ability';
 import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
 import { PostRepliedEvent, CommentRepliedEvent } from '../domain/shared/events/DomainEvents';
 
-import { PrismaPostRepository } from '../infrastructure/repositories/PrismaPostRepository';
-import { PrismaCommentRepository } from '../infrastructure/repositories/PrismaCommentRepository';
-import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
-import { PrismaEngagementRepository } from '../infrastructure/repositories/PrismaEngagementRepository';
-import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
-import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+import { authApplicationService, communityApplicationService } from '../registry';
 import { communityQueryService } from '../queries/community/CommunityQueryService';
-import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
-import { authApplicationService } from '../registry';
-
-const communityApplicationService = new CommunityApplicationService(
-  new PrismaCategoryRepository(),
-  new PrismaPostRepository(),
-  new PrismaCommentRepository(),
-  new PrismaEngagementRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository()
-);
 
 /**
  * Callers: []

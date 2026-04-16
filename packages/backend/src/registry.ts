@@ -3,6 +3,7 @@ import { AuthApplicationService } from './application/identity/AuthApplicationSe
 import { SystemApplicationService } from './application/system/SystemApplicationService';
 import { IdentityBootstrapApplicationService } from './application/identity/IdentityBootstrapApplicationService';
 import { InstallationApplicationService } from './application/provisioning/InstallationApplicationService';
+import { CommunityApplicationService } from './application/community/CommunityApplicationService';
 
 import { PrismaUserRepository } from './infrastructure/repositories/PrismaUserRepository';
 import { PrismaCaptchaChallengeRepository } from './infrastructure/repositories/PrismaCaptchaChallengeRepository';
@@ -12,6 +13,10 @@ import { PrismaAuthChallengeRepository } from './infrastructure/repositories/Pri
 import { PrismaRoleRepository } from './infrastructure/repositories/PrismaRoleRepository';
 import { PrismaRouteWhitelistRepository } from './infrastructure/repositories/PrismaRouteWhitelistRepository';
 import { InMemoryInstallationSessionRepository } from './infrastructure/repositories/InMemoryInstallationSessionRepository';
+import { PrismaCategoryRepository } from './infrastructure/repositories/PrismaCategoryRepository';
+import { PrismaPostRepository } from './infrastructure/repositories/PrismaPostRepository';
+import { PrismaCommentRepository } from './infrastructure/repositories/PrismaCommentRepository';
+import { PrismaEngagementRepository } from './infrastructure/repositories/PrismaEngagementRepository';
 
 import { Argon2PasswordHasher } from './infrastructure/services/Argon2PasswordHasher';
 import { EnvStoreAdapter } from './infrastructure/services/provisioning/EnvStoreAdapter';
@@ -56,5 +61,15 @@ export const installationApplicationService = new InstallationApplicationService
 export const redisModerationPolicy = new RedisModerationPolicy();
 export const moderationCacheInvalidationHandler = new ModerationCacheInvalidationHandler(
   globalEventBus,
+  redisModerationPolicy
+);
+
+export const communityApplicationService = new CommunityApplicationService(
+  new PrismaCategoryRepository(),
+  new PrismaPostRepository(),
+  new PrismaCommentRepository(),
+  new PrismaEngagementRepository(),
+  new PrismaUserRepository(),
+  new PrismaRoleRepository(),
   redisModerationPolicy
 );

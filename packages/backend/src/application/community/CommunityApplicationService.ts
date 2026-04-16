@@ -11,11 +11,11 @@ import { PostUpvote, PostBookmark } from '../../domain/community/PostEngagement'
 import { CommentUpvote, CommentBookmark } from '../../domain/community/CommentEngagement';
 import { randomUUID as uuidv4 } from 'crypto';
 import redis from '../../lib/redis';
-import { containsModeratedWord } from '../../lib/moderation';
+import { IModerationPolicy } from '../../domain/community/IModerationPolicy';
 
 /**
  * Callers: [AdminController, PostController]
- * Callees: [ICategoryRepository, IPostRepository, ICommentRepository, IEngagementRepository, containsModeratedWord]
+ * Callees: [ICategoryRepository, IPostRepository, ICommentRepository, IEngagementRepository, IModerationPolicy]
  * Description: The Application Service for the Community Domain. Orchestrates category management, post creation, and user engagements using true DDD.
  * Keywords: community, service, application, orchestration, category, post, comment, engagement
  */
@@ -26,7 +26,8 @@ export class CommunityApplicationService {
     private commentRepository: ICommentRepository,
     private engagementRepository: IEngagementRepository,
     private userRepository: IUserRepository,
-    private roleRepository: IRoleRepository
+    private roleRepository: IRoleRepository,
+    private moderationPolicy: IModerationPolicy
   ) {}
 
   // --- Category Management ---
@@ -103,7 +104,7 @@ export class CommunityApplicationService {
       throw new Error('ERR_INSUFFICIENT_LEVEL_TO_POST_IN_THIS_CATEGORY');
     }
 
-    const isModerated = await containsModeratedWord(title + ' ' + content, categoryId);
+    const isModerated = await this.moderationPolicy.containsModeratedWord(title + ' ' + content, categoryId);
 
     const post = Post.create({
       id: uuidv4(),
@@ -125,7 +126,7 @@ export class CommunityApplicationService {
 
     const checkTitle = title || post.title;
     const checkContent = content || post.content;
-    const isModerated = await containsModeratedWord(checkTitle + ' ' + checkContent, categoryId || post.categoryId);
+    const isModerated = await this.moderationPolicy.containsModeratedWord(checkTitle + ' ' + checkContent, categoryId || post.categoryId);
 
     post.updateContent(title, content, categoryId, isModerated);
     await this.postRepository.save(post);
@@ -148,7 +149,7 @@ export class CommunityApplicationService {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
-    const isModerated = await containsModeratedWord(content, post.categoryId);
+    const isModerated = await this.moderationPolicy.containsModeratedWord(content, post.categoryId);
 
     const comment = Comment.create({
       id: uuidv4(),
@@ -169,7 +170,7 @@ export class CommunityApplicationService {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
 
-    const isModerated = await containsModeratedWord(content, categoryId);
+    const isModerated = await this.moderationPolicy.containsModeratedWord(content, categoryId);
     comment.updateContent(content, isModerated);
     await this.commentRepository.save(comment);
 
