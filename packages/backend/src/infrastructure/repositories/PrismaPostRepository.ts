@@ -13,7 +13,7 @@ export class PrismaPostRepository implements IPostRepository {
       status: raw.status,
       createdAt: raw.createdAt,
     };
-    return Post.create(props);
+    return Post.load(props);
   }
 
   public async findById(id: string): Promise<Post | null> {

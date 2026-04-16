@@ -9,6 +9,8 @@ export interface CommentProps {
   createdAt: Date;
 }
 
+export type CreateCommentProps = Omit<CommentProps, 'isPending'>;
+
 /**
  * Callers: [PrismaCommentRepository, CommunityApplicationService, ModerationApplicationService]
  * Callees: []
@@ -19,7 +21,7 @@ export class Comment {
   private props: CommentProps;
 
   /**
-   * Callers: [Comment.create, PrismaCommentRepository.toDomain]
+   * Callers: [Comment.create, Comment.load, PrismaCommentRepository.toDomain]
    * Callees: []
    * Description: Private constructor to enforce instantiation via static factory methods.
    * Keywords: constructor, comment, entity, instantiation
@@ -29,15 +31,29 @@ export class Comment {
   }
 
   /**
-   * Callers: [PrismaCommentRepository, CommunityApplicationService]
+   * Callers: [CommunityApplicationService]
    * Callees: [Comment.constructor]
-   * Description: Static factory method creating a new Comment entity. Validates basic content requirements.
+   * Description: Static factory method creating a new Comment entity. Validates basic content requirements and sets initial pending status.
    * Keywords: create, factory, comment, domain, instantiation
    */
-  public static create(props: CommentProps): Comment {
+  public static create(props: CreateCommentProps, isModerated: boolean): Comment {
     if (!props.content || props.content.trim().length === 0) {
       throw new Error('ERR_COMMENT_CONTENT_CANNOT_BE_EMPTY');
     }
+    
+    return new Comment({
+      ...props,
+      isPending: isModerated
+    });
+  }
+
+  /**
+   * Callers: [PrismaCommentRepository]
+   * Callees: [Comment.constructor]
+   * Description: Reconstitutes a Comment entity from persistence without applying creation domain rules.
+   * Keywords: load, reconstitute, comment, domain, persistence
+   */
+  public static load(props: CommentProps): Comment {
     return new Comment(props);
   }
 

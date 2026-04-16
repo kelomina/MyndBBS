@@ -14,7 +14,7 @@ export class PrismaCommentRepository implements ICommentRepository {
       deletedAt: raw.deletedAt,
       createdAt: raw.createdAt,
     };
-    return Comment.create(props);
+    return Comment.load(props);
   }
 
   public async findById(id: string): Promise<Comment | null> {
