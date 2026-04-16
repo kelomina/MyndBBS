@@ -4,6 +4,7 @@ import { ISessionRepository } from '../../domain/identity/ISessionRepository';
 import { IAuthChallengeRepository } from '../../domain/identity/IAuthChallengeRepository';
 import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { IRoleRepository } from '../../domain/identity/IRoleRepository';
+import { ISessionCache } from './ports/ISessionCache';
 import { CaptchaChallenge } from '../../domain/identity/CaptchaChallenge';
 import { Passkey } from '../../domain/identity/Passkey';
 import { Session } from '../../domain/identity/Session';
@@ -34,7 +35,8 @@ export class AuthApplicationService {
     private authChallengeRepository: IAuthChallengeRepository,
     private userRepository: IUserRepository,
     private roleRepository: IRoleRepository,
-    private passwordHasher: IPasswordHasher
+    private passwordHasher: IPasswordHasher,
+    private authCache: ISessionCache
   ) {}
 
   // --- Captcha Orchestration ---
@@ -194,6 +196,21 @@ export class AuthApplicationService {
    */
   public async revokeSession(sessionId: string): Promise<void> {
     await this.sessionRepository.delete(sessionId);
+    await this.authCache.revokeSession(sessionId);
+  }
+
+  // --- TOTP Setup Orchestration ---
+
+  public async storeTotpSecret(userId: string, secret: string, ttlSeconds: number = 300): Promise<void> {
+    await this.authCache.storeTotpSecret(userId, secret, ttlSeconds);
+  }
+
+  public async getTotpSecret(userId: string): Promise<string | null> {
+    return await this.authCache.getTotpSecret(userId);
+  }
+
+  public async removeTotpSecret(userId: string): Promise<void> {
+    await this.authCache.removeTotpSecret(userId);
   }
 
   /**

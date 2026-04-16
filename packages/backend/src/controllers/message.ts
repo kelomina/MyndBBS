@@ -1,6 +1,5 @@
 import { Response } from 'express';
 import { messagingQueryService } from '../queries/messaging/MessagingQueryService';
-import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { AuthRequest } from '../middleware/auth';
 import { messagingApplicationService } from '../registry';
 
@@ -15,17 +14,17 @@ export const uploadKeys = async (req: AuthRequest, res: Response): Promise<void>
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  // Extract userLevel from DB using Query Service or Prisma directly since controller can do it
-  const user = await identityQueryService.getProfile(userId);
-  if (!user) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
-
   const { scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey } = req.body;
   if (!publicKey || !encryptedPrivateKey) { res.status(400).json({ error: 'ERR_MISSING_KEYS' }); return; }
 
   try {
-    await messagingApplicationService.uploadKeys(userId, user.level, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey);
+    await messagingApplicationService.uploadKeysWithValidation(userId, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey);
     res.json({ success: true });
   } catch (error: any) {
+    if (error.message === 'ERR_USER_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+      return;
+    }
     res.status(403).json({ error: error.message });
   }
 };
@@ -68,21 +67,22 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   const senderId = req.user?.userId;
   if (!senderId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const sender = await identityQueryService.getProfile(senderId);
-  if (!sender) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
-
   const { receiverId, encryptedContent, isBurnAfterRead } = req.body;
 
   try {
-    const msgId = await messagingApplicationService.sendMessage(
+    const msgId = await messagingApplicationService.sendMessageWithValidation(
       senderId,
-      sender.level,
       receiverId,
       encryptedContent,
+      false, // isSystem
       !!isBurnAfterRead
     );
     res.json({ success: true, messageId: msgId });
   } catch (error: any) {
+    if (error.message === 'ERR_USER_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+      return;
+    }
     res.status(403).json({ error: error.message });
   }
 };

@@ -82,3 +82,27 @@ export class ModeratedWordDeletedEvent implements IDomainEvent {
     this.occurredOn = new Date();
   }
 }
+
+export class CategoryModeratorAssignedEvent implements IDomainEvent {
+  public readonly eventName = 'CategoryModeratorAssignedEvent';
+  public readonly occurredOn: Date;
+
+  constructor(
+    public readonly categoryId: string,
+    public readonly userId: string
+  ) {
+    this.occurredOn = new Date();
+  }
+}
+
+export class CategoryModeratorRemovedEvent implements IDomainEvent {
+  public readonly eventName = 'CategoryModeratorRemovedEvent';
+  public readonly occurredOn: Date;
+
+  constructor(
+    public readonly categoryId: string,
+    public readonly userId: string
+  ) {
+    this.occurredOn = new Date();
+  }
+}

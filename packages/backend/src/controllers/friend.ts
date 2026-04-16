@@ -1,6 +1,5 @@
 import { Response } from 'express';
 import { messagingQueryService } from '../queries/messaging/MessagingQueryService';
-import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { AuthRequest } from '../middleware/auth';
 import { messagingApplicationService } from '../registry';
 
@@ -15,20 +14,17 @@ export const requestFriend = async (req: AuthRequest, res: Response): Promise<vo
   const { addresseeId } = req.body;
   if (!requesterId || !addresseeId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
-  const requester = await identityQueryService.getProfile(requesterId);
-  if (!requester) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
-
-  const systemUser = await identityQueryService.getUserByUsername('system');
-
   try {
-    await messagingApplicationService.sendFriendRequest(
+    await messagingApplicationService.sendFriendRequestWithValidation(
       requesterId,
-      requester.username,
-      addresseeId,
-      systemUser?.id || ''
+      addresseeId
     );
     res.json({ success: true });
   } catch (error: any) {
+    if (error.message === 'ERR_USER_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+      return;
+    }
     res.status(400).json({ error: error.message });
   }
 };

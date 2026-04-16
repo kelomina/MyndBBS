@@ -27,4 +27,16 @@ export class RedisSessionCache implements ISessionCache {
   public async extendRefreshGracePeriod(sessionId: string, ttlSeconds: number): Promise<void> {
     await redis.expire(`session:${sessionId}:requires_refresh`, ttlSeconds);
   }
+
+  public async storeTotpSecret(userId: string, secret: string, ttlSeconds: number): Promise<void> {
+    await redis.set(`totp_setup:${userId}`, secret, 'EX', ttlSeconds);
+  }
+
+  public async getTotpSecret(userId: string): Promise<string | null> {
+    return await redis.get(`totp_setup:${userId}`);
+  }
+
+  public async removeTotpSecret(userId: string): Promise<void> {
+    await redis.del(`totp_setup:${userId}`);
+  }
 }
