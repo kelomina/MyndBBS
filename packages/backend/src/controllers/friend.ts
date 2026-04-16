@@ -6,14 +6,13 @@ import { PrismaFriendshipRepository } from '../infrastructure/repositories/Prism
 import { PrismaPrivateMessageRepository } from '../infrastructure/repositories/PrismaPrivateMessageRepository';
 import { PrismaUserKeyRepository } from '../infrastructure/repositories/PrismaUserKeyRepository';
 import { PrismaConversationSettingRepository } from '../infrastructure/repositories/PrismaConversationSettingRepository';
-import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
+import { prisma } from '../db';
 
 const messagingApplicationService = new MessagingApplicationService(
   new PrismaFriendshipRepository(),
   new PrismaPrivateMessageRepository(),
   new PrismaUserKeyRepository(),
-  new PrismaConversationSettingRepository(),
-  new PrismaUserRepository()
+  new PrismaConversationSettingRepository()
 );
 
 /**
@@ -27,9 +26,19 @@ export const requestFriend = async (req: AuthRequest, res: Response): Promise<vo
   const { addresseeId } = req.body;
   if (!requesterId || !addresseeId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
+  const requester = await prisma.user.findUnique({ where: { id: requesterId } });
+  if (!requester) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
+
+  const systemUser = await prisma.user.findUnique({ where: { username: 'system' } });
+
   try {
-    const friendship = await messagingApplicationService.sendFriendRequest(requesterId, addresseeId);
-    res.json({ success: true, friendship });
+    await messagingApplicationService.sendFriendRequest(
+      requesterId,
+      requester.username,
+      addresseeId,
+      systemUser?.id || ''
+    );
+    res.json({ success: true });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
