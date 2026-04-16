@@ -1,7 +1,7 @@
 import { prisma } from '../../db';
 import { accessibleBy } from '@casl/prisma';
 import type { AppAbility } from '../../lib/casl';
-import { PostStatus, UserStatus } from '@prisma/client';
+import { PostStatus, UserStatus } from '@myndbbs/shared';
 
 import { AdminUserListDTO, AdminCategoryListDTO, AdminPostListDTO, AdminDeletedPostListDTO, AdminDeletedCommentListDTO } from './dto';
 

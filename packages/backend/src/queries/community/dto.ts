@@ -1,4 +1,4 @@
-import { PostStatus } from '@prisma/client';
+import { PostStatus } from '@myndbbs/shared';
 
 export type CategoryListItemDTO = {
   id: string;

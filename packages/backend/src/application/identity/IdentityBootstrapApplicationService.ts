@@ -1,7 +1,8 @@
 import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { IPasswordHasher } from '../../domain/identity/IPasswordHasher';
-import { User, UserStatus } from '../../domain/identity/User';
+import { User } from '../../domain/identity/User';
+import { UserStatus } from '@myndbbs/shared';
 import { Role } from '../../domain/identity/Role';
 import { randomUUID as uuidv4 } from 'crypto';
 

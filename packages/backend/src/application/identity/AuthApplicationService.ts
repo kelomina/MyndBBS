@@ -8,9 +8,11 @@ import { CaptchaChallenge } from '../../domain/identity/CaptchaChallenge';
 import { Passkey } from '../../domain/identity/Passkey';
 import { Session } from '../../domain/identity/Session';
 import { AuthChallenge } from '../../domain/identity/AuthChallenge';
-import { User, UserStatus } from '../../domain/identity/User';
+import { User } from '../../domain/identity/User';
+import { UserStatus } from '@myndbbs/shared';
 import { IPasswordHasher } from '../../domain/identity/IPasswordHasher';
 import { randomUUID as uuidv4 } from 'crypto';
+import { isValidPassword } from '@myndbbs/shared';
 
 /**
  * Callers: [CaptchaController, RegisterController, AuthController, UserController, AdminController, SudoController]
@@ -36,6 +38,18 @@ export class AuthApplicationService {
   ) {}
 
   // --- Captcha Orchestration ---
+
+  public validatePasswordPolicy(password: string): void {
+    if (password.length < 8 || password.length > 128) {
+      throw new Error('ERR_PASSWORD_MUST_BE_BETWEEN_8_AND_128_CHARACTERS');
+    }
+    if (!isValidPassword(password)) {
+      throw new Error('ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER');
+    }
+    if (!/^[ -~]+$/.test(password)) {
+      throw new Error('ERR_PASSWORD_CONTAINS_INVALID_CHARACTERS');
+    }
+  }
 
   /**
    * Callers: [CaptchaController.generate]
@@ -108,6 +122,8 @@ export class AuthApplicationService {
    * Keywords: register, user, captcha, consume, hash, command, identity
    */
   public async registerUser(email: string, username: string, password: string, captchaId: string): Promise<any> {
+    this.validatePasswordPolicy(password);
+
     const isCaptchaValid = await this.consumeCaptcha(captchaId);
     if (!isCaptchaValid) {
       throw new Error('ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA');
@@ -188,6 +204,42 @@ export class AuthApplicationService {
    */
   public async revokeAllUserSessions(userId: string): Promise<void> {
     await this.sessionRepository.deleteManyByUserId(userId);
+  }
+
+  /**
+   * Callers: [requireAuth]
+   * Callees: [ISessionRepository.findById, IUserRepository.findById, IRoleRepository.findById]
+   * Description: Validates the session and retrieves the user context for refresh logic.
+   * Keywords: validate, session, refresh, identity
+   */
+  public async validateSession(sessionId: string, userId: string): Promise<{
+    isValid: boolean;
+    reason?: 'SESSION_NOT_FOUND' | 'USER_NOT_FOUND' | 'USER_BANNED';
+    user?: User;
+    roleName?: string;
+  }> {
+    const session = await this.sessionRepository.findById(sessionId);
+    if (!session) {
+      return { isValid: false, reason: 'SESSION_NOT_FOUND' };
+    }
+
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      return { isValid: false, reason: 'USER_NOT_FOUND' };
+    }
+    if (user.status === UserStatus.BANNED) {
+      return { isValid: false, reason: 'USER_BANNED' };
+    }
+
+    let roleName = 'USER';
+    if (user.roleId) {
+      const role = await this.roleRepository.findById(user.roleId);
+      if (role) {
+        roleName = role.name;
+      }
+    }
+
+    return { isValid: true, user, roleName };
   }
 
   // --- AuthChallenge Orchestration ---

@@ -3,7 +3,7 @@ import { Notification } from '../../domain/notification/Notification';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostApprovedEvent, PostRejectedEvent, PostRepliedEvent, CommentRepliedEvent } from '../../domain/shared/events/DomainEvents';
 import { randomUUID as uuidv4 } from 'crypto';
-import { identityQueryService } from '../../queries/identity/IdentityQueryService';
+import { IModeratorReadModel } from './ports/IModeratorReadModel';
 
 /**
  * Callers: [Server initialization, Controllers]
@@ -20,7 +20,8 @@ export class NotificationApplicationService {
    */
   constructor(
     private notificationRepository: INotificationRepository,
-    private eventBus: IEventBus
+    private eventBus: IEventBus,
+    private moderatorReadModel: IModeratorReadModel
   ) {
     this.registerEventHandlers();
   }
@@ -100,7 +101,7 @@ export class NotificationApplicationService {
     // Emulates the old `notifyModerators` behavior using a generic event
     this.eventBus.subscribe<any>('SystemAlertEvent', async (event) => {
       if (!event.title || !event.content) return;
-      const moderators = await identityQueryService.listUserIdsByLevel(3);
+      const moderators = await this.moderatorReadModel.listUserIdsByLevel(3);
       for (const mod of moderators) {
         await this.createNotification(mod.id, 'SYSTEM', event.title, event.content, null);
       }

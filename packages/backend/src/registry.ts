@@ -37,10 +37,16 @@ import { globalEventBus } from './infrastructure/events/InMemoryEventBus';
 
 import { AdminUserManagementApplicationService } from './application/identity/AdminUserManagementApplicationService';
 import { RedisSessionCache } from './infrastructure/services/RedisSessionCache';
+import { RedisAbilityCache } from './infrastructure/services/RedisAbilityCache';
 import { RoleHierarchyPolicy } from './application/identity/policies/RoleHierarchyPolicy';
 
+export const redisAbilityCache = new RedisAbilityCache();
+export const authCache = new RedisSessionCache();
+
 export const userApplicationService = new UserApplicationService(
-  new PrismaUserRepository()
+  new PrismaUserRepository(),
+  redisAbilityCache,
+  new Argon2PasswordHasher()
 );
 
 export const adminUserManagementApplicationService = new AdminUserManagementApplicationService(
@@ -55,6 +61,7 @@ export const adminUserManagementApplicationService = new AdminUserManagementAppl
 import { SudoApplicationService } from './application/identity/SudoApplicationService';
 import { RedisSudoStore } from './infrastructure/services/RedisSudoStore';
 import { identityQueryService } from './queries/identity/IdentityQueryService';
+import { PrismaUserSecurityReadModel } from './infrastructure/repositories/PrismaUserSecurityReadModel';
 
 export const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
@@ -67,7 +74,7 @@ export const authApplicationService = new AuthApplicationService(
 );
 
 export const sudoApplicationService = new SudoApplicationService(
-  identityQueryService,
+  new PrismaUserSecurityReadModel(),
   authApplicationService,
   new RedisSudoStore(),
   process.env.RP_ID || 'localhost',
@@ -114,7 +121,10 @@ export const communityApplicationService = new CommunityApplicationService(
   new PrismaEngagementRepository(),
   new PrismaUserRepository(),
   new PrismaRoleRepository(),
-  redisModerationPolicy
+  redisModerationPolicy,
+  redisAbilityCache,
+  authApplicationService,
+  globalEventBus
 );
 
 export const messagingApplicationService = new MessagingApplicationService(
@@ -127,7 +137,8 @@ export const messagingApplicationService = new MessagingApplicationService(
 export const roleApplicationService = new RoleApplicationService(
   new PrismaRoleRepository(),
   new PrismaPermissionRepository(),
-  new PrismaUserRepository()
+  new PrismaUserRepository(),
+  redisAbilityCache
 );
 
 export const moderationApplicationService = new ModerationApplicationService(

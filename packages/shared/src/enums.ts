@@ -1,0 +1,17 @@
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  SUSPENDED = 'SUSPENDED',
+  BANNED = 'BANNED',
+  PENDING = 'PENDING',
+}
+
+export enum PostStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+  HIDDEN = 'HIDDEN',
+  PINNED = 'PINNED',
+  DELETED = 'DELETED',
+  PENDING = 'PENDING',
+}

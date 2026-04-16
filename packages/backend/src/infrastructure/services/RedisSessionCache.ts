@@ -9,4 +9,22 @@ export class RedisSessionCache implements ISessionCache {
   public async markSessionRequiresRefresh(sessionId: string, ttlSeconds: number): Promise<void> {
     await redis.set(`session:${sessionId}:requires_refresh`, 'true', 'EX', ttlSeconds);
   }
+
+  public async getSessionValidity(sessionId: string): Promise<'valid' | 'invalid' | null> {
+    const val = await redis.get(`session:${sessionId}`);
+    return val as 'valid' | 'invalid' | null;
+  }
+
+  public async setSessionValidity(sessionId: string, validity: 'valid' | 'invalid', ttlSeconds: number): Promise<void> {
+    await redis.set(`session:${sessionId}`, validity, 'EX', ttlSeconds);
+  }
+
+  public async checkRequiresRefresh(sessionId: string): Promise<boolean> {
+    const val = await redis.get(`session:${sessionId}:requires_refresh`);
+    return val === 'true';
+  }
+
+  public async extendRefreshGracePeriod(sessionId: string, ttlSeconds: number): Promise<void> {
+    await redis.expire(`session:${sessionId}:requires_refresh`, ttlSeconds);
+  }
 }

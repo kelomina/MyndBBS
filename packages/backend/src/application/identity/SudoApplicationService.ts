@@ -1,8 +1,8 @@
 import * as argon2 from 'argon2';
 import { generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server';
-import { IdentityQueryService } from '../../queries/identity/IdentityQueryService';
 import { AuthApplicationService } from './AuthApplicationService';
 import { ISudoStore } from './ports/ISudoStore';
+import { IUserSecurityReadModel } from './ports/IUserSecurityReadModel';
 
 export type VerifyInput =
   | { type: 'password'; password: string }
@@ -11,7 +11,7 @@ export type VerifyInput =
 
 export class SudoApplicationService {
   constructor(
-    private identityQueryService: IdentityQueryService,
+    private userSecurityReadModel: IUserSecurityReadModel,
     private authApplicationService: AuthApplicationService,
     private sudoStore: ISudoStore,
     private rpID: string,
@@ -19,7 +19,7 @@ export class SudoApplicationService {
   ) {}
 
   public async getPasskeyOptions(userId: string): Promise<any> {
-    const userPasskeys = await this.identityQueryService.listUserPasskeyIds(userId);
+    const userPasskeys = await this.userSecurityReadModel.listUserPasskeyIds(userId);
     if (userPasskeys.length === 0) throw new Error('ERR_NO_PASSKEYS_REGISTERED');
 
     const options = await generateAuthenticationOptions({
@@ -36,7 +36,7 @@ export class SudoApplicationService {
   }
 
   public async verify(userId: string, sessionId: string, input: VerifyInput): Promise<void> {
-    const user = await this.identityQueryService.getUserWithRoleById(userId);
+    const user = await this.userSecurityReadModel.getUserWithRoleById(userId);
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
 
     let isValid = false;
@@ -56,7 +56,7 @@ export class SudoApplicationService {
 
     if (input.type === 'passkey') {
       const expectedChallenge = await this.authApplicationService.consumeAuthChallenge(input.challengeId);
-      const passkey = await this.identityQueryService.getPasskeyById(input.passkeyResponse.id);
+      const passkey = await this.userSecurityReadModel.getPasskeyById(input.passkeyResponse.id);
       if (!passkey || passkey.userId !== userId) throw new Error('ERR_INVALID_PASSKEY');
 
       const verification = await verifyAuthenticationResponse({

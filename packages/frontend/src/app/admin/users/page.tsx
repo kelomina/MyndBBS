@@ -12,14 +12,13 @@ import {
   TableRow,
 } from '../../../components/ui/Table';
 import { getUsers, updateUserRole, updateUserStatus } from '../../../lib/api/admin';
+import { UserStatus } from '@myndbbs/shared';
 
 const USER_STATUS = {
   ACTIVE: 'ACTIVE',
   BANNED: 'BANNED',
   PENDING: 'PENDING',
 } as const;
-
-type UserStatus = (typeof USER_STATUS)[keyof typeof USER_STATUS];
 
 interface User {
   id: string;

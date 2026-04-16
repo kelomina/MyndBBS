@@ -1,6 +1,7 @@
 import { AdminUserManagementApplicationService } from '../../../src/application/identity/AdminUserManagementApplicationService';
 import { RoleHierarchyPolicy } from '../../../src/application/identity/policies/RoleHierarchyPolicy';
-import { User, UserStatus } from '../../../src/domain/identity/User';
+import { User } from '../../../src/domain/identity/User';
+import { UserStatus } from '@myndbbs/shared';
 
 class InMemoryUserRepo {
   public users = new Map<string, User>();

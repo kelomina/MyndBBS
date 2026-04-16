@@ -2,7 +2,7 @@ import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { IPasskeyRepository } from '../../domain/identity/IPasskeyRepository';
 import { ISessionRepository } from '../../domain/identity/ISessionRepository';
-import { UserStatus } from '../../domain/identity/User';
+import { UserStatus } from '@myndbbs/shared';
 import { RoleHierarchyPolicy, RoleName } from './policies/RoleHierarchyPolicy';
 import { ISessionCache } from './ports/ISessionCache';
 
