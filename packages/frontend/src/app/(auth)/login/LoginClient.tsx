@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Fingerprint } from 'lucide-react';
 import { usePasskey } from '../../../lib/hooks/usePasskey';
@@ -20,7 +20,24 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorMethods, setTwoFactorMethods] = useState<string[]>([]);
-  const { executePasskeyFlow, passkeyLoading, passkeyError } = usePasskey();
+  const { executePasskeyFlow, passkeyLoading, passkeyError, setPasskeyError } = usePasskey();
+  const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
+  const [uiMode, setUiMode] = useState<'passkey' | 'password'>('password');
+
+  useEffect(() => {
+    const checkPasskeySupport = async () => {
+      const supported = typeof window !== 'undefined' && 'PublicKeyCredential' in window;
+      if (supported && window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+        const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        setPasskeySupported(available);
+        setUiMode(available ? 'passkey' : 'password');
+      } else {
+        setPasskeySupported(supported);
+        setUiMode(supported ? 'passkey' : 'password');
+      }
+    };
+    checkPasskeySupport();
+  }, []);
 
   /**
      * Callers: []
@@ -101,67 +118,78 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-foreground">{dict.auth.emailAddress}</label>
-            <input
-              type="text"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-border px-3 py-2 bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
-            />
+      {uiMode === 'password' && (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {dict.auth.passwordLoginNotRecommended && (
+            <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300">
+              {dict.auth.passwordLoginNotRecommended}
+            </div>
+          )}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground">{dict.auth.emailAddress}</label>
+              <input
+                type="text"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-border px-3 py-2 bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground">{dict.auth.password}</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-border px-3 py-2 bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-foreground">{dict.auth.password}</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-border px-3 py-2 bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
-            />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input type="checkbox" className="h-4 w-4 rounded border-border text-primary focus:ring-primary" />
+              <label className="ml-2 block text-sm text-muted">{dict.auth.rememberMe}</label>
+            </div>
+            <div className="text-sm">
+              <a href="#" className="font-medium text-primary hover:text-primary/80">{dict.auth.forgotPassword}</a>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <input type="checkbox" className="h-4 w-4 rounded border-border text-primary focus:ring-primary" />
-            <label className="ml-2 block text-sm text-muted">{dict.auth.rememberMe}</label>
-          </div>
-          <div className="text-sm">
-            <a href="#" className="font-medium text-primary hover:text-primary/80">{dict.auth.forgotPassword}</a>
-          </div>
-        </div>
+          <button
+            type="submit"
+            disabled={loading || passkeyLoading}
+            className="flex w-full justify-center rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
+          >
+            {loading ? dict.auth.signingIn : dict.auth.signIn}
+          </button>
+        </form>
+      )}
 
-        <button
-          type="submit"
-          disabled={loading || passkeyLoading}
-          className="flex w-full justify-center rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
-        >
-          {loading ? dict.auth.signingIn : dict.auth.signIn}
-        </button>
-      </form>
-
-      <div className="mt-6">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-          <div className="relative flex justify-center text-sm"><span className="bg-card px-2 text-muted">{dict.auth.orContinueWith}</span></div>
-        </div>
-        <div className="mt-6">
+      {uiMode === 'passkey' && passkeySupported !== false && (
+        <div className="mt-6 space-y-4">
           <button 
             type="button"
             onClick={handlePasskeyLogin}
             disabled={loading || passkeyLoading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-3 rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
           >
             <Fingerprint className="h-5 w-5 text-primary" />
             {passkeyLoading ? dict.auth.signingIn : dict.auth.signInWithPasskey}
           </button>
+          
+          <button 
+            type="button"
+            onClick={() => setUiMode('password')}
+            className="flex w-full items-center justify-center rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors"
+          >
+            {dict.auth.cannotUsePasskey}
+          </button>
         </div>
-      </div>
+      )}
 
       <p className="mt-8 text-center text-sm text-muted">
         {dict.auth.dontHaveAccount}{' '}
