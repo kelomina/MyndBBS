@@ -12,29 +12,18 @@ import { PrismaPermissionRepository } from '../infrastructure/repositories/Prism
 import { PrismaUserRepository } from '../infrastructure/repositories/PrismaUserRepository';
 import { PrismaRoleRepository } from '../infrastructure/repositories/PrismaRoleRepository';
 
-import { authApplicationService, userApplicationService, installationApplicationService, systemApplicationService } from '../registry';
+import { authApplicationService, userApplicationService, installationApplicationService, systemApplicationService, communityApplicationService } from '../registry';
 const roleApplicationService = new RoleApplicationService(
   new PrismaRoleRepository(),
   new PrismaPermissionRepository(),
   new PrismaUserRepository()
 );
-import { CommunityApplicationService } from '../application/community/CommunityApplicationService';
-import { PrismaCategoryRepository } from '../infrastructure/repositories/PrismaCategoryRepository';
-import { PrismaEngagementRepository } from '../infrastructure/repositories/PrismaEngagementRepository';
 import { ModerationApplicationService } from '../application/community/ModerationApplicationService';
 import { PrismaPostRepository } from '../infrastructure/repositories/PrismaPostRepository';
 import { PrismaCommentRepository } from '../infrastructure/repositories/PrismaCommentRepository';
 import { PrismaModeratedWordRepository } from '../infrastructure/repositories/PrismaModeratedWordRepository';
 import { globalEventBus } from '../infrastructure/events/InMemoryEventBus';
 
-const communityApplicationService = new CommunityApplicationService(
-  new PrismaCategoryRepository(),
-  new PrismaPostRepository(),
-  new PrismaCommentRepository(),
-  new PrismaEngagementRepository(),
-  new PrismaUserRepository(),
-  new PrismaRoleRepository()
-);
 const moderationApplicationService = new ModerationApplicationService(
   new PrismaPostRepository(),
   new PrismaCommentRepository(),
