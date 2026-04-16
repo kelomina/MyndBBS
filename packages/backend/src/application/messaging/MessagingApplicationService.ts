@@ -70,7 +70,7 @@ export class MessagingApplicationService {
         expiresAt: null,
         deletedBy: [],
         createdAt: new Date()
-      });
+      }, systemUser.level, true, 0);
       await this.privateMessageRepository.save(systemMessage);
     }
 
@@ -102,16 +102,14 @@ export class MessagingApplicationService {
     expiresIn?: number
   ): Promise<PrivateMessage> {
     const sender = await this.userRepository.findById(senderId);
-    if (!sender || sender.level < 2) throw new Error('ERR_LEVEL_TOO_LOW');
+    if (!sender) throw new Error('ERR_LEVEL_TOO_LOW');
 
     const friendship = await this.friendshipRepository.findByUsers(senderId, receiverId);
-    const isFriend = friendship && friendship.status === 'ACCEPTED';
+    const isFriend = !!(friendship && friendship.status === 'ACCEPTED');
 
+    let sentCount = 0;
     if (!isFriend) {
-      const sentCount = await this.privateMessageRepository.countMessagesBetween(senderId, receiverId);
-      if (sentCount >= 3) {
-        throw new Error('ERR_FRIEND_REQUIRED_LIMIT_REACHED');
-      }
+      sentCount = await this.privateMessageRepository.countMessagesBetween(senderId, receiverId);
     }
 
     let expiresAt: Date | null = null;
@@ -132,7 +130,7 @@ export class MessagingApplicationService {
       expiresAt,
       deletedBy: [],
       createdAt: new Date()
-    });
+    }, sender.level, isFriend, sentCount);
 
     await this.privateMessageRepository.save(message);
     return message;
