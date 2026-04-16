@@ -81,7 +81,7 @@ export class MessagingQueryService {
       ]
     };
 
-    let whereClause: any = {
+    let whereClause: NonNullable<Parameters<typeof prisma.privateMessage.findMany>[0]>['where'] = {
       AND: [
         { OR: [ { senderId: userId }, { receiverId: userId } ] },
         notExpiredCondition,

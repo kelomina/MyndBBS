@@ -2,7 +2,7 @@ import { IEnvStore } from '../../domain/provisioning/IEnvStore';
 import { IDatabaseConnectionValidator } from '../../domain/provisioning/IDatabaseConnectionValidator';
 import { IDatabaseSchemaApplier } from '../../domain/provisioning/IDatabaseSchemaApplier';
 import { IInstallationSessionRepository } from '../../domain/provisioning/IInstallationSessionRepository';
-import { IdentityBootstrapApplicationService } from '../identity/IdentityBootstrapApplicationService';
+import { IIdentityBootstrapPort } from '../../domain/provisioning/IIdentityBootstrapPort';
 
 export class InstallationApplicationService {
   constructor(
@@ -10,7 +10,7 @@ export class InstallationApplicationService {
     private dbValidator: IDatabaseConnectionValidator,
     private dbSchemaApplier: IDatabaseSchemaApplier,
     private sessionRepository: IInstallationSessionRepository,
-    private identityBootstrap: IdentityBootstrapApplicationService
+    private identityBootstrap: IIdentityBootstrapPort
   ) {}
 
   public async startInstallation(): Promise<string> {

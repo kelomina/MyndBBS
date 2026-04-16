@@ -50,9 +50,9 @@ export class IdentityQueryService {
     });
 
     return [
-      ...postBookmarks.map((b) => ({ ...(b as any).post, type: 'post', bookmarkedAt: b.createdAt })),
-      ...commentBookmarks.map((b) => ({ ...(b as any).comment, type: 'comment', bookmarkedAt: b.createdAt })),
-    ].sort((a: any, b: any) => b.bookmarkedAt.getTime() - a.bookmarkedAt.getTime());
+      ...postBookmarks.map((b) => ({ ...b.post, type: 'post' as const, bookmarkedAt: b.createdAt })),
+      ...commentBookmarks.map((b) => ({ ...b.comment, type: 'comment' as const, bookmarkedAt: b.createdAt })),
+    ].sort((a, b) => b.bookmarkedAt.getTime() - a.bookmarkedAt.getTime());
   }
 
   /**

@@ -1,4 +1,4 @@
-import { RedisModerationPolicy } from '../../../src/infrastructure/services/RedisModerationPolicy';
+import { RedisModeratedWordsCache } from '../../../src/infrastructure/services/RedisModeratedWordsCache';
 import { redis } from '../../../src/lib/redis';
 
 jest.mock('../../../src/lib/redis', () => ({
@@ -18,13 +18,13 @@ class FakeModeratedWordRepo {
   }
 }
 
-describe('RedisModerationPolicy', () => {
+describe('RedisModeratedWordsCache', () => {
   it('loads words from repo and caches them', async () => {
     (redis.get as jest.Mock).mockResolvedValueOnce(null);
-    const policy = new RedisModerationPolicy(new FakeModeratedWordRepo() as any);
+    const cache = new RedisModeratedWordsCache(new FakeModeratedWordRepo() as any);
     
-    const contains = await policy.containsModeratedWord('this is bad');
-    expect(contains).toBe(true);
+    const words = await cache.getModerationWords();
+    expect(words.global).toContain('bad');
     expect(redis.set).toHaveBeenCalledWith(
       'moderation:words',
       JSON.stringify({ global: ['bad'], category: { cat1: ['worse'] } }),
