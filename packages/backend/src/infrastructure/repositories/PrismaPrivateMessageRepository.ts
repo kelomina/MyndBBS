@@ -24,7 +24,7 @@ export class PrismaPrivateMessageRepository implements IPrivateMessageRepository
       deletedBy: raw.deletedBy,
       createdAt: raw.createdAt,
     };
-    return PrivateMessage.create(props);
+    return PrivateMessage.load(props);
   }
 
   public async findById(id: string): Promise<PrivateMessage | null> {

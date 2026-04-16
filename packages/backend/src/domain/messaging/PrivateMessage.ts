@@ -38,10 +38,34 @@ export class PrivateMessage {
    * Description: Static factory method creating a new PrivateMessage entity.
    * Keywords: create, factory, message, domain, instantiation
    */
-  public static create(props: PrivateMessageProps): PrivateMessage {
+  public static create(
+    props: PrivateMessageProps,
+    senderLevel: number,
+    isFriend: boolean,
+    sentCountToNonFriend: number
+  ): PrivateMessage {
     if (!props.senderId || !props.receiverId || !props.encryptedContent) {
       throw new Error('ERR_MESSAGE_MISSING_REQUIRED_FIELDS');
     }
+
+    if (senderLevel < 2) {
+      throw new Error('ERR_LEVEL_TOO_LOW');
+    }
+
+    if (!isFriend && sentCountToNonFriend >= 3) {
+      throw new Error('ERR_FRIEND_REQUIRED_LIMIT_REACHED');
+    }
+
+    return new PrivateMessage(props);
+  }
+
+  /**
+   * Callers: [PrismaPrivateMessageRepository]
+   * Callees: [PrivateMessage.constructor]
+   * Description: Static factory method for reconstituting an existing PrivateMessage entity from persistence.
+   * Keywords: load, factory, message, domain, persistence, deserialize
+   */
+  public static load(props: PrivateMessageProps): PrivateMessage {
     return new PrivateMessage(props);
   }
 
