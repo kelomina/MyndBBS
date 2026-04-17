@@ -474,11 +474,9 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
   const { host, port, username, password, database } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  const newDbUrl = `postgresql://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}?schema=public`;
-
   try {
     try {
-      await installationApplicationService.updateDbConfig(newDbUrl);
+      await installationApplicationService.updateDbConfig(host, port, username, password, database);
     } catch (err: any) {
       console.error('Prisma Error on DB Update:', err.message);
       res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });

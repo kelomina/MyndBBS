@@ -14,7 +14,9 @@ import { UserStatus } from '@myndbbs/shared';
 import { IPasswordHasher } from '../../domain/identity/IPasswordHasher';
 import { randomUUID as uuidv4 } from 'crypto';
 import { isValidPassword, APP_NAME } from '@myndbbs/shared';
-import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
+import { ITotpPort } from '../../domain/identity/ports/ITotpPort';
+import { IPasskeyPort } from '../../domain/identity/ports/IPasskeyPort';
+import { ITokenPort } from '../../domain/identity/ports/ITokenPort';
 
 const rpName = APP_NAME;
 const rpID = process.env.RP_ID || 'localhost';
@@ -41,7 +43,10 @@ export class AuthApplicationService {
     private userRepository: IUserRepository,
     private roleRepository: IRoleRepository,
     private passwordHasher: IPasswordHasher,
-    private authCache: ISessionCache
+    private authCache: ISessionCache,
+    private totpPort: ITotpPort,
+    private passkeyPort: IPasskeyPort,
+    private tokenPort: ITokenPort
   ) {}
 
   // --- Captcha Orchestration ---
@@ -228,22 +233,12 @@ export class AuthApplicationService {
 
     const userPasskeys = await this.passkeyRepository.findByUserId(userId);
 
-    const options = await generateRegistrationOptions({
-      rpName,
-      rpID,
-      userID: new Uint8Array(Buffer.from(user.id)),
-      userName: user.email,
-      attestationType: 'none',
-      excludeCredentials: userPasskeys.map(passkey => ({
-        id: passkey.id,
-        transports: ['internal'] as any,
-      })),
-      authenticatorSelection: {
-        residentKey: 'preferred',
-        userVerification: 'preferred',
-        authenticatorAttachment: 'platform',
-      },
-    });
+    const excludeCredentials = userPasskeys.map(passkey => ({
+      id: passkey.id,
+      transports: ['internal'] as any,
+    }));
+
+    const options = await this.passkeyPort.generateRegistrationOptions(user, excludeCredentials);
 
     const authChallenge = await this.generateAuthChallenge(options.challenge);
 
@@ -257,12 +252,12 @@ export class AuthApplicationService {
 
     const expectedChallenge = await this.consumeAuthChallenge(challengeId);
 
-    const verification = await verifyRegistrationResponse({
+    const verification = await this.passkeyPort.verifyRegistrationResponse(
       response,
-      expectedChallenge: expectedChallenge.challenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
-    });
+      expectedChallenge.challenge,
+      origin,
+      rpID
+    );
 
     if (verification.verified && verification.registrationInfo) {
       const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
@@ -340,8 +335,45 @@ export class AuthApplicationService {
 
   // --- TOTP Setup Orchestration ---
 
+  public async generateTotp(userId: string, email: string): Promise<{ secret: string; qrCodeUrl: string }> {
+    const secret = this.totpPort.generateSecret();
+    const otpauth = this.totpPort.generateURI(APP_NAME, email, secret);
+    
+    // We need QRCode.toDataURL to generate the image. Since QRCode is infrastructure, we should probably return the otpauth URI and let the adapter or controller handle it, but the instructions say "completely to authApplicationService".
+    // Wait, the instruction says remove QRCode from auth.ts. So we must use QRCode here, or pass it to a port.
+    // The instruction didn't add QRCode to ITotpPort. So we have to import QRCode in AuthApplicationService.
+    const QRCode = require('qrcode');
+    const qrCodeUrl = await QRCode.toDataURL(otpauth);
+    
+    await this.storeTotpSecret(userId, secret, 300); // 5 minutes
+    
+    return { secret, qrCodeUrl };
+  }
+
   public async storeTotpSecret(userId: string, secret: string, ttlSeconds: number = 300): Promise<void> {
     await this.authCache.storeTotpSecret(userId, secret, ttlSeconds);
+  }
+
+  public async verifyTotpRegistration(userId: string, code: string): Promise<string> {
+    const pendingSecret = await this.getTotpSecret(userId);
+    if (!pendingSecret) {
+      throw new Error('ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED');
+    }
+
+    const isValid = this.totpPort.verify(pendingSecret, code);
+    if (!isValid) {
+      throw new Error('ERR_INVALID_TOTP_CODE');
+    }
+
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error('ERR_USER_NOT_FOUND');
+    
+    user.enableTotp(pendingSecret);
+    await this.userRepository.save(user);
+
+    await this.removeTotpSecret(userId);
+
+    return pendingSecret;
   }
 
   public async getTotpSecret(userId: string): Promise<string | null> {
@@ -437,6 +469,135 @@ export class AuthApplicationService {
 
   // --- Passkey Orchestration ---
 
+  public async generatePasskeyAuthenticationOptions(userId?: string): Promise<any> {
+    let allowCredentials: any[] = [];
+    
+    if (userId) {
+      const userPasskeys = await this.passkeyRepository.findByUserId(userId);
+      allowCredentials = userPasskeys.map(passkey => ({
+        id: passkey.id,
+        transports: ['internal'] as any,
+      }));
+    }
+
+    const options = await this.passkeyPort.generateAuthenticationOptions(allowCredentials);
+    const authChallenge = await this.generateAuthChallenge(options.challenge);
+    
+    return { ...options, challengeId: authChallenge.id };
+  }
+
+  public async verifyPasskeyAuthenticationResponse(userId: string | undefined, response: any, challengeId: string): Promise<any> {
+    if (!challengeId) {
+      throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED');
+    }
+    
+    const expectedChallenge = await this.consumeAuthChallenge(challengeId);
+    
+    const passkey = await this.passkeyRepository.findById(response.id);
+    if (!passkey) {
+      throw new Error('ERR_PASSKEY_NOT_FOUND');
+    }
+    
+    if (userId && passkey.userId !== userId) {
+      throw new Error('ERR_PASSKEY_DOES_NOT_BELONG_TO_USER');
+    }
+    
+    const credential = {
+      id: passkey.id,
+      publicKey: new Uint8Array(passkey.publicKey),
+      counter: Number(passkey.counter),
+    };
+    
+    const verification = await this.passkeyPort.verifyAuthenticationResponse(
+      response,
+      expectedChallenge.challenge,
+      origin,
+      rpID,
+      credential
+    );
+    
+    if (verification.verified && verification.authenticationInfo) {
+      const { newCounter } = verification.authenticationInfo;
+      await this.updatePasskeyCounter(passkey.id, BigInt(newCounter));
+      
+      const authenticatedUserId = passkey.userId;
+      const user = await this.userRepository.findById(authenticatedUserId);
+      if (!user) throw new Error('ERR_USER_NOT_FOUND');
+      
+      let roleName = null;
+      if (user.roleId) {
+        const role = await this.roleRepository.findById(user.roleId);
+        if (role) roleName = role.name;
+      }
+      
+      return {
+        verified: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: { name: roleName }
+        }
+      };
+    } else {
+      throw new Error('ERR_VERIFICATION_FAILED');
+    }
+  }
+
+  public async verifyTotpLogin(userId: string, code: string): Promise<any> {
+    const user = await this.userRepository.findById(userId);
+    if (!user || !user.isTotpEnabled || !user.totpSecret) {
+      throw new Error('ERR_UNAUTHORIZED_OR_TOTP_NOT_ENABLED');
+    }
+    
+    const isValid = this.totpPort.verify(user.totpSecret, code);
+    if (!isValid) {
+      throw new Error('ERR_INVALID_TOTP_CODE');
+    }
+    
+    let roleName = null;
+    if (user.roleId) {
+      const role = await this.roleRepository.findById(user.roleId);
+      if (role) roleName = role.name;
+    }
+    
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: { name: roleName }
+    };
+  }
+
+  public verifyTempToken(token: string): any {
+    return this.tokenPort.verify(token, process.env.JWT_SECRET as string);
+  }
+
+  public async finalizeAuth(user: any, ip: string | null, userAgent: string | null): Promise<{ accessToken: string, refreshToken: string }> {
+    const session = await this.createSession(
+      user.id,
+      ip,
+      userAgent,
+      7 * 24 * 60 * 60 * 1000 // 7 days
+    );
+
+    const roleName = user.role?.name || user.role || null;
+
+    const accessToken = this.tokenPort.sign(
+      { userId: user.id, role: roleName, sessionId: session.id },
+      process.env.JWT_SECRET as string,
+      '15m'
+    );
+    
+    const refreshToken = this.tokenPort.sign(
+      { userId: user.id, role: roleName, sessionId: session.id },
+      process.env.JWT_REFRESH_SECRET as string,
+      '7d'
+    );
+
+    return { accessToken, refreshToken };
+  }
+
   /**
    * Callers: [UserController.verifyPasskey, AuthController.verifyPasskeyRegistration]
    * Callees: [Passkey.create, IPasskeyRepository.save]
@@ -481,6 +642,16 @@ export class AuthApplicationService {
     }
     
     await this.passkeyRepository.delete(id);
+    
+    const remainingPasskeys = await this.passkeyRepository.findByUserId(requesterUserId);
+    if (remainingPasskeys.length === 0) {
+      const user = await this.userRepository.findById(requesterUserId);
+      if (user) {
+        user.changeLevel(1);
+        await this.userRepository.save(user);
+      }
+    }
+    
     return passkey.userId;
   }
 

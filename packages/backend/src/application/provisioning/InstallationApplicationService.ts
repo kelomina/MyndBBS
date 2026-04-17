@@ -31,9 +31,10 @@ export class InstallationApplicationService {
     await this.envStore.updateDomainConfig(config);
   }
 
-  public async updateDbConfig(dbUrl: string): Promise<void> {
+  public async updateDbConfig(host: string, port: number, username: string, password: string, database: string): Promise<void> {
+    const newDbUrl = `postgresql://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}?schema=public`;
     const sessionId = await this.startInstallation();
-    await this.configureDatabase(sessionId, dbUrl);
+    await this.configureDatabase(sessionId, newDbUrl);
     await this.applySchema(sessionId);
   }
 

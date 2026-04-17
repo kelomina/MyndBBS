@@ -41,9 +41,16 @@ import { AdminUserManagementApplicationService } from './application/identity/Ad
 import { RedisSessionCache } from './infrastructure/services/RedisSessionCache';
 import { RedisAbilityCache } from './infrastructure/services/RedisAbilityCache';
 import { RoleHierarchyPolicy } from './application/identity/policies/RoleHierarchyPolicy';
+import { TotpAdapter } from './infrastructure/services/identity/TotpAdapter';
+import { PasskeyAdapter } from './infrastructure/services/identity/PasskeyAdapter';
+import { TokenAdapter } from './infrastructure/services/identity/TokenAdapter';
 
 export const redisAbilityCache = new RedisAbilityCache();
 export const authCache = new RedisSessionCache();
+
+const totpAdapter = new TotpAdapter();
+const passkeyAdapter = new PasskeyAdapter();
+const tokenAdapter = new TokenAdapter();
 
 export const abilityCacheInvalidationHandler = new AbilityCacheInvalidationHandler(
   globalEventBus,
@@ -53,7 +60,8 @@ export const abilityCacheInvalidationHandler = new AbilityCacheInvalidationHandl
 export const userApplicationService = new UserApplicationService(
   new PrismaUserRepository(),
   redisAbilityCache,
-  new Argon2PasswordHasher()
+  new Argon2PasswordHasher(),
+  totpAdapter
 );
 
 export const adminUserManagementApplicationService = new AdminUserManagementApplicationService(
@@ -78,7 +86,10 @@ export const authApplicationService = new AuthApplicationService(
   new PrismaUserRepository(),
   new PrismaRoleRepository(),
   new Argon2PasswordHasher(),
-  authCache
+  authCache,
+  totpAdapter,
+  passkeyAdapter,
+  tokenAdapter
 );
 
 export const sudoApplicationService = new SudoApplicationService(
