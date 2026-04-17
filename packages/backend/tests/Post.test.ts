@@ -1,5 +1,5 @@
 import { PostStatus } from '@myndbbs/shared';
-import { Post, CreatePostProps } from '../../../src/domain/community/Post';
+import { Post, CreatePostProps } from '../src/domain/community/Post';
 
 describe('Post Aggregate Root', () => {
   const validProps: CreatePostProps = {

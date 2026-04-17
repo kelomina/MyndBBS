@@ -1,4 +1,4 @@
-import { SudoApplicationService } from '../../../src/application/identity/SudoApplicationService';
+import { SudoApplicationService } from '../src/application/identity/SudoApplicationService';
 
 jest.mock('argon2', () => ({
   verify: jest.fn().mockResolvedValue(true),

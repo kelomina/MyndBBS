@@ -1,4 +1,4 @@
-import { PrivateMessage, PrivateMessageProps } from '../../../src/domain/messaging/PrivateMessage';
+import { PrivateMessage, PrivateMessageProps } from '../src/domain/messaging/PrivateMessage';
 
 describe('PrivateMessage Aggregate Root', () => {
   const getValidProps = (): PrivateMessageProps => ({

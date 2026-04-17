@@ -1,4 +1,4 @@
-import { UserKey, UserKeyProps } from '../../../src/domain/messaging/UserKey';
+import { UserKey, UserKeyProps } from '../src/domain/messaging/UserKey';
 
 describe('UserKey Aggregate Root', () => {
   const validProps: UserKeyProps = {

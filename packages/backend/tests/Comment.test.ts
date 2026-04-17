@@ -1,4 +1,4 @@
-import { Comment, CreateCommentProps, CommentProps } from '../../../src/domain/community/Comment';
+import { Comment, CreateCommentProps, CommentProps } from '../src/domain/community/Comment';
 
 describe('Comment Aggregate Root', () => {
   const validProps: CreateCommentProps = {

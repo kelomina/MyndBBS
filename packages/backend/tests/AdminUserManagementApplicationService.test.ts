@@ -1,6 +1,6 @@
-import { AdminUserManagementApplicationService } from '../../../src/application/identity/AdminUserManagementApplicationService';
-import { RoleHierarchyPolicy } from '../../../src/application/identity/policies/RoleHierarchyPolicy';
-import { User } from '../../../src/domain/identity/User';
+import { AdminUserManagementApplicationService } from '../src/application/identity/AdminUserManagementApplicationService';
+import { RoleHierarchyPolicy } from '../src/application/identity/policies/RoleHierarchyPolicy';
+import { User } from '../src/domain/identity/User';
 import { UserStatus } from '@myndbbs/shared';
 
 class InMemoryUserRepo {
