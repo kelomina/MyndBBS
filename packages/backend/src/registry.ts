@@ -64,13 +64,23 @@ export const userApplicationService = new UserApplicationService(
   totpAdapter
 );
 
+
+
+import { AuditApplicationService } from './application/system/AuditApplicationService';
+import { PrismaAuditLogRepository } from './infrastructure/repositories/PrismaAuditLogRepository';
+
+export const auditApplicationService = new AuditApplicationService(
+  new PrismaAuditLogRepository()
+);
+
 export const adminUserManagementApplicationService = new AdminUserManagementApplicationService(
   new PrismaUserRepository(),
   new PrismaRoleRepository(),
   new PrismaPasskeyRepository(),
   new PrismaSessionRepository(),
   new RedisSessionCache(),
-  new RoleHierarchyPolicy()
+  new RoleHierarchyPolicy(),
+  auditApplicationService
 );
 
 import { SudoApplicationService } from './application/identity/SudoApplicationService';
@@ -100,15 +110,8 @@ export const sudoApplicationService = new SudoApplicationService(
   process.env.ORIGIN || `http://${process.env.RP_ID || 'localhost'}:3000`
 );
 
-import { AuditApplicationService } from './application/system/AuditApplicationService';
-import { PrismaAuditLogRepository } from './infrastructure/repositories/PrismaAuditLogRepository';
-
 export const systemApplicationService = new SystemApplicationService(
   new PrismaRouteWhitelistRepository()
-);
-
-export const auditApplicationService = new AuditApplicationService(
-  new PrismaAuditLogRepository()
 );
 
 export const identityBootstrapApplicationService = new IdentityBootstrapApplicationService(
@@ -152,7 +155,8 @@ export const communityApplicationService = new CommunityApplicationService(
   identityIntegrationPort,
   moderationPolicy,
   authApplicationService,
-  globalEventBus
+  globalEventBus,
+  auditApplicationService
 );
 
 export const messagingApplicationService = new MessagingApplicationService(
@@ -174,5 +178,6 @@ export const moderationApplicationService = new ModerationApplicationService(
   new PrismaPostRepository(),
   new PrismaCommentRepository(),
   new PrismaModeratedWordRepository(),
-  globalEventBus
+  globalEventBus,
+  auditApplicationService
 );
