@@ -18,7 +18,7 @@ export class PrismaPasskeyRepository implements IPasskeyRepository {
   private toDomain(raw: any): Passkey {
     const props: PasskeyProps = {
       id: raw.id,
-      publicKey: raw.publicKey,
+      publicKey: Buffer.from(raw.publicKey),
       userId: raw.userId,
       webAuthnUserID: raw.webAuthnUserID,
       counter: BigInt(raw.counter),
@@ -63,7 +63,7 @@ export class PrismaPasskeyRepository implements IPasskeyRepository {
       where: { id: passkey.id },
       create: {
         id: passkey.id,
-        publicKey: passkey.publicKey,
+        publicKey: new Uint8Array(passkey.publicKey),
         userId: passkey.userId,
         webAuthnUserID: passkey.webAuthnUserID,
         counter: passkey.counter,
