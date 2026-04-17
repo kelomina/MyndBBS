@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import { i18next, i18nextMiddleware } from './i18n';
 import { i18nErrorTranslationMiddleware } from './middleware/i18nErrorTranslation';
 
 // Force load .env from the current backend directory explicitly, regardless of cwd
@@ -21,6 +22,7 @@ const port = process.env.PORT || 3001;
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ limit: '100kb', extended: true }));
 app.use(cookieParser());
+app.use(i18nextMiddleware.handle(i18next));
 app.use(i18nErrorTranslationMiddleware);
 
 const isInstalled = process.env.INSTALL_LOCKED === 'true';

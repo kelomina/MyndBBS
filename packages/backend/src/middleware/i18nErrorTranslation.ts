@@ -1,30 +1,31 @@
-import type { NextFunction, Request, Response } from 'express';
-import { resolveRequestLocale, translateErrorCode } from '../i18n/errors';
+import { Request, Response, NextFunction } from 'express';
 
 /**
- * Callers: [src/index.ts]
- * Callees: [resolveRequestLocale, translateErrorCode, bind]
- * Description: Adds a localized `message` for JSON error responses that contain `error` codes.
- * Keywords: i18n, middleware, error, translation, express
+ * Callers: [App Router]
+ * Callees: [res.json, req.t]
+ * Description: Intercepts res.json() to automatically translate 'error' fields using i18next if they start with 'ERR_'.
+ * Keywords: i18n, error, translation, middleware
  */
 export function i18nErrorTranslationMiddleware(req: Request, res: Response, next: NextFunction): void {
   const originalJson = res.json.bind(res);
 
-  res.json = ((body?: unknown) => {
-    if (body && typeof body === 'object' && !Array.isArray(body)) {
-      const maybeError = (body as any).error;
-      const maybeMessage = (body as any).message;
-
-      if (typeof maybeError === 'string' && (!maybeMessage || typeof maybeMessage !== 'string')) {
-        const locale = resolveRequestLocale(req);
-        const translated = translateErrorCode(maybeError, locale);
-        return originalJson({ ...(body as any), message: translated });
+  res.json = (body: any): Response => {
+    if (
+      body &&
+      typeof body === 'object' &&
+      typeof body.error === 'string' &&
+      body.error.startsWith('ERR_') &&
+      typeof req.t === 'function'
+    ) {
+      if (!body.message) {
+        const translated = req.t(body.error, { ns: 'errors' });
+        // i18next returns the key if no translation is found. 
+        body.message = translated !== body.error ? translated : body.error;
       }
     }
 
-    return originalJson(body as any);
-  }) as any;
+    return originalJson(body);
+  };
 
   next();
 }
-
