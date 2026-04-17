@@ -40,6 +40,7 @@ describe('AdminUserManagementApplicationService', () => {
     const passkeyRepo = new InMemoryPasskeyRepo();
     const sessionRepo = new InMemorySessionRepo();
     const sessionCache = new InMemorySessionCache();
+    const audit = { logAudit: jest.fn() };
 
     const u = User.create({
       id: 'u1',
@@ -62,9 +63,12 @@ describe('AdminUserManagementApplicationService', () => {
       passkeyRepo as any,
       sessionRepo as any,
       sessionCache as any,
-      new RoleHierarchyPolicy()
+      new RoleHierarchyPolicy(),
+      audit as any
     );
 
-    await expect(svc.changeUserLevel('u1', 2)).rejects.toThrow('ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY');
+    await expect(
+      svc.changeUserLevel({ userId: 'admin', role: 'SUPER_ADMIN' }, 'u1', 2)
+    ).rejects.toThrow('ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY');
   });
 });

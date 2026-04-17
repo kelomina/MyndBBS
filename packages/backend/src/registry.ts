@@ -44,6 +44,7 @@ import { RoleHierarchyPolicy } from './application/identity/policies/RoleHierarc
 import { TotpAdapter } from './infrastructure/services/identity/TotpAdapter';
 import { PasskeyAdapter } from './infrastructure/services/identity/PasskeyAdapter';
 import { TokenAdapter } from './infrastructure/services/identity/TokenAdapter';
+import { LocalFileStorageAdapter } from './infrastructure/services/system/LocalFileStorageAdapter';
 
 export const redisAbilityCache = new RedisAbilityCache();
 export const authCache = new RedisSessionCache();
@@ -51,6 +52,7 @@ export const authCache = new RedisSessionCache();
 const totpAdapter = new TotpAdapter();
 const passkeyAdapter = new PasskeyAdapter();
 const tokenAdapter = new TokenAdapter();
+const localFileStorageAdapter = new LocalFileStorageAdapter();
 
 export const abilityCacheInvalidationHandler = new AbilityCacheInvalidationHandler(
   globalEventBus,
@@ -111,7 +113,8 @@ export const sudoApplicationService = new SudoApplicationService(
 );
 
 export const systemApplicationService = new SystemApplicationService(
-  new PrismaRouteWhitelistRepository()
+  new PrismaRouteWhitelistRepository(),
+  localFileStorageAdapter
 );
 
 export const identityBootstrapApplicationService = new IdentityBootstrapApplicationService(
