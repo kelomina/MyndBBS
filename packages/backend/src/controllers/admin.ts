@@ -34,10 +34,6 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
 
   try {
     if (level !== undefined) {
-      if (level < 1 || level > 6) {
-        res.status(400).json({ error: 'ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6' });
-        return;
-      }
       await adminUserManagementApplicationService.changeUserLevel(
         { userId: operatorId, role: (req.user?.role || 'USER') as any },
         id,
@@ -46,31 +42,11 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
     }
 
     if (role) {
-      if (!['USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN'].includes(role)) {
-        res.status(400).json({ error: 'ERR_INVALID_ROLE' });
-        return;
-      }
-
       await adminUserManagementApplicationService.changeUserRole(
         { userId: operatorId, role: (req.user?.role || 'USER') as any },
         id,
         role as any
       );
-
-      // Auto-disable root if another user gets SUPER_ADMIN role
-      if (role === 'SUPER_ADMIN') {
-        const targetUser = await identityQueryService.getUserWithRoleById(id);
-        if (targetUser && targetUser.username !== 'root') {
-          const rootUser = await adminQueryService.getRootUser();
-          if (rootUser) {
-            await adminUserManagementApplicationService.changeUserStatus(
-              { userId: 'system', role: 'SUPER_ADMIN' },
-              rootUser.id,
-              UserStatus.BANNED
-            );
-          }
-        }
-      }
     }
 
     const finalUser = await identityQueryService.getUserWithRoleById(id);
@@ -97,11 +73,6 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
   const operatorId = req.user?.userId || 'unknown';
 
   try {
-    if (!([UserStatus.ACTIVE, UserStatus.BANNED, UserStatus.PENDING, UserStatus.INACTIVE] as UserStatus[]).includes(status as UserStatus)) {
-      res.status(400).json({ error: 'ERR_INVALID_STATUS' });
-      return;
-    }
-
     await adminUserManagementApplicationService.changeUserStatus(
       { userId: operatorId, role: (req.user?.role || 'USER') as any },
       id,
