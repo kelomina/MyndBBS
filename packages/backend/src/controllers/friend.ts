@@ -21,11 +21,15 @@ export const requestFriend = async (req: AuthRequest, res: Response): Promise<vo
     );
     res.json({ success: true });
   } catch (error: any) {
-    if (error.message === 'ERR_USER_NOT_FOUND') {
-      res.status(404).json({ error: error.message });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+
+    if (errorCode === 'ERR_USER_NOT_FOUND') {
+      res.status(404).json({ error: errorCode });
       return;
     }
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: errorCode });
   }
 };
 
@@ -44,7 +48,10 @@ export const respondFriend = async (req: AuthRequest, res: Response): Promise<vo
     await messagingApplicationService.respondFriendRequest(friendshipId, userId, accept);
     res.json({ success: true });
   } catch (error: any) {
-    res.status(error.message === 'ERR_NOT_FOUND' ? 404 : 400).json({ error: error.message });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+    res.status(errorCode === 'ERR_NOT_FOUND' ? 404 : 400).json({ error: errorCode });
   }
 };
 

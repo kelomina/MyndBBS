@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import { i18nErrorTranslationMiddleware } from './middleware/i18nErrorTranslation';
 
 // Force load .env from the current backend directory explicitly, regardless of cwd
 const envPath = path.resolve(__dirname, '../.env');
@@ -20,6 +21,7 @@ const port = process.env.PORT || 3001;
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ limit: '100kb', extended: true }));
 app.use(cookieParser());
+app.use(i18nErrorTranslationMiddleware);
 
 const isInstalled = process.env.INSTALL_LOCKED === 'true';
 
@@ -70,7 +72,7 @@ if (!isInstalled) {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error('ERR_CORS_NOT_ALLOWED'));
       }
     }, 
     credentials: true 
@@ -133,7 +135,18 @@ if (!isInstalled) {
   // Global error handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('Unhandled Error:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    const errorCode = typeof err?.message === 'string' && err.message.startsWith('ERR_')
+      ? err.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+
+    const statusCode =
+      errorCode.includes('UNAUTHORIZED') ? 401 :
+      errorCode.includes('FORBIDDEN') ? 403 :
+      errorCode.includes('NOT_FOUND') ? 404 :
+      errorCode.includes('BAD_REQUEST') || errorCode.includes('INVALID') || errorCode.includes('MISSING') ? 400 :
+      500;
+
+    res.status(statusCode).json({ error: errorCode });
   });
 
   /**

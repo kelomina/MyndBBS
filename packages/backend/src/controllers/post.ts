@@ -67,7 +67,10 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       }
       res.status(201).json({ post: postDto, isModerated: result.isModerated });
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+        ? error.message
+        : 'ERR_BAD_REQUEST';
+      res.status(400).json({ error: errorCode });
       return;
     }
   } catch (error) {
@@ -235,7 +238,10 @@ export const createComment = async (req: AuthRequest, res: Response): Promise<vo
 
       res.status(201).json(commentDto);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+        ? error.message
+        : 'ERR_BAD_REQUEST';
+      res.status(400).json({ error: errorCode });
       return;
     }
   } catch (error) {

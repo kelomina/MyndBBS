@@ -21,11 +21,15 @@ export const uploadKeys = async (req: AuthRequest, res: Response): Promise<void>
     await messagingApplicationService.uploadKeysWithValidation(userId, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey);
     res.json({ success: true });
   } catch (error: any) {
-    if (error.message === 'ERR_USER_NOT_FOUND') {
-      res.status(404).json({ error: error.message });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+
+    if (errorCode === 'ERR_USER_NOT_FOUND') {
+      res.status(404).json({ error: errorCode });
       return;
     }
-    res.status(403).json({ error: error.message });
+    res.status(403).json({ error: errorCode });
   }
 };
 
@@ -79,11 +83,15 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
     );
     res.json({ success: true, messageId: msgId });
   } catch (error: any) {
-    if (error.message === 'ERR_USER_NOT_FOUND') {
-      res.status(404).json({ error: error.message });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+
+    if (errorCode === 'ERR_USER_NOT_FOUND') {
+      res.status(404).json({ error: errorCode });
       return;
     }
-    res.status(403).json({ error: error.message });
+    res.status(403).json({ error: errorCode });
   }
 };
 
@@ -138,7 +146,10 @@ export const deleteMessage = async (req: AuthRequest, res: Response): Promise<vo
     await messagingApplicationService.deleteMessage(messageId, userId);
     res.json({ success: true });
   } catch (error: any) {
-    res.status(error.message === 'ERR_NOT_FOUND' ? 404 : 403).json({ error: error.message });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+    res.status(errorCode === 'ERR_NOT_FOUND' ? 404 : 403).json({ error: errorCode });
   }
 };
 

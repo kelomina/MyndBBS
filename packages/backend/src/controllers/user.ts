@@ -96,7 +96,10 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
     try {
       await authApplicationService.deletePasskey(passkeyId, userId);
     } catch (e: any) {
-      res.status(400).json({ error: e.message });
+      const errorCode = typeof e?.message === 'string' && e.message.startsWith('ERR_')
+        ? e.message
+        : 'ERR_BAD_REQUEST';
+      res.status(400).json({ error: errorCode });
       return;
     }
 
@@ -166,7 +169,10 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       try {
         authApplicationService.validatePasswordPolicy(password);
       } catch (error: any) {
-        res.status(400).json({ error: error.message });
+        const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+          ? error.message
+          : 'ERR_BAD_REQUEST';
+        res.status(400).json({ error: errorCode });
         return;
       }
     }
