@@ -68,7 +68,7 @@ export const adminUserManagementApplicationService = new AdminUserManagementAppl
 import { SudoApplicationService } from './application/identity/SudoApplicationService';
 import { RedisSudoStore } from './infrastructure/services/RedisSudoStore';
 import { identityQueryService } from './queries/identity/IdentityQueryService';
-import { PrismaUserSecurityReadModel } from './infrastructure/repositories/PrismaUserSecurityReadModel';
+import { PrismaUserSecurityReadModel } from './infrastructure/queries/PrismaUserSecurityReadModel';
 
 export const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),

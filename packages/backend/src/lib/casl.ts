@@ -1,6 +1,4 @@
-import { AbilityBuilder, PureAbility } from '@casl/ability';
-import { createPrismaAbility, PrismaQuery, Subjects } from '@casl/prisma';
-import { User, Post, Category, Role, Permission, Comment } from '@prisma/client';
+import { AbilityBuilder, PureAbility, createMongoAbility, MongoQuery } from '@casl/ability';
 import { UserStatus, PostStatus } from '@myndbbs/shared';
 import { AccessContextDTO, RuleDescriptorDTO } from '../application/identity/contracts/AbilityContracts';
 
@@ -9,16 +7,14 @@ export type Action = 'manage' | 'create' | 'read' | 'update' | 'delete' | 'updat
 export type AppSubjects =
   | 'all'
   | 'AdminPanel'
-  | Subjects<{
-      User: User;
-      Post: Post;
-      Category: Category;
-      Role: Role;
-      Permission: Permission;
-      Comment: Comment;
-    }>;
+  | 'User'
+  | 'Post'
+  | 'Category'
+  | 'Role'
+  | 'Permission'
+  | 'Comment';
 
-export type AppAbility = PureAbility<[Action, AppSubjects], PrismaQuery>;
+export type AppAbility = PureAbility<[Action, AppSubjects]>;
 
 /**
  * Callers: [requireAuth, optionalAuth]
@@ -27,38 +23,38 @@ export type AppAbility = PureAbility<[Action, AppSubjects], PrismaQuery>;
  * Keywords: defineabilityforcontext, define, ability, casl, rules, context
  */
 export function defineAbilityForContext(context?: AccessContextDTO, extraRules?: RuleDescriptorDTO[]) {
-  const { can, cannot, build } = new AbilityBuilder<AppAbility>(createPrismaAbility);
+  const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
   const userLevel = context ? context.level : 0;
 
   if (!context) {
     // Guest can read published posts and categories that allow guests (minLevel 0)
-    can('read', 'Post', { status: PostStatus.PUBLISHED, category: { is: { minLevel: 0 } } } as any);
-    can('read', 'Post', { status: PostStatus.PINNED, category: { is: { minLevel: 0 } } } as any);
-    can('read', 'Category', { minLevel: 0 });
-    can('read', 'Comment', { deletedAt: null, isPending: false, post: { is: { category: { is: { minLevel: 0 } } } } } as any);
+    can('read', 'Post', { status: PostStatus.PUBLISHED, 'category.minLevel': 0 } as any);
+    can('read', 'Post', { status: PostStatus.PINNED, 'category.minLevel': 0 } as any);
+    can('read', 'Category', { minLevel: 0 } as any);
+    can('read', 'Comment', { deletedAt: null, isPending: false, 'post.category.minLevel': 0 } as any);
     return build();
   }
 
   // Baseline permissions for all authenticated users
-  can('read', 'Category', { minLevel: { lte: userLevel } });
-  can('read', 'Post', { status: PostStatus.PUBLISHED, category: { is: { minLevel: { lte: userLevel } } } } as any);
-  can('read', 'Post', { status: PostStatus.PINNED, category: { is: { minLevel: { lte: userLevel } } } } as any);
+  can('read', 'Category', { minLevel: { $lte: userLevel } } as any);
+  can('read', 'Post', { status: PostStatus.PUBLISHED, 'category.minLevel': { $lte: userLevel } } as any);
+  can('read', 'Post', { status: PostStatus.PINNED, 'category.minLevel': { $lte: userLevel } } as any);
   // Author can read their own DELETED/HIDDEN posts
-  can('read', 'Post', { authorId: context.userId });
+  can('read', 'Post', { authorId: context.userId } as any);
   
-  can('read', 'Comment', { deletedAt: null, isPending: false, post: { is: { category: { is: { minLevel: { lte: userLevel } } } } } } as any);
+  can('read', 'Comment', { deletedAt: null, isPending: false, 'post.category.minLevel': { $lte: userLevel } } as any);
   // Author can read their own DELETED comments
-  can('read', 'Comment', { authorId: context.userId });
+  can('read', 'Comment', { authorId: context.userId } as any);
   
   // Create and update posts only in categories they have access to
-  can('create', 'Post', { category: { is: { minLevel: { lte: userLevel } } } } as any);
-  can('update', 'Post', { authorId: context.userId });
-  can('delete', 'Post', { authorId: context.userId });
+  can('create', 'Post', { 'category.minLevel': { $lte: userLevel } } as any);
+  can('update', 'Post', { authorId: context.userId } as any);
+  can('delete', 'Post', { authorId: context.userId } as any);
 
-  can('create', 'Comment', { post: { is: { category: { is: { minLevel: { lte: userLevel } } } } } } as any);
-  can('update', 'Comment', { authorId: context.userId });
-  can('delete', 'Comment', { authorId: context.userId });
+  can('create', 'Comment', { 'post.category.minLevel': { $lte: userLevel } } as any);
+  can('update', 'Comment', { authorId: context.userId } as any);
+  can('delete', 'Comment', { authorId: context.userId } as any);
 
   // Baseline hardcoded role logic (Fallback/Defaults)
   if (context.roleName === 'SUPER_ADMIN') {
@@ -72,8 +68,8 @@ export function defineAbilityForContext(context?: AccessContextDTO, extraRules?:
 
   // Category Moderator logic
   if (context.moderatedCategoryIds && context.moderatedCategoryIds.length > 0) {
-    can('manage', 'Post', { categoryId: { in: context.moderatedCategoryIds } });
-    can('manage', 'Comment', { post: { is: { categoryId: { in: context.moderatedCategoryIds } } } } as any);
+    can('manage', 'Post', { categoryId: { $in: context.moderatedCategoryIds } } as any);
+    can('manage', 'Comment', { 'post.categoryId': { $in: context.moderatedCategoryIds } } as any);
   }
 
   // Dynamic DB-driven rules

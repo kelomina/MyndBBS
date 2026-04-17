@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { 
-  generateRegistrationOptions, 
-  verifyRegistrationResponse,
   generateAuthenticationOptions,
   verifyAuthenticationResponse
 } from '@simplewebauthn/server';
@@ -145,29 +143,12 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
     return;
   }
 
-  const userPasskeys = await identityQueryService.listUserPasskeyIds(user.id);
-
-  const options = await generateRegistrationOptions({
-    rpName,
-    rpID,
-    userID: new Uint8Array(Buffer.from(user.id)),
-    userName: user.email,
-    attestationType: 'none',
-    excludeCredentials: userPasskeys.map(passkey => ({
-      id: passkey.id,
-      transports: ['internal'],
-    })),
-    authenticatorSelection: {
-      residentKey: 'preferred',
-      userVerification: 'preferred',
-      authenticatorAttachment: 'platform',
-    },
-  });
-
-  const authChallenge = await authApplicationService.generateAuthChallenge(options.challenge);
-  const challengeId = authChallenge.id;
-
-  res.json({ ...options, challengeId });
+  try {
+    const options = await authApplicationService.generatePasskeyRegistrationOptions(user.id);
+    res.json(options);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
 };
 
 /**
@@ -184,58 +165,20 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
     return;
   }
 
-  if (!challengeId) {
-    res.status(400).json({ error: 'ERR_CHALLENGE_ID_IS_REQUIRED' });
-    return;
-  }
-
-  let expectedChallenge;
   try {
-    expectedChallenge = await authApplicationService.consumeAuthChallenge(challengeId);
+    const verificationResult = await authApplicationService.verifyPasskeyRegistration(user.id, response, challengeId);
+    
+    if (verificationResult.verified) {
+      if (!user.isTotpEnabled) {
+        res.json({ message: 'Passkey registered successfully. Please proceed to setup TOTP.' });
+        return;
+      }
+      // If user was updated with new level/role, use the returned user, otherwise use current user
+      const updatedUser = verificationResult.user || user;
+      await finalizeAuth(updatedUser, req, res);
+    }
   } catch (error: any) {
     res.status(400).json({ error: error.message });
-    return;
-  }
-
-  let verification;
-  try {
-    verification = await verifyRegistrationResponse({
-      response,
-      expectedChallenge: expectedChallenge.challenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
-    });
-  } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
-    return;
-  }
-
-  if (verification.verified && verification.registrationInfo) {
-    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
-    const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
-
-    await authApplicationService.addPasskey(
-      user.id,
-      credentialID,
-      Buffer.from(credentialPublicKey),
-      user.id,
-      BigInt(counter),
-      credentialDeviceType,
-      credentialBackedUp
-    );
-
-    if (user.level === 1) {
-      await userApplicationService.changeLevel(user.id, 2);
-    }
-
-    if (!user.isTotpEnabled) {
-      res.json({ message: 'Passkey registered successfully. Please proceed to setup TOTP.' });
-      return;
-    }
-
-    await finalizeAuth(user, req, res);
-  } else {
-    res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });
   }
 };
 

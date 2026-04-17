@@ -1,5 +1,5 @@
 import { prisma } from '../../db';
-import { accessibleBy } from '@casl/prisma';
+import { rulesToPrisma } from '../../lib/rulesToPrisma';
 import type { AppAbility } from '../../lib/casl';
 import {
   CategoryListItemDTO,
@@ -46,7 +46,7 @@ export class CommunityQueryService {
   public async listPosts(params: ListPostsParams): Promise<PostListItemDTO[]> {
     const { ability, category, sortBy, take = 1000 } = params;
 
-    const whereClause: LocalPostWhereInput = { AND: [accessibleBy(ability).Post] };
+    const whereClause: LocalPostWhereInput = { AND: [rulesToPrisma(ability, 'read', 'Post')] };
     if (category) {
       whereClause.AND!.push({ category: { name: String(category) } });
     }
@@ -82,7 +82,7 @@ export class CommunityQueryService {
    */
   public async getPostById(ability: AppAbility, postId: string): Promise<PostDetailDTO | null> {
     const post = await prisma.post.findFirst({
-      where: { AND: [{ id: postId }, accessibleBy(ability).Post] },
+      where: { AND: [{ id: postId }, rulesToPrisma(ability, 'read', 'Post')] },
       include: {
         author: { select: { id: true, username: true } },
         category: { select: { id: true, name: true, description: true } },
@@ -111,7 +111,7 @@ export class CommunityQueryService {
    * Keywords: post, interactions, upvote, bookmark, status
    */
   public async getPostInteractions(ability: AppAbility, postId: string, userId: string): Promise<PostInteractionDTO | null> {
-    const post = await prisma.post.findFirst({ where: { AND: [{ id: postId }, accessibleBy(ability).Post] } });
+    const post = await prisma.post.findFirst({ where: { AND: [{ id: postId }, rulesToPrisma(ability, 'read', 'Post')] } });
     if (!post) return null;
 
     const [upvote, bookmark] = await Promise.all([
@@ -131,12 +131,12 @@ export class CommunityQueryService {
   public async listPostComments(params: ListPostCommentsParams): Promise<CommentListItemDTO[] | null> {
     const { ability, postId, currentUserId, take = 1000 } = params;
 
-    const post = await prisma.post.findFirst({ where: { AND: [{ id: postId }, accessibleBy(ability).Post] } });
+    const post = await prisma.post.findFirst({ where: { AND: [{ id: postId }, rulesToPrisma(ability, 'read', 'Post')] } });
     if (!post) return null;
 
     const comments = await prisma.comment.findMany({
       take,
-      where: { AND: [{ postId }, accessibleBy(ability).Comment] },
+      where: { AND: [{ postId }, rulesToPrisma(ability, 'read', 'Comment')] },
       orderBy: { createdAt: 'asc' },
       include: {
         author: { select: { id: true, username: true } },

@@ -8,9 +8,6 @@ import path from 'path';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { installationApplicationService } from '../registry';
-import { applyDomainConfigToEnv, buildOrigin, EnvFileService, getBackendEnvPath, validateHostname, validateRpId } from '../lib/EnvFileService';
-
-const envPath = getBackendEnvPath(__dirname);
 
 /**
  * Callers: []
@@ -693,63 +690,28 @@ export const setupEnv = async (req: Request, res: Response): Promise<void> => {
 
     const protocol = PROTOCOL === 'https' ? 'https' : 'http';
     const hostname = String(HOSTNAME || 'localhost').trim();
-    if (!validateHostname(hostname)) {
-      res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
-      return;
-    }
-
     const rpId = String(RP_ID || hostname).trim();
-    if (!validateRpId(rpId)) {
-      res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
-      return;
-    }
-
     const reverseProxyMode = !!REVERSE_PROXY_MODE;
-    const origin = buildOrigin(protocol, hostname);
-
-    const jwtSecret = crypto.randomBytes(32).toString('hex');
-    const jwtRefreshSecret = crypto.randomBytes(32).toString('hex');
-
-    const frontendUrlValue = FRONTEND_URL || origin;
-    let envContent = `
-PORT=${PORT || 3001}
-FRONTEND_URL="${frontendUrlValue}"
-UPLOAD_DIR="${UPLOAD_DIR || './uploads'}"
-WEB_ROOT="${WEB_ROOT || '/'}"
-JWT_SECRET="${jwtSecret}"
-JWT_REFRESH_SECRET="${jwtRefreshSecret}"
-`.trim() + '\n';
-
-    envContent = applyDomainConfigToEnv(envContent, {
-      protocol,
-      hostname,
-      rpId,
-      reverseProxyMode,
-    });
-
-    const envFile = new EnvFileService(envPath);
-    await envFile.write(envContent);
-
-    // Update process.env for current runtime
-    process.env.JWT_SECRET = jwtSecret;
-    process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
-    process.env.ORIGIN = origin;
-    process.env.RP_ID = rpId;
-    process.env.TRUST_PROXY = reverseProxyMode ? 'true' : 'false';
-    const m = envContent.match(/^FRONTEND_URL=(.*)$/m);
-    if (m?.[1]) {
-      process.env.FRONTEND_URL = m[1].trim().replace(/^"(.*)"$/, '$1');
-    }
 
     try {
-      const sessionId = await installationApplicationService.startInstallation();
-      await installationApplicationService.configureDatabase(sessionId, DATABASE_URL);
-      await installationApplicationService.applySchema(sessionId);
+      const sessionId = await installationApplicationService.setupEnvironment({
+        databaseUrl: DATABASE_URL,
+        port: PORT,
+        frontendUrl: FRONTEND_URL,
+        uploadDir: UPLOAD_DIR,
+        webRoot: WEB_ROOT,
+        protocol,
+        hostname,
+        rpId,
+        reverseProxyMode
+      });
       
       res.json({ success: true, token: sessionId });
     } catch (err: any) {
       if (err.message === 'ERR_DB_CONNECTION_FAILED') {
         res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });
+      } else if (err.message === 'ERR_INVALID_DOMAIN_CONFIG') {
+        res.status(400).json({ error: '无效的域名配置' });
       } else {
         res.status(500).json({ error: err.message || '初始化失败' });
       }

@@ -6,7 +6,7 @@ const {
   upsertFrontendUrlOrigin,
   validateHostname,
   applyDomainConfigToEnv,
-} = require('../dist/lib/EnvFileService.js')
+} = require('../dist/infrastructure/services/provisioning/EnvStoreAdapter.js')
 
 test('upsertKey updates existing key', () => {
   const before = 'A=1\nB=2\n'

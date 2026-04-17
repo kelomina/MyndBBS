@@ -1,4 +1,5 @@
-import { IEnvStore } from '../../domain/provisioning/IEnvStore';
+import crypto from 'crypto';
+import { IEnvStore, EnvironmentConfigInput, DomainConfigInput } from '../../domain/provisioning/IEnvStore';
 import { IDatabaseConnectionValidator } from '../../domain/provisioning/IDatabaseConnectionValidator';
 import { IDatabaseSchemaApplier } from '../../domain/provisioning/IDatabaseSchemaApplier';
 import { IInstallationSessionRepository } from '../../domain/provisioning/IInstallationSessionRepository';
@@ -12,6 +13,29 @@ export class InstallationApplicationService {
     private sessionRepository: IInstallationSessionRepository,
     private identityBootstrap: IIdentityBootstrapPort
   ) {}
+
+  public async setupEnvironment(config: EnvironmentConfigInput): Promise<string> {
+    const jwtSecret = crypto.randomBytes(32).toString('hex');
+    const jwtRefreshSecret = crypto.randomBytes(32).toString('hex');
+
+    await this.envStore.setupEnvironment(config, jwtSecret, jwtRefreshSecret);
+
+    const sessionId = await this.startInstallation();
+    await this.configureDatabase(sessionId, config.databaseUrl);
+    await this.applySchema(sessionId);
+
+    return sessionId;
+  }
+
+  public async updateDomainConfig(config: DomainConfigInput): Promise<void> {
+    await this.envStore.updateDomainConfig(config);
+  }
+
+  public async updateDbConfig(dbUrl: string): Promise<void> {
+    const sessionId = await this.startInstallation();
+    await this.configureDatabase(sessionId, dbUrl);
+    await this.applySchema(sessionId);
+  }
 
   public async startInstallation(): Promise<string> {
     const session = await this.sessionRepository.createSession();
