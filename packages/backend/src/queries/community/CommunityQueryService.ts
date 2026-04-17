@@ -66,6 +66,7 @@ export class CommunityQueryService {
     return rows.map((p) => ({
       id: p.id,
       title: p.title,
+      content: p.content,
       createdAt: p.createdAt,
       status: p.status as unknown as import('@myndbbs/shared').PostStatus,
       author: p.author,

@@ -11,6 +11,7 @@ export type CategoryListItemDTO = {
 export type PostListItemDTO = {
   id: string;
   title: string;
+  content: string;
   createdAt: Date;
   status: PostStatus;
   author: { id: string; username: string };
