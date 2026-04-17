@@ -1,0 +1,19 @@
+{
+  "ERR_INTERNAL_SERVER_ERROR": "Internal server error",
+  "ERR_BAD_REQUEST": "Bad request",
+  "ERR_UNAUTHORIZED": "Unauthorized",
+  "ERR_FORBIDDEN": "Forbidden",
+  "ERR_NOT_FOUND": "Not found",
+  "ERR_CORS_NOT_ALLOWED": "Origin not allowed by CORS policy",
+  "ERR_CSRF_TOKEN_MISSING_OR_INVALID": "CSRF token missing or invalid",
+  "ERR_MISSING_DATABASE_URL": "Missing DATABASE_URL",
+  "ERR_INSTALL_TOKEN_INVALID_OR_MISSING": "Invalid or missing install token",
+  "ERR_MISSING_REQUIRED_INSTALL_FIELDS": "Missing required installation fields",
+  "ERR_DB_CONNECTION_FAILED": "Database connection failed",
+  "ERR_INVALID_DOMAIN_CONFIG": "Invalid domain configuration",
+  "ERR_FAILED_TO_FETCH_ROUTE_WHITELIST": "Failed to fetch route whitelist",
+  "ERR_ROUTE_WHITELIST_PATH_REQUIRED": "Path is required",
+  "ERR_FAILED_TO_ADD_ROUTE_WHITELIST": "Failed to add route whitelist",
+  "ERR_FAILED_TO_UPDATE_ROUTE_WHITELIST": "Failed to update route whitelist",
+  "ERR_FAILED_TO_DELETE_ROUTE_WHITELIST": "Failed to delete route whitelist"
+}
