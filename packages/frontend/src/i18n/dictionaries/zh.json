@@ -252,6 +252,7 @@
     "dbName": "数据库名",
     "dbSaveSuccess": "数据库配置已保存，服务器正在重启以应用更改。",
     "domainConfigTitle": "域名与 Passkey 设置",
+    "domainConfig": "域名与 Passkey",
     "domainConfigDesc": "仅超级管理员可修改。保存后服务将自动重启。",
     "domainProtocol": "协议",
     "domainHostname": "主机名",

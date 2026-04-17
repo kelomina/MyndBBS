@@ -232,6 +232,7 @@
     "dbName": "Database Name",
     "dbSaveSuccess": "Database configuration saved. The server is restarting to apply changes.",
     "domainConfigTitle": "Domain & Passkey Settings",
+    "domainConfig": "Domain & Passkey",
     "domainConfigDesc": "Only Super Admins can edit. The service will restart after saving.",
     "domainProtocol": "Protocol",
     "domainHostname": "Hostname",
