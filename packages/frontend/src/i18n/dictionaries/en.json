@@ -445,6 +445,13 @@
     "networkError": "Network error",
     "verificationFailed": "Verification failed"
   },
+  "forbidden": {
+    "lockIconAlt": "Access Denied",
+    "title": "403 - Access Denied",
+    "description": "Sorry, you don't have permission to access this page. This area is restricted to Super Admins.",
+    "backToHome": "Back to Home",
+    "goToLogin": "Login Again"
+  },
   "notifications": {
     "title": "Notifications",
     "unread": "Unread",

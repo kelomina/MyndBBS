@@ -445,6 +445,13 @@
     "networkError": "网络错误",
     "verificationFailed": "验证失败"
   },
+  "forbidden": {
+    "lockIconAlt": "访问被拒绝",
+    "title": "403 - 访问被拒绝",
+    "description": "抱歉，您没有权限访问此页面。该区域仅限超级管理员访问。",
+    "backToHome": "返回首页",
+    "goToLogin": "重新登录"
+  },
   "notifications": {
     "title": "通知",
     "unread": "未读",
