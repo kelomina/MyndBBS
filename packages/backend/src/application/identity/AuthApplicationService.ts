@@ -13,7 +13,12 @@ import { User } from '../../domain/identity/User';
 import { UserStatus } from '@myndbbs/shared';
 import { IPasswordHasher } from '../../domain/identity/IPasswordHasher';
 import { randomUUID as uuidv4 } from 'crypto';
-import { isValidPassword } from '@myndbbs/shared';
+import { isValidPassword, APP_NAME } from '@myndbbs/shared';
+import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
+
+const rpName = APP_NAME;
+const rpID = process.env.RP_ID || 'localhost';
+const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 
 /**
  * Callers: [CaptchaController, RegisterController, AuthController, UserController, AdminController, SudoController]
@@ -164,6 +169,140 @@ export class AuthApplicationService {
       level: user.level, 
       role: { name: defaultRole?.name || null } 
     };
+  }
+
+  // --- Auth Orchestration ---
+
+  public async loginUser(emailOrUsername: string, password: string): Promise<{
+    user: any;
+    requires2FA: boolean;
+    methods: string[];
+  }> {
+    let user = await this.userRepository.findByEmail(emailOrUsername);
+    if (!user) {
+      user = await this.userRepository.findByUsername(emailOrUsername);
+    }
+
+    if (!user || !user.password) {
+      throw new Error('ERR_INVALID_CREDENTIALS');
+    }
+
+    if (user.status === UserStatus.BANNED) {
+      throw new Error('ERR_ACCOUNT_IS_BANNED');
+    }
+
+    const isValid = await this.passwordHasher.verify(user.password, password);
+    if (!isValid) {
+      throw new Error('ERR_INVALID_CREDENTIALS');
+    }
+
+    const methods: string[] = [];
+    if (user.isTotpEnabled) methods.push('totp');
+    
+    const passkeys = await this.passkeyRepository.findByUserId(user.id);
+    if (passkeys && passkeys.length > 0) methods.push('passkey');
+
+    let roleName = null;
+    if (user.roleId) {
+      const role = await this.roleRepository.findById(user.roleId);
+      if (role) roleName = role.name;
+    }
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: { name: roleName },
+        isTotpEnabled: user.isTotpEnabled,
+        level: user.level
+      },
+      requires2FA: methods.length > 0,
+      methods
+    };
+  }
+
+  public async generatePasskeyRegistrationOptions(userId: string): Promise<any> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error('ERR_USER_NOT_FOUND');
+
+    const userPasskeys = await this.passkeyRepository.findByUserId(userId);
+
+    const options = await generateRegistrationOptions({
+      rpName,
+      rpID,
+      userID: new Uint8Array(Buffer.from(user.id)),
+      userName: user.email,
+      attestationType: 'none',
+      excludeCredentials: userPasskeys.map(passkey => ({
+        id: passkey.id,
+        transports: ['internal'] as any,
+      })),
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+        authenticatorAttachment: 'platform',
+      },
+    });
+
+    const authChallenge = await this.generateAuthChallenge(options.challenge);
+
+    return { ...options, challengeId: authChallenge.id };
+  }
+
+  public async verifyPasskeyRegistration(userId: string, response: any, challengeId: string): Promise<{ verified: boolean, message?: string, user?: any }> {
+    if (!challengeId) {
+      throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED');
+    }
+
+    const expectedChallenge = await this.consumeAuthChallenge(challengeId);
+
+    const verification = await verifyRegistrationResponse({
+      response,
+      expectedChallenge: expectedChallenge.challenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+    });
+
+    if (verification.verified && verification.registrationInfo) {
+      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+      const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
+
+      await this.addPasskey(
+        userId,
+        credentialID,
+        Buffer.from(credentialPublicKey),
+        userId,
+        BigInt(counter),
+        credentialDeviceType,
+        credentialBackedUp
+      );
+
+      const user = await this.userRepository.findById(userId);
+      if (user && user.level === 1) {
+        user.changeLevel(2);
+        await this.userRepository.save(user);
+      }
+
+      let roleName = null;
+      if (user?.roleId) {
+        const role = await this.roleRepository.findById(user.roleId);
+        if (role) roleName = role.name;
+      }
+
+      const returnedUser = user ? {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: { name: roleName },
+        isTotpEnabled: user.isTotpEnabled,
+        level: user.level
+      } : undefined;
+
+      return { verified: true, message: 'Passkey registered successfully', user: returnedUser };
+    } else {
+      throw new Error('ERR_VERIFICATION_FAILED');
+    }
   }
 
   // --- Session Orchestration ---

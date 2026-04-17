@@ -268,7 +268,7 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     // Instance-level authorization check
-    if (!req.ability?.can('update', subject('Post', post as any))) {
+    if (!req.ability?.can('update', subject('Post', { ...post } as any))) {
       res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_EDIT_THIS_POST' });
       return;
     }
@@ -304,7 +304,7 @@ export const deletePost = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     // Instance-level authorization check
-    if (!req.ability?.can('delete', subject('Post', post as any))) {
+    if (!req.ability?.can('delete', subject('Post', { ...post } as any))) {
       res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_DELETE_THIS_POST' });
       return;
     }
@@ -340,7 +340,7 @@ export const updateComment = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Instance-level authorization check
-    if (!req.ability?.can('update', subject('Comment', comment as any))) {
+    if (!req.ability?.can('update', subject('Comment', { ...comment } as any))) {
       res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_EDIT_THIS_COMMENT' });
       return;
     }
@@ -378,7 +378,7 @@ export const deleteComment = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Instance-level authorization check
-    if (!req.ability?.can('delete', subject('Comment', comment as any))) {
+    if (!req.ability?.can('delete', subject('Comment', { ...comment } as any))) {
       res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_DELETE_THIS_COMMENT' });
       return;
     }
@@ -409,7 +409,7 @@ export const toggleCommentUpvote = async (req: AuthRequest, res: Response): Prom
     }
 
     // Verify user can read the post this comment belongs to
-    if (!req.ability?.can('read', subject('Post', comment.post as any))) {
+    if (!req.ability?.can('read', subject('Post', { ...comment.post } as any))) {
       res.status(403).json({ error: 'ERR_FORBIDDEN' });
       return;
     }
@@ -441,7 +441,7 @@ export const toggleCommentBookmark = async (req: AuthRequest, res: Response): Pr
     }
 
     // Verify user can read the post this comment belongs to
-    if (!req.ability?.can('read', subject('Post', comment.post as any))) {
+    if (!req.ability?.can('read', subject('Post', { ...comment.post } as any))) {
       res.status(403).json({ error: 'ERR_FORBIDDEN' });
       return;
     }

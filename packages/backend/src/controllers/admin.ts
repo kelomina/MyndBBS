@@ -277,7 +277,7 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
   }
 
   const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('update_status', subject('Post', existingPost as any))) {
+    if (!req.ability?.can('update_status', subject('Post', { ...existingPost } as any))) {
     res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST' });
     return;
   }
@@ -337,7 +337,7 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
   if (!existingPost) { res.status(404).json({ error: 'ERR_POST_NOT_FOUND' }); return; }
 
   const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Post', existingPost as any))) {
+    if (!req.ability?.can('manage', subject('Post', { ...existingPost } as any))) {
     res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
   }
 
@@ -360,7 +360,7 @@ export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<v
   if (!existingPost) { res.status(404).json({ error: 'ERR_POST_NOT_FOUND' }); return; }
 
   const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Post', existingPost as any))) {
+  if (!req.ability?.can('manage', subject('Post', { ...existingPost } as any))) {
     res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
   }
 
@@ -383,7 +383,7 @@ export const restoreComment = async (req: AuthRequest, res: Response): Promise<v
   if (!existingComment) { res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' }); return; }
 
   const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Comment', existingComment as any))) {
+  if (!req.ability?.can('manage', subject('Comment', { ...existingComment } as any))) {
     res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
   }
 
@@ -406,7 +406,7 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
   if (!existingComment) { res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' }); return; }
 
   const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Comment', existingComment as any))) {
+  if (!req.ability?.can('manage', subject('Comment', { ...existingComment } as any))) {
     res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
   }
 
@@ -419,7 +419,7 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
 import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
-import { applyDomainConfigToEnv, buildOrigin, EnvFileService, getBackendEnvPath } from '../lib/EnvFileService';
+import { buildOrigin } from '../infrastructure/services/provisioning/EnvStoreAdapter';
 
 /**
  * Callers: []
@@ -478,9 +478,7 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
 
   try {
     try {
-      const sessionId = await installationApplicationService.startInstallation();
-      await installationApplicationService.configureDatabase(sessionId, newDbUrl);
-      await installationApplicationService.applySchema(sessionId);
+      await installationApplicationService.updateDbConfig(newDbUrl);
     } catch (err: any) {
       console.error('Prisma Error on DB Update:', err.message);
       res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });
@@ -538,32 +536,20 @@ export const updateDomainConfig = async (req: AuthRequest, res: Response): Promi
   const normalizedHostname = String(hostname || '').trim();
   const normalizedRpId = String(rpId || '').trim();
 
-  const envFile = new EnvFileService(getBackendEnvPath(__dirname));
-  const before = await envFile.read();
-  let after: string;
-
   try {
-    after = applyDomainConfigToEnv(before, {
+    await installationApplicationService.updateDomainConfig({
       protocol: normalizedProtocol,
       hostname: normalizedHostname,
       rpId: normalizedRpId,
       reverseProxyMode: !!reverseProxyMode,
     });
-  } catch {
-    res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
+  } catch (err: any) {
+    if (err.message === 'ERR_INVALID_DOMAIN_CONFIG') {
+      res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
     return;
-  }
-
-  await envFile.write(after);
-
-  const origin = buildOrigin(normalizedProtocol, normalizedHostname);
-  process.env.ORIGIN = origin;
-  process.env.RP_ID = normalizedRpId;
-  process.env.TRUST_PROXY = !!reverseProxyMode ? 'true' : 'false';
-
-  const m = after.match(/^FRONTEND_URL=(.*)$/m);
-  if (m?.[1]) {
-    process.env.FRONTEND_URL = m[1].trim().replace(/^"(.*)"$/, '$1');
   }
 
   res.json({ message: 'Domain configuration updated. Restarting...' });

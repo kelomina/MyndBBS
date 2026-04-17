@@ -1,6 +1,6 @@
 import { prisma } from '../../db';
 
-import { FriendshipDTO, ConversationSettingsDTO } from './dto';
+import { FriendshipDTO, ConversationSettingsDTO, UserKeyDTO, UserPublicKeyDTO, MessageListDTO } from './dto';
 
 /**
  * Callers: [messageController, friendController]
@@ -15,8 +15,20 @@ export class MessagingQueryService {
    * Description: Fetches the public/private key pair for a user.
    * Keywords: user, key, public, private
    */
-  public async getMyKey(userId: string) {
-    return prisma.userKey.findUnique({ where: { userId } });
+  public async getMyKey(userId: string): Promise<UserKeyDTO | null> {
+    const key = await prisma.userKey.findUnique({ where: { userId } });
+    if (!key) return null;
+    return {
+      id: key.id,
+      userId: key.userId,
+      scheme: key.scheme,
+      publicKey: key.publicKey,
+      encryptedPrivateKey: key.encryptedPrivateKey,
+      mlKemPublicKey: key.mlKemPublicKey,
+      encryptedMlKemPrivateKey: key.encryptedMlKemPrivateKey,
+      createdAt: key.createdAt,
+      updatedAt: key.updatedAt,
+    };
   }
 
   /**
@@ -25,8 +37,24 @@ export class MessagingQueryService {
    * Description: Fetches the public key of a user by username.
    * Keywords: user, public, key, username
    */
-  public async getUserPublicKey(username: string) {
-    return prisma.user.findUnique({ where: { username }, include: { userKey: true } });
+  public async getUserPublicKey(username: string): Promise<UserPublicKeyDTO | null> {
+    const user = await prisma.user.findUnique({ where: { username }, include: { userKey: true } });
+    if (!user) return null;
+    return {
+      id: user.id,
+      username: user.username,
+      userKey: user.userKey ? {
+        id: user.userKey.id,
+        userId: user.userKey.userId,
+        scheme: user.userKey.scheme,
+        publicKey: user.userKey.publicKey,
+        encryptedPrivateKey: user.userKey.encryptedPrivateKey,
+        mlKemPublicKey: user.userKey.mlKemPublicKey,
+        encryptedMlKemPrivateKey: user.userKey.encryptedMlKemPrivateKey,
+        createdAt: user.userKey.createdAt,
+        updatedAt: user.userKey.updatedAt,
+      } : null
+    };
   }
 
   /**
@@ -46,7 +74,7 @@ export class MessagingQueryService {
    * Description: Counts the number of unread private messages for a user.
    * Keywords: unread, count, private, messages
    */
-  public async getUnreadCount(userId: string) {
+  public async getUnreadCount(userId: string): Promise<number> {
     return prisma.privateMessage.count({ where: { receiverId: userId, isRead: false } });
   }
 
@@ -73,7 +101,7 @@ export class MessagingQueryService {
     }));
   }
 
-  public async getMessages(userId: string, limit: number, cursor?: string, withUserId?: string) {
+  public async getMessages(userId: string, limit: number, cursor?: string, withUserId?: string): Promise<MessageListDTO> {
     const notExpiredCondition = {
       OR: [
         { expiresAt: null },
@@ -125,7 +153,23 @@ export class MessagingQueryService {
     }
 
     return {
-      messages: messages.reverse(),
+      messages: messages.reverse().map((m: any) => ({
+        id: m.id,
+        senderId: m.senderId,
+        receiverId: m.receiverId,
+        ephemeralPublicKey: m.ephemeralPublicKey,
+        ephemeralMlKemCiphertext: m.ephemeralMlKemCiphertext,
+        encryptedContent: m.encryptedContent,
+        senderEncryptedContent: m.senderEncryptedContent,
+        isRead: m.isRead,
+        isSystem: m.isSystem,
+        expiresAt: m.expiresAt,
+        deletedBy: m.deletedBy,
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+        sender: { username: m.sender.username },
+        receiver: { username: m.receiver.username },
+      })),
       nextCursor,
       hasMore: nextCursor !== undefined
     };

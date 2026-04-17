@@ -1,9 +1,9 @@
 import { prisma } from '../../db';
-import { accessibleBy } from '@casl/prisma';
+import { rulesToPrisma } from '../../lib/rulesToPrisma';
 import type { AppAbility } from '../../lib/casl';
 import { PostStatus, UserStatus } from '@myndbbs/shared';
 
-import { AdminUserListDTO, AdminCategoryListDTO, AdminPostListDTO, AdminDeletedPostListDTO, AdminDeletedCommentListDTO } from './dto';
+import { AdminUserListDTO, AdminCategoryListDTO, AdminPostListDTO, AdminDeletedPostListDTO, AdminDeletedCommentListDTO, AdminPostDTO, AdminCommentWithPostDTO, AdminModeratorScopeDTO, AdminModeratedWordListDTO, AdminPendingPostListDTO, AdminPendingCommentListDTO, AdminModeratedWordDTO, AdminRoleDTO, AdminUserDTO } from './dto';
 
 /**
  * Callers: [adminController, moderationController]
@@ -45,7 +45,7 @@ export class AdminQueryService {
   public async listPosts(ability: AppAbility): Promise<AdminPostListDTO[]> {
     const posts = await prisma.post.findMany({
       take: 1000,
-      where: accessibleBy(ability, 'read').Post,
+      where: rulesToPrisma(ability, 'read', 'Post'),
       include: { author: { select: { id: true, username: true } }, category: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -62,7 +62,7 @@ export class AdminQueryService {
   public async listDeletedPosts(ability: AppAbility): Promise<AdminDeletedPostListDTO[]> {
     const posts = await prisma.post.findMany({
       take: 1000,
-      where: { AND: [accessibleBy(ability, 'manage').Post, { status: PostStatus.DELETED }] },
+      where: { AND: [rulesToPrisma(ability, 'manage', 'Post'), { status: PostStatus.DELETED }] },
       include: { author: { select: { id: true, username: true } }, category: { select: { id: true, name: true } } },
       orderBy: { updatedAt: 'desc' },
     });
@@ -82,8 +82,19 @@ export class AdminQueryService {
    * Description: Fetches a post by ID for administrative operations.
    * Keywords: admin, post, get
    */
-  public async getPostById(id: string) {
-    return prisma.post.findUnique({ where: { id } });
+  public async getPostById(id: string): Promise<AdminPostDTO | null> {
+    const post = await prisma.post.findUnique({ where: { id } });
+    if (!post) return null;
+    return {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      authorId: post.authorId,
+      categoryId: post.categoryId,
+      status: post.status,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    };
   }
 
   /**
@@ -97,7 +108,7 @@ export class AdminQueryService {
       take: 1000,
       where: {
         AND: [
-          accessibleBy(ability, 'manage').Comment,
+          rulesToPrisma(ability, 'manage', 'Comment'),
           { deletedAt: { not: null } }
         ]
       },
@@ -119,11 +130,33 @@ export class AdminQueryService {
    * Description: Fetches a comment by ID for administrative operations, including its post.
    * Keywords: admin, comment, get, post
    */
-  public async getCommentWithPost(id: string) {
-    return prisma.comment.findUnique({
+  public async getCommentWithPost(id: string): Promise<AdminCommentWithPostDTO | null> {
+    const comment = await prisma.comment.findUnique({
       where: { id },
       include: { post: true }
     });
+    if (!comment) return null;
+    return {
+      id: comment.id,
+      content: comment.content,
+      postId: comment.postId,
+      authorId: comment.authorId,
+      parentId: comment.parentId,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
+      deletedAt: comment.deletedAt,
+      isPending: comment.isPending,
+      post: {
+        id: comment.post.id,
+        title: comment.post.title,
+        content: comment.post.content,
+        authorId: comment.post.authorId,
+        categoryId: comment.post.categoryId,
+        status: comment.post.status,
+        createdAt: comment.post.createdAt,
+        updatedAt: comment.post.updatedAt,
+      }
+    };
   }
 
   /**
@@ -132,11 +165,14 @@ export class AdminQueryService {
    * Description: Helper method to get the moderation scope (category IDs) for a user.
    * Keywords: moderation, scope, categories, user
    */
-  public async getModeratorScope(userId: string) {
+  public async getModeratorScope(userId: string): Promise<AdminModeratorScopeDTO> {
     const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true, moderatedCategories: true } });
     const isSuperAdmin = user?.role?.name === 'SUPER_ADMIN' || user?.role?.name === 'ADMIN';
-    const categoryIds = isSuperAdmin ? undefined : user?.moderatedCategories.map((c) => c.categoryId);
-    return { isSuperAdmin, categoryIds };
+    const result: AdminModeratorScopeDTO = { isSuperAdmin };
+    if (!isSuperAdmin) {
+      result.categoryIds = user?.moderatedCategories.map((c) => c.categoryId) || [];
+    }
+    return result;
   }
 
   /**
@@ -145,9 +181,9 @@ export class AdminQueryService {
    * Description: Lists moderated words visible to the current moderator/admin.
    * Keywords: moderation, words, list
    */
-  public async listModeratedWords(userId: string) {
+  public async listModeratedWords(userId: string): Promise<AdminModeratedWordListDTO[]> {
     const { categoryIds } = await this.getModeratorScope(userId);
-    return prisma.moderatedWord.findMany({
+    const words = await prisma.moderatedWord.findMany({
       take: 1000,
       where: categoryIds
         ? { OR: [{ categoryId: null }, { categoryId: { in: categoryIds } }] }
@@ -155,6 +191,13 @@ export class AdminQueryService {
       include: { category: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    return words.map(w => ({
+      id: w.id,
+      word: w.word,
+      categoryId: w.categoryId,
+      createdAt: w.createdAt,
+      category: w.category ? { name: w.category.name } : null
+    }));
   }
 
   /**
@@ -163,14 +206,23 @@ export class AdminQueryService {
    * Description: Lists pending posts requiring moderation within the user's scope.
    * Keywords: moderation, pending, posts, list
    */
-  public async listPendingPosts(userId: string) {
+  public async listPendingPosts(userId: string): Promise<AdminPendingPostListDTO[]> {
     const { categoryIds } = await this.getModeratorScope(userId);
-    return prisma.post.findMany({
+    const posts = await prisma.post.findMany({
       take: 1000,
       where: { status: 'PENDING', ...(categoryIds ? { categoryId: { in: categoryIds } } : {}) },
       include: { author: { select: { username: true } }, category: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    return posts.map(p => ({
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      status: p.status,
+      createdAt: p.createdAt,
+      author: { username: p.author.username },
+      category: { name: p.category.name }
+    }));
   }
 
   /**
@@ -179,9 +231,9 @@ export class AdminQueryService {
    * Description: Lists pending comments requiring moderation within the user's scope.
    * Keywords: moderation, pending, comments, list
    */
-  public async listPendingComments(userId: string) {
+  public async listPendingComments(userId: string): Promise<AdminPendingCommentListDTO[]> {
     const { categoryIds } = await this.getModeratorScope(userId);
-    return prisma.comment.findMany({
+    const comments = await prisma.comment.findMany({
       take: 1000,
       where: {
         isPending: true,
@@ -191,20 +243,53 @@ export class AdminQueryService {
       include: { author: { select: { username: true } }, post: { select: { title: true, id: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    return comments.map(c => ({
+      id: c.id,
+      content: c.content,
+      createdAt: c.createdAt,
+      author: { username: c.author.username },
+      post: { id: c.post.id, title: c.post.title }
+    }));
   }
 
-  public async getModeratedWordById(id: string) {
-    return prisma.moderatedWord.findUnique({ where: { id } });
+  public async getModeratedWordById(id: string): Promise<AdminModeratedWordDTO | null> {
+    const word = await prisma.moderatedWord.findUnique({ where: { id } });
+    if (!word) return null;
+    return {
+      id: word.id,
+      word: word.word,
+      categoryId: word.categoryId,
+      createdAt: word.createdAt,
+    };
   }
 
-  public async getRoleByName(name: string) {
-    return prisma.role.findUnique({ where: { name } });
+  public async getRoleByName(name: string): Promise<AdminRoleDTO | null> {
+    const role = await prisma.role.findUnique({ where: { name } });
+    if (!role) return null;
+    return {
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      createdAt: role.createdAt,
+      updatedAt: role.updatedAt,
+    };
   }
 
-  public async getRootUser() {
-    return prisma.user.findFirst({
+  public async getRootUser(): Promise<AdminUserDTO | null> {
+    const user = await prisma.user.findFirst({
       where: { username: 'root', status: { not: UserStatus.BANNED as any } }
     });
+    if (!user) return null;
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      status: user.status,
+      level: user.level,
+      roleId: user.roleId,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 }
 

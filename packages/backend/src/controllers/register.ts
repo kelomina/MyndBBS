@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { UserStatus } from '@myndbbs/shared';
 import jwt from 'jsonwebtoken';
-import argon2 from 'argon2';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { finalizeAuth } from './auth';
 import { authApplicationService } from '../registry';
@@ -64,40 +63,31 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await identityQueryService.getUserForLogin(email);
-    if (!user || !user.password) {
-      res.status(401).json({ error: 'ERR_INVALID_CREDENTIALS' });
-      return;
+    let authResult;
+    try {
+      authResult = await authApplicationService.loginUser(email, password);
+    } catch (error: any) {
+      if (error.message.startsWith('ERR_')) {
+        const statusCode = error.message === 'ERR_ACCOUNT_IS_BANNED' ? 403 : 401;
+        res.status(statusCode).json({ error: error.message });
+        return;
+      }
+      throw error;
     }
 
-    if (user.status === UserStatus.BANNED) {
-      res.status(403).json({ error: 'ERR_ACCOUNT_IS_BANNED' });
-      return;
-    }
-
-    const isValid = await argon2.verify(user.password, password);
-    if (!isValid) {
-      res.status(401).json({ error: 'ERR_INVALID_CREDENTIALS' });
-      return;
-    }
-
-    const methods: string[] = [];
-    if (user.isTotpEnabled) methods.push('totp');
-    if (user.passkeys && user.passkeys.length > 0) methods.push('passkey');
-
-    if (methods.length > 0) {
-      const tempToken = jwt.sign({ userId: user.id, type: 'login' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+    if (authResult.requires2FA) {
+      const tempToken = jwt.sign({ userId: authResult.user.id, type: 'login' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
       res.cookie('tempToken', tempToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production' && req.secure,
         sameSite: 'lax',
         maxAge: 60 * 60 * 1000 // 1 hour
       });
-      res.json({ requires2FA: true, methods });
+      res.json({ requires2FA: true, methods: authResult.methods });
       return;
     }
 
-    await finalizeAuth(user, req, res);
+    await finalizeAuth(authResult.user, req, res);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });

@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import * as argon2 from 'argon2';
 import { AuthRequest } from '../middleware/auth';
-import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 import { OTP } from 'otplib';
 import QRCode from 'qrcode';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
@@ -305,33 +303,13 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
       return;
     }
 
-    const user = await identityQueryService.getUserWithRoleById(userId);
-    if (!user) return;
-
-    const userPasskeys = await identityQueryService.listPasskeys(userId);
-
-    const options = await generateRegistrationOptions({
-        rpName,
-      rpID,
-      userID: new Uint8Array(Buffer.from(userId)),
-      userName: user.email,
-      attestationType: 'none',
-      excludeCredentials: userPasskeys.map(passkey => ({
-        id: passkey.id,
-        transports: ['internal'],
-      })),
-      authenticatorSelection: {
-        residentKey: 'preferred',
-        userVerification: 'preferred',
-        authenticatorAttachment: 'platform',
-      },
-    });
-
-    const authChallenge = await authApplicationService.generateAuthChallenge(options.challenge);
-    const challengeId = authChallenge.id;
-
-    res.json({ ...options, challengeId });
-  } catch (error) {
+    const options = await authApplicationService.generatePasskeyRegistrationOptions(userId);
+    res.json(options);
+  } catch (error: any) {
+    if (error.message.startsWith('ERR_')) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
@@ -351,54 +329,14 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    if (!challengeId) {
-      res.status(400).json({ error: 'ERR_CHALLENGE_ID_IS_REQUIRED' });
-      return;
-    }
-
-    let expectedChallenge;
     try {
-      expectedChallenge = await authApplicationService.consumeAuthChallenge(challengeId);
+      const verificationResult = await authApplicationService.verifyPasskeyRegistration(userId, response, challengeId);
+      if (verificationResult.verified) {
+        res.json({ message: 'Passkey registered successfully' });
+      }
     } catch (error: any) {
       res.status(400).json({ error: error.message });
       return;
-    }
-
-    let verification;
-    try {
-      verification = await verifyRegistrationResponse({
-        response,
-        expectedChallenge: expectedChallenge.challenge,
-        expectedOrigin: origin,
-        expectedRPID: rpID,
-      });
-    } catch (error) {
-      res.status(400).json({ error: (error as Error).message });
-      return;
-    }
-
-    if (verification.verified && verification.registrationInfo) {
-    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
-    const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
-
-    await authApplicationService.addPasskey(
-      userId,
-      credentialID,
-      Buffer.from(credentialPublicKey),
-      userId,
-      BigInt(counter),
-      credentialDeviceType,
-      credentialBackedUp
-    );
-
-      const dbUser = await identityQueryService.getUserWithRoleById(userId);
-      if (dbUser && dbUser.level === 1) {
-        await userApplicationService.changeLevel(userId, 2);
-      }
-
-      res.json({ message: 'Passkey registered successfully' });
-    } else {
-      res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });
     }
   } catch (error) {
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
