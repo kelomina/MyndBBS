@@ -17,14 +17,15 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@10.33.0",
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@casl/ability": "^6.8.0",
     "@myndbbs/shared": "workspace:*",
-    "@prisma/client": "5.22.0",
+    "@prisma/adapter-pg": "^7.7.0",
+    "@prisma/client": "7.7.0",
     "@simplewebauthn/server": "^13.3.0",
     "argon2": "^0.44.0",
     "cookie-parser": "^1.4.7",
@@ -34,8 +35,9 @@
     "helmet": "^8.1.0",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
-    "multer": "1.4.5-lts.1",
+    "multer": "2.1.1",
     "otplib": "^13.4.0",
+    "pg": "^8.20.0",
     "qrcode": "^1.5.4",
     "uuid": "^13.0.0"
   },
@@ -47,15 +49,16 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.1.0",
     "@types/node": "^25.5.2",
+    "@types/pg": "^8.20.0",
     "@types/qrcode": "^1.5.6",
     "@types/uuid": "^11.0.0",
-    "dotenv": "^17.4.1",
+    "dotenv": "^17.4.2",
     "jest": "^30.3.0",
     "nodemon": "^3.1.14",
     "playwright": "^1.59.1",
-    "prisma": "^5.22.0",
+    "prisma": "^7.7.0",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.3"
   }
 }
