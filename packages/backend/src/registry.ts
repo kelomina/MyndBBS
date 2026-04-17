@@ -31,6 +31,7 @@ import { Argon2PasswordHasher } from './infrastructure/services/Argon2PasswordHa
 import { EnvStoreAdapter } from './infrastructure/services/provisioning/EnvStoreAdapter';
 import { PrismaDatabaseConnectionValidator } from './infrastructure/services/provisioning/PrismaDatabaseConnectionValidator';
 import { PrismaDatabaseSchemaApplier } from './infrastructure/services/provisioning/PrismaDatabaseSchemaApplier';
+import { ProcessExitRestartScheduler } from './infrastructure/services/provisioning/ProcessExitRestartScheduler';
 import { RedisModeratedWordsCache } from './infrastructure/services/RedisModeratedWordsCache';
 import { ModerationPolicy } from './domain/community/ModerationPolicy';
 import { ModerationCacheInvalidationHandler } from './infrastructure/events/handlers/ModerationCacheInvalidationHandler';
@@ -133,7 +134,8 @@ export const installationApplicationService = new InstallationApplicationService
   new PrismaDatabaseConnectionValidator(),
   new PrismaDatabaseSchemaApplier(),
   new InMemoryInstallationSessionRepository(),
-  identityBootstrapServiceAdapter
+  identityBootstrapServiceAdapter,
+  new ProcessExitRestartScheduler()
 );
 
 export const redisModeratedWordsCache = new RedisModeratedWordsCache(

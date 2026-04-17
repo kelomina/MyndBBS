@@ -4,6 +4,15 @@ import { IDatabaseConnectionValidator } from '../../domain/provisioning/IDatabas
 import { IDatabaseSchemaApplier } from '../../domain/provisioning/IDatabaseSchemaApplier';
 import { IInstallationSessionRepository } from '../../domain/provisioning/IInstallationSessionRepository';
 import { IIdentityBootstrapPort } from '../../domain/provisioning/IIdentityBootstrapPort';
+import { IRestartScheduler } from '../../domain/provisioning/IRestartScheduler';
+
+export type DbConnectionConfigView = {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  database: string;
+};
 
 export class InstallationApplicationService {
   constructor(
@@ -11,8 +20,41 @@ export class InstallationApplicationService {
     private dbValidator: IDatabaseConnectionValidator,
     private dbSchemaApplier: IDatabaseSchemaApplier,
     private sessionRepository: IInstallationSessionRepository,
-    private identityBootstrap: IIdentityBootstrapPort
+    private identityBootstrap: IIdentityBootstrapPort,
+    private restartScheduler: IRestartScheduler
   ) {}
+
+  /**
+   * Callers: [adminController.getDbConfig]
+   * Callees: [URL, parseInt, decodeURIComponent, slice]
+   * Description: Parses DATABASE_URL into a UI-friendly DB config shape for admin display.
+   * Keywords: db, config, parse, database_url, admin
+   */
+  public getCurrentDbConfig(): DbConnectionConfigView {
+    const parsed = process.env.DATABASE_URL
+      ? InstallationApplicationService.parseDatabaseUrl(process.env.DATABASE_URL)
+      : null;
+
+    if (parsed) return parsed;
+
+    return {
+      host: 'localhost',
+      port: 5432,
+      username: 'postgres',
+      password: '',
+      database: 'myndbbs',
+    };
+  }
+
+  /**
+   * Callers: [adminController.updateDbConfig, adminController.updateDomainConfig]
+   * Callees: [IRestartScheduler.scheduleRestart]
+   * Description: Schedules a backend restart (typically after env config changes).
+   * Keywords: restart, schedule, provisioning, backend
+   */
+  public scheduleRestart(delayMs = 1000): void {
+    this.restartScheduler.scheduleRestart(delayMs);
+  }
 
   public async setupEnvironment(config: EnvironmentConfigInput): Promise<string> {
     const jwtSecret = crypto.randomBytes(32).toString('hex');
@@ -73,5 +115,23 @@ export class InstallationApplicationService {
     await this.envStore.write(envContent);
     
     return userId;
+  }
+
+  private static parseDatabaseUrl(dbUrl: string): DbConnectionConfigView | null {
+    const normalized = String(dbUrl || '').trim().replace(/^"(.*)"$/, '$1');
+    if (!normalized) return null;
+
+    try {
+      const url = new URL(normalized);
+      return {
+        host: url.hostname,
+        port: url.port ? parseInt(url.port, 10) : 5432,
+        username: url.username,
+        password: decodeURIComponent(url.password),
+        database: url.pathname.slice(1),
+      };
+    } catch {
+      return null;
+    }
   }
 }

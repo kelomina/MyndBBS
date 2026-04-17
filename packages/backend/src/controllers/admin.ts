@@ -402,9 +402,6 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
 };
 
 // Database Config
-import fs from 'fs/promises';
-import path from 'path';
-import { exec } from 'child_process';
 import { buildOrigin } from '../infrastructure/services/provisioning/EnvStoreAdapter';
 
 /**
@@ -419,30 +416,8 @@ export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void
     return;
   }
 
-  const dbUrl = process.env.DATABASE_URL;
-  if (dbUrl) {
-    try {
-      const url = new URL(dbUrl);
-      res.json({
-        host: url.hostname,
-        port: url.port ? parseInt(url.port) : 5432,
-        username: url.username,
-        password: decodeURIComponent(url.password),
-        database: url.pathname.slice(1)
-      });
-      return;
-    } catch (e) {
-      // Ignore parsing errors and fallback
-    }
-  }
-
-  res.json({
-    host: 'localhost',
-    port: 5432,
-    username: 'postgres',
-    password: '',
-    database: 'myndbbs'
-  });
+  const cfg = installationApplicationService.getCurrentDbConfig();
+  res.json(cfg);
 };
 
 /**
@@ -471,16 +446,7 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
 
     await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
     res.json({ message: 'Database configuration updated successfully', config: { host, port, username, password, database } });
-
-    /**
-     * Callers: [updateDbConfig]
-     * Callees: [exit]
-     * Description: An anonymous timeout callback that forcefully restarts the server.
-     * Keywords: admin, restart, exit, timeout, anonymous
-     */
-    setTimeout(() => {
-      process.exit(0);
-    }, 1000);
+    installationApplicationService.scheduleRestart(1000);
   } catch (error) {
     console.error('DB Connection Test Failed:', error);
     res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED' });
@@ -537,10 +503,7 @@ export const updateDomainConfig = async (req: AuthRequest, res: Response): Promi
   }
 
   res.json({ message: 'Domain configuration updated. Restarting...' });
-
-  setTimeout(() => {
-    process.exit(0);
-  }, 1000);
+  installationApplicationService.scheduleRestart(1000);
 };
 
 
