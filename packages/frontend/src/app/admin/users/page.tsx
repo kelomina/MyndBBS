@@ -1,8 +1,8 @@
-'use client';
-import { useToast } from '../../../components/ui/Toast';
-import { useTranslation } from '../../../components/TranslationProvider';
+'use client'
+import { useToast } from '../../../components/ui/Toast'
+import { useTranslation } from '../../../components/TranslationProvider'
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'
 import {
   Table,
   TableBody,
@@ -10,23 +10,23 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../../../components/ui/Table';
-import { getUsers, updateUserRole, updateUserStatus } from '../../../lib/api/admin';
-import { UserStatus } from '@myndbbs/shared';
+} from '../../../components/ui/Table'
+import { getUsers, updateUserRole, updateUserStatus } from '../../../lib/api/admin'
+import { UserStatus } from '@myndbbs/shared'
 
 const USER_STATUS = {
   ACTIVE: 'ACTIVE',
   BANNED: 'BANNED',
   PENDING: 'PENDING',
-} as const;
+} as const
 
 interface User {
-  id: string;
-  username: string;
-  email: string;
-  role: string | null;
-  status: UserStatus | string;
-  createdAt: string;
+  id: string
+  username: string
+  email: string
+  role: string | null
+  status: UserStatus | string
+  createdAt: string
 }
 
 /**
@@ -36,85 +36,104 @@ interface User {
  * Keywords: userspage, users, page, auto-annotated
  */
 export default function UsersPage() {
-  const { toast } = useToast();
-  const dict = useTranslation();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { toast } = useToast()
+  const dict = useTranslation()
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   /**
-     * Callers: []
-     * Callees: [setLoading, getUsers, setUsers, setError]
-     * Description: Handles the load users logic for the application.
-     * Keywords: loadusers, load, users, auto-annotated
-     */
-    const loadUsers = async () => {
+   * Callers: []
+   * Callees: [setLoading, getUsers, setUsers, setError]
+   * Description: Handles the load users logic for the application.
+   * Keywords: loadusers, load, users, auto-annotated
+   */
+  const loadUsers = async () => {
     try {
-      setLoading(true);
-      const data = await getUsers();
-      setUsers(data);
-      setError('');
+      setLoading(true)
+      const data = await getUsers()
+      setUsers(data)
+      setError('')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load users');
+      setError(
+        err instanceof Error
+          ? err.message
+          : dict.admin?.failedToLoadUsers || 'Failed to load users',
+      )
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    loadUsers()
+  }, [])
 
   /**
-     * Callers: []
-     * Callees: [updateUserRole, loadUsers, toast]
-     * Description: Handles the handle role change logic for the application.
-     * Keywords: handlerolechange, handle, role, change, auto-annotated
-     */
-    const handleRoleChange = async (userId: string, newRole: string) => {
+   * Callers: []
+   * Callees: [updateUserRole, loadUsers, toast]
+   * Description: Handles the handle role change logic for the application.
+   * Keywords: handlerolechange, handle, role, change, auto-annotated
+   */
+  const handleRoleChange = async (userId: string, newRole: string) => {
     try {
-      await updateUserRole(userId, newRole);
-      await loadUsers();
+      await updateUserRole(userId, newRole)
+      await loadUsers()
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to update role', 'error');
+      toast(
+        err instanceof Error
+          ? err.message
+          : dict.admin?.failedToUpdateRole || 'Failed to update role',
+        'error',
+      )
     }
-  };
+  }
 
   /**
-     * Callers: []
-     * Callees: [updateUserStatus, loadUsers, toast]
-     * Description: Handles the handle status change logic for the application.
-     * Keywords: handlestatuschange, handle, status, change, auto-annotated
-     */
-    const handleStatusChange = async (userId: string, newStatus: string) => {
+   * Callers: []
+   * Callees: [updateUserStatus, loadUsers, toast]
+   * Description: Handles the handle status change logic for the application.
+   * Keywords: handlestatuschange, handle, status, change, auto-annotated
+   */
+  const handleStatusChange = async (userId: string, newStatus: string) => {
     try {
-      await updateUserStatus(userId, newStatus);
-      await loadUsers();
+      await updateUserStatus(userId, newStatus)
+      await loadUsers()
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to update status', 'error');
+      toast(
+        err instanceof Error
+          ? err.message
+          : dict.admin?.failedToUpdateStatus || 'Failed to update status',
+        'error',
+      )
     }
-  };
+  }
 
-  if (loading) return <div className="p-8 text-center text-muted">{dict.common?.loading || "Loading..."}</div>;
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+  if (loading)
+    return <div className="p-8 text-center text-muted">{dict.common?.loading || 'Loading...'}</div>
+  if (error) return <div className="p-8 text-center text-red-500">{error}</div>
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{dict.admin?.userManagement || "User Management"}</h1>
-        <p className="text-muted">{dict.admin?.userDesc || "Manage system users, their roles and statuses."}</p>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {dict.admin?.userManagement || 'User Management'}
+        </h1>
+        <p className="text-muted">
+          {dict.admin?.userDesc || 'Manage system users, their roles and statuses.'}
+        </p>
       </div>
 
       <div className="rounded-md border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{dict.admin?.username || "Username"}</TableHead>
-              <TableHead>{dict.admin?.email || "Email"}</TableHead>
-              <TableHead>{dict.admin?.role || "Role"}</TableHead>
-              <TableHead>{dict.admin?.status || "Status"}</TableHead>
-              <TableHead>{dict.admin?.registered || "Registered"}</TableHead>
-              <TableHead>{dict.admin?.actions || "Actions"}</TableHead>
+              <TableHead>{dict.admin?.username || 'Username'}</TableHead>
+              <TableHead>{dict.admin?.email || 'Email'}</TableHead>
+              <TableHead>{dict.admin?.role || 'Role'}</TableHead>
+              <TableHead>{dict.admin?.status || 'Status'}</TableHead>
+              <TableHead>{dict.admin?.registered || 'Registered'}</TableHead>
+              <TableHead>{dict.admin?.actions || 'Actions'}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -128,10 +147,12 @@ export default function UsersPage() {
                     onChange={(e) => handleRoleChange(user.id, e.target.value)}
                     className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="USER">{dict.admin?.roleUser || "USER"}</option>
-                    <option value="MODERATOR">{dict.admin?.roleModerator || "MODERATOR"}</option>
-                    <option value="ADMIN">{dict.admin?.roleAdmin || "ADMIN"}</option>
-                    <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                    <option value="USER">{dict.admin?.roleUser || 'USER'}</option>
+                    <option value="MODERATOR">{dict.admin?.roleModerator || 'MODERATOR'}</option>
+                    <option value="ADMIN">{dict.admin?.roleAdmin || 'ADMIN'}</option>
+                    <option value="SUPER_ADMIN">
+                      {dict.admin?.roleSuperAdmin || 'SUPER_ADMIN'}
+                    </option>
                   </select>
                 </TableCell>
                 <TableCell>
@@ -140,8 +161,8 @@ export default function UsersPage() {
                       user.status === USER_STATUS.ACTIVE
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                         : user.status === USER_STATUS.BANNED
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                     }`}
                   >
                     {user.status}
@@ -156,14 +177,14 @@ export default function UsersPage() {
                       onClick={() => handleStatusChange(user.id, USER_STATUS.ACTIVE)}
                       className="text-sm font-medium text-green-600 hover:text-green-500 dark:text-green-400"
                     >
-                      Unban
+                      {dict.admin?.unban || 'Unban'}
                     </button>
                   ) : (
                     <button
                       onClick={() => handleStatusChange(user.id, USER_STATUS.BANNED)}
                       className="text-sm font-medium text-red-600 hover:text-red-500 dark:text-red-400"
                     >
-                      Ban
+                      {dict.admin?.ban || 'Ban'}
                     </button>
                   )}
                 </TableCell>
@@ -173,5 +194,5 @@ export default function UsersPage() {
         </Table>
       </div>
     </div>
-  );
+  )
 }

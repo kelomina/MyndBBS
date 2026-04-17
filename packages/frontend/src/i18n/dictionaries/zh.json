@@ -313,7 +313,12 @@
     "pathMustStartWithSlash": "路径必须以 / 开头",
     "minRole": "最低权限要求",
     "publicAccess": "公开 (无需登录)",
-    "roleSuperAdmin": "超级管理员"
+    "roleSuperAdmin": "超级管理员",
+    "failedToLoadUsers": "加载用户失败",
+    "failedToUpdateRole": "更新角色失败",
+    "failedToUpdateStatus": "更新状态失败",
+    "unban": "解封",
+    "ban": "封禁"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "用户未找到",

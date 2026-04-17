@@ -3,6 +3,12 @@ import { AuthRequest } from '../middleware/auth';
 import { sudoApplicationService } from '../registry';
 import { VerifyInput } from '../application/identity/SudoApplicationService';
 
+/**
+ * Callers: [user router]
+ * Callees: [sudoApplicationService.getPasskeyOptions]
+ * Description: Retrieves passkey authentication options for sudo mode.
+ * Keywords: sudo, passkey, options, controller, auth
+ */
 export const getSudoPasskeyOptions = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
   try {
@@ -16,6 +22,12 @@ export const getSudoPasskeyOptions = async (req: AuthRequest, res: Response): Pr
   }
 };
 
+/**
+ * Callers: [user router]
+ * Callees: [sudoApplicationService.verify]
+ * Description: Verifies credentials (password, TOTP, or passkey) to activate sudo mode.
+ * Keywords: sudo, verify, credentials, controller, auth
+ */
 export const verifySudo = async (req: AuthRequest, res: Response): Promise<void> => {
   const { type, password, totpCode, passkeyResponse, response, challengeId } = req.body;
   const actualPasskeyResponse = passkeyResponse || response;
@@ -49,7 +61,14 @@ export const verifySudo = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+/**
+ * Callers: [user router]
+ * Callees: [sudoApplicationService.check]
+ * Description: Checks if the current session has active sudo mode.
+ * Keywords: sudo, check, session, controller, auth
+ */
 export const checkSudo = async (req: AuthRequest, res: Response): Promise<void> => {
   const isSudo = await sudoApplicationService.check(req.user!.sessionId);
   res.json({ isSudo });
 };
+

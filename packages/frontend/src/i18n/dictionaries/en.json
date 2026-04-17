@@ -313,7 +313,12 @@
     "pathMustStartWithSlash": "Path must start with /",
     "minRole": "Minimum Role",
     "publicAccess": "Public (No login required)",
-    "roleSuperAdmin": "Super Admin"
+    "roleSuperAdmin": "Super Admin",
+    "failedToLoadUsers": "Failed to load users",
+    "failedToUpdateRole": "Failed to update role",
+    "failedToUpdateStatus": "Failed to update status",
+    "unban": "Unban",
+    "ban": "Ban"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "User not found",

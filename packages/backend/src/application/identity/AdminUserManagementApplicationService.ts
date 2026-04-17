@@ -28,6 +28,10 @@ export class AdminUserManagementApplicationService {
    * @throws {Error} 当目标用户不存在或未设置通行密钥但需要晋升时抛出错误
    */
   public async changeUserLevel(operator: OperatorContext, targetUserId: string, level: number): Promise<void> {
+    if (level < 1 || level > 6) {
+      throw new Error('ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6');
+    }
+
     const user = await this.userRepository.findById(targetUserId);
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
 
@@ -49,6 +53,10 @@ export class AdminUserManagementApplicationService {
    * @throws {Error} 当目标用户不存在或权限不足时抛出错误
    */
   public async changeUserStatus(operator: OperatorContext, targetUserId: string, status: UserStatus): Promise<void> {
+    if (!([UserStatus.ACTIVE, UserStatus.BANNED, UserStatus.PENDING, UserStatus.INACTIVE] as UserStatus[]).includes(status)) {
+      throw new Error('ERR_INVALID_STATUS');
+    }
+
     const target = await this.userRepository.findById(targetUserId);
     if (!target) throw new Error('ERR_USER_NOT_FOUND');
 
@@ -81,6 +89,10 @@ export class AdminUserManagementApplicationService {
    * @throws {Error} 当目标用户不存在、角色不存在或权限不足时抛出错误
    */
   public async changeUserRole(operator: OperatorContext, targetUserId: string, newRoleName: RoleName): Promise<void> {
+    if (!['USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN'].includes(newRoleName)) {
+      throw new Error('ERR_INVALID_ROLE');
+    }
+
     const target = await this.userRepository.findById(targetUserId);
     if (!target) throw new Error('ERR_USER_NOT_FOUND');
 
@@ -101,6 +113,14 @@ export class AdminUserManagementApplicationService {
     target.changeRole(newRole.id);
     await this.userRepository.save(target);
     await this.auditApplicationService.logAudit(operator.userId, 'UPDATE_USER_ROLE', `User:${targetUserId} to ${newRoleName}`);
+
+    // Auto-disable root if another user gets SUPER_ADMIN role
+    if (newRoleName === 'SUPER_ADMIN' && target.username !== 'root') {
+      const rootUser = await this.userRepository.findByUsername('root');
+      if (rootUser && rootUser.status !== UserStatus.BANNED) {
+        await this.changeUserStatus({ userId: 'system', role: 'SUPER_ADMIN' }, rootUser.id, UserStatus.BANNED);
+      }
+    }
 
     const currentVsNew = this.roleHierarchyPolicy.compare(newRoleName, currentRoleName);
     const sessions = await this.sessionRepository.findByUserId(targetUserId);
