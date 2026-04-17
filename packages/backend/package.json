@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "pnpm run build && node --test tests/*.test.js",
+    "test": "pnpm run build && node --test tests/*.test.js && pnpm exec jest",
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
