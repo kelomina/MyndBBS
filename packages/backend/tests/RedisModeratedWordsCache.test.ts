@@ -1,7 +1,7 @@
-import { RedisModeratedWordsCache } from '../../../src/infrastructure/services/RedisModeratedWordsCache';
-import { redis } from '../../../src/lib/redis';
+import { RedisModeratedWordsCache } from '../src/infrastructure/services/RedisModeratedWordsCache';
+import { redis } from '../src/lib/redis';
 
-jest.mock('../../../src/lib/redis', () => ({
+jest.mock('../src/lib/redis', () => ({
   redis: {
     get: jest.fn(),
     set: jest.fn(),

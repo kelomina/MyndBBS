@@ -1,4 +1,4 @@
-import type { PostListItemDTO } from '../../../src/queries/community/dto';
+import type { PostListItemDTO } from '../src/queries/community/dto';
 
 describe('community dto types', () => {
   it('PostListItemDTO has stable fields', () => {

@@ -1,4 +1,4 @@
-import { EmailAddress } from '../../../src/domain/identity/EmailAddress';
+import { EmailAddress } from '../src/domain/identity/EmailAddress';
 
 describe('EmailAddress Value Object', () => {
   it('should create a valid email address', () => {
