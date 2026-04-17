@@ -25,8 +25,20 @@ const startServer = async (app: express.Express): Promise<{ baseUrl: string; clo
 };
 
 describe('i18nErrorTranslationMiddleware', () => {
+  const addMockReqT = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // @ts-ignore
+    req.t = (key: string, options?: any) => {
+      if (key === 'ERR_MISSING_DATABASE_URL') {
+        return req.headers['x-locale'] === 'zh' ? '缺少 DATABASE_URL' : 'Missing DATABASE_URL';
+      }
+      return key;
+    };
+    next();
+  };
+
   it('adds zh message for known ERR_ codes', async () => {
     const app = express();
+    app.use(addMockReqT);
     app.use(i18nErrorTranslationMiddleware);
     app.get('/err', (req, res) => res.status(400).json({ error: 'ERR_MISSING_DATABASE_URL' }));
 
@@ -42,6 +54,7 @@ describe('i18nErrorTranslationMiddleware', () => {
 
   it('adds en message for known ERR_ codes', async () => {
     const app = express();
+    app.use(addMockReqT);
     app.use(i18nErrorTranslationMiddleware);
     app.get('/err', (req, res) => res.status(400).json({ error: 'ERR_MISSING_DATABASE_URL' }));
 
@@ -57,6 +70,7 @@ describe('i18nErrorTranslationMiddleware', () => {
 
   it('falls back to error code when translation is missing', async () => {
     const app = express();
+    app.use(addMockReqT);
     app.use(i18nErrorTranslationMiddleware);
     app.get('/err', (req, res) => res.status(400).json({ error: 'ERR_SOME_UNKNOWN_CODE' }));
 
@@ -72,6 +86,7 @@ describe('i18nErrorTranslationMiddleware', () => {
 
   it('does not overwrite an existing message', async () => {
     const app = express();
+    app.use(addMockReqT);
     app.use(i18nErrorTranslationMiddleware);
     app.get('/err', (req, res) => res.status(400).json({ error: 'ERR_BAD_REQUEST', message: 'custom' }));
 
