@@ -653,7 +653,7 @@ export const getInstallHtml = (req: Request, res: Response): void => {
           }, 3000);
           return;
         } else {
-          errBox.textContent = data.error || '创建失败';
+          errBox.textContent = data.message || data.error || '创建失败';
           errBox.classList.remove('hidden');
         }
       } catch (err) {
@@ -684,7 +684,7 @@ export const setupEnv = async (req: Request, res: Response): Promise<void> => {
     const { DATABASE_URL, PORT, FRONTEND_URL, UPLOAD_DIR, WEB_ROOT, PROTOCOL, HOSTNAME, RP_ID, REVERSE_PROXY_MODE } = req.body;
 
     if (!DATABASE_URL) {
-      res.status(400).json({ error: '缺少 DATABASE_URL' });
+      res.status(400).json({ error: 'ERR_MISSING_DATABASE_URL' });
       return;
     }
 
@@ -708,16 +708,19 @@ export const setupEnv = async (req: Request, res: Response): Promise<void> => {
       
       res.json({ success: true, token: sessionId });
     } catch (err: any) {
-      if (err.message === 'ERR_DB_CONNECTION_FAILED') {
-        res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });
-      } else if (err.message === 'ERR_INVALID_DOMAIN_CONFIG') {
-        res.status(400).json({ error: '无效的域名配置' });
-      } else {
-        res.status(500).json({ error: err.message || '初始化失败' });
-      }
+      const errorCode = typeof err?.message === 'string' && err.message.startsWith('ERR_')
+        ? err.message
+        : 'ERR_INTERNAL_SERVER_ERROR';
+
+      const statusCode =
+        errorCode.includes('INVALID') || errorCode.includes('MISSING') ? 400 :
+        errorCode.includes('DB_CONNECTION_FAILED') ? 500 :
+        500;
+
+      res.status(statusCode).json({ error: errorCode });
     }
   } catch (err) {
-    res.status(500).json({ error: '内部服务器错误' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -730,14 +733,14 @@ export const setupEnv = async (req: Request, res: Response): Promise<void> => {
 export const setupAdmin = async (req: Request, res: Response): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: '未授权，无效的安装令牌。' });
+    res.status(401).json({ error: 'ERR_INSTALL_TOKEN_INVALID_OR_MISSING' });
     return;
   }
   const sessionId = authHeader.replace('Bearer ', '');
 
   const { username, email, password } = req.body;
   if (!username || !email || !password) {
-    res.status(400).json({ error: '用户名、邮箱和密码是必填项' });
+    res.status(400).json({ error: 'ERR_MISSING_REQUIRED_INSTALL_FIELDS' });
     return;
   }
 
@@ -769,6 +772,9 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
 
   } catch (err: any) {
     console.error('Admin Creation Error:', err);
-    res.status(500).json({ error: err.message || '初始化管理员账户失败。' });
+    const errorCode = typeof err?.message === 'string' && err.message.startsWith('ERR_')
+      ? err.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+    res.status(500).json({ error: errorCode });
   }
 };

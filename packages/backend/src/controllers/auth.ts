@@ -127,7 +127,10 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
     const options = await authApplicationService.generatePasskeyRegistrationOptions(user.id);
     res.json(options);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+    res.status(errorCode === 'ERR_INTERNAL_SERVER_ERROR' ? 500 : 400).json({ error: errorCode });
   }
 };
 
@@ -158,7 +161,10 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
       await finalizeAuth(updatedUser, req, res);
     }
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+    res.status(errorCode === 'ERR_INTERNAL_SERVER_ERROR' ? 500 : 400).json({ error: errorCode });
   }
 };
 

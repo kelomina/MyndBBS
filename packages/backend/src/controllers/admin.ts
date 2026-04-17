@@ -147,7 +147,10 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
     const category = await communityApplicationService.createCategory(name, description, sortOrder, minLevel, operatorId);
     res.status(201).json(category);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_BAD_REQUEST';
+    res.status(400).json({ error: errorCode });
   }
 };
 
@@ -166,7 +169,10 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
     await communityApplicationService.updateCategory(id, name, description, sortOrder, minLevel, operatorId);
     res.json({ message: 'Category updated successfully' });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_BAD_REQUEST';
+    res.status(400).json({ error: errorCode });
   }
 };
 
@@ -185,7 +191,10 @@ export const deleteCategory = async (req: AuthRequest, res: Response): Promise<v
 
     res.json({ message: 'Category deleted' });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'ERR_FAILED_TO_DELETE_CATEGORY' });
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_FAILED_TO_DELETE_CATEGORY';
+    res.status(500).json({ error: errorCode });
   }
 };
 
@@ -440,7 +449,7 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
       await installationApplicationService.updateDbConfig(host, port, username, password, database);
     } catch (err: any) {
       console.error('Prisma Error on DB Update:', err.message);
-      res.status(500).json({ error: '数据库初始化失败，请检查连接或权限。' });
+      res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED' });
       return;
     }
 
@@ -519,7 +528,7 @@ export const getRouteWhitelist = async (req: Request, res: Response) => {
     const routes = await systemQueryService.listRouteWhitelist();
     res.json(routes);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch route whitelist' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_FETCH_ROUTE_WHITELIST' });
   }
 };
 
@@ -532,12 +541,12 @@ export const getRouteWhitelist = async (req: Request, res: Response) => {
 export const addRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const { path, isPrefix, minRole, description } = req.body;
-    if (!path) return res.status(400).json({ error: 'Path is required' });
+    if (!path) return res.status(400).json({ error: 'ERR_ROUTE_WHITELIST_PATH_REQUIRED' });
 
     const route = await systemApplicationService.addRouteWhitelist(path, !!isPrefix, minRole || null, description);
     res.json(route);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to add route whitelist' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_ADD_ROUTE_WHITELIST' });
   }
 };
 
@@ -555,7 +564,7 @@ export const updateRouteWhitelist = async (req: Request, res: Response) => {
     const route = await systemApplicationService.updateRouteWhitelist(id, path, !!isPrefix, minRole || null, description);
     res.json(route);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update route whitelist' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_ROUTE_WHITELIST' });
   }
 };
 
@@ -571,6 +580,6 @@ export const deleteRouteWhitelist = async (req: Request, res: Response) => {
     await systemApplicationService.deleteRouteWhitelist(id);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete route whitelist' });
+    res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_ROUTE_WHITELIST' });
   }
 };
