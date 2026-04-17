@@ -38,8 +38,11 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
         res.status(400).json({ error: 'ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6' });
         return;
       }
-      await adminUserManagementApplicationService.changeUserLevel(id, level);
-      await logAudit(operatorId, 'UPDATE_USER_LEVEL', `User:${id} to Level:${level}`);
+      await adminUserManagementApplicationService.changeUserLevel(
+        { userId: operatorId, role: (req.user?.role || 'USER') as any },
+        id,
+        level
+      );
     }
 
     if (role) {
@@ -65,12 +68,9 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
               rootUser.id,
               UserStatus.BANNED
             );
-            await logAudit('system', 'AUTO_DISABLE_ROOT', 'root');
           }
         }
       }
-
-      await logAudit(operatorId, 'UPDATE_USER_ROLE', `User:${id} to ${role}`);
     }
 
     const finalUser = await identityQueryService.getUserWithRoleById(id);
@@ -109,7 +109,6 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
     );
 
     const user = await identityQueryService.getUserWithRoleById(id);
-    await logAudit(operatorId, 'UPDATE_USER_STATUS', `User:${id} to ${status}`);
 
     res.json({ message: 'Status updated', user: { id: user?.id, status: user?.status } });
   } catch (error: any) {
@@ -145,8 +144,7 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
   const operatorId = req.user?.userId || 'unknown';
 
   try {
-    const category = await communityApplicationService.createCategory(name, description, sortOrder, minLevel);
-    await logAudit(operatorId, 'CREATE_CATEGORY', `Category:${category.id}`);
+    const category = await communityApplicationService.createCategory(name, description, sortOrder, minLevel, operatorId);
     res.status(201).json(category);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -155,7 +153,7 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
 
 /**
  * Callers: []
- * Callees: [CommunityApplicationService.updateCategory, logAudit, json]
+ * Callees: [CommunityApplicationService.updateCategory, json]
  * Description: Orchestrates the update of a category via the domain service.
  * Keywords: update, category, community, service
  */
@@ -165,8 +163,7 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
   const operatorId = req.user?.userId || 'unknown';
 
   try {
-    await communityApplicationService.updateCategory(id, name, description, sortOrder, minLevel);
-    await logAudit(operatorId, 'UPDATE_CATEGORY', `Category:${id}`);
+    await communityApplicationService.updateCategory(id, name, description, sortOrder, minLevel, operatorId);
     res.json({ message: 'Category updated successfully' });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -175,7 +172,7 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
 
 /**
  * Callers: []
- * Callees: [CommunityApplicationService.deleteCategory, logAudit, json, status]
+ * Callees: [CommunityApplicationService.deleteCategory, json, status]
  * Description: Orchestrates the deletion of a category via the domain service.
  * Keywords: delete, category, community, service
  */
@@ -184,8 +181,7 @@ export const deleteCategory = async (req: AuthRequest, res: Response): Promise<v
     const id = req.params.id as string;
     const operatorId = req.user?.userId || 'unknown';
 
-    await communityApplicationService.deleteCategory(id);
-    await logAudit(operatorId, 'DELETE_CATEGORY', `Category:${id}`);
+    await communityApplicationService.deleteCategory(id, operatorId);
 
     res.json({ message: 'Category deleted' });
   } catch (error: any) {
@@ -195,7 +191,7 @@ export const deleteCategory = async (req: AuthRequest, res: Response): Promise<v
 
 /**
  * Callers: []
- * Callees: [findUnique, json, status, upsert, logAudit]
+ * Callees: [findUnique, json, status, upsert]
  * Description: Handles the assign category moderator logic for the application.
  * Keywords: assigncategorymoderator, assign, category, moderator, auto-annotated
  */
@@ -205,9 +201,7 @@ export const assignCategoryModerator = async (req: AuthRequest, res: Response): 
     const userId = req.params.userId as string;
     const operatorId = req.user?.userId || 'unknown';
     
-    const assignment = await communityApplicationService.assignCategoryModerator(categoryId, userId);
-
-    await logAudit(operatorId, 'ASSIGN_CATEGORY_MODERATOR', `User:${userId} to Category:${categoryId}`);
+    const assignment = await communityApplicationService.assignCategoryModerator(categoryId, userId, operatorId);
 
     res.json({ message: 'Moderator assigned', assignment });
   } catch (error) {
@@ -217,7 +211,7 @@ export const assignCategoryModerator = async (req: AuthRequest, res: Response): 
 
 /**
  * Callers: []
- * Callees: [delete, logAudit, json, status]
+ * Callees: [delete, json, status]
  * Description: Handles the remove category moderator logic for the application.
  * Keywords: removecategorymoderator, remove, category, moderator, auto-annotated
  */
@@ -227,9 +221,7 @@ export const removeCategoryModerator = async (req: AuthRequest, res: Response): 
     const userId = req.params.userId as string;
     const operatorId = req.user?.userId || 'unknown';
     
-    await communityApplicationService.removeCategoryModerator(categoryId, userId);
-
-    await logAudit(operatorId, 'REMOVE_CATEGORY_MODERATOR', `User:${userId} from Category:${categoryId}`);
+    await communityApplicationService.removeCategoryModerator(categoryId, userId, operatorId);
 
     res.json({ message: 'Moderator removed' });
   } catch (error) {
@@ -282,9 +274,7 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  const post = await moderationApplicationService.changePostStatus(id, status);
-
-  await logAudit(operatorId, 'UPDATE_POST_STATUS', `Post:${id} to ${status}`);
+  const post = await moderationApplicationService.changePostStatus(id, status, operatorId);
 
   res.json({ message: 'Post status updated', post });
 };
@@ -341,8 +331,7 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
     res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
   }
 
-  await moderationApplicationService.restorePost(id);
-  await logAudit(operatorId, 'RESTORE_POST', `Post:${id}`);
+  await moderationApplicationService.restorePost(id, operatorId);
   res.json({ message: 'Post restored' });
 };
 
@@ -364,8 +353,7 @@ export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<v
     res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
   }
 
-  await moderationApplicationService.hardDeletePost(id);
-  await logAudit(operatorId, 'HARD_DELETE_POST', `Post:${id}`);
+  await moderationApplicationService.hardDeletePost(id, operatorId);
   res.json({ message: 'Post permanently deleted' });
 };
 
@@ -387,8 +375,7 @@ export const restoreComment = async (req: AuthRequest, res: Response): Promise<v
     res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
   }
 
-  await moderationApplicationService.restoreComment(id);
-  await logAudit(operatorId, 'RESTORE_COMMENT', `Comment:${id}`);
+  await moderationApplicationService.restoreComment(id, operatorId);
   res.json({ message: 'Comment restored' });
 };
 
@@ -410,8 +397,7 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
     res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
   }
 
-  await moderationApplicationService.hardDeleteComment(id);
-  await logAudit(operatorId, 'HARD_DELETE_COMMENT', `Comment:${id}`);
+  await moderationApplicationService.hardDeleteComment(id, operatorId);
   res.json({ message: 'Comment permanently deleted' });
 };
 

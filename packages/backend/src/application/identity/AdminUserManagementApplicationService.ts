@@ -5,6 +5,7 @@ import { ISessionRepository } from '../../domain/identity/ISessionRepository';
 import { UserStatus } from '@myndbbs/shared';
 import { RoleHierarchyPolicy, RoleName } from './policies/RoleHierarchyPolicy';
 import { ISessionCache } from './ports/ISessionCache';
+import { AuditApplicationService } from '../system/AuditApplicationService';
 
 type OperatorContext = { userId: string; role: RoleName };
 
@@ -15,10 +16,18 @@ export class AdminUserManagementApplicationService {
     private passkeyRepository: IPasskeyRepository,
     private sessionRepository: ISessionRepository,
     private sessionCache: ISessionCache,
-    private roleHierarchyPolicy: RoleHierarchyPolicy
+    private roleHierarchyPolicy: RoleHierarchyPolicy,
+    private auditApplicationService: AuditApplicationService
   ) {}
 
-  public async changeUserLevel(targetUserId: string, level: number): Promise<void> {
+  /**
+   * 更改用户等级并记录审计日志
+   * @param operator 执行操作的用户信息
+   * @param targetUserId 目标用户 ID
+   * @param level 新等级
+   * @throws {Error} 当目标用户不存在或未设置通行密钥但需要晋升时抛出错误
+   */
+  public async changeUserLevel(operator: OperatorContext, targetUserId: string, level: number): Promise<void> {
     const user = await this.userRepository.findById(targetUserId);
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
 
@@ -29,8 +38,16 @@ export class AdminUserManagementApplicationService {
 
     user.changeLevel(level);
     await this.userRepository.save(user);
+    await this.auditApplicationService.logAudit(operator.userId, 'UPDATE_USER_LEVEL', `User:${targetUserId} to Level ${level}`);
   }
 
+  /**
+   * 更改用户状态并记录审计日志
+   * @param operator 执行操作的用户信息
+   * @param targetUserId 目标用户 ID
+   * @param status 新状态
+   * @throws {Error} 当目标用户不存在或权限不足时抛出错误
+   */
   public async changeUserStatus(operator: OperatorContext, targetUserId: string, status: UserStatus): Promise<void> {
     const target = await this.userRepository.findById(targetUserId);
     if (!target) throw new Error('ERR_USER_NOT_FOUND');
@@ -45,6 +62,7 @@ export class AdminUserManagementApplicationService {
 
     target.changeStatus(status);
     await this.userRepository.save(target);
+    await this.auditApplicationService.logAudit(operator.userId, 'UPDATE_USER_STATUS', `User:${targetUserId} to ${status}`);
 
     if (status === UserStatus.BANNED) {
       const sessions = await this.sessionRepository.findByUserId(targetUserId);
@@ -55,6 +73,13 @@ export class AdminUserManagementApplicationService {
     }
   }
 
+  /**
+   * 更改用户角色并记录审计日志
+   * @param operator 执行操作的用户信息
+   * @param targetUserId 目标用户 ID
+   * @param newRoleName 新角色
+   * @throws {Error} 当目标用户不存在、角色不存在或权限不足时抛出错误
+   */
   public async changeUserRole(operator: OperatorContext, targetUserId: string, newRoleName: RoleName): Promise<void> {
     const target = await this.userRepository.findById(targetUserId);
     if (!target) throw new Error('ERR_USER_NOT_FOUND');
@@ -75,6 +100,7 @@ export class AdminUserManagementApplicationService {
 
     target.changeRole(newRole.id);
     await this.userRepository.save(target);
+    await this.auditApplicationService.logAudit(operator.userId, 'UPDATE_USER_ROLE', `User:${targetUserId} to ${newRoleName}`);
 
     const currentVsNew = this.roleHierarchyPolicy.compare(newRoleName, currentRoleName);
     const sessions = await this.sessionRepository.findByUserId(targetUserId);

@@ -15,6 +15,7 @@ import { IModerationPolicy } from '../../domain/community/IModerationPolicy';
 import { ICaptchaValidator } from '../../domain/community/ICaptchaValidator';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostRepliedEvent, CommentRepliedEvent, CategoryModeratorAssignedEvent, CategoryModeratorRemovedEvent } from '../../domain/shared/events/DomainEvents';
+import { AuditApplicationService } from '../system/AuditApplicationService';
 
 /**
  * Callers: [AdminController, PostController]
@@ -31,12 +32,22 @@ export class CommunityApplicationService {
     private identityIntegrationPort: IIdentityIntegrationPort,
     private moderationPolicy: IModerationPolicy,
     private captchaValidator: ICaptchaValidator,
-    private eventBus: IEventBus
+    private eventBus: IEventBus,
+    private auditApplicationService: AuditApplicationService
   ) {}
 
   // --- Category Management ---
 
-  public async createCategory(name: string, description: string | null, sortOrder: number, minLevel: number): Promise<Category> {
+  /**
+   * 创建分类并记录审计日志
+   * @param name 分类名称
+   * @param description 分类描述
+   * @param sortOrder 排序顺序
+   * @param minLevel 最小发帖等级
+   * @param operatorId 执行操作的用户 ID
+   * @returns 创建的分类实例
+   */
+  public async createCategory(name: string, description: string | null, sortOrder: number, minLevel: number, operatorId: string): Promise<Category> {
     const category = Category.create({
       id: uuidv4(),
       name,
@@ -47,10 +58,20 @@ export class CommunityApplicationService {
       createdAt: new Date()
     });
     await this.categoryRepository.save(category);
+    await this.auditApplicationService.logAudit(operatorId, 'CREATE_CATEGORY', `Category:${category.id}`);
     return category;
   }
 
-  public async updateCategory(id: string, name: string, description: string | null, sortOrder: number, minLevel: number): Promise<void> {
+  /**
+   * 更新分类并记录审计日志
+   * @param id 分类 ID
+   * @param name 新名称
+   * @param description 新描述
+   * @param sortOrder 新排序顺序
+   * @param minLevel 新最小发帖等级
+   * @param operatorId 执行操作的用户 ID
+   */
+  public async updateCategory(id: string, name: string, description: string | null, sortOrder: number, minLevel: number, operatorId: string): Promise<void> {
     const category = await this.categoryRepository.findById(id);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
     
@@ -58,15 +79,19 @@ export class CommunityApplicationService {
     if (minLevel !== undefined) category.changeMinLevel(minLevel);
     
     await this.categoryRepository.save(category);
+    await this.auditApplicationService.logAudit(operatorId, 'UPDATE_CATEGORY', `Category:${id}`);
   }
 
   /**
    * Callers: [AdminController]
    * Callees: [categoryRepository.findById, identityIntegrationPort.isModerator, category.addModerator, categoryRepository.save, eventBus.publish]
-   * Description: Assigns a moderator role to a user for a specific category.
+   * Description: Assigns a moderator role to a user for a specific category and logs audit.
    * Keywords: assign, moderator, category, community, user
+   * @param categoryId 分类 ID
+   * @param userId 目标用户 ID
+   * @param operatorId 执行操作的用户 ID
    */
-  public async assignCategoryModerator(categoryId: string, userId: string): Promise<any> {
+  public async assignCategoryModerator(categoryId: string, userId: string, operatorId: string): Promise<any> {
     const category = await this.categoryRepository.findById(categoryId);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
 
@@ -78,24 +103,39 @@ export class CommunityApplicationService {
     category.addModerator(userId);
     await this.categoryRepository.save(category);
     this.eventBus.publish(new CategoryModeratorAssignedEvent(categoryId, userId));
+    await this.auditApplicationService.logAudit(operatorId, 'ASSIGN_CATEGORY_MODERATOR', `User:${userId} to Category:${categoryId}`);
 
     return { categoryId, userId };
   }
 
-  public async removeCategoryModerator(categoryId: string, userId: string): Promise<void> {
+  /**
+   * 移除分类版主并记录审计日志
+   * @param categoryId 分类 ID
+   * @param userId 目标用户 ID
+   * @param operatorId 执行操作的用户 ID
+   */
+  public async removeCategoryModerator(categoryId: string, userId: string, operatorId: string): Promise<void> {
     const category = await this.categoryRepository.findById(categoryId);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
 
     category.removeModerator(userId);
     await this.categoryRepository.save(category);
     this.eventBus.publish(new CategoryModeratorRemovedEvent(categoryId, userId));
+    await this.auditApplicationService.logAudit(operatorId, 'REMOVE_CATEGORY_MODERATOR', `User:${userId} from Category:${categoryId}`);
   }
-  public async deleteCategory(id: string): Promise<void> {
+
+  /**
+   * 删除分类并记录审计日志
+   * @param id 分类 ID
+   * @param operatorId 执行操作的用户 ID
+   */
+  public async deleteCategory(id: string, operatorId: string): Promise<void> {
     const category = await this.categoryRepository.findById(id);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
 
     await this.postRepository.deleteManyByCategoryId(id);
     await this.categoryRepository.delete(id);
+    await this.auditApplicationService.logAudit(operatorId, 'DELETE_CATEGORY', `Category:${id}`);
   }
 
   public async createPost(title: string, content: string, categoryId: string, authorId: string, userLevel: number, captchaId: string): Promise<{ postId: string; isModerated: boolean }> {

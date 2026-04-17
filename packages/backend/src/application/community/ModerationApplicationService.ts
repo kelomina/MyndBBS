@@ -5,6 +5,7 @@ import { ModeratedWord } from '../../domain/community/ModeratedWord';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostApprovedEvent, PostRejectedEvent, ModeratedWordAddedEvent, ModeratedWordDeletedEvent } from '../../domain/shared/events/DomainEvents';
 import { randomUUID as uuidv4 } from 'crypto';
+import { AuditApplicationService } from '../system/AuditApplicationService';
 
 /**
  * Callers: [ModerationController, AdminController]
@@ -17,7 +18,8 @@ export class ModerationApplicationService {
     private postRepository: IPostRepository,
     private commentRepository: ICommentRepository,
     private moderatedWordRepository: IModeratedWordRepository,
-    private eventBus: IEventBus
+    private eventBus: IEventBus,
+    private auditApplicationService: AuditApplicationService
   ) {}
 
   public async approvePost(postId: string): Promise<any> {
@@ -42,12 +44,18 @@ export class ModerationApplicationService {
     return { id: post.id, status: post.status };
   }
 
-  public async restorePost(postId: string): Promise<any> {
+  /**
+   * 恢复帖子并记录审计日志
+   * @param postId 帖子 ID
+   * @param operatorId 执行操作的用户 ID
+   */
+  public async restorePost(postId: string, operatorId: string): Promise<any> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
     post.restore();
     await this.postRepository.save(post);
+    await this.auditApplicationService.logAudit(operatorId, 'RESTORE_POST', `Post:${postId}`);
 
     return { id: post.id, status: post.status };
   }
@@ -72,36 +80,61 @@ export class ModerationApplicationService {
     return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
   }
 
-  public async restoreComment(commentId: string): Promise<any> {
+  /**
+   * 恢复评论并记录审计日志
+   * @param commentId 评论 ID
+   * @param operatorId 执行操作的用户 ID
+   */
+  public async restoreComment(commentId: string, operatorId: string): Promise<any> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
 
     comment.restore();
     await this.commentRepository.save(comment);
+    await this.auditApplicationService.logAudit(operatorId, 'RESTORE_COMMENT', `Comment:${commentId}`);
 
     return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
   }
 
-  public async changePostStatus(postId: string, status: any): Promise<any> {
+  /**
+   * 更改帖子状态并记录审计日志
+   * @param postId 帖子 ID
+   * @param status 新状态
+   * @param operatorId 执行操作的用户 ID
+   */
+  public async changePostStatus(postId: string, status: any, operatorId: string): Promise<any> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
     post.changeStatus(status);
     await this.postRepository.save(post);
+    await this.auditApplicationService.logAudit(operatorId, 'UPDATE_POST_STATUS', `Post:${postId} to ${status}`);
 
     return { id: post.id, status: post.status };
   }
 
-  public async hardDeletePost(postId: string): Promise<void> {
+  /**
+   * 物理删除帖子并记录审计日志
+   * @param postId 帖子 ID
+   * @param operatorId 执行操作的用户 ID
+   */
+  public async hardDeletePost(postId: string, operatorId: string): Promise<void> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
     await this.postRepository.delete(postId);
+    await this.auditApplicationService.logAudit(operatorId, 'HARD_DELETE_POST', `Post:${postId}`);
   }
 
-  public async hardDeleteComment(commentId: string): Promise<void> {
+  /**
+   * 物理删除评论并记录审计日志
+   * @param commentId 评论 ID
+   * @param operatorId 执行操作的用户 ID
+   */
+  public async hardDeleteComment(commentId: string, operatorId: string): Promise<void> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
     await this.commentRepository.delete(commentId);
+    await this.auditApplicationService.logAudit(operatorId, 'HARD_DELETE_COMMENT', `Comment:${commentId}`);
   }
 
   public async addModeratedWord(word: string, categoryId?: string): Promise<any> {
