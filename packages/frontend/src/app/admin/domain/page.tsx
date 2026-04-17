@@ -52,7 +52,7 @@ export default function DomainConfigPage() {
       setError('');
       setSuccess('');
       await updateDomainConfig(config);
-      setSuccess('配置已保存，服务正在重启以应用变更。');
+      setSuccess(dict.admin.domainSaveSuccess || 'Settings saved. The service is restarting to apply changes.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save config';
       const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
@@ -67,8 +67,8 @@ export default function DomainConfigPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">域名与 Passkey 配置</h1>
-        <p className="text-muted">仅 SUPER_ADMIN 可修改。保存后后端将重启。</p>
+        <h1 className="text-2xl font-bold tracking-tight">{dict.admin.domainConfigTitle}</h1>
+        <p className="text-muted">{dict.admin.domainConfigDesc}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-md border border-border bg-card p-6">
@@ -77,7 +77,7 @@ export default function DomainConfigPage() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">协议</label>
+            <label className="text-sm font-medium">{dict.admin.domainProtocol}</label>
             <select
               value={config.protocol}
               onChange={(e) => setConfig({ ...config, protocol: e.target.value === 'https' ? 'https' : 'http' })}
@@ -89,7 +89,7 @@ export default function DomainConfigPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">hostname</label>
+            <label className="text-sm font-medium">{dict.admin.domainHostname}</label>
             <input
               required
               type="text"
@@ -98,13 +98,13 @@ export default function DomainConfigPage() {
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="localhost / ::1 / bbs.example.com"
             />
-            <div className="text-xs text-muted">不支持 IPv4，支持 localhost 与 IPv6（裸 ::1）。</div>
+            <div className="text-xs text-muted">{dict.admin.domainHostnameHint}</div>
           </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">RP_ID</label>
+            <label className="text-sm font-medium">{dict.admin.domainRpId}</label>
             <input
               required
               type="text"
@@ -113,28 +113,29 @@ export default function DomainConfigPage() {
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="localhost / example.com / ::1"
             />
+            <div className="text-xs text-muted">{dict.admin.domainRpIdHint}</div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">使用反代模式</label>
+            <label className="text-sm font-medium">{dict.admin.domainTrustProxyMode}</label>
             <div className="flex items-center gap-2 pt-2">
               <input
                 type="checkbox"
                 checked={config.reverseProxyMode}
                 onChange={(e) => setConfig({ ...config, reverseProxyMode: e.target.checked })}
               />
-              <span className="text-sm text-muted">开启后写入 TRUST_PROXY=true</span>
+              <span className="text-sm text-muted">{dict.admin.domainTrustProxyModeDesc}</span>
             </div>
           </div>
         </div>
 
         <div className="rounded-md border border-border bg-background p-3 text-sm text-muted">
-          反代模式提示：请在反向代理转发 X-Forwarded-Proto / X-Forwarded-Host，否则后端无法正确识别 HTTPS，Cookie secure 与 WebAuthn 验证可能异常。
+          {dict.admin.domainTrustProxyHint}
         </div>
 
         <div className="flex justify-end pt-4">
           <Button type="submit" disabled={saving}>
-            {saving ? dict.settings?.saving || 'Saving...' : '保存并重启'}
+            {saving ? dict.settings?.saving || 'Saving...' : dict.admin.domainSaveAndRestart}
           </Button>
         </div>
       </form>
