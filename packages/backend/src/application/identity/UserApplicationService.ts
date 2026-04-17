@@ -3,9 +3,7 @@ import { IAbilityCache } from '../../domain/identity/IAbilityCache';
 import { User } from '../../domain/identity/User';
 import { UserStatus } from '@myndbbs/shared';
 import { IPasswordHasher } from '../../domain/identity/IPasswordHasher';
-import { OTP } from 'otplib';
-
-const authenticator = new OTP({ strategy: 'totp' });
+import { ITotpPort } from '../../domain/identity/ports/ITotpPort';
 
 /**
  * Callers: [UserController, AdminController]
@@ -23,7 +21,8 @@ export class UserApplicationService {
   constructor(
     private userRepository: IUserRepository,
     private abilityCache: IAbilityCache,
-    private passwordHasher: IPasswordHasher
+    private passwordHasher: IPasswordHasher,
+    private totpPort: ITotpPort
   ) {}
 
   public async changePasswordWithVerification(
@@ -46,8 +45,8 @@ export class UserApplicationService {
         if (!isValid) throw new Error('ERR_INVALID_CURRENT_PASSWORD');
       }
       if (totpCode && user.totpSecret) {
-        const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
-        if (!result || !result.valid) throw new Error('ERR_INVALID_TOTP_CODE');
+        const isValid = this.totpPort.verify(user.totpSecret, totpCode);
+        if (!isValid) throw new Error('ERR_INVALID_TOTP_CODE');
       }
     }
 
@@ -87,8 +86,8 @@ export class UserApplicationService {
       if (!isValid) throw new Error('ERR_INVALID_CURRENT_PASSWORD');
     }
     if (totpCode && user.totpSecret) {
-      const result = authenticator.verifySync({ secret: user.totpSecret, token: totpCode });
-      if (!result || !result.valid) throw new Error('ERR_INVALID_TOTP_CODE');
+      const isValid = this.totpPort.verify(user.totpSecret, totpCode);
+      if (!isValid) throw new Error('ERR_INVALID_TOTP_CODE');
     }
 
     user.disableTotp();

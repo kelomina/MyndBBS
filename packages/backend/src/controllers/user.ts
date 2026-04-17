@@ -1,15 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { OTP } from 'otplib';
-import QRCode from 'qrcode';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { authApplicationService, userApplicationService } from '../registry';
-
-const rpName = 'MyndBBS';
-const rpID = process.env.RP_ID || 'localhost';
-const origin = process.env.ORIGIN || `http://${rpID}:3000`;
-
-const authenticator = new OTP({ strategy: 'totp' });
 
 /**
  * Callers: []
@@ -106,12 +98,6 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
     } catch (e: any) {
       res.status(400).json({ error: e.message });
       return;
-    }
-
-    // Check remaining passkeys. If 0, force level to 1 (Pragmatic CQRS read inside controller for flow control)
-    const remaining = await identityQueryService.countPasskeys(userId);
-    if (remaining === 0) {
-      await userApplicationService.changeLevel(userId, 1);
     }
 
     res.json({ message: 'Passkey deleted successfully' });
@@ -229,11 +215,7 @@ export const generateTotp = async (req: AuthRequest, res: Response): Promise<voi
     const user = await identityQueryService.getUserWithRoleById(userId);
     if (!user) return;
 
-    const secret = authenticator.generateSecret();
-    const otpauth = authenticator.generateURI({ issuer: rpName, label: user.email, secret });
-    const qrCodeUrl = await QRCode.toDataURL(otpauth);
-
-    await authApplicationService.storeTotpSecret(userId, secret, 300); // 5 minutes
+    const { secret, qrCodeUrl } = await authApplicationService.generateTotp(userId, user.email);
 
     res.json({ secret, qrCodeUrl });
   } catch (error) {
@@ -267,23 +249,20 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const pendingSecret = await authApplicationService.getTotpSecret(userId);
-    if (!pendingSecret) {
-      res.status(400).json({ error: 'ERR_TOTP_SETUP_NOT_INITIATED_OR_EXPIRED' });
-      return;
+    try {
+      await authApplicationService.verifyTotpRegistration(userId, code);
+      res.json({ message: 'TOTP setup successful' });
+    } catch (error: any) {
+      if (error.message === 'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED') {
+        res.status(400).json({ error: 'ERR_TOTP_SETUP_NOT_INITIATED_OR_EXPIRED' });
+        return;
+      }
+      if (error.message.startsWith('ERR_')) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
     }
-
-    const result = authenticator.verifySync({ secret: pendingSecret, token: code });
-    if (!result || !result.valid) {
-      res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
-      return;
-    }
-
-    await userApplicationService.enableTotp(userId, pendingSecret);
-
-    await authApplicationService.removeTotpSecret(userId);
-
-    res.json({ message: 'TOTP setup successful' });
   } catch (error) {
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }

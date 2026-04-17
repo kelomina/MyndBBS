@@ -1,21 +1,9 @@
 import { Request, Response } from 'express';
-import crypto from 'crypto';
-import { 
-  generateAuthenticationOptions,
-  verifyAuthenticationResponse
-} from '@simplewebauthn/server';
-import { OTP } from 'otplib';
-import QRCode from 'qrcode';
-import jwt from 'jsonwebtoken';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
-import { APP_NAME } from '@myndbbs/shared';
-import { userApplicationService, authApplicationService } from '../registry';
+import { authApplicationService } from '../registry';
 
-const rpName = APP_NAME;
 const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.ORIGIN || `http://${rpID}:3000`;
-
-const authenticator = new OTP({ strategy: 'totp' });
 
 // Helper to get user from tempToken
 /**
@@ -28,13 +16,14 @@ const getUserFromTempToken = async (req: Request, expectedType: 'registration' |
   const { tempToken } = req.cookies;
   if (!tempToken) return null;
   try {
-    const decoded = jwt.verify(tempToken, process.env.JWT_SECRET as string) as any;
+    const decoded = authApplicationService.verifyTempToken(tempToken);
     if (decoded.type !== expectedType) return null;
     return await identityQueryService.getUserWithRoleById(decoded.userId);
   } catch (err) {
     return null;
   }
 };
+
 
 /**
  * Callers: []
@@ -43,18 +32,13 @@ const getUserFromTempToken = async (req: Request, expectedType: 'registration' |
  * Keywords: finalizeauth, finalize, auth, auto-annotated
  */
 export const finalizeAuth = async (user: any, req: Request, res: Response) => {
-  // Create Session first
-  const session = await authApplicationService.createSession(
-    user.id,
+  const { accessToken, refreshToken } = await authApplicationService.finalizeAuth(
+    user,
     req.ip || null,
-    req.headers['user-agent'] || null,
-    7 * 24 * 60 * 60 * 1000 // 7 days
+    req.headers['user-agent'] || null
   );
 
   const roleName = user.role?.name || user.role || null;
-
-  const accessToken = jwt.sign({ userId: user.id, role: roleName, sessionId: session.id }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ userId: user.id, role: roleName, sessionId: session.id }, process.env.JWT_REFRESH_SECRET as string, { expiresIn: '7d' });
 
   res.clearCookie('tempToken');
 
@@ -88,13 +72,12 @@ export const generateTotp = async (req: Request, res: Response): Promise<void> =
     return;
   }
 
-  const secret = authenticator.generateSecret();
-  const otpauth = authenticator.generateURI({ issuer: rpName, label: user.email, secret });
-  const qrCodeUrl = await QRCode.toDataURL(otpauth);
-
-  await authApplicationService.storeTotpSecret(user.id, secret, 300); // 5 minutes
-
-  res.json({ secret, qrCodeUrl });
+  try {
+    const { secret, qrCodeUrl } = await authApplicationService.generateTotp(user.id, user.email);
+    res.json({ secret, qrCodeUrl });
+  } catch (error: any) {
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+  }
 };
 
 /**
@@ -111,23 +94,20 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
     return;
   }
 
-  const pendingSecret = await authApplicationService.getTotpSecret(user.id);
-  if (!pendingSecret) {
-    res.status(401).json({ error: 'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED' });
-    return;
+  try {
+    await authApplicationService.verifyTotpRegistration(user.id, code);
+    await finalizeAuth(user, req, res);
+  } catch (error: any) {
+    if (error.message === 'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED') {
+      res.status(401).json({ error: error.message });
+      return;
+    }
+    if (error.message.startsWith('ERR_')) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
-
-  const result = authenticator.verifySync({ secret: pendingSecret, token: code });
-  if (!result || !result.valid) {
-    res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
-    return;
-  }
-
-  await userApplicationService.enableTotp(user.id, pendingSecret);
-
-  await authApplicationService.removeTotpSecret(user.id);
-
-  await finalizeAuth(user, req, res);
 };
 
 /**
@@ -202,18 +182,25 @@ export const verifyTotpLogin = async (req: Request, res: Response): Promise<void
   const { code } = req.body;
   const user = await getUserFromTempToken(req, 'login');
   
-  if (!user || !user.isTotpEnabled || !user.totpSecret) {
-    res.status(401).json({ error: 'ERR_UNAUTHORIZED_OR_TOTP_NOT_ENABLED' });
+  if (!user) {
+    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
     return;
   }
 
-  const result = authenticator.verifySync({ secret: user.totpSecret, token: code });
-  if (!result || !result.valid) {
-    res.status(400).json({ error: 'ERR_INVALID_TOTP_CODE' });
-    return;
+  try {
+    const verifiedUser = await authApplicationService.verifyTotpLogin(user.id, code);
+    await finalizeAuth(verifiedUser, req, res);
+  } catch (error: any) {
+    if (error.message === 'ERR_UNAUTHORIZED_OR_TOTP_NOT_ENABLED') {
+      res.status(401).json({ error: error.message });
+      return;
+    }
+    if (error.message.startsWith('ERR_')) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
-
-  await finalizeAuth(user, req, res);
 };
 
 /**
@@ -225,37 +212,30 @@ export const verifyTotpLogin = async (req: Request, res: Response): Promise<void
 export const generatePasskeyAuthenticationOptions = async (req: Request, res: Response): Promise<void> => {
   const { tempToken } = req.cookies;
   
-  let options;
+  try {
+    let options;
 
-  if (tempToken) {
-    // 2FA flow
-    const user = await getUserFromTempToken(req, 'login');
-    if (!user) {
-      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+    if (tempToken) {
+      // 2FA flow
+      const user = await getUserFromTempToken(req, 'login');
+      if (!user) {
+        res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+        return;
+      }
+      options = await authApplicationService.generatePasskeyAuthenticationOptions(user.id);
+    } else {
+      // Passwordless flow
+      options = await authApplicationService.generatePasskeyAuthenticationOptions();
+    }
+
+    res.json(options);
+  } catch (error: any) {
+    if (error.message.startsWith('ERR_')) {
+      res.status(400).json({ error: error.message });
       return;
     }
-    const userPasskeys = await identityQueryService.listUserPasskeyIds(user.id);
-    options = await generateAuthenticationOptions({
-      rpID,
-      allowCredentials: userPasskeys.map(passkey => ({
-        id: passkey.id,
-        transports: ['internal'] as any,
-      })),
-      userVerification: 'preferred',
-    });
-  } else {
-    // Passwordless flow
-    options = await generateAuthenticationOptions({
-      rpID,
-      allowCredentials: [], // Prompt for all discoverable credentials
-      userVerification: 'preferred',
-    });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
-
-  const authChallenge = await authApplicationService.generateAuthChallenge(options.challenge);
-  const challengeId = authChallenge.id;
-
-  res.json({ ...options, challengeId });
 };
 
 /**
@@ -292,69 +272,23 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
     challengeId = bodyChallengeId;
   }
 
-  let expectedChallenge;
   try {
-    expectedChallenge = await authApplicationService.consumeAuthChallenge(challengeId);
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-    return;
-  }
-
-  const passkey = await identityQueryService.getPasskeyById(response.id);
-  if (!passkey) {
-    res.status(400).json({ error: 'ERR_PASSKEY_NOT_FOUND' });
-    return;
-  }
-
-  if (tempToken && passkey.userId !== user?.id) {
-    res.status(400).json({ error: 'ERR_PASSKEY_DOES_NOT_BELONG_TO_USER' });
-    return;
-  }
-
-  // In passwordless flow, we find the user from the passkey
-  if (!tempToken) {
-    user = await identityQueryService.getUserWithRoleById(passkey.userId);
-    if (!user) {
-      res.status(400).json({ error: 'ERR_USER_NOT_FOUND_FOR_THIS_PASSKEY' });
-      return;
-    }
-  }
-
-  let verification;
-  try {
-    verification = await verifyAuthenticationResponse({
+    const verification = await authApplicationService.verifyPasskeyAuthenticationResponse(
+      user?.id,
       response,
-      expectedChallenge: expectedChallenge.challenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
-      credential: {
-        id: passkey.id,
-        publicKey: new Uint8Array(passkey.publicKey),
-        counter: Number(passkey.counter),
-      },
-    });
-  } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
-    return;
-  }
+      challengeId
+    );
 
-  if (verification.verified && verification.authenticationInfo) {
-    const { newCounter } = verification.authenticationInfo;
-    
-    try {
-      await authApplicationService.updatePasskeyCounter(passkey.id, BigInt(newCounter));
-    } catch (e: any) {
-      res.status(400).json({ error: e.message });
+    if (verification.verified && verification.user) {
+      await finalizeAuth(verification.user, req, res);
+    } else {
+      res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });
+    }
+  } catch (error: any) {
+    if (error.message.startsWith('ERR_')) {
+      res.status(400).json({ error: error.message });
       return;
     }
-
-    if (!user) {
-      res.status(400).json({ error: 'ERR_USER_NOT_FOUND' });
-      return;
-    }
-
-    await finalizeAuth(user, req, res);
-  } else {
-    res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
