@@ -121,4 +121,17 @@ describe('AdminUserManagementApplicationService', () => {
     await service.changeUserRole({ userId: 'operator1', role: 'ADMIN' as any }, 'target1', 'MODERATOR' as any);
     expect(mockAuditService.logAudit).toHaveBeenCalledWith('operator1', 'UPDATE_USER_ROLE', 'User:target1 to MODERATOR');
   });
+
+  it('should change user role and level in a single operation', async () => {
+    const service = new AdminUserManagementApplicationService(
+      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any
+    );
+    service.changeUserLevel = jest.fn();
+    service.changeUserRole = jest.fn();
+
+    await service.changeUserRoleAndLevel({ userId: 'operator1', role: 'ADMIN' as any }, 'target1', { role: 'MODERATOR' as any, level: 3 });
+
+    expect(service.changeUserLevel).toHaveBeenCalledWith({ userId: 'operator1', role: 'ADMIN' }, 'target1', 3);
+    expect(service.changeUserRole).toHaveBeenCalledWith({ userId: 'operator1', role: 'ADMIN' }, 'target1', 'MODERATOR');
+  });
 });

@@ -19,21 +19,11 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
   const operatorId = req.user?.userId || 'unknown';
 
   try {
-    if (level !== undefined) {
-      await adminUserManagementApplicationService.changeUserLevel(
-        { userId: operatorId, role: (req.user?.role || 'USER') as any },
-        id,
-        level
-      );
-    }
-
-    if (role) {
-      await adminUserManagementApplicationService.changeUserRole(
-        { userId: operatorId, role: (req.user?.role || 'USER') as any },
-        id,
-        role as any
-      );
-    }
+    await adminUserManagementApplicationService.changeUserRoleAndLevel(
+      { userId: operatorId, role: (req.user?.role || 'USER') as any },
+      id,
+      { role: role as any, level }
+    );
 
     const finalUser = await identityQueryService.getUserWithRoleById(id);
     res.json({ message: 'User updated', user: { id: finalUser?.id, role: finalUser?.role?.name, level: (finalUser as any)?.level } });
