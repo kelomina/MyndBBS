@@ -8,6 +8,7 @@ import { PrivateMessage } from '../../domain/messaging/PrivateMessage';
 import { UserKey } from '../../domain/messaging/UserKey';
 import { ConversationSetting } from '../../domain/messaging/ConversationSetting';
 import { randomUUID as uuidv4 } from 'crypto';
+import { IUnitOfWork } from '../../domain/shared/IUnitOfWork';
 
 /**
  * Callers: [FriendController, MessageController]
@@ -21,11 +22,18 @@ export class MessagingApplicationService {
     private privateMessageRepository: IPrivateMessageRepository,
     private userKeyRepository: IUserKeyRepository,
     private conversationSettingRepository: IConversationSettingRepository,
-    private identityIntegrationPort: IIdentityIntegrationPort
+    private identityIntegrationPort: IIdentityIntegrationPort,
+    private unitOfWork: IUnitOfWork
   ) {}
 
   // --- Friendship Management ---
 
+  /**
+   * Callers: [FriendController.sendFriendRequest]
+   * Callees: [IIdentityIntegrationPort.getUserProfile, IIdentityIntegrationPort.getUserByUsername, sendFriendRequest, sendMessage]
+   * Description: Validates user profiles before sending a friend request. Sends a system message if applicable.
+   * Keywords: validate, friend, request, messaging
+   */
   public async sendFriendRequestWithValidation(requesterId: string, addresseeId: string): Promise<void> {
     const requester = await this.identityIntegrationPort.getUserProfile(requesterId);
     if (!requester) throw new Error('ERR_USER_NOT_FOUND');
@@ -75,6 +83,12 @@ export class MessagingApplicationService {
     return friendship;
   }
 
+  /**
+   * Callers: [FriendController.respondFriendRequest]
+   * Callees: [IFriendshipRepository.findById, Friendship.accept, Friendship.reject, IFriendshipRepository.save]
+   * Description: Responds to a friend request by accepting or rejecting it.
+   * Keywords: respond, friend, request, messaging, friendship
+   */
   public async respondFriendRequest(friendshipId: string, userId: string, accept: boolean): Promise<void> {
     const friendship = await this.friendshipRepository.findById(friendshipId);
     if (!friendship) throw new Error('ERR_NOT_FOUND');
@@ -90,6 +104,12 @@ export class MessagingApplicationService {
 
   // --- Private Message Management ---
 
+  /**
+   * Callers: [MessageController.sendMessage]
+   * Callees: [IIdentityIntegrationPort.getUserProfile, sendMessage]
+   * Description: Validates sender profile before delegating to sendMessage.
+   * Keywords: validate, send, message, private, messaging
+   */
   public async sendMessageWithValidation(
     senderId: string, 
     receiverId: string, 
@@ -110,6 +130,12 @@ export class MessagingApplicationService {
     );
   }
 
+  /**
+   * Callers: [sendMessageWithValidation, sendFriendRequestWithValidation]
+   * Callees: [IFriendshipRepository.findByUsers, IPrivateMessageRepository.countMessagesBetween, PrivateMessage.create, IPrivateMessageRepository.save]
+   * Description: Sends a private message from one user to another. Checks friendship status and limits.
+   * Keywords: send, message, private, messaging
+   */
   public async sendMessage(
     senderId: string, 
     senderLevel: number, 
@@ -150,6 +176,12 @@ export class MessagingApplicationService {
     return message.id;
   }
 
+  /**
+   * Callers: [MessageController.deleteMessage]
+   * Callees: [IPrivateMessageRepository.findById, IConversationSettingRepository.findByUsers, PrivateMessage.deleteForUser, IPrivateMessageRepository.delete, IPrivateMessageRepository.save]
+   * Description: Deletes a specific message for a user. Hard deletes if applicable based on conversation settings.
+   * Keywords: delete, message, private, messaging, conversation
+   */
   public async deleteMessage(messageId: string, userId: string): Promise<void> {
     const message = await this.privateMessageRepository.findById(messageId);
     if (!message) throw new Error('ERR_NOT_FOUND');
@@ -170,34 +202,57 @@ export class MessagingApplicationService {
     }
   }
 
+  /**
+   * Callers: [MessageController.clearChat]
+   * Callees: [IConversationSettingRepository.findByUsers, IPrivateMessageRepository.findConversation, IUnitOfWork.execute, PrivateMessage.deleteForUser, IPrivateMessageRepository.delete, IPrivateMessageRepository.save]
+   * Description: Clears all messages in a conversation for a specific user.
+   * Keywords: clear, chat, message, private, messaging, conversation
+   */
   public async clearChat(userId: string, partnerId: string): Promise<void> {
     const partnerSetting = await this.conversationSettingRepository.findByUsers(partnerId, userId);
     const canHardDelete = partnerSetting?.allowTwoSidedDelete || false;
 
     const messages = await this.privateMessageRepository.findConversation(userId, partnerId);
 
-    for (const msg of messages) {
-      if (!msg.deletedBy.includes(userId)) {
-        const shouldHardDelete = msg.deleteForUser(userId, canHardDelete);
-        if (shouldHardDelete) {
-          await this.privateMessageRepository.delete(msg.id);
-        } else {
+    await this.unitOfWork.execute(async () => {
+      for (const msg of messages) {
+        if (!msg.deletedBy.includes(userId)) {
+          const shouldHardDelete = msg.deleteForUser(userId, canHardDelete);
+          if (shouldHardDelete) {
+            await this.privateMessageRepository.delete(msg.id);
+          } else {
+            await this.privateMessageRepository.save(msg);
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Callers: [MessageController.markAsRead]
+   * Callees: [IPrivateMessageRepository.findConversation, IUnitOfWork.execute, PrivateMessage.markAsRead, IPrivateMessageRepository.save]
+   * Description: Marks all unread messages from a sender to a receiver as read.
+   * Keywords: mark, read, message, private, messaging
+   */
+  public async markAsRead(receiverId: string, senderId: string): Promise<void> {
+    const messages = await this.privateMessageRepository.findConversation(receiverId, senderId);
+    
+    await this.unitOfWork.execute(async () => {
+      for (const msg of messages) {
+        if (msg.receiverId === receiverId && !msg.isRead) {
+          msg.markAsRead(receiverId);
           await this.privateMessageRepository.save(msg);
         }
       }
-    }
+    });
   }
 
-  public async markAsRead(receiverId: string, senderId: string): Promise<void> {
-    const messages = await this.privateMessageRepository.findConversation(receiverId, senderId);
-    for (const msg of messages) {
-      if (msg.receiverId === receiverId && !msg.isRead) {
-        msg.markAsRead(receiverId);
-        await this.privateMessageRepository.save(msg);
-      }
-    }
-  }
-
+  /**
+   * Callers: [MessageController.uploadKeys]
+   * Callees: [IIdentityIntegrationPort.getUserProfile, uploadKeys]
+   * Description: Validates user profile before uploading encryption keys.
+   * Keywords: validate, upload, keys, encryption, messaging
+   */
   public async uploadKeysWithValidation(
     userId: string, 
     scheme: string, 

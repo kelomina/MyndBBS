@@ -26,6 +26,9 @@ import { PrismaUserKeyRepository } from './infrastructure/repositories/PrismaUse
 import { PrismaConversationSettingRepository } from './infrastructure/repositories/PrismaConversationSettingRepository';
 import { PrismaPermissionRepository } from './infrastructure/repositories/PrismaPermissionRepository';
 import { PrismaModeratedWordRepository } from './infrastructure/repositories/PrismaModeratedWordRepository';
+import { PrismaUnitOfWork } from './infrastructure/repositories/PrismaUnitOfWork';
+
+export const unitOfWork = new PrismaUnitOfWork();
 
 import { Argon2PasswordHasher } from './infrastructure/services/Argon2PasswordHasher';
 import { EnvStoreAdapter } from './infrastructure/services/provisioning/EnvStoreAdapter';
@@ -90,7 +93,8 @@ export const adminUserManagementApplicationService = new AdminUserManagementAppl
   new PrismaSessionRepository(),
   new RedisSessionCache(),
   new RoleHierarchyPolicy(),
-  globalEventBus
+  globalEventBus,
+  unitOfWork
 );
 
 import { SudoApplicationService } from './application/identity/SudoApplicationService';
@@ -109,7 +113,8 @@ export const authApplicationService = new AuthApplicationService(
   authCache,
   totpAdapter,
   passkeyAdapter,
-  tokenAdapter
+  tokenAdapter,
+  unitOfWork
 );
 
 export const sudoApplicationService = new SudoApplicationService(
@@ -128,7 +133,8 @@ export const systemApplicationService = new SystemApplicationService(
 export const identityBootstrapApplicationService = new IdentityBootstrapApplicationService(
   new PrismaUserRepository(),
   new PrismaRoleRepository(),
-  new Argon2PasswordHasher()
+  new Argon2PasswordHasher(),
+  unitOfWork
 );
 
 import { IdentityBootstrapServiceAdapter } from './infrastructure/services/provisioning/IdentityBootstrapServiceAdapter';
@@ -168,7 +174,9 @@ export const communityApplicationService = new CommunityApplicationService(
   identityIntegrationPort,
   moderationPolicy,
   authApplicationService,
-  globalEventBus
+  globalEventBus,
+  auditApplicationService,
+  unitOfWork
 );
 
 export const messagingApplicationService = new MessagingApplicationService(
@@ -176,7 +184,8 @@ export const messagingApplicationService = new MessagingApplicationService(
   new PrismaPrivateMessageRepository(),
   new PrismaUserKeyRepository(),
   new PrismaConversationSettingRepository(),
-  identityIntegrationPort
+  identityIntegrationPort,
+  unitOfWork
 );
 
 export const roleApplicationService = new RoleApplicationService(

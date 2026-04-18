@@ -45,6 +45,10 @@ describe('AuthApplicationService', () => {
     };
     tokenPort = {};
 
+    const unitOfWork = {
+      execute: jest.fn().mockImplementation((work) => work())
+    };
+
     service = new AuthApplicationService(
       captchaChallengeRepository,
       passkeyRepository,
@@ -56,7 +60,8 @@ describe('AuthApplicationService', () => {
       authCache,
       totpPort,
       passkeyPort,
-      tokenPort
+      tokenPort,
+      unitOfWork
     );
     
     // mock generateTempToken
