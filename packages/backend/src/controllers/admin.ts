@@ -8,11 +8,23 @@ import { AuthRequest } from '../middleware/auth';
 import { auditApplicationService, adminUserManagementApplicationService, authApplicationService, userApplicationService, installationApplicationService, systemApplicationService, communityApplicationService, roleApplicationService, moderationApplicationService } from '../registry';
 
 // Users
+/**
+ * Callers: [Router]
+ * Callees: [adminQueryService]
+ * Description: Retrieves a list of all users for the admin dashboard.
+ * Keywords: admin, users, list
+ */
 export const getUsers = async (req: Request, res: Response) => {
   const users = await adminQueryService.listUsers();
   res.json(users);
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [adminUserManagementApplicationService, identityQueryService]
+ * Description: Updates a user's role and level.
+ * Keywords: admin, user, role, level
+ */
 export const updateUserRole = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { role, level } = req.body;
@@ -37,6 +49,12 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [adminUserManagementApplicationService, identityQueryService]
+ * Description: Updates a user's status (e.g., banning or activating).
+ * Keywords: admin, user, status
+ */
 export const updateUserStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { status } = req.body;
@@ -63,11 +81,23 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
 };
 
 // Categories
+/**
+ * Callers: [Router]
+ * Callees: [adminQueryService]
+ * Description: Retrieves a list of all categories for the admin dashboard.
+ * Keywords: admin, categories, list
+ */
 export const getCategories = async (req: Request, res: Response) => {
   const categories = await adminQueryService.listCategories();
   res.json(categories);
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [communityApplicationService]
+ * Description: Creates a new category.
+ * Keywords: admin, category, create
+ */
 export const createCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { name, description, sortOrder, minLevel } = req.body;
@@ -91,6 +121,12 @@ export const createCategory = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [communityApplicationService]
+ * Description: Updates an existing category.
+ * Keywords: admin, category, update
+ */
 export const updateCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
@@ -118,6 +154,12 @@ export const updateCategory = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [communityApplicationService]
+ * Description: Deletes a category.
+ * Keywords: admin, category, delete
+ */
 export const deleteCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
@@ -135,6 +177,12 @@ export const deleteCategory = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [communityApplicationService]
+ * Description: Assigns a user as a moderator for a specific category.
+ * Keywords: admin, category, moderator, assign
+ */
 export const assignCategoryModerator = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
@@ -149,6 +197,12 @@ export const assignCategoryModerator = async (req: AuthRequest, res: Response): 
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [communityApplicationService]
+ * Description: Removes a user from the moderator role for a specific category.
+ * Keywords: admin, category, moderator, remove
+ */
 export const removeCategoryModerator = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
@@ -164,6 +218,12 @@ export const removeCategoryModerator = async (req: AuthRequest, res: Response): 
 };
 
 // Posts
+/**
+ * Callers: [Router]
+ * Callees: [adminQueryService]
+ * Description: Retrieves a list of posts for the admin dashboard.
+ * Keywords: admin, posts, list
+ */
 export const getPosts = async (req: AuthRequest, res: Response) => {
   if (!req.ability) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
@@ -174,6 +234,12 @@ export const getPosts = async (req: AuthRequest, res: Response) => {
   res.json(posts);
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [moderationApplicationService]
+ * Description: Updates the status of a post (e.g., publish, hide, pin).
+ * Keywords: admin, post, status
+ */
 export const updatePostStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { status } = req.body;
@@ -199,6 +265,12 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
 };
 
 // Recycle Bin
+/**
+ * Callers: [Router]
+ * Callees: [adminQueryService]
+ * Description: Retrieves a list of deleted posts (recycle bin).
+ * Keywords: admin, recycle bin, posts, deleted
+ */
 export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
   if (!req.ability) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
@@ -208,6 +280,12 @@ export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
   res.json(deletedPosts);
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [adminQueryService]
+ * Description: Retrieves a list of deleted comments (recycle bin).
+ * Keywords: admin, recycle bin, comments, deleted
+ */
 export const getDeletedComments = async (req: AuthRequest, res: Response) => {
   if (!req.ability) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
@@ -220,6 +298,12 @@ export const getDeletedComments = async (req: AuthRequest, res: Response) => {
 
 
 
+/**
+ * Callers: [Router]
+ * Callees: [moderationApplicationService]
+ * Description: Restores a soft-deleted post.
+ * Keywords: admin, recycle bin, post, restore
+ */
 export const restorePost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
@@ -238,6 +322,12 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [moderationApplicationService]
+ * Description: Permanently deletes a post.
+ * Keywords: admin, recycle bin, post, hard delete
+ */
 export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
@@ -256,6 +346,12 @@ export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [moderationApplicationService]
+ * Description: Restores a soft-deleted comment.
+ * Keywords: admin, recycle bin, comment, restore
+ */
 export const restoreComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
@@ -274,6 +370,12 @@ export const restoreComment = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [moderationApplicationService]
+ * Description: Permanently deletes a comment.
+ * Keywords: admin, recycle bin, comment, hard delete
+ */
 export const hardDeleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
@@ -294,6 +396,12 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
 
 // Database Config
 
+/**
+ * Callers: [Router]
+ * Callees: [installationApplicationService]
+ * Description: Retrieves the current database configuration.
+ * Keywords: admin, config, database
+ */
 export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const cfg = installationApplicationService.getCurrentDbConfig(req.user?.role);
@@ -307,6 +415,12 @@ export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [installationApplicationService]
+ * Description: Updates the database configuration.
+ * Keywords: admin, config, database, update
+ */
 export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
   const { host, port, username, password, database } = req.body;
   const operatorId = req.user?.userId || 'unknown';
@@ -324,6 +438,12 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [installationApplicationService]
+ * Description: Retrieves the current domain configuration.
+ * Keywords: admin, config, domain
+ */
 export const getDomainConfig = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const config = installationApplicationService.getDomainConfig(req.user?.role);
@@ -337,6 +457,12 @@ export const getDomainConfig = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [installationApplicationService]
+ * Description: Updates the domain configuration and schedules a restart.
+ * Keywords: admin, config, domain, update
+ */
 export const updateDomainConfig = async (req: AuthRequest, res: Response): Promise<void> => {
   const { protocol, hostname, rpId, reverseProxyMode } = req.body;
 
@@ -364,6 +490,12 @@ export const updateDomainConfig = async (req: AuthRequest, res: Response): Promi
 
 
 // Route Whitelist Management
+/**
+ * Callers: [Router]
+ * Callees: [systemQueryService]
+ * Description: Retrieves the route whitelist for system access control.
+ * Keywords: admin, routes, whitelist
+ */
 export const getRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const routes = await systemQueryService.listRouteWhitelist();
@@ -373,6 +505,12 @@ export const getRouteWhitelist = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [systemApplicationService]
+ * Description: Adds a new route to the whitelist.
+ * Keywords: admin, routes, whitelist, add
+ */
 export const addRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const { path, isPrefix, minRole, description } = req.body;
@@ -385,6 +523,12 @@ export const addRouteWhitelist = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [systemApplicationService]
+ * Description: Updates an existing route in the whitelist.
+ * Keywords: admin, routes, whitelist, update
+ */
 export const updateRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
@@ -397,6 +541,12 @@ export const updateRouteWhitelist = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [systemApplicationService]
+ * Description: Deletes a route from the whitelist.
+ * Keywords: admin, routes, whitelist, delete
+ */
 export const deleteRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
