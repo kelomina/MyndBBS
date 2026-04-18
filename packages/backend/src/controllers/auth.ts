@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { authApplicationService } from '../registry';
 
 const rpID = process.env.RP_ID || 'localhost';
@@ -7,15 +6,7 @@ const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 
 // Helper to get user from tempToken
 const getUserFromTempToken = async (req: Request, expectedType: 'registration' | 'login' = 'registration') => {
-  const { tempToken } = req.cookies;
-  if (!tempToken) return null;
-  try {
-    const decoded = authApplicationService.verifyTempToken(tempToken);
-    if (decoded.type !== expectedType) return null;
-    return await identityQueryService.getUserWithRoleById(decoded.userId);
-  } catch (err) {
-    return null;
-  }
+  return await authApplicationService.getUserFromTempToken(req.cookies?.tempToken, expectedType);
 };
 
 
@@ -165,25 +156,12 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
   const { tempToken } = req.cookies;
   
   try {
-    let options;
-
-    if (tempToken) {
-      // 2FA flow
-      const user = await getUserFromTempToken(req, 'login');
-      if (!user) {
-        res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
-        return;
-      }
-      options = await authApplicationService.generatePasskeyAuthenticationOptions(user.id);
-    } else {
-      // Passwordless flow
-      options = await authApplicationService.generatePasskeyAuthenticationOptions();
-    }
-
+    const options = await authApplicationService.processGeneratePasskeyAuthenticationOptions(tempToken);
     res.json(options);
   } catch (error: any) {
     if (error.message.startsWith('ERR_')) {
-      res.status(400).json({ error: error.message });
+      const statusCode = error.message === 'ERR_UNAUTHORIZED' ? 401 : 400;
+      res.status(statusCode).json({ error: error.message });
       return;
     }
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -191,38 +169,14 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
 };
 
 export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Response): Promise<void> => {
-  const { response, challengeId: bodyChallengeId } = req.body;
+  const { response, challengeId } = req.body;
   const { tempToken } = req.cookies;
   
-  let user;
-  let challengeId;
-
-  if (tempToken) {
-    // 2FA flow
-    user = await getUserFromTempToken(req, 'login');
-    if (!user) {
-      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
-      return;
-    }
-    if (!bodyChallengeId) {
-      res.status(400).json({ error: 'ERR_CHALLENGE_ID_IS_REQUIRED' });
-      return;
-    }
-    challengeId = bodyChallengeId;
-  } else {
-    // Passwordless flow
-    if (!bodyChallengeId) {
-      res.status(400).json({ error: 'ERR_CHALLENGE_ID_IS_REQUIRED_FOR_PASSWORDLESS_LOGIN' });
-      return;
-    }
-    challengeId = bodyChallengeId;
-  }
-
   try {
-    const verification = await authApplicationService.verifyPasskeyAuthenticationResponse(
-      user?.id,
+    const verification = await authApplicationService.processPasskeyAuthentication(
       response,
-      challengeId
+      challengeId,
+      tempToken
     );
 
     if (verification.verified && verification.user) {
@@ -232,7 +186,8 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
     }
   } catch (error: any) {
     if (error.message.startsWith('ERR_')) {
-      res.status(400).json({ error: error.message });
+      const statusCode = error.message === 'ERR_UNAUTHORIZED' ? 401 : 400;
+      res.status(statusCode).json({ error: error.message });
       return;
     }
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
