@@ -1,11 +1,16 @@
 import { randomUUID as uuidv4 } from 'crypto';
-import { IInstallationSessionRepository, InstallationSession } from '../../domain/provisioning/IInstallationSessionRepository';
+import { IInstallationSessionRepository } from '../../domain/provisioning/IInstallationSessionRepository';
+import { InstallationSession } from '../../domain/provisioning/InstallationSession';
 
 export class InMemoryInstallationSessionRepository implements IInstallationSessionRepository {
   private sessions: Map<string, InstallationSession> = new Map();
 
   async createSession(): Promise<InstallationSession> {
-    const session = { id: uuidv4(), createdAt: new Date(), isCompleted: false };
+    const session = InstallationSession.create({
+      id: uuidv4(),
+      createdAt: new Date(),
+      isCompleted: false
+    });
     this.sessions.set(session.id, session);
     return session;
   }
@@ -17,7 +22,7 @@ export class InMemoryInstallationSessionRepository implements IInstallationSessi
   async markCompleted(id: string): Promise<void> {
     const session = this.sessions.get(id);
     if (session) {
-      session.isCompleted = true;
+      session.markCompleted();
       this.sessions.set(id, session);
     }
   }

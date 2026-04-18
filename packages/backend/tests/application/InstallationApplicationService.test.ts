@@ -5,7 +5,8 @@ import { IDatabaseSchemaApplier } from '../../src/domain/provisioning/IDatabaseS
 import { IInstallationSessionRepository } from '../../src/domain/provisioning/IInstallationSessionRepository';
 import { IIdentityBootstrapPort } from '../../src/domain/provisioning/IIdentityBootstrapPort';
 import { IRestartScheduler } from '../../src/domain/provisioning/IRestartScheduler';
-import { AuditApplicationService } from '../../src/application/system/AuditApplicationService';
+import { IEventBus } from '../../src/domain/shared/events/IEventBus';
+import { DbConfigUpdatedEvent } from '../../src/domain/shared/events/DomainEvents';
 
 describe('InstallationApplicationService', () => {
   let envStore: jest.Mocked<IEnvStore>;
@@ -14,7 +15,7 @@ describe('InstallationApplicationService', () => {
   let sessionRepository: jest.Mocked<IInstallationSessionRepository>;
   let identityBootstrap: jest.Mocked<IIdentityBootstrapPort>;
   let restartScheduler: jest.Mocked<IRestartScheduler>;
-  let auditApplicationService: jest.Mocked<AuditApplicationService>;
+  let eventBus: jest.Mocked<IEventBus>;
   let service: InstallationApplicationService;
 
   beforeEach(() => {
@@ -34,7 +35,7 @@ describe('InstallationApplicationService', () => {
     } as any;
     identityBootstrap = { bootstrapSuperAdmin: jest.fn() } as any;
     restartScheduler = { scheduleRestart: jest.fn() } as any;
-    auditApplicationService = { logAudit: jest.fn() } as any;
+    eventBus = { publish: jest.fn(), subscribe: jest.fn() } as any;
 
     service = new InstallationApplicationService(
       envStore,
@@ -43,7 +44,7 @@ describe('InstallationApplicationService', () => {
       sessionRepository,
       identityBootstrap,
       restartScheduler,
-      auditApplicationService
+      eventBus
     );
   });
 
@@ -62,10 +63,8 @@ describe('InstallationApplicationService', () => {
 
     expect(envStore.updateDatabaseUrl).toHaveBeenCalled();
     expect(dbSchemaApplier.applySchema).toHaveBeenCalled();
-    expect(auditApplicationService.logAudit).toHaveBeenCalledWith(
-      'test_operator_id',
-      'UPDATE_DB_CONFIG',
-      'PostgreSQL config updated in .env'
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      expect.any(DbConfigUpdatedEvent)
     );
     expect(restartScheduler.scheduleRestart).toHaveBeenCalledWith(1000);
   });

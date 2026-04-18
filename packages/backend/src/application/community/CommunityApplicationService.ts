@@ -14,8 +14,7 @@ import { IModerationPolicy } from '../../domain/community/IModerationPolicy';
 
 import { ICaptchaValidator } from '../../domain/community/ICaptchaValidator';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
-import { PostRepliedEvent, CommentRepliedEvent, CategoryModeratorAssignedEvent, CategoryModeratorRemovedEvent } from '../../domain/shared/events/DomainEvents';
-import { AuditApplicationService } from '../system/AuditApplicationService';
+import { PostRepliedEvent, CommentRepliedEvent, CategoryModeratorAssignedEvent, CategoryModeratorRemovedEvent, CategoryCreatedEvent, CategoryUpdatedEvent, CategoryDeletedEvent } from '../../domain/shared/events/DomainEvents';
 import { subject, AnyAbility } from '@casl/ability';
 
 /**
@@ -33,8 +32,7 @@ export class CommunityApplicationService {
     private identityIntegrationPort: IIdentityIntegrationPort,
     private moderationPolicy: IModerationPolicy,
     private captchaValidator: ICaptchaValidator,
-    private eventBus: IEventBus,
-    private auditApplicationService: AuditApplicationService
+    private eventBus: IEventBus
   ) {}
 
   // --- Category Management ---
@@ -101,7 +99,7 @@ export class CommunityApplicationService {
       createdAt: new Date()
     });
     await this.categoryRepository.save(category);
-    await this.auditApplicationService.logAudit(operatorId, 'CREATE_CATEGORY', `Category:${category.id}`);
+    this.eventBus.publish(new CategoryCreatedEvent(category.id, operatorId));
     return category;
   }
 
@@ -122,7 +120,7 @@ export class CommunityApplicationService {
     if (minLevel !== undefined) category.changeMinLevel(minLevel);
     
     await this.categoryRepository.save(category);
-    await this.auditApplicationService.logAudit(operatorId, 'UPDATE_CATEGORY', `Category:${id}`);
+    this.eventBus.publish(new CategoryUpdatedEvent(id, operatorId));
   }
 
   /**
@@ -145,8 +143,7 @@ export class CommunityApplicationService {
 
     category.addModerator(userId);
     await this.categoryRepository.save(category);
-    this.eventBus.publish(new CategoryModeratorAssignedEvent(categoryId, userId));
-    await this.auditApplicationService.logAudit(operatorId, 'ASSIGN_CATEGORY_MODERATOR', `User:${userId} to Category:${categoryId}`);
+    this.eventBus.publish(new CategoryModeratorAssignedEvent(categoryId, userId, operatorId));
 
     return { categoryId, userId };
   }
@@ -163,8 +160,7 @@ export class CommunityApplicationService {
 
     category.removeModerator(userId);
     await this.categoryRepository.save(category);
-    this.eventBus.publish(new CategoryModeratorRemovedEvent(categoryId, userId));
-    await this.auditApplicationService.logAudit(operatorId, 'REMOVE_CATEGORY_MODERATOR', `User:${userId} from Category:${categoryId}`);
+    this.eventBus.publish(new CategoryModeratorRemovedEvent(categoryId, userId, operatorId));
   }
 
   /**
@@ -178,10 +174,10 @@ export class CommunityApplicationService {
 
     await this.postRepository.deleteManyByCategoryId(id);
     await this.categoryRepository.delete(id);
-    await this.auditApplicationService.logAudit(operatorId, 'DELETE_CATEGORY', `Category:${id}`);
+    this.eventBus.publish(new CategoryDeletedEvent(id, operatorId));
   }
 
-  public async createPost(title: string, content: string, categoryId: string, authorId: string, userLevel: number, captchaId: string): Promise<{ postId: string; isModerated: boolean }> {
+  public async createPost(title: string, content: string, categoryId: string, authorId: string, userLevel: number, captchaId: string): Promise<{ postId: string; isModerated: boolean; status: string; message?: string }> {
     const isCaptchaValid = await this.captchaValidator.consumeCaptcha(captchaId);
     if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA');
 
@@ -204,7 +200,17 @@ export class CommunityApplicationService {
 
     await this.postRepository.save(post);
 
-    return { postId: post.id, isModerated };
+    const result: { postId: string; isModerated: boolean; status: string; message?: string } = { 
+      postId: post.id, 
+      isModerated, 
+      status: post.status 
+    };
+
+    if (post.status === 'PENDING') {
+      result.message = 'ERR_PENDING_MODERATION';
+    }
+
+    return result;
   }
 
   public async updatePost(ability: AnyAbility, postId: string, title: string, content: string, categoryId: string): Promise<{ postId: string }> {

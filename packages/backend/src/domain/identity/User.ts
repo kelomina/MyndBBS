@@ -105,14 +105,17 @@ export class User {
   }
 
   /**
-   * Callers: [UserApplicationService.changeLevel, UserApplicationService.syncLevelForPasskey]
+   * Callers: [UserApplicationService.changeLevel, AdminUserManagementApplicationService.changeUserLevel]
    * Callees: []
-   * Description: Updates the user's security level.
-   * Keywords: change, level, user, identity
+   * Description: Updates the user's security level. Validates bounds and enforces the rule that promoting above level 1 requires at least one passkey.
+   * Keywords: change, level, user, identity, passkey, promote
    */
-  public changeLevel(level: number): void {
+  public changeLevel(level: number, hasPasskey: boolean): void {
     if (level < 1 || level > 6) {
       throw new Error('ERR_LEVEL_OUT_OF_BOUNDS');
+    }
+    if (level > 1 && !hasPasskey) {
+      throw new Error('ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY');
     }
     this.props.level = level;
   }

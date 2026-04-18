@@ -81,18 +81,29 @@ describe('User Domain Entity', () => {
   });
 
   describe('Level management', () => {
-    it('should change level within valid bounds', () => {
+    it('should change level within valid bounds when hasPasskey is true', () => {
       const user = User.create(defaultProps);
-      user.changeLevel(3);
+      user.changeLevel(3, true);
       expect(user.level).toBe(3);
-      user.changeLevel(6);
+      user.changeLevel(6, true);
       expect(user.level).toBe(6);
+    });
+
+    it('should throw an error when promoting above level 1 without a passkey', () => {
+      const user = User.create(defaultProps);
+      expect(() => user.changeLevel(2, false)).toThrow('ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY');
+    });
+
+    it('should allow staying at level 1 without a passkey', () => {
+      const user = User.create(defaultProps);
+      user.changeLevel(1, false);
+      expect(user.level).toBe(1);
     });
 
     it('should throw an error when changing level out of bounds', () => {
       const user = User.create(defaultProps);
-      expect(() => user.changeLevel(0)).toThrow('ERR_LEVEL_OUT_OF_BOUNDS');
-      expect(() => user.changeLevel(7)).toThrow('ERR_LEVEL_OUT_OF_BOUNDS');
+      expect(() => user.changeLevel(0, true)).toThrow('ERR_LEVEL_OUT_OF_BOUNDS');
+      expect(() => user.changeLevel(7, true)).toThrow('ERR_LEVEL_OUT_OF_BOUNDS');
     });
   });
 

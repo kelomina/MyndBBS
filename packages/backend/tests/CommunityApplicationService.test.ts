@@ -15,7 +15,6 @@ describe('CommunityApplicationService', () => {
   let moderationPolicy: any;
   let captchaValidator: any;
   let eventBus: any;
-  let auditApplicationService: any;
   let service: CommunityApplicationService;
 
   beforeEach(() => {
@@ -60,9 +59,6 @@ describe('CommunityApplicationService', () => {
     eventBus = {
       publish: jest.fn(),
     };
-    auditApplicationService = {
-      logAudit: jest.fn(),
-    };
 
     service = new CommunityApplicationService(
       categoryRepository,
@@ -72,8 +68,7 @@ describe('CommunityApplicationService', () => {
       identityIntegrationPort,
       moderationPolicy,
       captchaValidator,
-      eventBus,
-      auditApplicationService
+      eventBus
     );
   });
 
@@ -83,7 +78,7 @@ describe('CommunityApplicationService', () => {
       expect(category).toBeInstanceOf(Category);
       expect(category.name).toBe('Test Category');
       expect(categoryRepository.save).toHaveBeenCalledWith(category);
-      expect(auditApplicationService.logAudit).toHaveBeenCalledWith('user-123', 'CREATE_CATEGORY', `Category:${category.id}`);
+      expect(eventBus.publish).toHaveBeenCalled();
     });
 
     it('should update a category', async () => {
@@ -93,7 +88,7 @@ describe('CommunityApplicationService', () => {
       await service.updateCategory('cat-1', 'New Name', 'New Desc', 2, 1, 'user-123');
       expect(mockCategory.name).toBe('New Name');
       expect(categoryRepository.save).toHaveBeenCalledWith(mockCategory);
-      expect(auditApplicationService.logAudit).toHaveBeenCalledWith('user-123', 'UPDATE_CATEGORY', 'Category:cat-1');
+      expect(eventBus.publish).toHaveBeenCalled();
     });
 
     it('should throw when updating non-existent category', async () => {
@@ -111,7 +106,6 @@ describe('CommunityApplicationService', () => {
       expect(mockCategory.moderatorIds).toContain('user-456');
       expect(categoryRepository.save).toHaveBeenCalledWith(mockCategory);
       expect(eventBus.publish).toHaveBeenCalledWith(expect.any(CategoryModeratorAssignedEvent));
-      expect(auditApplicationService.logAudit).toHaveBeenCalledWith('user-123', 'ASSIGN_CATEGORY_MODERATOR', 'User:user-456 to Category:cat-1');
     });
 
     it('should throw when assigning non-moderator to category', async () => {
@@ -130,7 +124,6 @@ describe('CommunityApplicationService', () => {
       expect(mockCategory.moderatorIds).not.toContain('user-456');
       expect(categoryRepository.save).toHaveBeenCalledWith(mockCategory);
       expect(eventBus.publish).toHaveBeenCalledWith(expect.any(CategoryModeratorRemovedEvent));
-      expect(auditApplicationService.logAudit).toHaveBeenCalledWith('user-123', 'REMOVE_CATEGORY_MODERATOR', 'User:user-456 from Category:cat-1');
     });
 
     it('should delete a category', async () => {
@@ -140,7 +133,7 @@ describe('CommunityApplicationService', () => {
       await service.deleteCategory('cat-1', 'user-123');
       expect(postRepository.deleteManyByCategoryId).toHaveBeenCalledWith('cat-1');
       expect(categoryRepository.delete).toHaveBeenCalledWith('cat-1');
-      expect(auditApplicationService.logAudit).toHaveBeenCalledWith('user-123', 'DELETE_CATEGORY', 'Category:cat-1');
+      expect(eventBus.publish).toHaveBeenCalled();
     });
   });
 
@@ -155,6 +148,19 @@ describe('CommunityApplicationService', () => {
       expect(postRepository.save).toHaveBeenCalled();
       expect(result).toHaveProperty('postId');
       expect(result).toHaveProperty('isModerated', false);
+    });
+
+    it('should create a post and return PENDING status if moderated', async () => {
+      moderationPolicy.containsModeratedWord.mockResolvedValue(true);
+      const mockCategory = { id: 'cat-1', isLevelSufficient: jest.fn().mockReturnValue(true) };
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+
+      const result = await service.createPost('Title', 'Content', 'cat-1', 'user-123', 2, 'captcha-1');
+      expect(result.postId).toBeDefined();
+      expect(result.isModerated).toBe(true);
+      expect(result.status).toBe('PENDING');
+      expect(result.message).toBe('ERR_PENDING_MODERATION');
+      expect(postRepository.save).toHaveBeenCalled();
     });
 
     it('should throw on invalid captcha when creating post', async () => {
