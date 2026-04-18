@@ -184,23 +184,16 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const user = await identityQueryService.getUserWithRoleById(userId);
-    if (!user) {
-      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
-      return;
-    }
-
-    if (user.isTotpEnabled) {
-      res.status(400).json({ error: 'ERR_TOTP_ALREADY_ENABLED' });
-      return;
-    }
-
     try {
       await authApplicationService.verifyTotpRegistration(userId, code);
       res.json({ message: 'TOTP setup successful' });
     } catch (error: any) {
       if (error.message === 'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED') {
         res.status(400).json({ error: 'ERR_TOTP_SETUP_NOT_INITIATED_OR_EXPIRED' });
+        return;
+      }
+      if (error.message === 'ERR_USER_NOT_FOUND') {
+        res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
         return;
       }
       if (error.message.startsWith('ERR_')) {
@@ -288,17 +281,16 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    // Verify the session belongs to the user
-    const session = await identityQueryService.getSessionById(sessionId);
-
-    if (!session || session.userId !== userId) {
-      res.status(404).json({ error: 'ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED' });
-      return;
+    try {
+      await authApplicationService.revokeSession(sessionId, userId);
+      res.json({ message: 'Session revoked successfully' });
+    } catch (error: any) {
+      if (error.message === 'ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED') {
+        res.status(404).json({ error: error.message });
+        return;
+      }
+      throw error;
     }
-
-    await authApplicationService.revokeSession(sessionId);
-
-    res.json({ message: 'Session revoked successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });

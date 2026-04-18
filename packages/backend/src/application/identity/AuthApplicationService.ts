@@ -381,7 +381,13 @@ export class AuthApplicationService {
    * Description: Revokes a specific user session.
    * Keywords: revoke, session, command, identity
    */
-  public async revokeSession(sessionId: string): Promise<void> {
+  public async revokeSession(sessionId: string, expectedUserId?: string): Promise<void> {
+    if (expectedUserId) {
+      const session = await this.sessionRepository.findById(sessionId);
+      if (!session || session.userId !== expectedUserId) {
+        throw new Error('ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED');
+      }
+    }
     await this.sessionRepository.delete(sessionId);
     await this.authCache.revokeSession(sessionId);
   }
@@ -420,6 +426,10 @@ export class AuthApplicationService {
 
     const user = await this.userRepository.findById(userId);
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
+    
+    if (user.isTotpEnabled) {
+      throw new Error('ERR_TOTP_ALREADY_ENABLED');
+    }
     
     user.enableTotp(pendingSecret);
     await this.userRepository.save(user);
@@ -539,6 +549,38 @@ export class AuthApplicationService {
     return { ...options, challengeId: authChallenge.id };
   }
 
+  public async processGeneratePasskeyAuthenticationOptions(tempToken: string | undefined): Promise<any> {
+    if (tempToken) {
+      const user = await this.getUserFromTempToken(tempToken, 'login');
+      if (!user) {
+        throw new Error('ERR_UNAUTHORIZED');
+      }
+      return await this.generatePasskeyAuthenticationOptions(user.id);
+    }
+    return await this.generatePasskeyAuthenticationOptions();
+  }
+
+  public async processPasskeyAuthentication(response: any, challengeId: string | undefined, tempToken: string | undefined): Promise<any> {
+    let userId: string | undefined;
+
+    if (tempToken) {
+      const user = await this.getUserFromTempToken(tempToken, 'login');
+      if (!user) {
+        throw new Error('ERR_UNAUTHORIZED');
+      }
+      if (!challengeId) {
+        throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED');
+      }
+      userId = user.id;
+    } else {
+      if (!challengeId) {
+        throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED_FOR_PASSWORDLESS_LOGIN');
+      }
+    }
+
+    return await this.verifyPasskeyAuthenticationResponse(userId, response, challengeId);
+  }
+
   public async verifyPasskeyAuthenticationResponse(userId: string | undefined, response: any, challengeId: string): Promise<any> {
     if (!challengeId) {
       throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED');
@@ -620,6 +662,34 @@ export class AuthApplicationService {
       email: user.email,
       role: { name: roleName }
     };
+  }
+
+  public async getUserFromTempToken(tempToken: string | undefined, expectedType: 'registration' | 'login' = 'registration'): Promise<any> {
+    if (!tempToken) return null;
+    try {
+      const decoded = this.verifyTempToken(tempToken);
+      if (decoded.type !== expectedType) return null;
+      
+      const user = await this.userRepository.findById(decoded.userId);
+      if (!user) return null;
+
+      let roleName = null;
+      if (user.roleId) {
+        const role = await this.roleRepository.findById(user.roleId);
+        if (role) roleName = role.name;
+      }
+
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: { name: roleName },
+        isTotpEnabled: user.isTotpEnabled,
+        totpSecret: user.totpSecret
+      };
+    } catch (err) {
+      return null;
+    }
   }
 
   public verifyTempToken(token: string): any {
