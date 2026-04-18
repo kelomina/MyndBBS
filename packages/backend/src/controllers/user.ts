@@ -113,7 +113,7 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
 /**
  * Callers: [Router]
  * Callees: [userApplicationService]
- * Description: Disables TOTP 2FA for the authenticated user with verification.
+ * Description: Disables TOTP 2FA for the authenticated user. Relies on Sudo middleware for verification.
  * Keywords: user, totp, disable, 2fa
  */
 export const disableTotp = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -124,10 +124,8 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const { currentPassword, totpCode } = req.body;
-
     try {
-      await userApplicationService.disableTotpWithVerification(userId, currentPassword, totpCode);
+      await userApplicationService.disableTotp(userId);
     } catch (error: any) {
       if (error.message.startsWith('ERR_')) {
         res.status(400).json({ error: error.message });

@@ -26,6 +26,18 @@ export async function verifyTotp(endpoint: string, code: string): Promise<void> 
 }
 
 /**
+ * Callers: [SecuritySettings]
+ * Callees: [fetcher]
+ * Description: Disables TOTP 2FA for the user.
+ * Keywords: totp, disable, 2fa, domain
+ */
+export async function disableTotp(endpoint: string): Promise<void> {
+  return fetcher(endpoint, {
+    method: 'POST',
+  });
+}
+
+/**
  * Callers: [TwoFactorLogin]
  * Callees: [fetcher]
  * Description: Verifies a TOTP code during the login flow.
