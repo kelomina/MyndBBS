@@ -7,217 +7,279 @@ import { PostApprovedEvent, PostRejectedEvent, ModeratedWordAddedEvent, Moderate
 import { randomUUID as uuidv4 } from 'crypto';
 import { AuditApplicationService } from '../system/AuditApplicationService';
 import { AppAbility } from '../../lib/casl';
+import { IUnitOfWork } from '../../domain/shared/IUnitOfWork';
 
 /**
  * Callers: [ModerationController, AdminController]
- * Callees: [IPostRepository, ICommentRepository, IModeratedWordRepository, IEventBus]
+ * Callees: [IPostRepository, ICommentRepository, IModeratedWordRepository, IEventBus, IUnitOfWork]
  * Description: The Application Service for the Moderation Domain. Orchestrates approving/rejecting content and managing filtered words.
  * Keywords: moderation, service, application, orchestration, post, comment, filtered, word
  */
 export class ModerationApplicationService {
+  /**
+   * Initializes the service with required repositories, event bus, audit service, and Unit of Work.
+   */
   constructor(
     private postRepository: IPostRepository,
     private commentRepository: ICommentRepository,
     private moderatedWordRepository: IModeratedWordRepository,
     private eventBus: IEventBus,
-    private auditApplicationService: AuditApplicationService
+    private auditApplicationService: AuditApplicationService,
+    private unitOfWork: IUnitOfWork
   ) {}
 
+  /**
+   * Approves a post.
+   * @param postId The ID of the post to approve
+   */
   public async approvePost(postId: string): Promise<any> {
-    const post = await this.postRepository.findById(postId);
-    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+    return this.unitOfWork.execute(async () => {
+      const post = await this.postRepository.findById(postId);
+      if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
-    post.approve();
-    await this.postRepository.save(post);
+      post.approve();
+      await this.postRepository.save(post);
 
-    this.eventBus.publish(new PostApprovedEvent(post.id, post.authorId, post.title));
-    return { id: post.id, status: post.status };
-  }
-
-  public async rejectPost(postId: string, reason: string): Promise<any> {
-    const post = await this.postRepository.findById(postId);
-    if (!post) throw new Error('ERR_POST_NOT_FOUND');
-
-    post.reject();
-    await this.postRepository.save(post);
-
-    this.eventBus.publish(new PostRejectedEvent(post.id, post.authorId, post.title, reason || 'N/A'));
-    return { id: post.id, status: post.status };
+      this.eventBus.publish(new PostApprovedEvent(post.id, post.authorId, post.title));
+      return { id: post.id, status: post.status };
+    });
   }
 
   /**
-   * 恢复帖子并记录审计日志
-   * @param postId 帖子 ID
-   * @param operatorId 执行操作的用户 ID
+   * Rejects a post.
+   * @param postId The ID of the post to reject
+   * @param reason The reason for rejection
+   */
+  public async rejectPost(postId: string, reason: string): Promise<any> {
+    return this.unitOfWork.execute(async () => {
+      const post = await this.postRepository.findById(postId);
+      if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+      post.reject();
+      await this.postRepository.save(post);
+
+      this.eventBus.publish(new PostRejectedEvent(post.id, post.authorId, post.title, reason || 'N/A'));
+      return { id: post.id, status: post.status };
+    });
+  }
+
+  /**
+   * Restores a soft-deleted post and records an audit log.
+   * @param postId The ID of the post to restore
+   * @param operatorId The ID of the user performing the action
+   * @param ability The CASL ability instance for permission checking
    */
   public async restorePost(postId: string, operatorId: string, ability?: AppAbility): Promise<any> {
-    const post = await this.postRepository.findById(postId);
-    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+    return this.unitOfWork.execute(async () => {
+      const post = await this.postRepository.findById(postId);
+      if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
-    if (ability) {
-      const { subject } = await import('@casl/ability');
-      if (!ability.can('manage', subject('Post', { ...post } as any))) {
-        throw new Error('ERR_FORBIDDEN');
+      if (ability) {
+        const { subject } = await import('@casl/ability');
+        if (!ability.can('manage', subject('Post', { ...post } as any))) {
+          throw new Error('ERR_FORBIDDEN');
+        }
       }
-    }
 
-    post.restore();
-    await this.postRepository.save(post);
-    await this.auditApplicationService.logAudit(operatorId, 'RESTORE_POST', `Post:${postId}`);
+      post.restore();
+      await this.postRepository.save(post);
+      await this.auditApplicationService.logAudit(operatorId, 'RESTORE_POST', `Post:${postId}`);
 
-    return { id: post.id, status: post.status };
-  }
-
-  public async approveComment(commentId: string): Promise<any> {
-    const comment = await this.commentRepository.findById(commentId);
-    if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
-
-    comment.approve();
-    await this.commentRepository.save(comment);
-
-    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
-  }
-
-  public async rejectComment(commentId: string): Promise<any> {
-    const comment = await this.commentRepository.findById(commentId);
-    if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
-
-    comment.delete(); // Rejecting a comment acts as a soft delete
-    await this.commentRepository.save(comment);
-
-    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
+      return { id: post.id, status: post.status };
+    });
   }
 
   /**
-   * 恢复评论并记录审计日志
-   * @param commentId 评论 ID
-   * @param operatorId 执行操作的用户 ID
+   * Approves a comment.
+   * @param commentId The ID of the comment to approve
+   */
+  public async approveComment(commentId: string): Promise<any> {
+    return this.unitOfWork.execute(async () => {
+      const comment = await this.commentRepository.findById(commentId);
+      if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+
+      comment.approve();
+      await this.commentRepository.save(comment);
+
+      return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
+    });
+  }
+
+  /**
+   * Rejects a comment.
+   * @param commentId The ID of the comment to reject
+   */
+  public async rejectComment(commentId: string): Promise<any> {
+    return this.unitOfWork.execute(async () => {
+      const comment = await this.commentRepository.findById(commentId);
+      if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+
+      comment.delete(); // Rejecting a comment acts as a soft delete
+      await this.commentRepository.save(comment);
+
+      return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
+    });
+  }
+
+  /**
+   * Restores a soft-deleted comment and records an audit log.
+   * @param commentId The ID of the comment to restore
+   * @param operatorId The ID of the user performing the action
+   * @param ability The CASL ability instance for permission checking
    */
   public async restoreComment(commentId: string, operatorId: string, ability?: AppAbility): Promise<any> {
-    const comment = await this.commentRepository.findById(commentId);
-    if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+    return this.unitOfWork.execute(async () => {
+      const comment = await this.commentRepository.findById(commentId);
+      if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
 
-    if (ability) {
-      const { subject } = await import('@casl/ability');
-      if (!ability.can('manage', subject('Comment', { ...comment } as any))) {
-        throw new Error('ERR_FORBIDDEN');
+      if (ability) {
+        const { subject } = await import('@casl/ability');
+        if (!ability.can('manage', subject('Comment', { ...comment } as any))) {
+          throw new Error('ERR_FORBIDDEN');
+        }
       }
-    }
 
-    comment.restore();
-    await this.commentRepository.save(comment);
-    await this.auditApplicationService.logAudit(operatorId, 'RESTORE_COMMENT', `Comment:${commentId}`);
+      comment.restore();
+      await this.commentRepository.save(comment);
+      await this.auditApplicationService.logAudit(operatorId, 'RESTORE_COMMENT', `Comment:${commentId}`);
 
-    return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
+      return { id: comment.id, isPending: comment.isPending, isDeleted: comment.deletedAt !== null };
+    });
   }
 
   /**
-   * 更改帖子状态并记录审计日志
-   * @param postId 帖子 ID
-   * @param status 新状态
-   * @param operatorId 执行操作的用户 ID
+   * Changes the status of a post and records an audit log.
+   * @param postId The ID of the post
+   * @param status The new status
+   * @param operatorId The ID of the user performing the action
+   * @param ability The CASL ability instance for permission checking
    */
   public async changePostStatus(postId: string, status: any, operatorId: string, ability?: AppAbility): Promise<any> {
-    const post = await this.postRepository.findById(postId);
-    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+    return this.unitOfWork.execute(async () => {
+      const post = await this.postRepository.findById(postId);
+      if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
-    if (ability) {
-      const { subject } = await import('@casl/ability');
-      if (!ability.can('update_status', subject('Post', { ...post } as any))) {
-        throw new Error('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST');
+      if (ability) {
+        const { subject } = await import('@casl/ability');
+        if (!ability.can('update_status', subject('Post', { ...post } as any))) {
+          throw new Error('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST');
+        }
       }
-    }
 
-    post.changeStatus(status);
-    await this.postRepository.save(post);
-    await this.auditApplicationService.logAudit(operatorId, 'UPDATE_POST_STATUS', `Post:${postId} to ${status}`);
+      post.changeStatus(status);
+      await this.postRepository.save(post);
+      await this.auditApplicationService.logAudit(operatorId, 'UPDATE_POST_STATUS', `Post:${postId} to ${status}`);
 
-    return { id: post.id, status: post.status };
+      return { id: post.id, status: post.status };
+    });
   }
 
   /**
-   * 物理删除帖子并记录审计日志
-   * @param postId 帖子 ID
-   * @param operatorId 执行操作的用户 ID
+   * Hard deletes a post and records an audit log.
+   * @param postId The ID of the post
+   * @param operatorId The ID of the user performing the action
+   * @param ability The CASL ability instance for permission checking
    */
   public async hardDeletePost(postId: string, operatorId: string, ability?: AppAbility): Promise<void> {
-    const post = await this.postRepository.findById(postId);
-    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+    return this.unitOfWork.execute(async () => {
+      const post = await this.postRepository.findById(postId);
+      if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
-    if (ability) {
-      const { subject } = await import('@casl/ability');
-      if (!ability.can('manage', subject('Post', { ...post } as any))) {
-        throw new Error('ERR_FORBIDDEN');
+      if (ability) {
+        const { subject } = await import('@casl/ability');
+        if (!ability.can('manage', subject('Post', { ...post } as any))) {
+          throw new Error('ERR_FORBIDDEN');
+        }
       }
-    }
 
-    await this.postRepository.delete(postId);
-    await this.auditApplicationService.logAudit(operatorId, 'HARD_DELETE_POST', `Post:${postId}`);
+      await this.postRepository.delete(postId);
+      await this.auditApplicationService.logAudit(operatorId, 'HARD_DELETE_POST', `Post:${postId}`);
+    });
   }
 
   /**
-   * 物理删除评论并记录审计日志
-   * @param commentId 评论 ID
-   * @param operatorId 执行操作的用户 ID
+   * Hard deletes a comment and records an audit log.
+   * @param commentId The ID of the comment
+   * @param operatorId The ID of the user performing the action
+   * @param ability The CASL ability instance for permission checking
    */
   public async hardDeleteComment(commentId: string, operatorId: string, ability?: AppAbility): Promise<void> {
-    const comment = await this.commentRepository.findById(commentId);
-    if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+    return this.unitOfWork.execute(async () => {
+      const comment = await this.commentRepository.findById(commentId);
+      if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
 
-    if (ability) {
-      const { subject } = await import('@casl/ability');
-      if (!ability.can('manage', subject('Comment', { ...comment } as any))) {
-        throw new Error('ERR_FORBIDDEN');
-      }
-    }
-
-    await this.commentRepository.delete(commentId);
-    await this.auditApplicationService.logAudit(operatorId, 'HARD_DELETE_COMMENT', `Comment:${commentId}`);
-  }
-
-  public async addModeratedWord(word: string, categoryId: string | undefined, operatorId: string, ability?: AppAbility): Promise<any> {
-    if (ability) {
-      const { subject } = await import('@casl/ability');
-      if (!ability.can('manage', subject('ModeratedWord', { categoryId } as any))) {
-        if (!categoryId) {
-          throw new Error('ERR_CANNOT_ADD_GLOBAL_WORD');
+      if (ability) {
+        const { subject } = await import('@casl/ability');
+        if (!ability.can('manage', subject('Comment', { ...comment } as any))) {
+          throw new Error('ERR_FORBIDDEN');
         }
-        throw new Error('ERR_NOT_MODERATOR_OF_CATEGORY');
       }
-    }
 
-    const moderatedWord = ModeratedWord.create({
-      id: uuidv4(),
-      word,
-      categoryId: categoryId || null,
-      createdAt: new Date()
+      await this.commentRepository.delete(commentId);
+      await this.auditApplicationService.logAudit(operatorId, 'HARD_DELETE_COMMENT', `Comment:${commentId}`);
     });
-
-    await this.moderatedWordRepository.save(moderatedWord);
-    await this.auditApplicationService.logAudit(operatorId, 'ADD_MODERATED_WORD', `Word:${moderatedWord.id}`);
-    
-    this.eventBus.publish(new ModeratedWordAddedEvent(moderatedWord.id, moderatedWord.word, moderatedWord.categoryId));
-
-    return { id: moderatedWord.id, word: moderatedWord.word, categoryId: moderatedWord.categoryId };
   }
 
-  public async removeModeratedWord(id: string, operatorId: string, ability?: AppAbility): Promise<void> {
-    const word = await this.moderatedWordRepository.findById(id);
-    if (!word) throw new Error('ERR_WORD_NOT_FOUND');
-
-    if (ability) {
-      const { subject } = await import('@casl/ability');
-      if (!ability.can('manage', subject('ModeratedWord', { categoryId: word.categoryId } as any))) {
-        if (!word.categoryId) {
-          throw new Error('ERR_CANNOT_DELETE_GLOBAL_WORD');
+  /**
+   * Adds a new moderated word.
+   * @param word The word to moderate
+   * @param categoryId The category ID, or undefined for global
+   * @param operatorId The ID of the user performing the action
+   * @param ability The CASL ability instance for permission checking
+   */
+  public async addModeratedWord(word: string, categoryId: string | undefined, operatorId: string, ability?: AppAbility): Promise<any> {
+    return this.unitOfWork.execute(async () => {
+      if (ability) {
+        const { subject } = await import('@casl/ability');
+        if (!ability.can('manage', subject('ModeratedWord', { categoryId } as any))) {
+          if (!categoryId) {
+            throw new Error('ERR_CANNOT_ADD_GLOBAL_WORD');
+          }
+          throw new Error('ERR_NOT_MODERATOR_OF_CATEGORY');
         }
-        throw new Error('ERR_NOT_MODERATOR_OF_CATEGORY');
       }
-    }
 
-    await this.moderatedWordRepository.delete(id);
-    await this.auditApplicationService.logAudit(operatorId, 'REMOVE_MODERATED_WORD', `Word:${id}`);
-    
-    this.eventBus.publish(new ModeratedWordDeletedEvent(word.id, word.word, word.categoryId));
+      const moderatedWord = ModeratedWord.create({
+        id: uuidv4(),
+        word,
+        categoryId: categoryId || null,
+        createdAt: new Date()
+      });
+
+      await this.moderatedWordRepository.save(moderatedWord);
+      await this.auditApplicationService.logAudit(operatorId, 'ADD_MODERATED_WORD', `Word:${moderatedWord.id}`);
+      
+      this.eventBus.publish(new ModeratedWordAddedEvent(moderatedWord.id, moderatedWord.word, moderatedWord.categoryId));
+
+      return { id: moderatedWord.id, word: moderatedWord.word, categoryId: moderatedWord.categoryId };
+    });
+  }
+
+  /**
+   * Removes a moderated word.
+   * @param id The ID of the moderated word
+   * @param operatorId The ID of the user performing the action
+   * @param ability The CASL ability instance for permission checking
+   */
+  public async removeModeratedWord(id: string, operatorId: string, ability?: AppAbility): Promise<void> {
+    return this.unitOfWork.execute(async () => {
+      const word = await this.moderatedWordRepository.findById(id);
+      if (!word) throw new Error('ERR_WORD_NOT_FOUND');
+
+      if (ability) {
+        const { subject } = await import('@casl/ability');
+        if (!ability.can('manage', subject('ModeratedWord', { categoryId: word.categoryId } as any))) {
+          if (!word.categoryId) {
+            throw new Error('ERR_CANNOT_DELETE_GLOBAL_WORD');
+          }
+          throw new Error('ERR_NOT_MODERATOR_OF_CATEGORY');
+        }
+      }
+
+      await this.moderatedWordRepository.delete(id);
+      await this.auditApplicationService.logAudit(operatorId, 'REMOVE_MODERATED_WORD', `Word:${id}`);
+      
+      this.eventBus.publish(new ModeratedWordDeletedEvent(word.id, word.word, word.categoryId));
+    });
   }
 }
