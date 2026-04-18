@@ -1,10 +1,14 @@
+/**
+ * Data Transfer Object for listing users in the admin panel.
+ */
 export type AdminUserListDTO = {
   id: string;
   username: string;
   email: string;
   status: string;
   level: number;
-  role: { id: string; name: string } | null;
+  role: string | null;
+  createdAt: Date;
 };
 
 export type AdminPostListDTO = {

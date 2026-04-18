@@ -17,13 +17,43 @@ export class AdminQueryService {
    * Callees: [prisma.user.findMany]
    * Description: Lists all users with their roles for the admin panel.
    * Keywords: admin, users, list
+   *
+   * @param query Optional search string to match username or email (case-insensitive)
+   * @returns List of users formatted as AdminUserListDTO
    */
-  public async listUsers(): Promise<AdminUserListDTO[]> {
+  public async listUsers(query?: string): Promise<AdminUserListDTO[]> {
+    const where = query
+      ? {
+          OR: [
+            { username: { contains: query, mode: 'insensitive' as const } },
+            { email: { contains: query, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
     const users = await prisma.user.findMany({
+      where,
       take: 1000,
-      select: { id: true, username: true, email: true, role: { select: { id: true, name: true } }, status: true, level: true },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: { select: { name: true } },
+        status: true,
+        level: true,
+        createdAt: true,
+      },
     });
-    return users.map((u) => ({ ...u, role: u.role || null }));
+    return users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      status: u.status,
+      level: u.level,
+      createdAt: u.createdAt,
+      role: u.role?.name || null,
+    }));
   }
 
   /**
