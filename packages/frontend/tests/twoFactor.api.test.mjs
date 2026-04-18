@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateTotp, verifyTotp, verifyTotpLogin, generatePasskeyOptions, verifyPasskeyRegistration } from '../src/lib/api/twoFactor.ts';
+import { generateTotp, verifyTotp, verifyTotpLogin, generatePasskeyOptions, verifyPasskeyRegistration, disableTotp } from '../src/lib/api/twoFactor.ts';
 
 test('twoFactor domain service', async (t) => {
   // Mock global fetch
@@ -60,6 +60,24 @@ test('twoFactor domain service', async (t) => {
     assert.equal(fetchCalledWith[0].includes('/api/totp/login-verify'), true);
     assert.equal(fetchCalledWith[1].method, 'POST');
     assert.equal(fetchCalledWith[1].body, JSON.stringify({ code: '654321' }));
+    assert.equal(fetchCalledWith[1].credentials, 'include');
+    assert.equal(fetchCalledWith[1].headers['X-Requested-With'], 'XMLHttpRequest');
+  });
+
+  await t.test('disableTotp calls fetcher with POST', async () => {
+    let fetchCalledWith = [];
+    global.fetch = async (...args) => {
+      fetchCalledWith = args;
+      return {
+        ok: true,
+        json: async () => ({ success: true })
+      };
+    };
+
+    await disableTotp('/api/totp/disable');
+    
+    assert.equal(fetchCalledWith[0].includes('/api/totp/disable'), true);
+    assert.equal(fetchCalledWith[1].method, 'POST');
     assert.equal(fetchCalledWith[1].credentials, 'include');
     assert.equal(fetchCalledWith[1].headers['X-Requested-With'], 'XMLHttpRequest');
   });

@@ -6,6 +6,7 @@ import { usePasskey } from '../lib/hooks/usePasskey';
 import { TwoFactorSetup } from './TwoFactorSetup';
 import { useTranslation } from './TranslationProvider';
 import { ReauthModal } from './ReauthModal';
+import { disableTotp } from '../lib/api/twoFactor';
 
 export function SecuritySettings() {
   const dict = useTranslation();
@@ -101,19 +102,12 @@ export function SecuritySettings() {
     if (!confirm(dict.settings.confirmDisableTotp)) return;
     
     try {
-      const res = await fetch('/api/v1/user/totp/disable', {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        credentials: 'include'
-      });
-      if (res.ok) {
-        setTotpEnabled(false);
-        setMessage(dict.settings.totpDisabled);
-      } else {
-        throw new Error('Failed to disable TOTP');
-      }
-    } catch (err) {
-      setError((err as Error).message);
+      await disableTotp('/api/v1/user/totp/disable');
+      setTotpEnabled(false);
+      setMessage(dict.settings.totpDisabled);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : '';
+      setError(dict.apiErrors?.[errorMsg as keyof typeof dict.apiErrors] || errorMsg || 'Failed to disable TOTP');
     }
   };
 

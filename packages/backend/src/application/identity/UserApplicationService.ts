@@ -25,30 +25,6 @@ export class UserApplicationService {
     private totpPort: ITotpPort
   ) {}
 
-  public async disableTotpWithVerification(
-    userId: string,
-    currentPassword?: string,
-    totpCode?: string
-  ): Promise<void> {
-    const user = await this.userRepository.findById(userId);
-    if (!user) throw new Error('ERR_USER_NOT_FOUND');
-
-    if (!currentPassword && !totpCode) {
-      throw new Error('ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_TO_DISABLE_2FA');
-    }
-    if (currentPassword && user.password) {
-      const isValid = await this.passwordHasher.verify(user.password, currentPassword);
-      if (!isValid) throw new Error('ERR_INVALID_CURRENT_PASSWORD');
-    }
-    if (totpCode && user.totpSecret) {
-      const isValid = this.totpPort.verify(user.totpSecret, totpCode);
-      if (!isValid) throw new Error('ERR_INVALID_TOTP_CODE');
-    }
-
-    user.disableTotp();
-    await this.userRepository.save(user);
-  }
-
   public async updateProfile(userId: string, email?: string, username?: string, hashedPassword?: string): Promise<any> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
