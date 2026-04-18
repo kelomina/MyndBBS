@@ -13,9 +13,13 @@ import { auditApplicationService, adminUserManagementApplicationService, authApp
  * Callees: [adminQueryService]
  * Description: Retrieves a list of all users for the admin dashboard.
  * Keywords: admin, users, list
+ *
+ * @param {Request} req - Express Request object, optionally containing a query parameter `q` for search.
+ * @param {Response} res - Express Response object.
  */
 export const getUsers = async (req: Request, res: Response) => {
-  const users = await adminQueryService.listUsers();
+  const q = req.query.q as string | undefined;
+  const users = await adminQueryService.listUsers(q);
   res.json(users);
 };
 

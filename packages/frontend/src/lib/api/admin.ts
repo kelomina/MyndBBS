@@ -1,6 +1,14 @@
 import { fetcher } from './fetcher';
 
-export const getUsers = () => fetcher('/api/admin/users');
+/**
+ * 获取用户列表
+ * @param query 可选的搜索关键字
+ * @returns 用户列表
+ */
+export const getUsers = (query?: string) => {
+  const url = query ? `/api/admin/users?query=${encodeURIComponent(query)}` : '/api/admin/users';
+  return fetcher(url);
+};
 
 export const updateUserRole = (id: string, role: string) =>
   fetcher(`/api/admin/users/${id}/role`, {
