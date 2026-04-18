@@ -250,8 +250,9 @@ describe('CommunityApplicationService', () => {
     it('should toggle post upvote on', async () => {
       postRepository.findById.mockResolvedValue(true); // Exists
       engagementRepository.findPostUpvote.mockResolvedValue(null);
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
 
-      const result = await service.togglePostUpvote('post-1', 'user-123');
+      const result = await service.togglePostUpvote(mockAbility as any, 'post-1', 'user-123');
       expect(result).toBe(true);
       expect(engagementRepository.savePostUpvote).toHaveBeenCalled();
     });
@@ -259,8 +260,9 @@ describe('CommunityApplicationService', () => {
     it('should toggle post upvote off', async () => {
       postRepository.findById.mockResolvedValue(true);
       engagementRepository.findPostUpvote.mockResolvedValue({}); // Exists
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
 
-      const result = await service.togglePostUpvote('post-1', 'user-123');
+      const result = await service.togglePostUpvote(mockAbility as any, 'post-1', 'user-123');
       expect(result).toBe(false);
       expect(engagementRepository.deletePostUpvote).toHaveBeenCalledWith('post-1', 'user-123');
     });
@@ -268,8 +270,9 @@ describe('CommunityApplicationService', () => {
     it('should toggle post bookmark on', async () => {
       postRepository.findById.mockResolvedValue(true);
       engagementRepository.findPostBookmark.mockResolvedValue(null);
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
 
-      const result = await service.togglePostBookmark('post-1', 'user-123');
+      const result = await service.togglePostBookmark(mockAbility as any, 'post-1', 'user-123');
       expect(result).toBe(true);
       expect(engagementRepository.savePostBookmark).toHaveBeenCalled();
     });
@@ -277,8 +280,9 @@ describe('CommunityApplicationService', () => {
     it('should toggle post bookmark off', async () => {
       postRepository.findById.mockResolvedValue(true);
       engagementRepository.findPostBookmark.mockResolvedValue({});
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
 
-      const result = await service.togglePostBookmark('post-1', 'user-123');
+      const result = await service.togglePostBookmark(mockAbility as any, 'post-1', 'user-123');
       expect(result).toBe(false);
       expect(engagementRepository.deletePostBookmark).toHaveBeenCalledWith('post-1', 'user-123');
     });

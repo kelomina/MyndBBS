@@ -317,9 +317,13 @@ export class CommunityApplicationService {
    * Description: Toggles an upvote on a post. Enforces domain invariants (e.g. post must exist).
    * Keywords: toggle, upvote, post, engagement
    */
-  public async togglePostUpvote(postId: string, userId: string): Promise<boolean> {
+  public async togglePostUpvote(ability: AnyAbility, postId: string, userId: string): Promise<boolean> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    if (!ability.can('read', await this.getPostSubject(post))) {
+      throw new Error('ERR_FORBIDDEN');
+    }
 
     const existing = await this.engagementRepository.findPostUpvote(postId, userId);
     if (existing) {
@@ -338,9 +342,13 @@ export class CommunityApplicationService {
    * Description: Toggles a bookmark on a post. Enforces domain invariants.
    * Keywords: toggle, bookmark, post, engagement
    */
-  public async togglePostBookmark(postId: string, userId: string): Promise<boolean> {
+  public async togglePostBookmark(ability: AnyAbility, postId: string, userId: string): Promise<boolean> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    if (!ability.can('read', await this.getPostSubject(post))) {
+      throw new Error('ERR_FORBIDDEN');
+    }
 
     const existing = await this.engagementRepository.findPostBookmark(postId, userId);
     if (existing) {

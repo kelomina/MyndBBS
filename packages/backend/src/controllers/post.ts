@@ -133,18 +133,17 @@ export const toggleUpvote = async (req: AuthRequest, res: Response): Promise<voi
     const postId = req.params.id as string;
     const userId = req.user!.userId;
 
-    const post = await communityQueryService.getPostById(req.ability!, postId);
-
-    if (!post) {
-      res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
-      return;
-    }
-
-    const status = await communityApplicationService.togglePostUpvote(postId, userId);
+    const status = await communityApplicationService.togglePostUpvote(req.ability!, postId, userId);
     res.json({ upvoted: status });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error toggling upvote:', error);
-    res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_UPVOTE' });
+    if (error.message === 'ERR_POST_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+    } else if (error.message?.includes('FORBIDDEN')) {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_UPVOTE' });
+    }
   }
 };
 
@@ -159,18 +158,17 @@ export const toggleBookmark = async (req: AuthRequest, res: Response): Promise<v
     const postId = req.params.id as string;
     const userId = req.user!.userId;
 
-    const post = await communityQueryService.getPostById(req.ability!, postId);
-
-    if (!post) {
-      res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });
-      return;
-    }
-
-    const status = await communityApplicationService.togglePostBookmark(postId, userId);
+    const status = await communityApplicationService.togglePostBookmark(req.ability!, postId, userId);
     res.json({ bookmarked: status });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error toggling bookmark:', error);
-    res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_BOOKMARK' });
+    if (error.message === 'ERR_POST_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+    } else if (error.message?.includes('FORBIDDEN')) {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_BOOKMARK' });
+    }
   }
 };
 
