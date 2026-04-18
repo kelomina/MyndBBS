@@ -13,12 +13,6 @@ export interface ModalProps {
   className?: string;
 }
 
-/**
- * Callers: []
- * Callees: [useTranslation, useEffect, cn]
- * Description: Handles the modal logic for the application.
- * Keywords: modal, auto-annotated
- */
 export function Modal({ isOpen, onClose, title, children, className }: ModalProps) {
   const dict = useTranslation();
   React.useEffect(() => {

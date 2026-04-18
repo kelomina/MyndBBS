@@ -11,12 +11,6 @@ import { fetcher } from '../../../lib/api/fetcher';
 import type { Dictionary, PostComment, CommentNode } from '../../../types';
 
 
-/**
- * Callers: []
- * Callees: [useToast, useRouter, useState, useCurrentUser, useEffect, fetcher, setComments, setCount, error, fetchComments, trim, setShowCaptcha, setLoading, stringify, toast, setNewComment, setReplyTo, refresh, find, scrollIntoView, getElementById, useMemo, forEach, set, get, has, push, confirm, map, toISOString, handleDeleteComment, renderCommentNode]
- * Description: Handles the comments section logic for the application.
- * Keywords: commentssection, comments, section, auto-annotated
- */
 export function CommentsSection({ postId, dict, initialCount }: { postId: string; dict: Dictionary; initialCount: number }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -29,13 +23,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   const [showCaptcha, setShowCaptcha] = useState(false);
 
   useEffect(() => {
-    /**
-       * Callers: []
-       * Callees: [fetcher, setComments, setCount, error]
-       * Description: Handles the fetch comments logic for the application.
-       * Keywords: fetchcomments, fetch, comments, auto-annotated
-       */
-      const fetchComments = async () => {
+          const fetchComments = async () => {
       try {
         const data = await fetcher(`/api/posts/${postId}/comments`);
         setComments(data as PostComment[]);
@@ -47,24 +35,12 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     fetchComments();
   }, [postId]);
 
-  /**
-     * Callers: []
-     * Callees: [trim, setShowCaptcha]
-     * Description: Handles the handle pre submit logic for the application.
-     * Keywords: handlepresubmit, handle, pre, submit, auto-annotated
-     */
-    const handlePreSubmit = () => {
+      const handlePreSubmit = () => {
     if (!newComment.trim()) return;
     setShowCaptcha(true);
   };
 
-  /**
-     * Callers: []
-     * Callees: [setShowCaptcha, setLoading, fetcher, stringify, toast, setNewComment, setReplyTo, setComments, setCount, refresh, error]
-     * Description: Handles the handle submit logic for the application.
-     * Keywords: handlesubmit, handle, submit, auto-annotated
-     */
-    const handleSubmit = async (captchaId: string) => {
+      const handleSubmit = async (captchaId: string) => {
     setShowCaptcha(false);
     setLoading(true);
     try {
@@ -98,13 +74,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [find, setReplyTo, scrollIntoView, getElementById]
-     * Description: Handles the handle reply logic for the application.
-     * Keywords: handlereply, handle, reply, auto-annotated
-     */
-    const handleReply = (parentId: string) => {
+      const handleReply = (parentId: string) => {
     const parentComment = comments.find(c => c.id === parentId);
     if (parentComment) {
       setReplyTo({ id: parentId, username: parentComment.author?.username || 'Unknown' });
@@ -133,13 +103,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     return roots;
   }, [comments]);
 
-  /**
-     * Callers: []
-     * Callees: [confirm, fetcher, setComments, map, toISOString, error, toast]
-     * Description: Handles the handle delete comment logic for the application.
-     * Keywords: handledeletecomment, handle, delete, comment, auto-annotated
-     */
-    const handleDeleteComment = async (commentId: string) => {
+      const handleDeleteComment = async (commentId: string) => {
     if (!confirm(dict.post?.confirmDeleteComment || 'Are you sure you want to delete this comment?')) return;
     try {
       await fetcher(`/api/posts/comments/${commentId}`, { method: 'DELETE' });
@@ -152,13 +116,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [handleDeleteComment, map, renderCommentNode]
-     * Description: Handles the render comment node logic for the application.
-     * Keywords: rendercommentnode, render, comment, node, auto-annotated
-     */
-    const renderCommentNode = (node: CommentNode, depth = 0) => (
+      const renderCommentNode = (node: CommentNode, depth = 0) => (
     <div key={node.id} className={`${depth > 0 ? 'ml-8 mt-4 border-l-2 border-border pl-4' : 'mt-4'}`}>
       <CommentItem 
         comment={node} 

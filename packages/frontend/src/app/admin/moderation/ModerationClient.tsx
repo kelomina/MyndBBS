@@ -7,12 +7,6 @@ import { fetcher } from '../../../lib/api/fetcher';
 import { Trash2, Check, X, ShieldAlert } from 'lucide-react';
 import type { Dictionary, ModerationPost, ModerationComment, ModerationWord } from '../../../types';
 
-/**
- * Callers: []
- * Callees: [useToast, useState, useCategories, setLoading, fetcher, setPosts, setComments, setWords, error, useEffect, fetchQueue, preventDefault, trim, stringify, setNewWord, setSelectedCategory, toast, map, setActiveTab, handleDeleteWord, handleApprovePost, handleRejectPost, handleApproveComment, handleRejectComment]
- * Description: Handles the moderation client logic for the application.
- * Keywords: moderationclient, moderation, client, auto-annotated
- */
 export default function ModerationClient({ dict }: { dict: Dictionary }) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'posts' | 'comments' | 'words'>('posts');
@@ -25,13 +19,7 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
   
   const { categories } = useCategories();
 
-  /**
-     * Callers: []
-     * Callees: [setLoading, fetcher, setPosts, setComments, setWords, error]
-     * Description: Handles the fetch queue logic for the application.
-     * Keywords: fetchqueue, fetch, queue, auto-annotated
-     */
-    const fetchQueue = useCallback(async () => {
+      const fetchQueue = useCallback(async () => {
     setLoading(true);
     try {
       if (activeTab === 'posts') {
@@ -57,13 +45,7 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     return () => clearTimeout(id);
   }, [fetchQueue]);
 
-  /**
-     * Callers: []
-     * Callees: [fetcher, fetchQueue, error]
-     * Description: Handles the handle approve post logic for the application.
-     * Keywords: handleapprovepost, handle, approve, post, auto-annotated
-     */
-    const handleApprovePost = async (id: string) => {
+      const handleApprovePost = async (id: string) => {
     try {
       await fetcher(`/api/admin/moderation/posts/${id}/approve`, { method: 'POST' });
       fetchQueue();
@@ -72,13 +54,7 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [fetcher, fetchQueue, error]
-     * Description: Handles the handle reject post logic for the application.
-     * Keywords: handlerejectpost, handle, reject, post, auto-annotated
-     */
-    const handleRejectPost = async (id: string) => {
+      const handleRejectPost = async (id: string) => {
     try {
       await fetcher(`/api/admin/moderation/posts/${id}/reject`, { method: 'POST' });
       fetchQueue();
@@ -87,13 +63,7 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [fetcher, fetchQueue, error]
-     * Description: Handles the handle approve comment logic for the application.
-     * Keywords: handleapprovecomment, handle, approve, comment, auto-annotated
-     */
-    const handleApproveComment = async (id: string) => {
+      const handleApproveComment = async (id: string) => {
     try {
       await fetcher(`/api/admin/moderation/comments/${id}/approve`, { method: 'POST' });
       fetchQueue();
@@ -102,13 +72,7 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [fetcher, fetchQueue, error]
-     * Description: Handles the handle reject comment logic for the application.
-     * Keywords: handlerejectcomment, handle, reject, comment, auto-annotated
-     */
-    const handleRejectComment = async (id: string) => {
+      const handleRejectComment = async (id: string) => {
     try {
       await fetcher(`/api/admin/moderation/comments/${id}/reject`, { method: 'POST' });
       fetchQueue();
@@ -117,13 +81,7 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [preventDefault, trim, fetcher, stringify, setNewWord, setSelectedCategory, fetchQueue, toast]
-     * Description: Handles the handle add word logic for the application.
-     * Keywords: handleaddword, handle, add, word, auto-annotated
-     */
-    const handleAddWord = async (e: React.FormEvent) => {
+      const handleAddWord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWord.trim()) return;
     try {
@@ -141,13 +99,7 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [fetcher, fetchQueue, error]
-     * Description: Handles the handle delete word logic for the application.
-     * Keywords: handledeleteword, handle, delete, word, auto-annotated
-     */
-    const handleDeleteWord = async (id: string) => {
+      const handleDeleteWord = async (id: string) => {
     try {
       await fetcher(`/api/admin/moderation/words/${id}`, { method: 'DELETE' });
       fetchQueue();

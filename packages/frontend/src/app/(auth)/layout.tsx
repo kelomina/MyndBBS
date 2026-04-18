@@ -1,9 +1,3 @@
-/**
- * Callers: []
- * Callees: []
- * Description: Handles the auth layout logic for the application.
- * Keywords: authlayout, auth, layout, auto-annotated
- */
 export default function AuthLayout({
   children,
 }: {

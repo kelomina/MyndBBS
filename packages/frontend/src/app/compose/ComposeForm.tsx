@@ -8,12 +8,6 @@ import { SliderCaptcha } from '../../components/SliderCaptcha';
 import { useToast } from '../../components/ui/Toast';
 import type { Dictionary } from '../../types';
 
-/**
- * Callers: []
- * Callees: [useToast, useRouter, useState, useCategories, toast, setShowCaptcha, setLoading, fetcher, stringify, push, error, back]
- * Description: Handles the compose form logic for the application.
- * Keywords: composeform, compose, form, auto-annotated
- */
 export function ComposeForm({ dict }: { dict: Dictionary }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -24,13 +18,7 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
   const [loading, setLoading] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
 
-  /**
-     * Callers: []
-     * Callees: [toast, setShowCaptcha]
-     * Description: Handles the handle pre publish logic for the application.
-     * Keywords: handleprepublish, handle, pre, publish, auto-annotated
-     */
-    const handlePrePublish = () => {
+      const handlePrePublish = () => {
     if (!title || !content || !categoryId) {
       toast(dict.apiErrors?.ERR_PLEASE_FILL_ALL || 'Please fill out all fields', 'error');
       return;
@@ -38,13 +26,7 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
     setShowCaptcha(true);
   };
 
-  /**
-     * Callers: []
-     * Callees: [setShowCaptcha, setLoading, fetcher, stringify, toast, push, error]
-     * Description: Handles the handle publish logic for the application.
-     * Keywords: handlepublish, handle, publish, auto-annotated
-     */
-    const handlePublish = async (captchaId: string) => {
+      const handlePublish = async (captchaId: string) => {
     setShowCaptcha(false);
     setLoading(true);
     try {

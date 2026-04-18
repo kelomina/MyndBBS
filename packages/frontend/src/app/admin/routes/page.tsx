@@ -21,12 +21,6 @@ import {
   deleteRouteWhitelist
 } from '../../../lib/api/admin';
 
-/**
- * Callers: []
- * Callees: [useTranslation, useToast, useState, setLoading, getRouteWhitelist, setRoutes, setError, useEffect, loadData, preventDefault, startsWith, toast, updateRouteWhitelist, addRouteWhitelist, setIsModalOpen, setFormData, setEditingId, deleteRouteWhitelist, setIsDeleteModalOpen, setDeletingId, map, openEditModal]
- * Description: Handles the routing whitelist page logic for the application.
- * Keywords: routingwhitelistpage, routing, whitelist, page, auto-annotated
- */
 export default function RoutingWhitelistPage() {
   const dict = useTranslation();
   const { toast } = useToast();
@@ -41,13 +35,7 @@ export default function RoutingWhitelistPage() {
   const [formData, setFormData] = useState<{path: string, isPrefix: boolean, minRole: string, description: string}>({ path: '', isPrefix: false, minRole: '', description: '' });
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  /**
-     * Callers: []
-     * Callees: [setLoading, getRouteWhitelist, setRoutes, setError]
-     * Description: Handles the load data logic for the application.
-     * Keywords: loaddata, load, data, auto-annotated
-     */
-    const loadData = async () => {
+      const loadData = async () => {
     try {
       setLoading(true);
       const data = await getRouteWhitelist();
@@ -63,13 +51,7 @@ export default function RoutingWhitelistPage() {
     loadData();
   }, []);
 
-  /**
-     * Callers: []
-     * Callees: [preventDefault, startsWith, toast, updateRouteWhitelist, addRouteWhitelist, setIsModalOpen, setFormData, setEditingId, loadData]
-     * Description: Handles the handle submit logic for the application.
-     * Keywords: handlesubmit, handle, submit, auto-annotated
-     */
-    const handleSubmit = async (e: React.FormEvent) => {
+      const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.path.startsWith('/')) {
       toast(dict.admin?.pathMustStartWithSlash || 'Path must start with /', 'error');
@@ -93,13 +75,7 @@ export default function RoutingWhitelistPage() {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [deleteRouteWhitelist, toast, setIsDeleteModalOpen, setDeletingId, loadData]
-     * Description: Handles the handle delete logic for the application.
-     * Keywords: handledelete, handle, delete, auto-annotated
-     */
-    const handleDelete = async () => {
+      const handleDelete = async () => {
     if (!deletingId) return;
     try {
       await deleteRouteWhitelist(deletingId);
@@ -112,25 +88,13 @@ export default function RoutingWhitelistPage() {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [setFormData, setEditingId, setIsModalOpen]
-     * Description: Handles the open edit modal logic for the application.
-     * Keywords: openeditmodal, open, edit, modal, auto-annotated
-     */
-    const openEditModal = (route: RouteWhitelist) => {
+      const openEditModal = (route: RouteWhitelist) => {
     setFormData({ path: route.path, isPrefix: route.isPrefix, minRole: route.minRole || '', description: route.description || '' });
     setEditingId(route.id);
     setIsModalOpen(true);
   };
 
-  /**
-     * Callers: []
-     * Callees: [setFormData, setEditingId, setIsModalOpen]
-     * Description: Handles the open create modal logic for the application.
-     * Keywords: opencreatemodal, open, create, modal, auto-annotated
-     */
-    const openCreateModal = () => {
+      const openCreateModal = () => {
     setFormData({ path: '', isPrefix: false, minRole: '', description: '' });
     setEditingId(null);
     setIsModalOpen(true);

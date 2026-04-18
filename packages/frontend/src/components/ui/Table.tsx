@@ -1,12 +1,6 @@
 import * as React from 'react';
 import { cn } from '../../lib/utils';
 
-/**
- * Callers: [AdminPage, UsersPage, CategoriesPage, db, recycle]
- * Callees: []
- * Description: Handles the table layout component for the application.
- * Keywords: table, ui, component, auto-annotated
- */
 const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
@@ -21,12 +15,6 @@ const Table = React.forwardRef<
 ));
 Table.displayName = 'Table';
 
-/**
- * Callers: [AdminPage, UsersPage, CategoriesPage, db, recycle]
- * Callees: []
- * Description: Handles the table header layout component for the application.
- * Keywords: tableheader, ui, component, auto-annotated
- */
 const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
@@ -35,12 +23,6 @@ const TableHeader = React.forwardRef<
 ));
 TableHeader.displayName = 'TableHeader';
 
-/**
- * Callers: [AdminPage, UsersPage, CategoriesPage, db, recycle]
- * Callees: []
- * Description: Handles the table body layout component for the application.
- * Keywords: tablebody, ui, component, auto-annotated
- */
 const TableBody = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
@@ -53,12 +35,6 @@ const TableBody = React.forwardRef<
 ));
 TableBody.displayName = 'TableBody';
 
-/**
- * Callers: []
- * Callees: []
- * Description: Handles the table footer layout component for the application.
- * Keywords: tablefooter, ui, component, auto-annotated
- */
 const TableFooter = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
@@ -74,12 +50,6 @@ const TableFooter = React.forwardRef<
 ));
 TableFooter.displayName = 'TableFooter';
 
-/**
- * Callers: [AdminPage, UsersPage, CategoriesPage, db, recycle]
- * Callees: []
- * Description: Handles the table row layout component for the application.
- * Keywords: tablerow, ui, component, auto-annotated
- */
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
   React.HTMLAttributes<HTMLTableRowElement>
@@ -95,12 +65,6 @@ const TableRow = React.forwardRef<
 ));
 TableRow.displayName = 'TableRow';
 
-/**
- * Callers: [AdminPage, UsersPage, CategoriesPage, db, recycle]
- * Callees: []
- * Description: Handles the table head layout component for the application.
- * Keywords: tablehead, ui, component, auto-annotated
- */
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
   React.ThHTMLAttributes<HTMLTableCellElement>
@@ -116,12 +80,6 @@ const TableHead = React.forwardRef<
 ));
 TableHead.displayName = 'TableHead';
 
-/**
- * Callers: [AdminPage, UsersPage, CategoriesPage, db, recycle]
- * Callees: []
- * Description: Handles the table cell layout component for the application.
- * Keywords: tablecell, ui, component, auto-annotated
- */
 const TableCell = React.forwardRef<
   HTMLTableCellElement,
   React.TdHTMLAttributes<HTMLTableCellElement>
@@ -137,12 +95,6 @@ const TableCell = React.forwardRef<
 ));
 TableCell.displayName = 'TableCell';
 
-/**
- * Callers: []
- * Callees: []
- * Description: Handles the table caption layout component for the application.
- * Keywords: tablecaption, ui, component, auto-annotated
- */
 const TableCaption = React.forwardRef<
   HTMLTableCaptionElement,
   React.HTMLAttributes<HTMLTableCaptionElement>

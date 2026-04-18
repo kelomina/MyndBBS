@@ -57,12 +57,6 @@ function normalizePathname(pathname: string): string {
   return p;
 }
 
-/**
- * Callers: []
- * Callees: [get, includes]
- * Description: Handles the get locale logic for the application.
- * Keywords: getlocale, get, locale, auto-annotated
- */
 function getLocale(request: NextRequest): string {
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
   if (cookieLocale && locales.includes(cookieLocale as (typeof locales)[number])) {
@@ -91,12 +85,6 @@ const ROLE_LEVELS: Record<string, number> = {
   'SUPER_ADMIN': 4
 };
 
-/**
- * Callers: []
- * Callees: [now, fetch, json, sort, error]
- * Description: Handles the get whitelist logic for the application.
- * Keywords: getwhitelist, get, whitelist, auto-annotated
- */
 async function getWhitelist(): Promise<WhitelistRoute[]> {
   const now = Date.now();
   if (cachedWhitelist && now - lastFetchTime < 30000) {
@@ -110,33 +98,6 @@ async function getWhitelist(): Promise<WhitelistRoute[]> {
     if (res.ok) {
       const data = (await res.json()) as WhitelistRoute[];
       // Sort: exact matches first, then longest prefixes
-/**
- * Callers: [getWhitelist]
- * Callees: []
- * Description: An anonymous sorting callback to order whitelist paths.
- * Keywords: proxy, sort, whitelist, paths, anonymous
- */
-      data.sort((a, b) => {
-        if (!a.isPrefix && b.isPrefix) return -1;
-        if (a.isPrefix && !b.isPrefix) return 1;
-        return b.path.length - a.path.length;
-      });
-      cachedWhitelist = data;
-      lastFetchTime = now;
-      return cachedWhitelist;
-    }
-  } catch (e) {
-    console.error('Failed to fetch routing whitelist in proxy:', e);
-  }
-  return cachedWhitelist || [];
-}
-
-/**
- * Callers: []
- * Callees: [getLocale, next, get, set, startsWith, getWhitelist, split, replace, atob, parse, clone, redirect]
- * Description: Handles the proxy logic for the application.
- * Keywords: proxy, auto-annotated
- */
 export async function middleware(request: NextRequest) {
   const nonce = isDev ? null : generateNonce();
   const requestHeaders = new Headers(request.headers);

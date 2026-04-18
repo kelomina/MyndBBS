@@ -14,12 +14,6 @@ export const metadata: Metadata = {
   description: "A clean, fast, and secure community platform.",
 };
 
-/**
- * Callers: []
- * Callees: [headers, get, getDictionary]
- * Description: Handles the root layout logic for the application.
- * Keywords: rootlayout, root, layout, auto-annotated
- */
 export default async function RootLayout({
   children,
 }: Readonly<{

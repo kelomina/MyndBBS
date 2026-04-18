@@ -4,12 +4,6 @@ import { getDictionary } from '../../../../i18n/get-dictionary';
 import { EditPostForm } from './EditPostForm';
 import { notFound } from 'next/navigation';
 
-/**
- * Callers: []
- * Callees: [headers, get, getDictionary, fetch, json, notFound, error]
- * Description: Handles the edit post page logic for the application.
- * Keywords: editpostpage, edit, post, page, auto-annotated
- */
 export default async function EditPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const headersList = await headers();

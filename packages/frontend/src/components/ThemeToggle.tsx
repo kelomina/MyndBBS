@@ -5,12 +5,6 @@ import { Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from './TranslationProvider';
 
-/**
- * Callers: []
- * Callees: [useTranslation, useTheme, useState, useEffect, setMounted, setTheme]
- * Description: Handles the theme toggle logic for the application.
- * Keywords: themetoggle, theme, toggle, auto-annotated
- */
 export function ThemeToggle() {
   const dict = useTranslation();
   const { theme, setTheme } = useTheme();

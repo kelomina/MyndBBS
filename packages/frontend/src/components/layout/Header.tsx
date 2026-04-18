@@ -6,12 +6,6 @@ import { LanguageSwitcher } from '../LanguageSwitcher';
 import { ThemeToggle } from '../ThemeToggle';
 import { UserNav } from './UserNav';
 
-/**
- * Callers: []
- * Callees: [getDictionary]
- * Description: Handles the header logic for the application.
- * Keywords: header, auto-annotated
- */
 export async function Header({ locale }: { locale: Locale }) {
   const dict = await getDictionary(locale);
 

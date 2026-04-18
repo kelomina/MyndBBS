@@ -4,12 +4,6 @@ import { AuthRequest } from '../middleware/auth';
 import { messagingApplicationService } from '../registry';
 
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, upsert]
- * Description: Handles the upload keys logic for the application.
- * Keywords: uploadkeys, upload, keys, auto-annotated
- */
 export const uploadKeys = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
@@ -33,12 +27,6 @@ export const uploadKeys = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique]
- * Description: Handles the get my key logic for the application.
- * Keywords: getmykey, get, my, key, auto-annotated
- */
 export const getMyKey = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
@@ -47,12 +35,6 @@ export const getMyKey = async (req: AuthRequest, res: Response): Promise<void> =
   res.json({ key });
 };
 
-/**
- * Callers: []
- * Callees: [findUnique, json, status]
- * Description: Handles the get user public key logic for the application.
- * Keywords: getuserpublickey, get, user, public, key, auto-annotated
- */
 export const getUserPublicKey = async (req: AuthRequest, res: Response): Promise<void> => {
   const username = req.params.username as string;
   const user = await messagingQueryService.getUserPublicKey(username);
@@ -61,12 +43,6 @@ export const getUserPublicKey = async (req: AuthRequest, res: Response): Promise
   res.json({ publicKey: user.userKey.publicKey, userId: user.id });
 };
 
-/**
- * Callers: []
- * Callees: [json, status, log, now, findUnique, findFirst, count, create]
- * Description: Handles the send message logic for the application.
- * Keywords: sendmessage, send, message, auto-annotated
- */
 export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   const senderId = req.user?.userId;
   if (!senderId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
@@ -96,12 +72,6 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
 };
 
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique]
- * Description: Handles the get conversation settings logic for the application.
- * Keywords: getconversationsettings, get, conversation, settings, auto-annotated
- */
 export const getConversationSettings = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   const partnerId = req.params.partnerId as string;
@@ -111,12 +81,6 @@ export const getConversationSettings = async (req: AuthRequest, res: Response): 
     res.json(setting);
 };
 
-/**
- * Callers: []
- * Callees: [json, status, upsert]
- * Description: Handles the update conversation settings logic for the application.
- * Keywords: updateconversationsettings, update, conversation, settings, auto-annotated
- */
 export const updateConversationSettings = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   const partnerId = req.params.partnerId as string;
@@ -131,12 +95,6 @@ export const updateConversationSettings = async (req: AuthRequest, res: Response
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, delete, includes, update]
- * Description: Handles the delete message logic for the application.
- * Keywords: deletemessage, delete, message, auto-annotated
- */
 export const deleteMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   const messageId = req.params.id as string;
@@ -153,12 +111,6 @@ export const deleteMessage = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, findMany, delete, includes, update]
- * Description: Handles the clear chat logic for the application.
- * Keywords: clearchat, clear, chat, auto-annotated
- */
 export const clearChat = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   const withUserId = req.params.withUserId as string;
@@ -172,12 +124,6 @@ export const clearChat = async (req: AuthRequest, res: Response): Promise<void> 
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, count]
- * Description: Handles the get unread count logic for the application.
- * Keywords: getunreadcount, get, unread, count, auto-annotated
- */
 export const getUnreadCount = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
@@ -186,12 +132,6 @@ export const getUnreadCount = async (req: AuthRequest, res: Response): Promise<v
   res.json({ count });
 };
 
-/**
- * Callers: []
- * Callees: [json, status, updateMany]
- * Description: Handles the mark as read logic for the application.
- * Keywords: markasread, mark, as, read, auto-annotated
- */
 export const markAsRead = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   const { senderId } = req.body;
@@ -206,12 +146,6 @@ export const markAsRead = async (req: AuthRequest, res: Response): Promise<void>
 };
 
 
-/**
- * Callers: []
- * Callees: [json, status, parseInt, String, findMany, pop, reverse]
- * Description: Handles the get inbox logic for the application.
- * Keywords: getinbox, get, inbox, auto-annotated
- */
 export const getInbox = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }

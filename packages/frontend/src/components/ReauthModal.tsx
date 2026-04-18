@@ -8,12 +8,6 @@ interface ReauthModalProps {
   onSuccess: () => void;
 }
 
-/**
- * Callers: []
- * Callees: [useTranslation, useState, usePasskey, useEffect, setPassword, setTotpCode, setError, setPasskeyError, catch, then, fetch, json, setAvailableMethods, setMethod, preventDefault, setLoading, executePasskeyFlow, onSuccess, includes, stringify]
- * Description: Handles the reauth modal logic for the application.
- * Keywords: reauthmodal, reauth, modal, auto-annotated
- */
 export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
   const dict = useTranslation();
   const [method, setMethod] = useState<'password' | 'totp' | 'passkey'>('password');
@@ -48,13 +42,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
 
   if (!isOpen) return null;
 
-  /**
-     * Callers: []
-     * Callees: [preventDefault, setLoading, setError, executePasskeyFlow, onSuccess, includes, fetch, stringify, json]
-     * Description: Handles the handle submit logic for the application.
-     * Keywords: handlesubmit, handle, submit, auto-annotated
-     */
-    const handleSubmit = async (e?: React.FormEvent) => {
+      const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
     setError('');
@@ -104,13 +92,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [setMethod, setLoading, executePasskeyFlow, onSuccess, includes, setError]
-     * Description: Handles the handle passkey click logic for the application.
-     * Keywords: handlepasskeyclick, handle, passkey, click, auto-annotated
-     */
-    const handlePasskeyClick = () => {
+      const handlePasskeyClick = () => {
     setMethod('passkey');
     // Need to wait for state update before submitting, so we just call submit directly with passkey logic inline
     // But since it's an async flow, we can just call it

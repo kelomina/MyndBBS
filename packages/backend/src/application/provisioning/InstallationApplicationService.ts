@@ -31,7 +31,11 @@ export class InstallationApplicationService {
    * Description: Parses DATABASE_URL into a UI-friendly DB config shape for admin display.
    * Keywords: db, config, parse, database_url, admin
    */
-  public getCurrentDbConfig(): DbConnectionConfigView {
+  public getCurrentDbConfig(operatorRole?: string): DbConnectionConfigView {
+    if (operatorRole !== 'SUPER_ADMIN') {
+      throw new Error('ERR_FORBIDDEN_SUPER_ADMIN_ONLY');
+    }
+
     const parsed = process.env.DATABASE_URL
       ? InstallationApplicationService.parseDatabaseUrl(process.env.DATABASE_URL)
       : null;
@@ -70,7 +74,11 @@ export class InstallationApplicationService {
     return sessionId;
   }
 
-  public getDomainConfig(): any {
+  public getDomainConfig(operatorRole?: string): any {
+    if (operatorRole !== 'SUPER_ADMIN') {
+      throw new Error('ERR_FORBIDDEN_SUPER_ADMIN_ONLY');
+    }
+
     const originRaw = process.env.ORIGIN || 'http://localhost';
     const splitIndex = originRaw.indexOf('://');
     const protocol = splitIndex > -1 ? originRaw.slice(0, splitIndex) : 'http';
@@ -87,7 +95,11 @@ export class InstallationApplicationService {
     };
   }
 
-  public async updateDomainConfig(config: DomainConfigInput): Promise<void> {
+  public async updateDomainConfig(config: DomainConfigInput, operatorRole?: string): Promise<void> {
+    if (operatorRole !== 'SUPER_ADMIN') {
+      throw new Error('ERR_FORBIDDEN_SUPER_ADMIN_ONLY');
+    }
+
     const normalizedProtocol = config.protocol === 'https' ? 'https' : 'http';
     const normalizedHostname = String(config.hostname || '').trim();
     const normalizedRpId = String(config.rpId || '').trim();
@@ -100,7 +112,11 @@ export class InstallationApplicationService {
     });
   }
 
-  public async updateDbConfig(host: string, port: number, username: string, password: string, database: string): Promise<void> {
+  public async updateDbConfig(host: string, port: number, username: string, password: string, database: string, operatorRole?: string): Promise<void> {
+    if (operatorRole !== 'SUPER_ADMIN') {
+      throw new Error('ERR_FORBIDDEN_SUPER_ADMIN_ONLY');
+    }
+
     const newDbUrl = `postgresql://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}?schema=public`;
     const sessionId = await this.startInstallation();
     await this.configureDatabase(sessionId, newDbUrl);

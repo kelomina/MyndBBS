@@ -10,12 +10,6 @@ import { getPostListEmptyMessage } from "../../lib/utils";
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Callers: []
- * Callees: [headers, get, getDictionary, fetch, json, error, getPostListEmptyMessage]
- * Description: Handles the popular page logic for the application.
- * Keywords: popularpage, popular, page, auto-annotated
- */
 export default async function PopularPage() {
   const headersList = await headers();
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;

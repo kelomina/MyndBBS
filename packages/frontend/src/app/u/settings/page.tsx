@@ -8,12 +8,6 @@ import { SecuritySettings } from '../../../components/SecuritySettings';
 import { SessionManagement } from '../../../components/SessionManagement';
 import { useTranslation } from '../../../components/TranslationProvider';
 
-/**
- * Callers: []
- * Callees: [useTranslation, useState, useEffect, catch, then, fetch, json, setRole, error, setActiveTab]
- * Description: Handles the settings page logic for the application.
- * Keywords: settingspage, settings, page, auto-annotated
- */
 export default function SettingsPage() {
   const dict = useTranslation();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'sessions'>('profile');
