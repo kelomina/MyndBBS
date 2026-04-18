@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useCategories } from '../../lib/hooks';
 import { useRouter } from 'next/navigation';
+import { fetcher } from '@/lib/api/fetcher';
 import { PostEditor } from '../../components/PostEditor';
 import { SliderCaptcha } from '../../components/SliderCaptcha';
 import { useToast } from '../../components/ui/Toast';

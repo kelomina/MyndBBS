@@ -54,7 +54,7 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
       if (res.ok) {
         setRequires2FA(true);
       } else {
-        setError(dict.apiErrors?.[data.error] || data.error || dict.auth.registrationFailed);
+        setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.auth.registrationFailed);
         setCaptchaId(null); // Force re-verification on fail
       }
     } catch {

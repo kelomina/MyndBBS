@@ -59,7 +59,7 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
           window.location.href = '/';
         }
       } else {
-        setError(dict.apiErrors?.[data.error] || data.error || dict.auth.loginFailed);
+        setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.auth.loginFailed);
       }
     } catch {
       setError(dict.auth.networkError);

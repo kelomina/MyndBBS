@@ -120,7 +120,7 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
         onSuccess(captchaId!);
       } else {
         setStatus('error');
-        setErrorMsg(dict.apiErrors?.[data.error] || data.error || dict.captcha.verificationFailed);
+        setErrorMsg(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.captcha.verificationFailed);
         setTimeout(fetchChallenge, 1500);
       }
     } catch (err: unknown) {

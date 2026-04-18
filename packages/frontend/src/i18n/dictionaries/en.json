@@ -14,6 +14,10 @@
     "close": "Close",
     "settings": "Settings",
     "logout": "Logout",
+    "save": "Save",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "linkCopied": "Link copied to clipboard!",
     "passkeyBannerText": "For account security, binding a Passkey is required. You have not bound a Passkey, so your account is permanently restricted to Level 1 and cannot receive any level promotions (including automatic ones).",
     "passkeyBannerLink": "Bind Passkey Now"
   },
@@ -70,7 +74,9 @@
     "retry": "Retry",
     "failedLoadTotp": "Failed to load Authenticator setup. The server might be restarting, please try again.",
     "cannotUsePasskey": "I can't use Passkey login",
-    "passwordLoginNotRecommended": "For security reasons, we do not recommend logging in with email and password."
+    "passwordLoginNotRecommended": "For security reasons, we do not recommend logging in with email and password.",
+    "invalidTotp": "Invalid 6-digit code",
+    "pleaseLogin": "Please login to continue."
   },
   "home": {
     "mockPosts": [
@@ -164,7 +170,10 @@
     "removeBookmark": "Remove bookmark",
     "bookmarks": "Bookmarks",
     "noBookmarksYet": "No bookmarks yet.",
-    "notificationSettings": "Notification Settings"
+    "notificationSettings": "Notification Settings",
+    "commentDeleted": "This comment has been deleted.",
+    "commentOn": "Comment on: ",
+    "postDeleted": "This post has been deleted."
   },
   "settings": {
     "loadingProfile": "Loading profile...",
@@ -211,7 +220,8 @@
     "sessionRevoked": "Session revoked successfully",
     "failedFetchSessions": "Error loading sessions",
     "failedRevokeSession": "Failed to revoke session",
-    "passwordChangedRelogin": "Password changed successfully. Please log in again. Redirecting in 3 seconds..."
+    "passwordChangedRelogin": "Password changed successfully. Please log in again. Redirecting in 3 seconds...",
+    "passkeyNotSupported": "Passkey is not supported or cancelled."
   },
   "admin": {
     "categoryManagement": "Category Management",
@@ -426,7 +436,8 @@
     "ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY": "Cannot promote user level without a bound Passkey.",
     "ERR_FORBIDDEN_SUPER_ADMIN_ONLY": "Forbidden: Super admin only.",
     "ERR_INVALID_DOMAIN_CONFIG": "Invalid settings. Please check and try again.",
-    "ERR_CSRF_TOKEN_MISSING_OR_INVALID": "CSRF token missing or invalid. Please try again."
+    "ERR_CSRF_TOKEN_MISSING_OR_INVALID": "CSRF token missing or invalid. Please try again.",
+    "ERR_PLEASE_FILL_ALL": "Please fill out all fields"
   },
   "category": {
     "postsTitle": "Posts",

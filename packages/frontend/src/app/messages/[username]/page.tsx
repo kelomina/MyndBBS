@@ -312,7 +312,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
         aesKey = await window.crypto.subtle.deriveKey(
           {
             name: 'PBKDF2',
-            salt: enc.encode(currentUser.username + 'MyndBBS'), // Must match initialization salt
+            salt: enc.encode(currentUser?.username + 'MyndBBS'), // Must match initialization salt
             iterations: 100000,
             hash: 'SHA-256'
           },

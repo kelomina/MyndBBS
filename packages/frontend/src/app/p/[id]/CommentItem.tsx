@@ -192,7 +192,7 @@ export function CommentItem({
               onClick={() => onReply(comment.id)}
               className="flex items-center gap-1 transition-colors hover:text-primary"
             >
-              <MessageSquare className="h-4 w-4" /> {dict.post?.reply || 'Reply'} {comment._count?.replies > 0 ? `(${comment._count.replies})` : ''}
+              <MessageSquare className="h-4 w-4" /> {dict.post?.reply || 'Reply'} {(comment._count?.replies ?? 0) > 0 ? `(${comment._count!.replies})` : ''}
             </button>
             <button 
               onClick={handleBookmark}
