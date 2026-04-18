@@ -3,11 +3,9 @@ import { adminQueryService } from '../queries/admin/AdminQueryService';
 import { systemQueryService } from '../queries/system/SystemQueryService';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { UserStatus, PostStatus } from '@myndbbs/shared';
-import { redis } from '../lib/redis';
-import { logAudit } from '../lib/audit';
 import { AuthRequest } from '../middleware/auth';
 
-import { adminUserManagementApplicationService, authApplicationService, userApplicationService, installationApplicationService, systemApplicationService, communityApplicationService, roleApplicationService, moderationApplicationService } from '../registry';
+import { auditApplicationService, adminUserManagementApplicationService, authApplicationService, userApplicationService, installationApplicationService, systemApplicationService, communityApplicationService, roleApplicationService, moderationApplicationService } from '../registry';
 
 // Users
 /**
@@ -242,21 +240,18 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
     return;
   }
 
-  const existingPost = await adminQueryService.getPostById(id);
-  if (!existingPost) {
-    res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
-    return;
+  try {
+    const post = await moderationApplicationService.changePostStatus(id, status, operatorId, req.ability);
+    res.json({ message: 'Post status updated', post });
+  } catch (error: any) {
+    if (error.message === 'ERR_POST_NOT_FOUND') {
+      res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
+    } else if (error.message === 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST') {
+      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST' });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
   }
-
-  const { subject } = await import('@casl/ability');
-    if (!req.ability?.can('update_status', subject('Post', { ...existingPost } as any))) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST' });
-    return;
-  }
-
-  const post = await moderationApplicationService.changePostStatus(id, status, operatorId);
-
-  res.json({ message: 'Post status updated', post });
 };
 
 // Recycle Bin
@@ -303,16 +298,18 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
 
-  const existingPost = await adminQueryService.getPostById(id);
-  if (!existingPost) { res.status(404).json({ error: 'ERR_POST_NOT_FOUND' }); return; }
-
-  const { subject } = await import('@casl/ability');
-    if (!req.ability?.can('manage', subject('Post', { ...existingPost } as any))) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
+  try {
+    await moderationApplicationService.restorePost(id, operatorId, req.ability);
+    res.json({ message: 'Post restored' });
+  } catch (error: any) {
+    if (error.message === 'ERR_POST_NOT_FOUND') {
+      res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
+    } else if (error.message === 'ERR_FORBIDDEN') {
+      res.status(403).json({ error: 'ERR_FORBIDDEN' });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
   }
-
-  await moderationApplicationService.restorePost(id, operatorId);
-  res.json({ message: 'Post restored' });
 };
 
 /**
@@ -325,16 +322,18 @@ export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<v
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
 
-  const existingPost = await adminQueryService.getPostById(id);
-  if (!existingPost) { res.status(404).json({ error: 'ERR_POST_NOT_FOUND' }); return; }
-
-  const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Post', { ...existingPost } as any))) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
+  try {
+    await moderationApplicationService.hardDeletePost(id, operatorId, req.ability);
+    res.json({ message: 'Post permanently deleted' });
+  } catch (error: any) {
+    if (error.message === 'ERR_POST_NOT_FOUND') {
+      res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
+    } else if (error.message === 'ERR_FORBIDDEN') {
+      res.status(403).json({ error: 'ERR_FORBIDDEN' });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
   }
-
-  await moderationApplicationService.hardDeletePost(id, operatorId);
-  res.json({ message: 'Post permanently deleted' });
 };
 
 /**
@@ -347,16 +346,18 @@ export const restoreComment = async (req: AuthRequest, res: Response): Promise<v
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
 
-  const existingComment = await adminQueryService.getCommentWithPost(id);
-  if (!existingComment) { res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' }); return; }
-
-  const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Comment', { ...existingComment } as any))) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
+  try {
+    await moderationApplicationService.restoreComment(id, operatorId, req.ability);
+    res.json({ message: 'Comment restored' });
+  } catch (error: any) {
+    if (error.message === 'ERR_COMMENT_NOT_FOUND') {
+      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
+    } else if (error.message === 'ERR_FORBIDDEN') {
+      res.status(403).json({ error: 'ERR_FORBIDDEN' });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
   }
-
-  await moderationApplicationService.restoreComment(id, operatorId);
-  res.json({ message: 'Comment restored' });
 };
 
 /**
@@ -369,20 +370,21 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
 
-  const existingComment = await adminQueryService.getCommentWithPost(id);
-  if (!existingComment) { res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' }); return; }
-
-  const { subject } = await import('@casl/ability');
-  if (!req.ability?.can('manage', subject('Comment', { ...existingComment } as any))) {
-    res.status(403).json({ error: 'ERR_FORBIDDEN' }); return;
+  try {
+    await moderationApplicationService.hardDeleteComment(id, operatorId, req.ability);
+    res.json({ message: 'Comment permanently deleted' });
+  } catch (error: any) {
+    if (error.message === 'ERR_COMMENT_NOT_FOUND') {
+      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
+    } else if (error.message === 'ERR_FORBIDDEN') {
+      res.status(403).json({ error: 'ERR_FORBIDDEN' });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
   }
-
-  await moderationApplicationService.hardDeleteComment(id, operatorId);
-  res.json({ message: 'Comment permanently deleted' });
 };
 
 // Database Config
-import { buildOrigin } from '../infrastructure/services/provisioning/EnvStoreAdapter';
 
 /**
  * Callers: []
@@ -424,7 +426,7 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    await logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
+    await auditApplicationService.logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
     res.json({ message: 'Database configuration updated successfully', config: { host, port, username, password, database } });
     installationApplicationService.scheduleRestart(1000);
   } catch (error) {
@@ -439,20 +441,8 @@ export const getDomainConfig = async (req: AuthRequest, res: Response): Promise<
     return;
   }
 
-  const originRaw = process.env.ORIGIN || 'http://localhost';
-  const splitIndex = originRaw.indexOf('://');
-  const protocol = splitIndex > -1 ? originRaw.slice(0, splitIndex) : 'http';
-  const hostname = splitIndex > -1 ? originRaw.slice(splitIndex + 3) : originRaw;
-  const rpId = process.env.RP_ID || hostname || 'localhost';
-  const reverseProxyMode = process.env.TRUST_PROXY === 'true';
-
-  res.json({
-    protocol,
-    hostname,
-    rpId,
-    reverseProxyMode,
-    origin: buildOrigin(protocol, hostname),
-  });
+  const config = installationApplicationService.getDomainConfig();
+  res.json(config);
 };
 
 export const updateDomainConfig = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -462,16 +452,13 @@ export const updateDomainConfig = async (req: AuthRequest, res: Response): Promi
   }
 
   const { protocol, hostname, rpId, reverseProxyMode } = req.body;
-  const normalizedProtocol = protocol === 'https' ? 'https' : 'http';
-  const normalizedHostname = String(hostname || '').trim();
-  const normalizedRpId = String(rpId || '').trim();
 
   try {
     await installationApplicationService.updateDomainConfig({
-      protocol: normalizedProtocol,
-      hostname: normalizedHostname,
-      rpId: normalizedRpId,
-      reverseProxyMode: !!reverseProxyMode,
+      protocol,
+      hostname,
+      rpId,
+      reverseProxyMode,
     });
   } catch (err: any) {
     if (err.message === 'ERR_INVALID_DOMAIN_CONFIG') {

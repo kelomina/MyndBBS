@@ -18,6 +18,8 @@ import { ITotpPort } from '../../domain/identity/ports/ITotpPort';
 import { IPasskeyPort } from '../../domain/identity/ports/IPasskeyPort';
 import { ITokenPort } from '../../domain/identity/ports/ITokenPort';
 
+import { SvgCaptchaGenerator } from './SvgCaptchaGenerator';
+
 const rpName = APP_NAME;
 const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.ORIGIN || `http://${rpID}:3000`;
@@ -65,11 +67,11 @@ export class AuthApplicationService {
 
   /**
    * Callers: [CaptchaController.generate]
-   * Callees: [CaptchaChallenge.create, ICaptchaChallengeRepository.save]
-   * Description: Generates a new captcha challenge with a random target position and a 5-minute expiration.
+   * Callees: [CaptchaChallenge.create, ICaptchaChallengeRepository.save, SvgCaptchaGenerator.generateImage]
+   * Description: Generates a new captcha challenge with a random target position, a 5-minute expiration, and returns the SVG image.
    * Keywords: generate, captcha, challenge, command, identity
    */
-  public async generateCaptcha(): Promise<CaptchaChallenge> {
+  public async generateCaptcha(): Promise<{ id: string, image: string }> {
     // Random position between 80 and 240
     const targetPosition = Math.floor(Math.random() * (240 - 80 + 1)) + 80;
     
@@ -81,7 +83,9 @@ export class AuthApplicationService {
     });
 
     await this.captchaChallengeRepository.save(challenge);
-    return challenge;
+    
+    const image = SvgCaptchaGenerator.generateImage(targetPosition);
+    return { id: challenge.id, image };
   }
 
   /**
@@ -571,6 +575,52 @@ export class AuthApplicationService {
 
   public verifyTempToken(token: string): any {
     return this.tokenPort.verify(token, process.env.JWT_SECRET as string);
+  }
+
+  public generateTempToken(userId: string, type: 'registration' | 'login'): string {
+    return this.tokenPort.sign(
+      { userId, type },
+      process.env.JWT_SECRET as string,
+      '1h'
+    );
+  }
+
+  public verifyRefreshToken(token: string): any {
+    return this.tokenPort.verify(token, process.env.JWT_REFRESH_SECRET as string);
+  }
+
+  public generateAccessToken(userId: string, roleName: string | null, sessionId: string): string {
+    return this.tokenPort.sign(
+      { userId, role: roleName, sessionId },
+      process.env.JWT_SECRET as string,
+      '15m'
+    );
+  }
+
+  public async logout(accessToken?: string, refreshToken?: string): Promise<void> {
+    let sessionId = null;
+    
+    if (accessToken) {
+      try {
+        const decoded = this.tokenPort.verify(accessToken, process.env.JWT_SECRET as string, { ignoreExpiration: true });
+        if (decoded.sessionId) sessionId = decoded.sessionId;
+      } catch (e) {
+        // ignore invalid token errors
+      }
+    }
+    
+    if (!sessionId && refreshToken) {
+      try {
+        const decoded = this.tokenPort.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string, { ignoreExpiration: true });
+        if (decoded.sessionId) sessionId = decoded.sessionId;
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (sessionId) {
+      await this.revokeSession(sessionId);
+    }
   }
 
   public async finalizeAuth(user: any, ip: string | null, userAgent: string | null): Promise<{ accessToken: string, refreshToken: string }> {

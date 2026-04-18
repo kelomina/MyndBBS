@@ -12,7 +12,7 @@ export class TokenAdapter implements ITokenPort {
     return jwt.sign(payload, secret, { expiresIn: expiresIn as any });
   }
 
-  public verify(token: string, secret: string): any {
-    return jwt.verify(token, secret);
+  public verify(token: string, secret: string, options?: any): any {
+    return jwt.verify(token, secret, options);
   }
 }

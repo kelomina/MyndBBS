@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { IEnvStore, EnvironmentConfigInput, DomainConfigInput } from '../../domain/provisioning/IEnvStore';
 import { IDatabaseConnectionValidator } from '../../domain/provisioning/IDatabaseConnectionValidator';
 import { IDatabaseSchemaApplier } from '../../domain/provisioning/IDatabaseSchemaApplier';
@@ -69,8 +70,34 @@ export class InstallationApplicationService {
     return sessionId;
   }
 
+  public getDomainConfig(): any {
+    const originRaw = process.env.ORIGIN || 'http://localhost';
+    const splitIndex = originRaw.indexOf('://');
+    const protocol = splitIndex > -1 ? originRaw.slice(0, splitIndex) : 'http';
+    const hostname = splitIndex > -1 ? originRaw.slice(splitIndex + 3) : originRaw;
+    const rpId = process.env.RP_ID || hostname || 'localhost';
+    const reverseProxyMode = process.env.TRUST_PROXY === 'true';
+
+    return {
+      protocol,
+      hostname,
+      rpId,
+      reverseProxyMode,
+      origin: protocol + '://' + hostname,
+    };
+  }
+
   public async updateDomainConfig(config: DomainConfigInput): Promise<void> {
-    await this.envStore.updateDomainConfig(config);
+    const normalizedProtocol = config.protocol === 'https' ? 'https' : 'http';
+    const normalizedHostname = String(config.hostname || '').trim();
+    const normalizedRpId = String(config.rpId || '').trim();
+
+    await this.envStore.updateDomainConfig({
+      protocol: normalizedProtocol,
+      hostname: normalizedHostname,
+      rpId: normalizedRpId,
+      reverseProxyMode: !!config.reverseProxyMode,
+    });
   }
 
   public async updateDbConfig(host: string, port: number, username: string, password: string, database: string): Promise<void> {
@@ -115,6 +142,14 @@ export class InstallationApplicationService {
     await this.envStore.write(envContent);
     
     return userId;
+  }
+
+  public generateTempToken(userId: string): string {
+    return jwt.sign(
+      { userId, type: 'registration' },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '1h' }
+    );
   }
 
   private static parseDatabaseUrl(dbUrl: string): DbConnectionConfigView | null {

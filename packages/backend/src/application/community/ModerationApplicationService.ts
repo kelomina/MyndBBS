@@ -6,6 +6,7 @@ import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostApprovedEvent, PostRejectedEvent, ModeratedWordAddedEvent, ModeratedWordDeletedEvent } from '../../domain/shared/events/DomainEvents';
 import { randomUUID as uuidv4 } from 'crypto';
 import { AuditApplicationService } from '../system/AuditApplicationService';
+import { AppAbility } from '../../lib/casl';
 
 /**
  * Callers: [ModerationController, AdminController]
@@ -49,9 +50,16 @@ export class ModerationApplicationService {
    * @param postId 帖子 ID
    * @param operatorId 执行操作的用户 ID
    */
-  public async restorePost(postId: string, operatorId: string): Promise<any> {
+  public async restorePost(postId: string, operatorId: string, ability?: AppAbility): Promise<any> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    if (ability) {
+      const { subject } = await import('@casl/ability');
+      if (!ability.can('manage', subject('Post', { ...post } as any))) {
+        throw new Error('ERR_FORBIDDEN');
+      }
+    }
 
     post.restore();
     await this.postRepository.save(post);
@@ -85,9 +93,16 @@ export class ModerationApplicationService {
    * @param commentId 评论 ID
    * @param operatorId 执行操作的用户 ID
    */
-  public async restoreComment(commentId: string, operatorId: string): Promise<any> {
+  public async restoreComment(commentId: string, operatorId: string, ability?: AppAbility): Promise<any> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+
+    if (ability) {
+      const { subject } = await import('@casl/ability');
+      if (!ability.can('manage', subject('Comment', { ...comment } as any))) {
+        throw new Error('ERR_FORBIDDEN');
+      }
+    }
 
     comment.restore();
     await this.commentRepository.save(comment);
@@ -102,9 +117,16 @@ export class ModerationApplicationService {
    * @param status 新状态
    * @param operatorId 执行操作的用户 ID
    */
-  public async changePostStatus(postId: string, status: any, operatorId: string): Promise<any> {
+  public async changePostStatus(postId: string, status: any, operatorId: string, ability?: AppAbility): Promise<any> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    if (ability) {
+      const { subject } = await import('@casl/ability');
+      if (!ability.can('update_status', subject('Post', { ...post } as any))) {
+        throw new Error('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST');
+      }
+    }
 
     post.changeStatus(status);
     await this.postRepository.save(post);
@@ -118,9 +140,17 @@ export class ModerationApplicationService {
    * @param postId 帖子 ID
    * @param operatorId 执行操作的用户 ID
    */
-  public async hardDeletePost(postId: string, operatorId: string): Promise<void> {
+  public async hardDeletePost(postId: string, operatorId: string, ability?: AppAbility): Promise<void> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    if (ability) {
+      const { subject } = await import('@casl/ability');
+      if (!ability.can('manage', subject('Post', { ...post } as any))) {
+        throw new Error('ERR_FORBIDDEN');
+      }
+    }
+
     await this.postRepository.delete(postId);
     await this.auditApplicationService.logAudit(operatorId, 'HARD_DELETE_POST', `Post:${postId}`);
   }
@@ -130,9 +160,17 @@ export class ModerationApplicationService {
    * @param commentId 评论 ID
    * @param operatorId 执行操作的用户 ID
    */
-  public async hardDeleteComment(commentId: string, operatorId: string): Promise<void> {
+  public async hardDeleteComment(commentId: string, operatorId: string, ability?: AppAbility): Promise<void> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+
+    if (ability) {
+      const { subject } = await import('@casl/ability');
+      if (!ability.can('manage', subject('Comment', { ...comment } as any))) {
+        throw new Error('ERR_FORBIDDEN');
+      }
+    }
+
     await this.commentRepository.delete(commentId);
     await this.auditApplicationService.logAudit(operatorId, 'HARD_DELETE_COMMENT', `Comment:${commentId}`);
   }

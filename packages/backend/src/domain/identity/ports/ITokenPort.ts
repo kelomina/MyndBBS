@@ -6,5 +6,5 @@
  */
 export interface ITokenPort {
   sign(payload: any, secret: string, expiresIn: string): string;
-  verify(token: string, secret: string): any;
+  verify(token: string, secret: string, options?: any): any;
 }

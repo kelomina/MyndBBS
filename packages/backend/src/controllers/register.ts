@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { UserStatus } from '@myndbbs/shared';
-import jwt from 'jsonwebtoken';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { finalizeAuth } from './auth';
 import { authApplicationService } from '../registry';
@@ -32,7 +31,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     }
 
     // Generate Temp Token for 2FA Registration
-    const tempToken = jwt.sign({ userId: user.id, type: 'registration' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+    const tempToken = authApplicationService.generateTempToken(user.id, 'registration');
 
     res.cookie('tempToken', tempToken, {
       httpOnly: true,
@@ -76,7 +75,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     }
 
     if (authResult.requires2FA) {
-      const tempToken = jwt.sign({ userId: authResult.user.id, type: 'login' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+      const tempToken = authApplicationService.generateTempToken(authResult.user.id, 'login');
       res.cookie('tempToken', tempToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production' && req.secure,
@@ -104,29 +103,7 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
   try {
     const { accessToken, refreshToken: tokenFromCookie } = req.cookies;
 
-    let sessionId = null;
-    
-    if (accessToken) {
-      try {
-        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET as string, { ignoreExpiration: true }) as any;
-        if (decoded.sessionId) sessionId = decoded.sessionId;
-      } catch (e) {
-        // ignore invalid token errors
-      }
-    }
-    
-    if (!sessionId && tokenFromCookie) {
-      try {
-        const decoded = jwt.verify(tokenFromCookie, process.env.JWT_REFRESH_SECRET as string, { ignoreExpiration: true }) as any;
-        if (decoded.sessionId) sessionId = decoded.sessionId;
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    if (sessionId) {
-      await authApplicationService.revokeSession(sessionId);
-    }
+    await authApplicationService.logout(accessToken, tokenFromCookie);
 
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
@@ -153,7 +130,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string) as any;
+    const decoded = authApplicationService.verifyRefreshToken(refreshToken);
 
     if (decoded.sessionId) {
       const session = await identityQueryService.getSessionById(decoded.sessionId);
@@ -176,11 +153,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const accessToken = jwt.sign(
-      { userId: user.id, role: user.role?.name, sessionId: decoded.sessionId }, 
-      process.env.JWT_SECRET as string, 
-      { expiresIn: '15m' }
-    );
+    const accessToken = authApplicationService.generateAccessToken(user.id, user.role?.name || null, decoded.sessionId);
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,

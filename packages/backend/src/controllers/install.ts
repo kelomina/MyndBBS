@@ -3,20 +3,16 @@
  * Handles the initial setup and installation process of the application.
  */
 import { Request, Response } from 'express';
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
 import { installationApplicationService } from '../registry';
 
 /**
  * Callers: []
- * Callees: [sendFile, join]
+ * Callees: [sendFile]
  * Description: Serves the tailwind script for the installer.
  * Keywords: install, tailwind, get, route
  */
 export const getTailwindScript = (req: Request, res: Response): void => {
-  res.sendFile(path.join(__dirname, '../routes/tailwind.js'));
+  res.sendFile('routes/tailwind.js', { root: __dirname + '/../' });
 };
 
 /**
@@ -26,7 +22,7 @@ export const getTailwindScript = (req: Request, res: Response): void => {
  * Keywords: install, ui, get, route, html
  */
 export const getInstallHtml = (req: Request, res: Response): void => {
-  res.sendFile(path.join(__dirname, '../views/install.html'));
+  res.sendFile('views/install.html', { root: __dirname + '/../' });
 };
 
 /**
@@ -103,7 +99,7 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
   try {
     const userId = await installationApplicationService.finalizeInstallation(sessionId, username, email, password);
 
-    const tempToken = jwt.sign({ userId, type: 'registration' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+    const tempToken = installationApplicationService.generateTempToken(userId);
     res.cookie('tempToken', tempToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -114,17 +110,8 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
     res.json({ success: true });
 
     // Restart the backend after a short delay
-    setTimeout(() => {
-      console.log('Installation complete. Restarting server...');
-      // Touch index.ts to trigger nodemon restart cleanly
-      const indexPath = path.resolve(__dirname, '../../index.ts');
-      const time = new Date();
-      try {
-        fs.utimesSync(indexPath, time, time);
-      } catch (err) {
-        fs.closeSync(fs.openSync(indexPath, 'w'));
-      }
-    }, 1000);
+    console.log('Installation complete. Restarting server...');
+    installationApplicationService.scheduleRestart(1000);
 
   } catch (err: any) {
     console.error('Admin Creation Error:', err);
