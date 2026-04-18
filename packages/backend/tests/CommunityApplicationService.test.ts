@@ -173,7 +173,9 @@ describe('CommunityApplicationService', () => {
       const mockPost = Post.create({ id: 'post-1', title: 'Old Title', content: 'Old Content', categoryId: 'cat-1', authorId: 'user-123', createdAt: new Date() }, false);
       postRepository.findById.mockResolvedValue(mockPost);
 
-      const result = await service.updatePost('post-1', 'New Title', 'New Content', 'cat-1');
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.updatePost(mockAbility as any, 'post-1', 'New Title', 'New Content', 'cat-1');
       expect(mockPost.title).toBe('New Title');
       expect(mockPost.content).toBe('New Content');
       expect(postRepository.save).toHaveBeenCalledWith(mockPost);
@@ -184,7 +186,9 @@ describe('CommunityApplicationService', () => {
       const mockPost = Post.create({ id: 'post-1', title: 'Old Title', content: 'Old Content', categoryId: 'cat-1', authorId: 'user-123', createdAt: new Date() }, false);
       postRepository.findById.mockResolvedValue(mockPost);
 
-      await service.deletePost('post-1');
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      await service.deletePost(mockAbility as any, 'post-1');
       expect(mockPost.status).toBe('DELETED'); // Verify status is DELETED
       expect(postRepository.save).toHaveBeenCalledWith(mockPost);
       expect(commentRepository.softDeleteManyByPostId).toHaveBeenCalledWith('post-1');
@@ -219,17 +223,24 @@ describe('CommunityApplicationService', () => {
     it('should update a comment', async () => {
       const mockComment = Comment.create({ id: 'comment-1', content: 'Old Content', postId: 'post-1', authorId: 'user-123', parentId: null, deletedAt: null, createdAt: new Date() }, false);
       commentRepository.findById.mockResolvedValue(mockComment);
+      postRepository.findById.mockResolvedValue({ categoryId: 'cat-1' } as any);
 
-      await service.updateComment('comment-1', 'New Content', 'cat-1');
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.updateComment(mockAbility as any, 'comment-1', 'New Content');
       expect(mockComment.content).toBe('New Content');
       expect(commentRepository.save).toHaveBeenCalledWith(mockComment);
+      expect(result.commentId).toBe('comment-1');
     });
 
     it('should delete a comment', async () => {
       const mockComment = Comment.create({ id: 'comment-1', content: 'Content', postId: 'post-1', authorId: 'user-123', parentId: null, deletedAt: null, createdAt: new Date() }, false);
       commentRepository.findById.mockResolvedValue(mockComment);
+      postRepository.findById.mockResolvedValue({ categoryId: 'cat-1' } as any);
 
-      await service.deleteComment('comment-1');
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      await service.deleteComment(mockAbility as any, 'comment-1');
       expect(mockComment.deletedAt).not.toBeNull();
       expect(commentRepository.save).toHaveBeenCalledWith(mockComment);
     });
@@ -273,37 +284,49 @@ describe('CommunityApplicationService', () => {
     });
 
     it('should toggle comment upvote on', async () => {
-      commentRepository.findById.mockResolvedValue(true);
+      commentRepository.findById.mockResolvedValue({ id: 'comment-1', postId: 'post-1' } as any);
+      postRepository.findById.mockResolvedValue({ id: 'post-1', categoryId: 'cat-1' } as any);
       engagementRepository.findCommentUpvote.mockResolvedValue(null);
 
-      const result = await service.toggleCommentUpvote('comment-1', 'user-123');
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.toggleCommentUpvote(mockAbility as any, 'comment-1', 'user-123');
       expect(result).toBe(true);
       expect(engagementRepository.saveCommentUpvote).toHaveBeenCalled();
     });
 
     it('should toggle comment upvote off', async () => {
-      commentRepository.findById.mockResolvedValue(true);
-      engagementRepository.findCommentUpvote.mockResolvedValue({});
+      commentRepository.findById.mockResolvedValue({ id: 'comment-1', postId: 'post-1' } as any);
+      postRepository.findById.mockResolvedValue({ id: 'post-1', categoryId: 'cat-1' } as any);
+      engagementRepository.findCommentUpvote.mockResolvedValue({ userId: 'user-123', commentId: 'comment-1' } as any);
 
-      const result = await service.toggleCommentUpvote('comment-1', 'user-123');
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.toggleCommentUpvote(mockAbility as any, 'comment-1', 'user-123');
       expect(result).toBe(false);
       expect(engagementRepository.deleteCommentUpvote).toHaveBeenCalledWith('comment-1', 'user-123');
     });
 
     it('should toggle comment bookmark on', async () => {
-      commentRepository.findById.mockResolvedValue(true);
+      commentRepository.findById.mockResolvedValue({ id: 'comment-1', postId: 'post-1' } as any);
+      postRepository.findById.mockResolvedValue({ id: 'post-1', categoryId: 'cat-1' } as any);
       engagementRepository.findCommentBookmark.mockResolvedValue(null);
 
-      const result = await service.toggleCommentBookmark('comment-1', 'user-123');
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.toggleCommentBookmark(mockAbility as any, 'comment-1', 'user-123');
       expect(result).toBe(true);
       expect(engagementRepository.saveCommentBookmark).toHaveBeenCalled();
     });
 
     it('should toggle comment bookmark off', async () => {
-      commentRepository.findById.mockResolvedValue(true);
-      engagementRepository.findCommentBookmark.mockResolvedValue({});
+      commentRepository.findById.mockResolvedValue({ id: 'comment-1', postId: 'post-1' } as any);
+      postRepository.findById.mockResolvedValue({ id: 'post-1', categoryId: 'cat-1' } as any);
+      engagementRepository.findCommentBookmark.mockResolvedValue({ userId: 'user-123', commentId: 'comment-1' } as any);
 
-      const result = await service.toggleCommentBookmark('comment-1', 'user-123');
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.toggleCommentBookmark(mockAbility as any, 'comment-1', 'user-123');
       expect(result).toBe(false);
       expect(engagementRepository.deleteCommentBookmark).toHaveBeenCalledWith('comment-1', 'user-123');
     });
