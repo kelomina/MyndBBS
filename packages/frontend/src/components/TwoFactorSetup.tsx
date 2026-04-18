@@ -136,7 +136,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
           </div>
           <div className="text-sm text-muted">
             <p>{dict.twoFactor.enterSecretManually}</p>
-            <code className="bg-muted p-1 rounded font-mono mt-1 block">{totpSetup.secret}</code>
+            <code className="bg-muted/20 text-foreground p-2 rounded font-mono mt-2 block break-all">{totpSetup.secret}</code>
           </div>
           
           <form onSubmit={verifyTotp} className="space-y-4">
