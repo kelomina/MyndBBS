@@ -716,6 +716,35 @@ export class AuthApplicationService {
     );
   }
 
+  public async refreshAccessToken(refreshTokenStr: string): Promise<{ accessToken: string }> {
+    const decoded = this.verifyRefreshToken(refreshTokenStr);
+    
+    if (decoded.sessionId) {
+      const session = await this.sessionRepository.findById(decoded.sessionId);
+      if (!session) {
+        throw new Error('ERR_SESSION_REVOKED_OR_INVALID');
+      }
+    }
+
+    const user = await this.userRepository.findById(decoded.userId);
+    if (!user) {
+      throw new Error('ERR_INVALID_REFRESH_TOKEN');
+    }
+
+    if (user.status === UserStatus.BANNED) {
+      throw new Error('ERR_ACCOUNT_IS_BANNED');
+    }
+
+    let roleName = null;
+    if (user.roleId) {
+      const role = await this.roleRepository.findById(user.roleId);
+      if (role) roleName = role.name;
+    }
+
+    const accessToken = this.generateAccessToken(user.id, roleName, decoded.sessionId);
+    return { accessToken };
+  }
+
   public async logout(accessToken?: string, refreshToken?: string): Promise<void> {
     let sessionId = null;
     

@@ -1,6 +1,4 @@
 import { Request, Response } from 'express';
-import { UserStatus } from '@myndbbs/shared';
-import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { finalizeAuth } from './auth';
 import { authApplicationService } from '../registry';
 
@@ -105,39 +103,28 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const decoded = authApplicationService.verifyRefreshToken(refreshToken);
+    try {
+      const { accessToken } = await authApplicationService.refreshAccessToken(refreshToken);
 
-    if (decoded.sessionId) {
-      const session = await identityQueryService.getSessionById(decoded.sessionId);
-      if (!session) {
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken');
-        res.status(401).json({ error: 'ERR_SESSION_REVOKED_OR_INVALID' });
+      res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production' && req.secure,
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000 // 15 minutes
+      });
+
+      res.json({ message: 'Token refreshed successfully' });
+    } catch (error: any) {
+      res.clearCookie('accessToken');
+      res.clearCookie('refreshToken');
+      
+      if (error.message === 'ERR_ACCOUNT_IS_BANNED') {
+        res.status(403).json({ error: 'ERR_ACCOUNT_IS_BANNED' });
         return;
       }
+      
+      res.status(401).json({ error: error.message || 'ERR_INVALID_OR_EXPIRED_REFRESH_TOKEN' });
     }
-
-    const user = await identityQueryService.getUserForRefresh(decoded.userId);
-    if (!user) {
-      res.status(401).json({ error: 'ERR_INVALID_REFRESH_TOKEN' });
-      return;
-    }
-
-    if (user.status === UserStatus.BANNED) {
-      res.status(403).json({ error: 'ERR_ACCOUNT_IS_BANNED' });
-      return;
-    }
-
-    const accessToken = authApplicationService.generateAccessToken(user.id, user.role?.name || null, decoded.sessionId);
-
-    res.cookie('accessToken', accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production' && req.secure,
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000 // 15 minutes
-    });
-
-    res.json({ message: 'Token refreshed successfully' });
   } catch (error) {
     console.error(error);
     res.clearCookie('accessToken');

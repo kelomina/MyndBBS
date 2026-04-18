@@ -1,12 +1,9 @@
 /**
  * Upload Controller
- * Handles file uploads and multer configuration.
+ * Handles file uploads.
  */
 import { Request, Response } from 'express';
-import multer from 'multer';
 import { systemApplicationService } from '../registry';
-
-export const uploadMiddleware = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 /**
  * Callers: []

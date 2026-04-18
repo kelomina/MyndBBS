@@ -49,7 +49,7 @@ test('getCurrentDbConfig parses DATABASE_URL and decodes password', () => {
   try {
     process.env.DATABASE_URL = 'postgresql://alice:%40p%23@db.example.com:5433/mydb?schema=public'
     const service = createService()
-    const cfg = service.getCurrentDbConfig()
+    const cfg = service.getCurrentDbConfig('SUPER_ADMIN')
 
     assert.equal(cfg.host, 'db.example.com')
     assert.equal(cfg.port, 5433)
@@ -67,7 +67,7 @@ test('getCurrentDbConfig falls back when DATABASE_URL is invalid', () => {
   try {
     process.env.DATABASE_URL = 'not-a-url'
     const service = createService()
-    const cfg = service.getCurrentDbConfig()
+    const cfg = service.getCurrentDbConfig('SUPER_ADMIN')
     assert.equal(cfg.host, 'localhost')
     assert.equal(cfg.port, 5432)
   } finally {
@@ -97,7 +97,7 @@ test('updateDbConfig builds encoded DATABASE_URL and applies schema', async () =
     },
   })
 
-  await service.updateDbConfig('localhost', 5432, 'bob', 'p@ss w/space', 'forum')
+  await service.updateDbConfig('localhost', 5432, 'bob', 'p@ss w/space', 'forum', 'SUPER_ADMIN')
 
   assert.equal(
     updatedUrl,
