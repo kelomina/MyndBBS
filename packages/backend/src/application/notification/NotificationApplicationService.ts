@@ -4,10 +4,11 @@ import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostApprovedEvent, PostRejectedEvent, PostRepliedEvent, CommentRepliedEvent } from '../../domain/shared/events/DomainEvents';
 import { randomUUID as uuidv4 } from 'crypto';
 import { IModeratorReadModel } from './ports/IModeratorReadModel';
+import { IUnitOfWork } from '../../domain/shared/IUnitOfWork';
 
 /**
  * Callers: [Server initialization, Controllers]
- * Callees: [INotificationRepository.save, Notification.create, Notification.markAsRead, IEventBus.subscribe]
+ * Callees: [INotificationRepository.save, Notification.create, Notification.markAsRead, IEventBus.subscribe, IUnitOfWork.execute]
  * Description: The Application Service for the Notification Domain. It subscribes to global domain events to generate notifications and handles read/unread use cases.
  * Keywords: notification, service, application, orchestration, event, bus, subscriber, handler
  */
@@ -15,13 +16,14 @@ export class NotificationApplicationService {
   /**
    * Callers: [Server initialization]
    * Callees: [registerEventHandlers]
-   * Description: Initializes the service with the repository and event bus, and automatically registers all event handlers.
+   * Description: Initializes the service with the repository, event bus, and Unit of Work, and automatically registers all event handlers.
    * Keywords: constructor, inject, repository, service, notification, event, bus
    */
   constructor(
     private notificationRepository: INotificationRepository,
     private eventBus: IEventBus,
-    private moderatorReadModel: IModeratorReadModel
+    private moderatorReadModel: IModeratorReadModel,
+    private unitOfWork: IUnitOfWork
   ) {
     this.registerEventHandlers();
   }
@@ -30,20 +32,22 @@ export class NotificationApplicationService {
 
   /**
    * Callers: [NotificationController]
-   * Callees: [INotificationRepository.findById, Notification.markAsRead, INotificationRepository.save]
+   * Callees: [INotificationRepository.findById, Notification.markAsRead, INotificationRepository.save, IUnitOfWork.execute]
    * Description: Marks a specific notification as read.
    * Keywords: mark, read, notification, command, service
    */
   public async markAsRead(notificationId: string, userId: string): Promise<void> {
-    const notification = await this.notificationRepository.findById(notificationId);
-    if (!notification) {
-      throw new Error('ERR_NOTIFICATION_NOT_FOUND');
-    }
-    if (notification.userId !== userId) {
-      throw new Error('ERR_FORBIDDEN_NOT_YOUR_NOTIFICATION');
-    }
-    notification.markAsRead();
-    await this.notificationRepository.save(notification);
+    return this.unitOfWork.execute(async () => {
+      const notification = await this.notificationRepository.findById(notificationId);
+      if (!notification) {
+        throw new Error('ERR_NOTIFICATION_NOT_FOUND');
+      }
+      if (notification.userId !== userId) {
+        throw new Error('ERR_FORBIDDEN_NOT_YOUR_NOTIFICATION');
+      }
+      notification.markAsRead();
+      await this.notificationRepository.save(notification);
+    });
   }
 
   // --- Internal Methods (Event Handlers) ---
@@ -110,21 +114,23 @@ export class NotificationApplicationService {
 
   /**
    * Callers: [Event Handlers]
-   * Callees: [Notification.create, INotificationRepository.save]
+   * Callees: [Notification.create, INotificationRepository.save, IUnitOfWork.execute]
    * Description: Helper method to instantiate and persist a Notification aggregate.
    * Keywords: create, persist, helper, notification, aggregate
    */
   private async createNotification(userId: string, type: string, title: string, content: string, relatedId: string | null): Promise<void> {
-    const notification = Notification.create({
-      id: uuidv4(),
-      userId,
-      type,
-      title,
-      content,
-      relatedId,
-      read: false,
-      createdAt: new Date()
+    return this.unitOfWork.execute(async () => {
+      const notification = Notification.create({
+        id: uuidv4(),
+        userId,
+        type,
+        title,
+        content,
+        relatedId,
+        read: false,
+        createdAt: new Date()
+      });
+      await this.notificationRepository.save(notification);
     });
-    await this.notificationRepository.save(notification);
   }
 }

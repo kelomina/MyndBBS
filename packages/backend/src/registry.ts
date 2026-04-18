@@ -69,7 +69,8 @@ export const userApplicationService = new UserApplicationService(
   new PrismaPasskeyRepository(),
   redisAbilityCache,
   new Argon2PasswordHasher(),
-  totpAdapter
+  totpAdapter,
+  unitOfWork
 );
 
 
@@ -78,7 +79,8 @@ import { AuditApplicationService } from './application/system/AuditApplicationSe
 import { PrismaAuditLogRepository } from './infrastructure/repositories/PrismaAuditLogRepository';
 
 export const auditApplicationService = new AuditApplicationService(
-  new PrismaAuditLogRepository()
+  new PrismaAuditLogRepository(),
+  unitOfWork
 );
 
 export const auditEventListener = new AuditEventListener(
@@ -127,7 +129,8 @@ export const sudoApplicationService = new SudoApplicationService(
 
 export const systemApplicationService = new SystemApplicationService(
   new PrismaRouteWhitelistRepository(),
-  localFileStorageAdapter
+  localFileStorageAdapter,
+  unitOfWork
 );
 
 export const identityBootstrapApplicationService = new IdentityBootstrapApplicationService(
@@ -192,7 +195,8 @@ export const roleApplicationService = new RoleApplicationService(
   new PrismaRoleRepository(),
   new PrismaPermissionRepository(),
   new PrismaUserRepository(),
-  redisAbilityCache
+  redisAbilityCache,
+  unitOfWork
 );
 
 export const moderationApplicationService = new ModerationApplicationService(
@@ -200,5 +204,6 @@ export const moderationApplicationService = new ModerationApplicationService(
   new PrismaCommentRepository(),
   new PrismaModeratedWordRepository(),
   globalEventBus,
-  auditApplicationService
+  auditApplicationService,
+  unitOfWork
 );
