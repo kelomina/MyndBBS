@@ -34,13 +34,18 @@ function createService(overrides = {}) {
     scheduleRestart: () => {},
   }
 
+  const auditApplicationService = overrides.auditApplicationService || {
+    logAudit: async () => {},
+  }
+
   return new InstallationApplicationService(
     envStore,
     dbValidator,
     dbSchemaApplier,
     sessionRepository,
     identityBootstrap,
-    restartScheduler
+    restartScheduler,
+    auditApplicationService
   )
 }
 
