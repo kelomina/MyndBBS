@@ -58,7 +58,7 @@ export function SecuritySettings() {
         setShowReauth(true);
       }
     } catch {
-      setError('Network error');
+      setError(dict.auth?.networkError || 'Network error');
     }
   };
 
@@ -204,13 +204,13 @@ export function SecuritySettings() {
                   <TwoFactorSetup context="user" forceTotp={true} onComplete={() => {
                     setTotpEnabled(true);
                     setShowTotpSetup(false);
-                    setMessage('Authenticator App enabled successfully');
+                    setMessage(dict.settings.totpEnabledSuccess || 'Authenticator App enabled successfully');
                   }} />
                   <button 
                     onClick={() => setShowTotpSetup(false)}
                     className="mt-4 text-sm text-muted hover:text-foreground"
                   >
-                    Cancel Setup
+                    {dict.settings.cancelSetup || 'Cancel Setup'}
                   </button>
                 </div>
               )}

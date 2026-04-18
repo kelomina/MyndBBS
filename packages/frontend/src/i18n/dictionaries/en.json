@@ -201,6 +201,7 @@
     "confirmRemovePasskey": "Are you sure you want to remove this passkey?",
     "totpTitle": "Authenticator App (TOTP)",
     "totpDesc": "Use an authenticator app (like Google Authenticator or Authy) to generate one-time codes for 2FA.",
+    "totpEnabledSuccess": "Authenticator App enabled successfully",
     "totpEnabled": "Authenticator App Enabled",
     "accountProtected": "Your account is protected with 2FA",
     "disable": "Disable",

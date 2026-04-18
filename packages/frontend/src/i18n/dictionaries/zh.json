@@ -201,6 +201,7 @@
     "confirmRemovePasskey": "确定要移除此 Passkey 吗？",
     "totpTitle": "身份验证器应用 (TOTP)",
     "totpDesc": "使用身份验证器应用（如 Google Authenticator 或 Authy）生成用于 2FA 的一次性验证码。",
+    "totpEnabledSuccess": "成功启用身份验证器应用",
     "totpEnabled": "已启用身份验证器应用",
     "accountProtected": "您的账号受到 2FA 保护",
     "disable": "停用",
