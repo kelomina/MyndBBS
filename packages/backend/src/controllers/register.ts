@@ -2,6 +2,12 @@ import { Request, Response } from 'express';
 import { finalizeAuth } from './auth';
 import { authApplicationService } from '../registry';
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Registers a new user and returns a temporary token for 2FA completion.
+ * Keywords: auth, register, 2fa
+ */
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, username, password, captchaId } = req.body;
@@ -38,6 +44,12 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService, finalizeAuth]
+ * Description: Authenticates a user and starts session or requires 2FA.
+ * Keywords: auth, login, session
+ */
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
@@ -78,6 +90,12 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Logs out a user by revoking tokens and clearing cookies.
+ * Keywords: auth, logout, session
+ */
 export const logoutUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { accessToken, refreshToken: tokenFromCookie } = req.cookies;
@@ -94,6 +112,12 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Refreshes an access token using a valid refresh token.
+ * Keywords: auth, refresh, token
+ */
 export const refreshToken = async (req: Request, res: Response): Promise<void> => {
   try {
     const { refreshToken } = req.cookies;

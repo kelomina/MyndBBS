@@ -3,6 +3,12 @@ import { AuthRequest } from '../middleware/auth';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { authApplicationService, userApplicationService } from '../registry';
 
+/**
+ * Callers: [Router]
+ * Callees: [identityQueryService]
+ * Description: Retrieves the profile of the authenticated user.
+ * Keywords: user, profile
+ */
 export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -25,6 +31,12 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [identityQueryService]
+ * Description: Retrieves bookmarked posts for the authenticated user.
+ * Keywords: user, bookmarks
+ */
 export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -42,6 +54,12 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [identityQueryService]
+ * Description: Retrieves the list of passkeys registered by the authenticated user.
+ * Keywords: user, passkeys, webauthn
+ */
 export const getPasskeys = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -59,6 +77,12 @@ export const getPasskeys = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Deletes a specific passkey for the authenticated user.
+ * Keywords: user, passkey, delete
+ */
 export const deletePasskey = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -86,6 +110,12 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [userApplicationService]
+ * Description: Disables TOTP 2FA for the authenticated user with verification.
+ * Keywords: user, totp, disable, 2fa
+ */
 export const disableTotp = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -114,6 +144,12 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
 };
 
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService, identityQueryService]
+ * Description: Updates the authenticated user's profile information (password, email, username).
+ * Keywords: user, profile, update
+ */
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -156,6 +192,12 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [identityQueryService, authApplicationService]
+ * Description: Generates a TOTP secret and QR code for setting up 2FA.
+ * Keywords: user, totp, generate, 2fa
+ */
 export const generateTotp = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -175,6 +217,12 @@ export const generateTotp = async (req: AuthRequest, res: Response): Promise<voi
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Verifies a TOTP code during registration to finalize 2FA setup.
+ * Keywords: user, totp, verify, 2fa
+ */
 export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { code } = req.body;
@@ -207,6 +255,12 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Generates options for WebAuthn passkey registration.
+ * Keywords: user, passkey, register, webauthn
+ */
 export const generatePasskeyOptions = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -226,6 +280,12 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Verifies the passkey registration response to finalize WebAuthn setup.
+ * Keywords: user, passkey, verify, webauthn
+ */
 export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { response, challengeId } = req.body;
@@ -249,6 +309,12 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [identityQueryService]
+ * Description: Retrieves active sessions for the authenticated user.
+ * Keywords: user, sessions, list
+ */
 export const getSessions = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -266,6 +332,12 @@ export const getSessions = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Revokes a specific session for the authenticated user.
+ * Keywords: user, session, revoke
+ */
 export const revokeSession = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -297,6 +369,12 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [identityQueryService]
+ * Description: Retrieves the public profile of a user by username.
+ * Keywords: user, profile, public
+ */
 export const getPublicProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const username = req.params.username as string;

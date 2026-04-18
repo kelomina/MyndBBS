@@ -3,6 +3,12 @@ import { messagingQueryService } from '../queries/messaging/MessagingQueryServic
 import { AuthRequest } from '../middleware/auth';
 import { messagingApplicationService } from '../registry';
 
+/**
+ * Callers: [Router]
+ * Callees: [messagingApplicationService]
+ * Description: Handles sending a friend request from the authenticated user to another user.
+ * Keywords: friend, request
+ */
 export const requestFriend = async (req: AuthRequest, res: Response): Promise<void> => {
   const requesterId = req.user?.userId;
   const { addresseeId } = req.body;
@@ -27,6 +33,12 @@ export const requestFriend = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [messagingApplicationService]
+ * Description: Handles responding to an incoming friend request (accept or reject).
+ * Keywords: friend, respond, accept
+ */
 export const respondFriend = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   const { friendshipId, accept } = req.body;
@@ -43,6 +55,12 @@ export const respondFriend = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [messagingQueryService]
+ * Description: Retrieves the list of friends for the authenticated user.
+ * Keywords: friend, list
+ */
 export const getFriends = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   if (!userId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
