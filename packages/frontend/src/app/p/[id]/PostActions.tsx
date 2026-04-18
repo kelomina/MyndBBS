@@ -123,15 +123,15 @@ export function PostActions({
         credentials: 'include'
       });
       if (res.ok) {
-        toast(dict.post?.postDeleted || 'Post deleted successfully', 'success');
+        toast(dict.post?.postDeletedSuccessfully || 'Post deleted successfully', 'success');
         router.push('/');
       } else {
         const data = await res.json();
-        toast(data.error || dict.apiErrors?.ERR_FAILED_TO_DELETE || 'Failed to delete post', 'error');
+        toast(data.error || dict.apiErrors?.ERR_FAILED_TO_DELETE_POST || 'Failed to delete post', 'error');
       }
     } catch (error) {
       console.error('Delete failed:', error);
-      toast(dict.apiErrors?.ERR_FAILED_TO_DELETE || 'Failed to delete post', 'error');
+      toast(dict.apiErrors?.ERR_FAILED_TO_DELETE_POST || 'Failed to delete post', 'error');
     } finally {
       setLoading(false);
     }

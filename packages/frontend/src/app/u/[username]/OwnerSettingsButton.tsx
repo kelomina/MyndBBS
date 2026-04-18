@@ -8,7 +8,7 @@ import { useTranslation } from '../../../components/TranslationProvider';
 
 import { Mail } from 'lucide-react';
 export function OwnerSettingsButton({ username }: { username: string }) {
-  const [currentUser, setCurrentUser] = useState<{ username: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ username: string, level?: number } | null>(null);
   
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dict = useTranslation();
@@ -53,7 +53,7 @@ export function OwnerSettingsButton({ username }: { username: string }) {
 
   return (
     <div className="flex gap-2">
-      {!isOwner && currentUser.level >= 2 && (
+      {!isOwner && (currentUser.level ?? 0) >= 2 && (
         <Link
           href={`/messages/${username}`}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"

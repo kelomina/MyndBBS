@@ -23,7 +23,7 @@ export function usePasskey() {
       const optionsData = await optionsRes.json();
 
       if (!optionsRes.ok) {
-        throw new Error((dict.apiErrors?.[optionsData.error] || optionsData.error) || dict.auth.passkeyError);
+        throw new Error((dict.apiErrors?.[optionsData.error as keyof typeof dict.apiErrors] || optionsData.error) || dict.auth.passkeyError);
       }
 
       const { challengeId, ...options } = optionsData;
@@ -66,7 +66,7 @@ export function usePasskey() {
       if (verifyRes.ok) {
         onSuccess();
       } else {
-        throw new Error((dict.apiErrors?.[verifyData.error] || verifyData.error) || dict.auth.passkeyVerificationFailed);
+        throw new Error((dict.apiErrors?.[verifyData.error as keyof typeof dict.apiErrors] || verifyData.error) || dict.auth.passkeyVerificationFailed);
       }
     } catch (err) {
       if (err instanceof Error) {

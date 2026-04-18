@@ -81,7 +81,7 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
         onSuccess();
       } else {
         const data = await res.json();
-        setError(dict.apiErrors?.[data.error] || data.error || dict.reauth?.verificationFailed || 'Verification failed');
+        setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.reauth?.verificationFailed || 'Verification failed');
       }
     } catch {
       setError(dict.reauth?.networkError || 'Network error');

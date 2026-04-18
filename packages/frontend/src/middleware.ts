@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { defaultLocale, locales } from './i18n/config';
-import { getAccessRedirectPath } from './lib/routingGuard';
+import { getAccessRedirectPath, sortWhitelist, matchRoute } from './lib/routingGuard';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -97,7 +97,20 @@ async function getWhitelist(): Promise<WhitelistRoute[]> {
     });
     if (res.ok) {
       const data = (await res.json()) as WhitelistRoute[];
-      // Sort: exact matches first, then longest prefixes
+      const normalizedData = data.map(route => ({
+        ...route,
+        path: normalizePathname(route.path)
+      }));
+      cachedWhitelist = sortWhitelist(normalizedData);
+      lastFetchTime = now;
+      return cachedWhitelist;
+    }
+  } catch (error) {
+    console.error('ERR_FETCH_WHITELIST_FAILED', error);
+  }
+  return cachedWhitelist || [];
+}
+
 export async function middleware(request: NextRequest) {
   const nonce = isDev ? null : generateNonce();
   const requestHeaders = new Headers(request.headers);
@@ -121,22 +134,7 @@ export async function middleware(request: NextRequest) {
 
   // 2. Fetch dynamic whitelist & find matching route
   const whitelist = (await getWhitelist()) || [];
-  let matchedRoute: WhitelistRoute | null = null;
-
-  for (const route of whitelist) {
-    const routePath = normalizePathname(route.path);
-    if (route.isPrefix) {
-      if (routePath === '/' || pathname === routePath || pathname.startsWith(`${routePath}/`)) {
-        matchedRoute = route;
-        break;
-      }
-    } else {
-      if (pathname === routePath) {
-        matchedRoute = route;
-        break;
-      }
-    }
-  }
+  const matchedRoute = matchRoute(pathname, whitelist);
 
   // Determine required role level (0 = public, 4 = SUPER_ADMIN)
   // If no route matches, default to strictly requiring SUPER_ADMIN

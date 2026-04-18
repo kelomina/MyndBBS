@@ -13,8 +13,12 @@
     "cancel": "取消",
     "close": "关闭",
     "settings": "设置",
-    "logout": "退出登录",
-    "passkeyBannerText": "为了您的账号安全，系统要求所有用户绑定通行密钥（Passkey）。您当前未绑定通行密钥，账号权限将被永久限制为 Level 1，且无法获得任何等级提升（包括系统自动提升）。",
+    "logout": "登出",
+    "save": "保存",
+    "delete": "删除",
+    "confirm": "确认",
+    "linkCopied": "链接已复制！",
+    "passkeyBannerText": "为了您的账号安全，系统强制要求绑定 Passkey（通行密钥）。您尚未绑定 Passkey，账号已被永久限制为 1 级，且无法接收任何等级提升（包含自动升级）。",
     "passkeyBannerLink": "立即前往绑定"
   },
   "nav": {
@@ -70,7 +74,9 @@
     "retry": "重试",
     "failedLoadTotp": "加载身份验证器配置失败。可能服务器正在重启，请稍后重试。",
     "cannotUsePasskey": "我无法使用PassKey登录",
-    "passwordLoginNotRecommended": "为了安全考虑，我们不建议您使用账号密码登录"
+    "passwordLoginNotRecommended": "为了安全考虑，我们不建议您使用账号密码登录",
+    "invalidTotp": "无效的 6 位验证码",
+    "pleaseLogin": "请先登录后再进行操作。"
   },
   "home": {
     "mockPosts": [
@@ -163,8 +169,11 @@
     "adminDashboard": "管理员仪表盘",
     "removeBookmark": "移除书签",
     "bookmarks": "书签",
-    "noBookmarksYet": "暂无书签。",
-    "notificationSettings": "通知设置"
+    "noBookmarksYet": "暂无收藏。",
+    "notificationSettings": "通知设置",
+    "commentDeleted": "此评论已被删除。",
+    "commentOn": "评论于：",
+    "postDeleted": "此帖子已被删除。"
   },
   "settings": {
     "loadingProfile": "加载资料中...",
@@ -211,7 +220,8 @@
     "sessionRevoked": "会话注销成功",
     "failedFetchSessions": "加载会话失败",
     "failedRevokeSession": "注销会话失败",
-    "passwordChangedRelogin": "密码修改成功，请重新登录。3秒后将自动跳转..."
+    "passwordChangedRelogin": "密码修改成功，请重新登录。3秒后跳转...",
+    "passkeyNotSupported": "设备不支持或取消了通行密钥操作。"
   },
   "admin": {
     "categoryManagement": "分类管理",
@@ -426,7 +436,8 @@
     "ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY": "该用户未绑定通行密钥（Passkey），禁止提升权限级别。",
     "ERR_FORBIDDEN_SUPER_ADMIN_ONLY": "权限不足：仅超级管理员可执行该操作。",
     "ERR_INVALID_DOMAIN_CONFIG": "设置无效，请检查填写内容后重试。",
-    "ERR_CSRF_TOKEN_MISSING_OR_INVALID": "安全令牌丢失或无效，请刷新页面后重试 (CSRF)。"
+    "ERR_CSRF_TOKEN_MISSING_OR_INVALID": "安全令牌丢失或无效，请刷新页面后重试 (CSRF)。",
+    "ERR_PLEASE_FILL_ALL": "请填写所有必填字段"
   },
   "category": {
     "postsTitle": "帖子",

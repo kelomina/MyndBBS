@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { fetcher } from './api/fetcher';
+import type { CurrentUser } from '../types';
 
 export function useCurrentUser() {
-  const [user, setUser] = useState<{ id: string; username: string; level: number; role?: string; _count?: { passkeys?: number } } | null>(null);
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-      const fetchUser = async () => {
+  const effectProfile = () => {
+    const fetchUser = async () => {
       try {
         const data = await fetcher('/api/v1/user/profile');
         setUser(data.user);
@@ -26,7 +28,8 @@ export function useCategories() {
   const [categories, setCategories] = useState<{ id: string; name: string; description: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
-      const fetchCats = async () => {
+  const effectCategories = () => {
+    const fetchCats = async () => {
       try {
         const data = await fetcher('/api/categories');
         setCategories(data);

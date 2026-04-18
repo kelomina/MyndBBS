@@ -32,7 +32,7 @@ export function ProfileSettings() {
       }
     } catch (err) {
       const errorKey = err instanceof Error ? err.message : '';
-      setError(dict.apiErrors?.[errorKey] || dict.settings.failedLoadProfile);
+      setError(dict.apiErrors?.[errorKey as keyof typeof dict.apiErrors] || dict.settings.failedLoadProfile);
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export function ProfileSettings() {
           setSaving(false);
         }
       } else {
-        setError(dict.apiErrors?.[data.error] || data.error || dict.settings.failedUpdateProfile);
+        setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.settings.failedUpdateProfile);
         setSaving(false);
       }
   };

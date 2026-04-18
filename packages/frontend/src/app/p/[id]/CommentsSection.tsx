@@ -94,9 +94,9 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     comments.forEach(c => {
       const node = map.get(c.id);
       if (c.parentId && map.has(c.parentId)) {
-        map.get(c.parentId).children.push(node);
+        map.get(c.parentId)!.children.push(node!);
       } else {
-        roots.push(node);
+        roots.push(node!);
       }
     });
 

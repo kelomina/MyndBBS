@@ -65,7 +65,7 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
         window.location.href = '/';
       } else {
         const data = await res.json();
-        setError(dict.apiErrors?.[data.error] || data.error || dict.twoFactor.invalidTotpCode);
+        setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.twoFactor.invalidTotpCode);
       }
     } catch {
       setError(dict.auth.networkError);

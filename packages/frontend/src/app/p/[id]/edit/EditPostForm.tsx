@@ -19,7 +19,7 @@ export function EditPostForm({ dict, initialPost }: { dict: Dictionary; initialP
 
       const handlePublish = async () => {
     if (!title || !content || !categoryId) {
-      toast(dict.common?.pleaseFillAllFields || 'Please fill out all fields', 'error');
+      toast(dict.apiErrors?.ERR_PLEASE_FILL_ALL || 'Please fill out all fields', 'error');
       return;
     }
 

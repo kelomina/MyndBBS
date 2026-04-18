@@ -17,7 +17,7 @@ export type PostComment = {
   deletedAt?: string | null;
   parentId?: string | null;
   author?: CommentAuthor | null;
-  _count?: { upvotes?: number };
+  _count?: { upvotes?: number; replies?: number };
   hasUpvoted?: boolean;
   hasBookmarked?: boolean;
 };
