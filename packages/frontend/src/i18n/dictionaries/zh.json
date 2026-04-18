@@ -558,5 +558,11 @@
     "backToHome": "返回首页",
     "goToLogin": "重新登录",
     "lockIconAlt": "权限受限"
+  },
+  "search": {
+    "resultsFor": "搜索结果：{q}",
+    "noResults": "暂无结果",
+    "users": "用户",
+    "posts": "帖子"
   }
 }
