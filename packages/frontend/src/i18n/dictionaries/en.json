@@ -558,5 +558,11 @@
     "backToHome": "Back to Home",
     "goToLogin": "Login Again",
     "lockIconAlt": "Access Denied"
+  },
+  "search": {
+    "resultsFor": "Search Results for: {q}",
+    "noResults": "No results found",
+    "users": "Users",
+    "posts": "Posts"
   }
 }

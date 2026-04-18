@@ -112,6 +112,7 @@ if (!isInstalled) {
   const messageRoutes = require('./routes/message').default;
   const uploadRoutes = require('./routes/upload').default;
   const friendRoutes = require('./routes/friend').default;
+  const searchRoutes = require('./routes/search').default;
   
   // Initialize Domain Event Subscribers
   const { bootstrapDomainSubscribers } = require('./startup/bootstrapDomainSubscribers');
@@ -125,6 +126,7 @@ if (!isInstalled) {
   app.use('/api/v1/messages', messageRoutes);
   app.use('/api/v1/messages/upload', uploadRoutes);
   app.use('/api/v1/friends', friendRoutes);
+  app.use('/api/search', searchRoutes);
 
   // Serve static files from uploads directory safely
   app.use('/uploads', (req, res, next) => {
