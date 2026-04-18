@@ -1,4 +1,5 @@
 import { IUserRepository } from '../../domain/identity/IUserRepository';
+import { IPasskeyRepository } from '../../domain/identity/IPasskeyRepository';
 import { IAbilityCache } from '../../domain/identity/IAbilityCache';
 import { User } from '../../domain/identity/User';
 import { UserStatus } from '@myndbbs/shared';
@@ -20,6 +21,7 @@ export class UserApplicationService {
    */
   constructor(
     private userRepository: IUserRepository,
+    private passkeyRepository: IPasskeyRepository,
     private abilityCache: IAbilityCache,
     private passwordHasher: IPasswordHasher,
     private totpPort: ITotpPort
@@ -66,10 +68,19 @@ export class UserApplicationService {
     await this.abilityCache.invalidateUserRules(userId);
   }
 
+  /**
+   * Callers: [AdminController]
+   * Callees: [IUserRepository.findById, IPasskeyRepository.findByUserId, User.changeLevel, IUserRepository.save, IAbilityCache.invalidateUserRules]
+   * Description: Changes a user's security level. Retrieves user passkeys to enforce the rule that a user cannot be promoted above level 1 without a passkey.
+   * Keywords: change, level, user, identity, promote, passkey
+   */
   public async changeLevel(userId: string, level: number): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
-    user.changeLevel(level);
+
+    const passkeys = await this.passkeyRepository.findByUserId(userId);
+    user.changeLevel(level, passkeys.length > 0);
+
     await this.userRepository.save(user);
     await this.abilityCache.invalidateUserRules(userId);
   }

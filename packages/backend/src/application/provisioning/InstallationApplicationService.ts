@@ -6,7 +6,8 @@ import { IDatabaseSchemaApplier } from '../../domain/provisioning/IDatabaseSchem
 import { IInstallationSessionRepository } from '../../domain/provisioning/IInstallationSessionRepository';
 import { IIdentityBootstrapPort } from '../../domain/provisioning/IIdentityBootstrapPort';
 import { IRestartScheduler } from '../../domain/provisioning/IRestartScheduler';
-import { AuditApplicationService } from '../system/AuditApplicationService';
+import { IEventBus } from '../../domain/shared/events/IEventBus';
+import { DbConfigUpdatedEvent } from '../../domain/shared/events/DomainEvents';
 
 export type DbConnectionConfigView = {
   host: string;
@@ -24,7 +25,7 @@ export class InstallationApplicationService {
     private sessionRepository: IInstallationSessionRepository,
     private identityBootstrap: IIdentityBootstrapPort,
     private restartScheduler: IRestartScheduler,
-    private auditApplicationService: AuditApplicationService
+    private eventBus: IEventBus
   ) {}
 
   /**
@@ -125,7 +126,7 @@ export class InstallationApplicationService {
     await this.applySchema(sessionId);
 
     if (operatorId) {
-      await this.auditApplicationService.logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
+      this.eventBus.publish(new DbConfigUpdatedEvent(operatorId));
     }
     this.scheduleRestart(1000);
   }

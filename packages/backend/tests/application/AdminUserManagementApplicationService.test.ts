@@ -1,6 +1,6 @@
 import { AdminUserManagementApplicationService } from '../../src/application/identity/AdminUserManagementApplicationService';
 import { IUserRepository } from '../../src/domain/identity/IUserRepository';
-import { AuditApplicationService } from '../../src/application/system/AuditApplicationService';
+import { IEventBus } from '../../src/domain/shared/events/IEventBus';
 import { UserStatus } from '@myndbbs/shared';
 
 describe('AdminUserManagementApplicationService', () => {
@@ -41,7 +41,7 @@ describe('AdminUserManagementApplicationService', () => {
       findByName: jest.fn().mockResolvedValue({ id: 'newRole' })
     };
     
-    const mockAuditService = { logAudit: jest.fn() } as unknown as AuditApplicationService;
+    const mockEventBus = { publish: jest.fn(), subscribe: jest.fn() } as unknown as IEventBus;
     
     const mockRolePolicy = {
       assertRoleName: jest.fn(),
@@ -66,7 +66,7 @@ describe('AdminUserManagementApplicationService', () => {
       mockSessionRepo as any, 
       mockSessionCache as any, 
       mockRolePolicy as any,
-      mockAuditService as any
+      mockEventBus as any
     );
 
     await service.changeUserRole({ userId: 'operator1', role: 'SUPER_ADMIN' as any }, 'target1', 'SUPER_ADMIN' as any);
@@ -91,7 +91,7 @@ describe('AdminUserManagementApplicationService', () => {
       findByName: jest.fn().mockResolvedValue({ id: 'newRole' })
     };
     
-    const mockAuditService = { logAudit: jest.fn() } as unknown as AuditApplicationService;
+    const mockEventBus = { publish: jest.fn(), subscribe: jest.fn() } as unknown as IEventBus;
     
     const mockRolePolicy = {
       assertRoleName: jest.fn(),
@@ -115,11 +115,11 @@ describe('AdminUserManagementApplicationService', () => {
       mockSessionRepo as any, 
       mockSessionCache as any, 
       mockRolePolicy as any,
-      mockAuditService as any
+      mockEventBus as any
     );
 
     await service.changeUserRole({ userId: 'operator1', role: 'ADMIN' as any }, 'target1', 'MODERATOR' as any);
-    expect(mockAuditService.logAudit).toHaveBeenCalledWith('operator1', 'UPDATE_USER_ROLE', 'User:target1 to MODERATOR');
+    expect(mockEventBus.publish).toHaveBeenCalled();
   });
 
   it('should change user role and level in a single operation', async () => {

@@ -29,8 +29,8 @@ export const getPostsList = async (req: AuthRequest, res: Response): Promise<voi
 };
 
 /**
- * Callers: []
- * Callees: [authApplicationService.consumeCaptcha, communityQueryService.getUserLevel, communityApplicationService.createPost, communityQueryService.getPostById, json, status]
+ * Callers: [Router]
+ * Callees: [communityQueryService.getUserLevel, communityApplicationService.createPost, communityQueryService.getPostById, json, status]
  * Description: Creates a new post.
  * Keywords: post, create, community
  */
@@ -60,8 +60,8 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
         captchaId
       );
       const postDto = await communityQueryService.getPostById(req.ability!, result.postId);
-      if (postDto?.status === 'PENDING') {
-        res.status(201).json({ message: 'ERR_PENDING_MODERATION', post: postDto });
+      if (result.message) {
+        res.status(201).json({ message: result.message, post: postDto });
         return;
       }
       res.status(201).json({ post: postDto, isModerated: result.isModerated });

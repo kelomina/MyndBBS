@@ -95,6 +95,12 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
   }
 };
 
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService, finalizeAuth]
+ * Description: Verifies a passkey registration response.
+ * Keywords: auth, passkey, register, verify
+ */
 export const verifyPasskeyRegistrationResponse = async (req: Request, res: Response): Promise<void> => {
   const { response, challengeId } = req.body;
   const user = await getUserFromTempToken(req);
@@ -107,8 +113,9 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
     const verificationResult = await authApplicationService.verifyPasskeyRegistration(user.id, response, challengeId);
     
     if (verificationResult.verified) {
-      if (!user.isTotpEnabled) {
-        res.json({ message: 'Passkey registered successfully. Please proceed to setup TOTP.' });
+      if (verificationResult.requiresTotpSetup) {
+        // @ts-ignore - t is injected by i18next middleware
+        res.json({ message: req.t ? req.t('PASSKEY_REGISTERED_SETUP_TOTP', verificationResult.message) : verificationResult.message });
         return;
       }
       // If user was updated with new level/role, use the returned user, otherwise use current user

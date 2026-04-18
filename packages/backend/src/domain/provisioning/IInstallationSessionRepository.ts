@@ -1,8 +1,4 @@
-export interface InstallationSession {
-  id: string;
-  createdAt: Date;
-  isCompleted: boolean;
-}
+import { InstallationSession } from './InstallationSession';
 
 export interface IInstallationSessionRepository {
   createSession(): Promise<InstallationSession>;

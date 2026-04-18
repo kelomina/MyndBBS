@@ -36,6 +36,7 @@ import { RedisModeratedWordsCache } from './infrastructure/services/RedisModerat
 import { ModerationPolicy } from './domain/community/ModerationPolicy';
 import { ModerationCacheInvalidationHandler } from './infrastructure/events/handlers/ModerationCacheInvalidationHandler';
 import { AbilityCacheInvalidationHandler } from './infrastructure/events/handlers/AbilityCacheInvalidationHandler';
+import { AuditEventListener } from './infrastructure/events/handlers/AuditEventListener';
 import { globalEventBus } from './infrastructure/events/InMemoryEventBus';
 
 import { AdminUserManagementApplicationService } from './application/identity/AdminUserManagementApplicationService';
@@ -62,6 +63,7 @@ export const abilityCacheInvalidationHandler = new AbilityCacheInvalidationHandl
 
 export const userApplicationService = new UserApplicationService(
   new PrismaUserRepository(),
+  new PrismaPasskeyRepository(),
   redisAbilityCache,
   new Argon2PasswordHasher(),
   totpAdapter
@@ -76,6 +78,11 @@ export const auditApplicationService = new AuditApplicationService(
   new PrismaAuditLogRepository()
 );
 
+export const auditEventListener = new AuditEventListener(
+  globalEventBus,
+  auditApplicationService
+);
+
 export const adminUserManagementApplicationService = new AdminUserManagementApplicationService(
   new PrismaUserRepository(),
   new PrismaRoleRepository(),
@@ -83,7 +90,7 @@ export const adminUserManagementApplicationService = new AdminUserManagementAppl
   new PrismaSessionRepository(),
   new RedisSessionCache(),
   new RoleHierarchyPolicy(),
-  auditApplicationService
+  globalEventBus
 );
 
 import { SudoApplicationService } from './application/identity/SudoApplicationService';
@@ -136,7 +143,7 @@ export const installationApplicationService = new InstallationApplicationService
   new InMemoryInstallationSessionRepository(),
   identityBootstrapServiceAdapter,
   new ProcessExitRestartScheduler(),
-  auditApplicationService
+  globalEventBus
 );
 
 export const redisModeratedWordsCache = new RedisModeratedWordsCache(
@@ -161,8 +168,7 @@ export const communityApplicationService = new CommunityApplicationService(
   identityIntegrationPort,
   moderationPolicy,
   authApplicationService,
-  globalEventBus,
-  auditApplicationService
+  globalEventBus
 );
 
 export const messagingApplicationService = new MessagingApplicationService(

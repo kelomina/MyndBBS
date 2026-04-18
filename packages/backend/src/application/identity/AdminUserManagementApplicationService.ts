@@ -5,7 +5,8 @@ import { ISessionRepository } from '../../domain/identity/ISessionRepository';
 import { UserStatus } from '@myndbbs/shared';
 import { RoleHierarchyPolicy, RoleName } from './policies/RoleHierarchyPolicy';
 import { ISessionCache } from './ports/ISessionCache';
-import { AuditApplicationService } from '../system/AuditApplicationService';
+import { IEventBus } from '../../domain/shared/events/IEventBus';
+import { UserPromotedEvent, UserStatusChangedEvent, UserRoleChangedEvent } from '../../domain/shared/events/DomainEvents';
 
 type OperatorContext = { userId: string; role: RoleName };
 
@@ -17,10 +18,14 @@ export class AdminUserManagementApplicationService {
     private sessionRepository: ISessionRepository,
     private sessionCache: ISessionCache,
     private roleHierarchyPolicy: RoleHierarchyPolicy,
-    private auditApplicationService: AuditApplicationService
+    private eventBus: IEventBus
   ) {}
 
   /**
+   * Callers: [AdminUserController]
+   * Callees: [IUserRepository.findById, IPasskeyRepository.findByUserId, User.changeLevel, IUserRepository.save, IEventBus.publish]
+   * Description: Changes a user's level. Records audit logs. Checks passkeys before promoting above level 1.
+   * Keywords: admin, manage, user, level, identity, promote, passkey
    * 更改用户等级并记录审计日志
    * @param operator 执行操作的用户信息
    * @param targetUserId 目标用户 ID
@@ -35,14 +40,10 @@ export class AdminUserManagementApplicationService {
     const user = await this.userRepository.findById(targetUserId);
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
 
-    if (level > 1) {
-      const passkeys = await this.passkeyRepository.findByUserId(targetUserId);
-      if (passkeys.length === 0) throw new Error('ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY');
-    }
-
-    user.changeLevel(level);
+    const passkeys = await this.passkeyRepository.findByUserId(targetUserId);
+    user.changeLevel(level, passkeys.length > 0);
     await this.userRepository.save(user);
-    await this.auditApplicationService.logAudit(operator.userId, 'UPDATE_USER_LEVEL', `User:${targetUserId} to Level ${level}`);
+    this.eventBus.publish(new UserPromotedEvent(targetUserId, level, operator.userId));
   }
 
   /**
@@ -70,7 +71,7 @@ export class AdminUserManagementApplicationService {
 
     target.changeStatus(status);
     await this.userRepository.save(target);
-    await this.auditApplicationService.logAudit(operator.userId, 'UPDATE_USER_STATUS', `User:${targetUserId} to ${status}`);
+    this.eventBus.publish(new UserStatusChangedEvent(targetUserId, status, operator.userId));
 
     if (status === UserStatus.BANNED) {
       const sessions = await this.sessionRepository.findByUserId(targetUserId);
@@ -112,7 +113,7 @@ export class AdminUserManagementApplicationService {
 
     target.changeRole(newRole.id);
     await this.userRepository.save(target);
-    await this.auditApplicationService.logAudit(operator.userId, 'UPDATE_USER_ROLE', `User:${targetUserId} to ${newRoleName}`);
+    this.eventBus.publish(new UserRoleChangedEvent(targetUserId, newRoleName, operator.userId));
 
     // Auto-disable root if another user gets SUPER_ADMIN role
     if (newRoleName === 'SUPER_ADMIN' && target.username !== 'root') {

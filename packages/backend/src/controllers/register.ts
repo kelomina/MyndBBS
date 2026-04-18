@@ -37,7 +37,9 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       maxAge: 60 * 60 * 1000 // 1 hour
     });
 
-    res.status(201).json({ message: 'User registered. Please complete 2FA.', user: { id: user.id, username: user.username, role: user.role?.name } });
+    // @ts-ignore - t is injected by i18next middleware
+    const message = req.t ? req.t('USER_REGISTERED_COMPLETE_2FA', 'User registered. Please complete 2FA.') : 'User registered. Please complete 2FA.';
+    res.status(201).json({ message, user: { id: user.id, username: user.username, role: user.role?.name } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -71,9 +73,8 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       throw error;
     }
 
-    if (authResult.requires2FA) {
-      const tempToken = authApplicationService.generateTempToken(authResult.user.id, 'login');
-      res.cookie('tempToken', tempToken, {
+    if (authResult.requires2FA && authResult.tempToken) {
+      res.cookie('tempToken', authResult.tempToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production' && req.secure,
         sameSite: 'lax',
@@ -105,7 +106,9 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
     res.clearCookie('tempToken');
-    res.json({ message: 'Logged out successfully' });
+    // @ts-ignore - t is injected by i18next middleware
+    const message = req.t ? req.t('LOGGED_OUT_SUCCESSFULLY', 'Logged out successfully') : 'Logged out successfully';
+    res.json({ message });
   } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR_DURING_LOGOUT' });
@@ -137,7 +140,9 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
         maxAge: 15 * 60 * 1000 // 15 minutes
       });
 
-      res.json({ message: 'Token refreshed successfully' });
+      // @ts-ignore - t is injected by i18next middleware
+      const message = req.t ? req.t('TOKEN_REFRESHED_SUCCESSFULLY', 'Token refreshed successfully') : 'Token refreshed successfully';
+      res.json({ message });
     } catch (error: any) {
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');

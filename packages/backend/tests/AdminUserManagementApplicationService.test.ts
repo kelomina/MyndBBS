@@ -40,7 +40,7 @@ describe('AdminUserManagementApplicationService', () => {
     const passkeyRepo = new InMemoryPasskeyRepo();
     const sessionRepo = new InMemorySessionRepo();
     const sessionCache = new InMemorySessionCache();
-    const audit = { logAudit: jest.fn() };
+    const eventBus = { publish: jest.fn(), subscribe: jest.fn() };
 
     const u = User.create({
       id: 'u1',
@@ -64,7 +64,7 @@ describe('AdminUserManagementApplicationService', () => {
       sessionRepo as any,
       sessionCache as any,
       new RoleHierarchyPolicy(),
-      audit as any
+      eventBus as any
     );
 
     await expect(

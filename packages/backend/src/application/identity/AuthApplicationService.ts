@@ -10,10 +10,11 @@ import { Passkey } from '../../domain/identity/Passkey';
 import { Session } from '../../domain/identity/Session';
 import { AuthChallenge } from '../../domain/identity/AuthChallenge';
 import { User } from '../../domain/identity/User';
+import { Password } from '../../domain/identity/Password';
 import { UserStatus } from '@myndbbs/shared';
 import { IPasswordHasher } from '../../domain/identity/IPasswordHasher';
 import { randomUUID as uuidv4 } from 'crypto';
-import { isValidPassword, APP_NAME } from '@myndbbs/shared';
+import { APP_NAME } from '@myndbbs/shared';
 import { ITotpPort } from '../../domain/identity/ports/ITotpPort';
 import { IPasskeyPort } from '../../domain/identity/ports/IPasskeyPort';
 import { ITokenPort } from '../../domain/identity/ports/ITokenPort';
@@ -52,18 +53,6 @@ export class AuthApplicationService {
   ) {}
 
   // --- Captcha Orchestration ---
-
-  public validatePasswordPolicy(password: string): void {
-    if (password.length < 8 || password.length > 128) {
-      throw new Error('ERR_PASSWORD_MUST_BE_BETWEEN_8_AND_128_CHARACTERS');
-    }
-    if (!isValidPassword(password)) {
-      throw new Error('ERR_PASSWORD_MUST_CONTAIN_UPPERCASE_LOWERCASE_NUMBER_AND_SPECIAL_CHARACTER');
-    }
-    if (!/^[ -~]+$/.test(password)) {
-      throw new Error('ERR_PASSWORD_CONTAINS_INVALID_CHARACTERS');
-    }
-  }
 
   /**
    * Callers: [CaptchaController.generate]
@@ -138,7 +127,7 @@ export class AuthApplicationService {
    * Keywords: register, user, captcha, consume, hash, command, identity
    */
   public async registerUser(email: string, username: string, password: string, captchaId: string): Promise<any> {
-    this.validatePasswordPolicy(password);
+    Password.validatePolicy(password);
 
     const isCaptchaValid = await this.consumeCaptcha(captchaId);
     if (!isCaptchaValid) {
@@ -192,7 +181,7 @@ export class AuthApplicationService {
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
 
     if (newPassword) {
-      this.validatePasswordPolicy(newPassword);
+      Password.validatePolicy(newPassword);
     }
 
     if (newEmail || newPassword) {
@@ -235,6 +224,7 @@ export class AuthApplicationService {
     user: any;
     requires2FA: boolean;
     methods: string[];
+    tempToken?: string;
   }> {
     let user = await this.userRepository.findByEmail(emailOrUsername);
     if (!user) {
@@ -266,7 +256,13 @@ export class AuthApplicationService {
       if (role) roleName = role.name;
     }
 
-    return {
+    const requires2FA = methods.length > 0;
+    let tempToken;
+    if (requires2FA) {
+      tempToken = this.generateTempToken(user.id, 'login');
+    }
+
+    const result: any = {
       user: {
         id: user.id,
         email: user.email,
@@ -275,9 +271,15 @@ export class AuthApplicationService {
         isTotpEnabled: user.isTotpEnabled,
         level: user.level
       },
-      requires2FA: methods.length > 0,
+      requires2FA,
       methods
     };
+
+    if (tempToken) {
+      result.tempToken = tempToken;
+    }
+
+    return result;
   }
 
   public async generatePasskeyRegistrationOptions(userId: string): Promise<any> {
@@ -298,7 +300,13 @@ export class AuthApplicationService {
     return { ...options, challengeId: authChallenge.id };
   }
 
-  public async verifyPasskeyRegistration(userId: string, response: any, challengeId: string): Promise<{ verified: boolean, message?: string, user?: any }> {
+  /**
+   * Callers: [AuthController]
+   * Callees: [IUserRepository.findById, IPasskeyRepository.save, User.changeLevel, IUserRepository.save]
+   * Description: Verifies the passkey registration response. Automatically promotes a level 1 user to level 2 upon successful passkey registration.
+   * Keywords: passkey, registration, verify, level, promote, identity
+   */
+  public async verifyPasskeyRegistration(userId: string, response: any, challengeId: string): Promise<{ verified: boolean, requiresTotpSetup?: boolean, message?: string, user?: any }> {
     if (!challengeId) {
       throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED');
     }
@@ -328,7 +336,7 @@ export class AuthApplicationService {
 
       const user = await this.userRepository.findById(userId);
       if (user && user.level === 1) {
-        user.changeLevel(2);
+        user.changeLevel(2, true);
         await this.userRepository.save(user);
       }
 
@@ -347,7 +355,12 @@ export class AuthApplicationService {
         level: user.level
       } : undefined;
 
-      return { verified: true, message: 'Passkey registered successfully', user: returnedUser };
+      const requiresTotpSetup = user ? !user.isTotpEnabled : false;
+      const message = requiresTotpSetup 
+        ? 'Passkey registered successfully. Please proceed to setup TOTP.'
+        : 'Passkey registered successfully';
+
+      return { verified: true, requiresTotpSetup, message, user: returnedUser };
     } else {
       throw new Error('ERR_VERIFICATION_FAILED');
     }
@@ -826,9 +839,9 @@ export class AuthApplicationService {
 
   /**
    * Callers: [UserController.deletePasskey]
-   * Callees: [IPasskeyRepository.findById, IPasskeyRepository.delete]
-   * Description: Deletes a specific passkey and returns the userId it belonged to (useful for cascading level downgrades).
-   * Keywords: delete, passkey, webauthn, command, identity
+   * Callees: [IPasskeyRepository.findById, IPasskeyRepository.delete, IPasskeyRepository.findByUserId, IUserRepository.findById, User.changeLevel, IUserRepository.save]
+   * Description: Deletes a specific passkey. If the user has no remaining passkeys, automatically downgrades them to level 1.
+   * Keywords: delete, passkey, webauthn, command, identity, level, downgrade
    */
   public async deletePasskey(id: string, requesterUserId: string): Promise<string> {
     const passkey = await this.passkeyRepository.findById(id);
@@ -845,7 +858,7 @@ export class AuthApplicationService {
     if (remainingPasskeys.length === 0) {
       const user = await this.userRepository.findById(requesterUserId);
       if (user) {
-        user.changeLevel(1);
+        user.changeLevel(1, false);
         await this.userRepository.save(user);
       }
     }
