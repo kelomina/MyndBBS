@@ -46,7 +46,10 @@ export default function FriendsPage() {
       
       const reqRes = await fetch('/api/v1/friends/request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include',
         body: JSON.stringify({ addresseeId: uData.userId })
       });
@@ -67,7 +70,10 @@ export default function FriendsPage() {
     try {
       await fetch('/api/v1/friends/respond', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include',
         body: JSON.stringify({ friendshipId: id, accept })
       });

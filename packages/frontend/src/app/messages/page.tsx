@@ -106,7 +106,13 @@ export default function MessagesPage() {
     void checkStatus();
   }, [checkStatus]);
 
-      const handleInitSecureMessaging = async () => {
+  /**
+   * Callers: [onClick in Confirm Dialog]
+   * Callees: [generateECDHKeyPair, exportKeyToBase64, fetch, startAuthentication, requestPassword, getAesKeyFromPrf, encryptPrivateKey, loadInbox]
+   * Description: Initializes secure messaging by generating a key pair, authenticating with Passkey PRF (or falling back to a recovery password), encrypting the private key with the derived AES key, and uploading the encrypted keys to the server. Includes CSRF token in the upload request.
+   * Keywords: PRF, Passkey, secure messaging, ECDH, CSRF, upload
+   */
+  const handleInitSecureMessaging = async () => {
     setInitializing(true);
     setError('');
     try {
@@ -186,7 +192,10 @@ export default function MessagesPage() {
       // 5. Upload
       const uploadRes = await fetch('/api/v1/messages/keys', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include',
         body: JSON.stringify({
           scheme: 'P521_ONLY',

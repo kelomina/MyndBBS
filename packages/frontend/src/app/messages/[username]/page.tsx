@@ -394,6 +394,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       
       const uploadRes = await fetch('/api/v1/messages/upload', {
         method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include',
         body: formData
       });
@@ -420,7 +421,10 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
       const res = await fetch('/api/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include',
         body: JSON.stringify({
           receiverId: targetUserId,
@@ -482,7 +486,10 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
       const res = await fetch('/api/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include',
         body: JSON.stringify({
           receiverId: targetUserId,
@@ -523,7 +530,10 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       const newValue = !allowTwoSidedDelete;
       await fetch(`/api/v1/messages/settings/${targetUserId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include',
         body: JSON.stringify({ allowTwoSidedDelete: newValue })
       });
@@ -537,6 +547,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     try {
       const res = await fetch(`/api/v1/messages/${msgId}`, {
         method: 'DELETE',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include'
       });
       if (res.ok) {
@@ -553,7 +564,10 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     try {
       const res = await fetch('/api/v1/friends/request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include',
         body: JSON.stringify({ addresseeId: targetUserId })
       });
@@ -579,6 +593,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     try {
       const res = await fetch(`/api/v1/messages/chat/${targetUserId}`, {
         method: 'DELETE',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include'
       });
       if (res.ok) {
