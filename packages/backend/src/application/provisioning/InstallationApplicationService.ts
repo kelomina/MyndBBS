@@ -6,6 +6,7 @@ import { IDatabaseSchemaApplier } from '../../domain/provisioning/IDatabaseSchem
 import { IInstallationSessionRepository } from '../../domain/provisioning/IInstallationSessionRepository';
 import { IIdentityBootstrapPort } from '../../domain/provisioning/IIdentityBootstrapPort';
 import { IRestartScheduler } from '../../domain/provisioning/IRestartScheduler';
+import { AuditApplicationService } from '../system/AuditApplicationService';
 
 export type DbConnectionConfigView = {
   host: string;
@@ -22,7 +23,8 @@ export class InstallationApplicationService {
     private dbSchemaApplier: IDatabaseSchemaApplier,
     private sessionRepository: IInstallationSessionRepository,
     private identityBootstrap: IIdentityBootstrapPort,
-    private restartScheduler: IRestartScheduler
+    private restartScheduler: IRestartScheduler,
+    private auditApplicationService: AuditApplicationService
   ) {}
 
   /**
@@ -112,7 +114,7 @@ export class InstallationApplicationService {
     });
   }
 
-  public async updateDbConfig(host: string, port: number, username: string, password: string, database: string, operatorRole?: string): Promise<void> {
+  public async updateDbConfig(host: string, port: number, username: string, password: string, database: string, operatorRole?: string, operatorId?: string): Promise<void> {
     if (operatorRole !== 'SUPER_ADMIN') {
       throw new Error('ERR_FORBIDDEN_SUPER_ADMIN_ONLY');
     }
@@ -121,6 +123,11 @@ export class InstallationApplicationService {
     const sessionId = await this.startInstallation();
     await this.configureDatabase(sessionId, newDbUrl);
     await this.applySchema(sessionId);
+
+    if (operatorId) {
+      await this.auditApplicationService.logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
+    }
+    this.scheduleRestart(1000);
   }
 
   public async startInstallation(): Promise<string> {

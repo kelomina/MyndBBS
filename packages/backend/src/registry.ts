@@ -135,7 +135,8 @@ export const installationApplicationService = new InstallationApplicationService
   new PrismaDatabaseSchemaApplier(),
   new InMemoryInstallationSessionRepository(),
   identityBootstrapServiceAdapter,
-  new ProcessExitRestartScheduler()
+  new ProcessExitRestartScheduler(),
+  auditApplicationService
 );
 
 export const redisModeratedWordsCache = new RedisModeratedWordsCache(

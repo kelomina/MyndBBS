@@ -322,23 +322,14 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
   const operatorId = req.user?.userId || 'unknown';
 
   try {
-    try {
-      await installationApplicationService.updateDbConfig(host, port, username, password, database, req.user?.role);
-    } catch (err: any) {
-      if (err.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
-        res.status(403).json({ error: err.message });
-        return;
-      }
-      console.error('Prisma Error on DB Update:', err.message);
-      res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED' });
+    await installationApplicationService.updateDbConfig(host, port, username, password, database, req.user?.role, operatorId);
+    res.json({ message: 'Database configuration updated successfully', config: { host, port, username, password, database } });
+  } catch (err: any) {
+    if (err.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
+      res.status(403).json({ error: err.message });
       return;
     }
-
-    await auditApplicationService.logAudit(operatorId, 'UPDATE_DB_CONFIG', 'PostgreSQL config updated in .env');
-    res.json({ message: 'Database configuration updated successfully', config: { host, port, username, password, database } });
-    installationApplicationService.scheduleRestart(1000);
-  } catch (error) {
-    console.error('DB Connection Test Failed:', error);
+    console.error('Prisma Error on DB Update:', err.message);
     res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED' });
   }
 };
