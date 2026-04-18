@@ -15,6 +15,8 @@ describe('CommunityApplicationService', () => {
   let moderationPolicy: any;
   let captchaValidator: any;
   let eventBus: any;
+  let auditApplicationService: any;
+  let unitOfWork: any;
   let service: CommunityApplicationService;
 
   beforeEach(() => {
@@ -59,6 +61,12 @@ describe('CommunityApplicationService', () => {
     eventBus = {
       publish: jest.fn(),
     };
+    auditApplicationService = {
+      logAudit: jest.fn(),
+    };
+    unitOfWork = {
+      execute: jest.fn((work) => work()),
+    };
 
     service = new CommunityApplicationService(
       categoryRepository,
@@ -68,7 +76,9 @@ describe('CommunityApplicationService', () => {
       identityIntegrationPort,
       moderationPolicy,
       captchaValidator,
-      eventBus
+      eventBus,
+      auditApplicationService,
+      unitOfWork
     );
   });
 

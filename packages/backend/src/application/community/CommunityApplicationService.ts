@@ -15,7 +15,9 @@ import { IModerationPolicy } from '../../domain/community/IModerationPolicy';
 import { ICaptchaValidator } from '../../domain/community/ICaptchaValidator';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostRepliedEvent, CommentRepliedEvent, CategoryModeratorAssignedEvent, CategoryModeratorRemovedEvent, CategoryCreatedEvent, CategoryUpdatedEvent, CategoryDeletedEvent } from '../../domain/shared/events/DomainEvents';
-import { subject, AnyAbility } from '@casl/ability';
+import { AnyAbility, subject } from '@casl/ability';
+import { IUnitOfWork } from '../../domain/shared/IUnitOfWork';
+import { AuditApplicationService } from '../system/AuditApplicationService';
 
 /**
  * Callers: [AdminController, PostController]
@@ -32,7 +34,9 @@ export class CommunityApplicationService {
     private identityIntegrationPort: IIdentityIntegrationPort,
     private moderationPolicy: IModerationPolicy,
     private captchaValidator: ICaptchaValidator,
-    private eventBus: IEventBus
+    private eventBus: IEventBus,
+    private auditApplicationService: AuditApplicationService,
+    private unitOfWork: IUnitOfWork
   ) {}
 
   // --- Category Management ---
@@ -80,7 +84,10 @@ export class CommunityApplicationService {
   }
 
   /**
-   * 创建分类并记录审计日志
+   * Callers: [AdminController.createCategory]
+   * Callees: [Category.create, ICategoryRepository.save, IEventBus.publish]
+   * Description: 创建分类并记录审计日志 (Creates a category and logs an audit event)
+   * Keywords: create, category, community
    * @param name 分类名称
    * @param description 分类描述
    * @param sortOrder 排序顺序
@@ -104,7 +111,10 @@ export class CommunityApplicationService {
   }
 
   /**
-   * 更新分类并记录审计日志
+   * Callers: [AdminController.updateCategory]
+   * Callees: [ICategoryRepository.findById, Category.updateDetails, Category.changeMinLevel, ICategoryRepository.save, IEventBus.publish]
+   * Description: 更新分类并记录审计日志 (Updates a category and logs an audit event)
+   * Keywords: update, category, community
    * @param id 分类 ID
    * @param name 新名称
    * @param description 新描述
@@ -149,7 +159,10 @@ export class CommunityApplicationService {
   }
 
   /**
-   * 移除分类版主并记录审计日志
+   * Callers: [AdminController.removeCategoryModerator]
+   * Callees: [ICategoryRepository.findById, Category.removeModerator, ICategoryRepository.save, IEventBus.publish]
+   * Description: 移除分类版主并记录审计日志 (Removes a moderator from a category and logs an audit event)
+   * Keywords: remove, moderator, category, community
    * @param categoryId 分类 ID
    * @param userId 目标用户 ID
    * @param operatorId 执行操作的用户 ID
@@ -164,7 +177,10 @@ export class CommunityApplicationService {
   }
 
   /**
-   * 删除分类并记录审计日志
+   * Callers: [AdminController.deleteCategory]
+   * Callees: [ICategoryRepository.findById, IUnitOfWork.execute, IPostRepository.deleteManyByCategoryId, ICategoryRepository.delete, IEventBus.publish]
+   * Description: 删除分类并记录审计日志 (Deletes a category and logs an audit event)
+   * Keywords: delete, category, community
    * @param id 分类 ID
    * @param operatorId 执行操作的用户 ID
    */
@@ -172,11 +188,20 @@ export class CommunityApplicationService {
     const category = await this.categoryRepository.findById(id);
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND');
 
-    await this.postRepository.deleteManyByCategoryId(id);
-    await this.categoryRepository.delete(id);
+    await this.unitOfWork.execute(async () => {
+      await this.postRepository.deleteManyByCategoryId(id);
+      await this.categoryRepository.delete(id);
+    });
+    
     this.eventBus.publish(new CategoryDeletedEvent(id, operatorId));
   }
 
+  /**
+   * Callers: [PostController.createPost]
+   * Callees: [ICaptchaValidator.consumeCaptcha, ICategoryRepository.findById, Category.isLevelSufficient, IModerationPolicy.containsModeratedWord, Post.create, IPostRepository.save]
+   * Description: Creates a new post after validating captcha, user level, and content moderation.
+   * Keywords: create, post, community, moderation
+   */
   public async createPost(title: string, content: string, categoryId: string, authorId: string, userLevel: number, captchaId: string): Promise<{ postId: string; isModerated: boolean; status: string; message?: string }> {
     const isCaptchaValid = await this.captchaValidator.consumeCaptcha(captchaId);
     if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA');
@@ -213,6 +238,12 @@ export class CommunityApplicationService {
     return result;
   }
 
+  /**
+   * Callers: [PostController.updatePost]
+   * Callees: [IPostRepository.findById, getPostSubject, AnyAbility.can, IModerationPolicy.containsModeratedWord, Post.updateContent, IPostRepository.save]
+   * Description: Updates an existing post after checking authorization and content moderation.
+   * Keywords: update, post, community, moderation, authorization
+   */
   public async updatePost(ability: AnyAbility, postId: string, title: string, content: string, categoryId: string): Promise<{ postId: string }> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
@@ -231,6 +262,12 @@ export class CommunityApplicationService {
     return { postId: post.id };
   }
 
+  /**
+   * Callers: [PostController.deletePost]
+   * Callees: [IPostRepository.findById, getPostSubject, AnyAbility.can, Post.delete, IUnitOfWork.execute, IPostRepository.save, ICommentRepository.softDeleteManyByPostId]
+   * Description: Soft deletes a post and its associated comments if the user has permissions.
+   * Keywords: delete, post, comment, community, authorization
+   */
   public async deletePost(ability: AnyAbility, postId: string): Promise<void> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
@@ -240,12 +277,21 @@ export class CommunityApplicationService {
     }
 
     post.delete();
-    await this.postRepository.save(post);
-    await this.commentRepository.softDeleteManyByPostId(postId);
+    
+    await this.unitOfWork.execute(async () => {
+      await this.postRepository.save(post);
+      await this.commentRepository.softDeleteManyByPostId(postId);
+    });
   }
 
   // --- Comment Management ---
 
+  /**
+   * Callers: [PostController.createComment]
+   * Callees: [ICaptchaValidator.consumeCaptcha, IPostRepository.findById, ICommentRepository.findById, IModerationPolicy.containsModeratedWord, Comment.create, ICommentRepository.save, IEventBus.publish]
+   * Description: Creates a comment on a post, validating captcha and moderation, then publishes events.
+   * Keywords: create, comment, post, community, moderation
+   */
   public async createComment(content: string, postId: string, authorId: string, captchaId: string, parentId?: string): Promise<{ commentId: string }> {
     const isCaptchaValid = await this.captchaValidator.consumeCaptcha(captchaId);
     if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA');
@@ -285,6 +331,12 @@ export class CommunityApplicationService {
     return { commentId: comment.id };
   }
 
+  /**
+   * Callers: [PostController.updateComment]
+   * Callees: [ICommentRepository.findById, getCommentSubject, AnyAbility.can, IPostRepository.findById, IModerationPolicy.containsModeratedWord, Comment.updateContent, ICommentRepository.save]
+   * Description: Updates a comment after authorization and content moderation.
+   * Keywords: update, comment, community, moderation, authorization
+   */
   public async updateComment(ability: AnyAbility, commentId: string, content: string): Promise<{ commentId: string }> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
@@ -303,6 +355,12 @@ export class CommunityApplicationService {
     return { commentId: comment.id };
   }
 
+  /**
+   * Callers: [PostController.deleteComment]
+   * Callees: [ICommentRepository.findById, getCommentSubject, AnyAbility.can, Comment.delete, ICommentRepository.save]
+   * Description: Soft deletes a comment. Validates user permissions before deleting.
+   * Keywords: delete, comment, community, authorization
+   */
   public async deleteComment(ability: AnyAbility, commentId: string): Promise<void> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');

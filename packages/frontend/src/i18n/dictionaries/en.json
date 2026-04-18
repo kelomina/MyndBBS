@@ -440,7 +440,15 @@
     "ERR_FORBIDDEN_SUPER_ADMIN_ONLY": "Forbidden: Super admin only.",
     "ERR_INVALID_DOMAIN_CONFIG": "Invalid settings. Please check and try again.",
     "ERR_CSRF_TOKEN_MISSING_OR_INVALID": "CSRF token missing or invalid. Please try again.",
-    "ERR_PLEASE_FILL_ALL": "Please fill out all fields"
+    "ERR_PLEASE_FILL_ALL": "Please fill out all fields",
+    "ERR_FRIENDSHIP_EXISTS": "Friendship request already exists",
+    "ERR_NOT_FOUND": "Resource not found",
+    "ERR_LEVEL_TOO_LOW": "Level too low",
+    "ERR_EMAIL_ALREADY_EXISTS": "Email already exists",
+    "ERR_FORBIDDEN_NOT_YOUR_PASSKEY": "Forbidden: Not your passkey",
+    "ERR_INVALID_CAPTCHA": "Invalid captcha",
+    "ERR_TOTP_ALREADY_ENABLED": "TOTP is already enabled",
+    "ERR_USERNAME_ALREADY_EXISTS": "Username already exists"
   },
   "category": {
     "postsTitle": "Posts",

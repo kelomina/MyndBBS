@@ -18,6 +18,7 @@ import { APP_NAME } from '@myndbbs/shared';
 import { ITotpPort } from '../../domain/identity/ports/ITotpPort';
 import { IPasskeyPort } from '../../domain/identity/ports/IPasskeyPort';
 import { ITokenPort } from '../../domain/identity/ports/ITokenPort';
+import { IUnitOfWork } from '../../domain/shared/IUnitOfWork';
 
 import { SvgCaptchaGenerator } from './SvgCaptchaGenerator';
 
@@ -49,7 +50,8 @@ export class AuthApplicationService {
     private authCache: ISessionCache,
     private totpPort: ITotpPort,
     private passkeyPort: IPasskeyPort,
-    private tokenPort: ITokenPort
+    private tokenPort: ITokenPort,
+    private unitOfWork: IUnitOfWork
   ) {}
 
   // --- Captcha Orchestration ---
@@ -122,53 +124,61 @@ export class AuthApplicationService {
 
   /**
    * Callers: [RegisterController.registerUser]
-   * Callees: [ICaptchaChallengeRepository.findById, CaptchaChallenge.validateForConsumption, ICaptchaChallengeRepository.delete, IUserRepository.findByEmail, IUserRepository.findByUsername, IPasswordHasher.hash, User.create, IUserRepository.save]
-   * Description: Orchestrates user registration. Consumes the verified captcha, hashes the password, and creates the user domain entity.
+   * Callees: [ICaptchaChallengeRepository.findById, CaptchaChallenge.validateForConsumption, ICaptchaChallengeRepository.delete, IUserRepository.findByEmail, IUserRepository.findByUsername, IPasswordHasher.hash, User.create, IUnitOfWork.execute, IUserRepository.save]
+   * Description: Orchestrates user registration. Consumes the verified captcha, hashes the password, and creates the user domain entity in a transaction.
    * Keywords: register, user, captcha, consume, hash, command, identity
    */
   public async registerUser(email: string, username: string, password: string, captchaId: string): Promise<any> {
-    Password.validatePolicy(password);
+    return this.unitOfWork.execute(async () => {
+      Password.validatePolicy(password);
 
-    const isCaptchaValid = await this.consumeCaptcha(captchaId);
-    if (!isCaptchaValid) {
-      throw new Error('ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA');
-    }
+      const isCaptchaValid = await this.consumeCaptcha(captchaId);
+      if (!isCaptchaValid) {
+        throw new Error('ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA');
+      }
 
-    const existingEmail = await this.userRepository.findByEmail(email);
-    if (existingEmail) throw new Error('ERR_EMAIL_ALREADY_EXISTS');
+      const existingEmail = await this.userRepository.findByEmail(email);
+      if (existingEmail) throw new Error('ERR_EMAIL_ALREADY_EXISTS');
 
-    const existingUsername = await this.userRepository.findByUsername(username);
-    if (existingUsername) throw new Error('ERR_USERNAME_ALREADY_EXISTS');
+      const existingUsername = await this.userRepository.findByUsername(username);
+      if (existingUsername) throw new Error('ERR_USERNAME_ALREADY_EXISTS');
 
-    const hashedPassword = await this.passwordHasher.hash(password);
-    const defaultRole = await this.roleRepository.findByName('USER');
-    
-    const user = User.create({
-      id: uuidv4(),
-      email,
-      username,
-      password: hashedPassword,
-      roleId: defaultRole?.id || null,
-      level: 1,
-      status: UserStatus.ACTIVE,
-      isPasskeyMandatory: false,
-      totpSecret: null,
-      isTotpEnabled: false,
-      createdAt: new Date()
+      const hashedPassword = await this.passwordHasher.hash(password);
+      const defaultRole = await this.roleRepository.findByName('USER');
+      
+      const user = User.create({
+        id: uuidv4(),
+        email,
+        username,
+        password: hashedPassword,
+        roleId: defaultRole?.id || null,
+        level: 1,
+        status: UserStatus.ACTIVE,
+        isPasskeyMandatory: false,
+        totpSecret: null,
+        isTotpEnabled: false,
+        createdAt: new Date()
+      });
+
+      await this.userRepository.save(user);
+
+      // Return DTO format expected by controller
+      return { 
+        id: user.id, 
+        username: user.username, 
+        email: user.email, 
+        level: user.level, 
+        role: { name: defaultRole?.name || null } 
+      };
     });
-
-    await this.userRepository.save(user);
-
-    // Return DTO format expected by controller
-    return { 
-      id: user.id, 
-      username: user.username, 
-      email: user.email, 
-      level: user.level, 
-      role: { name: defaultRole?.name || null } 
-    };
   }
 
+  /**
+   * Callers: [UserController.changePassword]
+   * Callees: [IUnitOfWork.execute, IUserRepository.findById, Password.validatePolicy, IPasswordHasher.verify, ITotpPort.verify, IUserRepository.findByEmail, IUserRepository.findByUsername, IPasswordHasher.hash, User.updateProfile, IUserRepository.save]
+   * Description: Changes user password, email, or username with verification of current password or TOTP in a transaction.
+   * Keywords: change, password, email, username, verify, totp, user, identity
+   */
   public async changePasswordWithVerification(
     userId: string,
     currentPassword?: string,
@@ -177,45 +187,47 @@ export class AuthApplicationService {
     newEmail?: string,
     newUsername?: string
   ): Promise<any> {
-    const user = await this.userRepository.findById(userId);
-    if (!user) throw new Error('ERR_USER_NOT_FOUND');
+    return this.unitOfWork.execute(async () => {
+      const user = await this.userRepository.findById(userId);
+      if (!user) throw new Error('ERR_USER_NOT_FOUND');
 
-    if (newPassword) {
-      Password.validatePolicy(newPassword);
-    }
-
-    if (newEmail || newPassword) {
-      if (!currentPassword && !totpCode) {
-        throw new Error('ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES');
+      if (newPassword) {
+        Password.validatePolicy(newPassword);
       }
-      if (currentPassword && user.password) {
-        const isValid = await this.passwordHasher.verify(user.password, currentPassword);
-        if (!isValid) throw new Error('ERR_INVALID_CURRENT_PASSWORD');
+
+      if (newEmail || newPassword) {
+        if (!currentPassword && !totpCode) {
+          throw new Error('ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES');
+        }
+        if (currentPassword && user.password) {
+          const isValid = await this.passwordHasher.verify(user.password, currentPassword);
+          if (!isValid) throw new Error('ERR_INVALID_CURRENT_PASSWORD');
+        }
+        if (totpCode && user.totpSecret) {
+          const isValid = this.totpPort.verify(user.totpSecret, totpCode);
+          if (!isValid) throw new Error('ERR_INVALID_TOTP_CODE');
+        }
       }
-      if (totpCode && user.totpSecret) {
-        const isValid = this.totpPort.verify(user.totpSecret, totpCode);
-        if (!isValid) throw new Error('ERR_INVALID_TOTP_CODE');
+
+      if (newEmail && newEmail !== user.email) {
+        const existing = await this.userRepository.findByEmail(newEmail);
+        if (existing) throw new Error('ERR_EMAIL_ALREADY_IN_USE');
       }
-    }
+      if (newUsername && newUsername !== user.username) {
+        const existing = await this.userRepository.findByUsername(newUsername);
+        if (existing) throw new Error('ERR_USERNAME_ALREADY_IN_USE');
+      }
 
-    if (newEmail && newEmail !== user.email) {
-      const existing = await this.userRepository.findByEmail(newEmail);
-      if (existing) throw new Error('ERR_EMAIL_ALREADY_IN_USE');
-    }
-    if (newUsername && newUsername !== user.username) {
-      const existing = await this.userRepository.findByUsername(newUsername);
-      if (existing) throw new Error('ERR_USERNAME_ALREADY_IN_USE');
-    }
+      let hashedPassword;
+      if (newPassword) {
+        hashedPassword = await this.passwordHasher.hash(newPassword);
+      }
 
-    let hashedPassword;
-    if (newPassword) {
-      hashedPassword = await this.passwordHasher.hash(newPassword);
-    }
+      user.updateProfile(newEmail, newUsername, hashedPassword);
+      await this.userRepository.save(user);
 
-    user.updateProfile(newEmail, newUsername, hashedPassword);
-    await this.userRepository.save(user);
-
-    return { id: user.id, email: user.email, username: user.username, roleId: user.roleId };
+      return { id: user.id, email: user.email, username: user.username, roleId: user.roleId };
+    });
   }
 
   // --- Auth Orchestration ---
@@ -302,68 +314,70 @@ export class AuthApplicationService {
 
   /**
    * Callers: [AuthController]
-   * Callees: [IUserRepository.findById, IPasskeyRepository.save, User.changeLevel, IUserRepository.save]
-   * Description: Verifies the passkey registration response. Automatically promotes a level 1 user to level 2 upon successful passkey registration.
+   * Callees: [IUnitOfWork.execute, AuthApplicationService.consumeAuthChallenge, IPasskeyPort.verifyRegistrationResponse, AuthApplicationService.addPasskey, IUserRepository.findById, User.changeLevel, IUserRepository.save]
+   * Description: Verifies the passkey registration response in a transaction. Automatically promotes a level 1 user to level 2 upon successful passkey registration.
    * Keywords: passkey, registration, verify, level, promote, identity
    */
   public async verifyPasskeyRegistration(userId: string, response: any, challengeId: string): Promise<{ verified: boolean, requiresTotpSetup?: boolean, message?: string, user?: any }> {
-    if (!challengeId) {
-      throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED');
-    }
+    return this.unitOfWork.execute(async () => {
+      if (!challengeId) {
+        throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED');
+      }
 
-    const expectedChallenge = await this.consumeAuthChallenge(challengeId);
+      const expectedChallenge = await this.consumeAuthChallenge(challengeId);
 
-    const verification = await this.passkeyPort.verifyRegistrationResponse(
-      response,
-      expectedChallenge.challenge,
-      origin,
-      rpID
-    );
-
-    if (verification.verified && verification.registrationInfo) {
-      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
-      const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
-
-      await this.addPasskey(
-        userId,
-        credentialID,
-        Buffer.from(credentialPublicKey),
-        userId,
-        BigInt(counter),
-        credentialDeviceType,
-        credentialBackedUp
+      const verification = await this.passkeyPort.verifyRegistrationResponse(
+        response,
+        expectedChallenge.challenge,
+        origin,
+        rpID
       );
 
-      const user = await this.userRepository.findById(userId);
-      if (user && user.level === 1) {
-        user.changeLevel(2, true);
-        await this.userRepository.save(user);
+      if (verification.verified && verification.registrationInfo) {
+        const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+        const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
+
+        await this.addPasskey(
+          userId,
+          credentialID,
+          Buffer.from(credentialPublicKey),
+          userId,
+          BigInt(counter),
+          credentialDeviceType,
+          credentialBackedUp
+        );
+
+        const user = await this.userRepository.findById(userId);
+        if (user && user.level === 1) {
+          user.changeLevel(2, true);
+          await this.userRepository.save(user);
+        }
+
+        let roleName = null;
+        if (user?.roleId) {
+          const role = await this.roleRepository.findById(user.roleId);
+          if (role) roleName = role.name;
+        }
+
+        const returnedUser = user ? {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          role: { name: roleName },
+          isTotpEnabled: user.isTotpEnabled,
+          level: user.level
+        } : undefined;
+
+        const requiresTotpSetup = user ? !user.isTotpEnabled : false;
+        const message = requiresTotpSetup 
+          ? 'Passkey registered successfully. Please proceed to setup TOTP.'
+          : 'Passkey registered successfully';
+
+        return { verified: true, requiresTotpSetup, message, user: returnedUser };
+      } else {
+        throw new Error('ERR_VERIFICATION_FAILED');
       }
-
-      let roleName = null;
-      if (user?.roleId) {
-        const role = await this.roleRepository.findById(user.roleId);
-        if (role) roleName = role.name;
-      }
-
-      const returnedUser = user ? {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        role: { name: roleName },
-        isTotpEnabled: user.isTotpEnabled,
-        level: user.level
-      } : undefined;
-
-      const requiresTotpSetup = user ? !user.isTotpEnabled : false;
-      const message = requiresTotpSetup 
-        ? 'Passkey registered successfully. Please proceed to setup TOTP.'
-        : 'Passkey registered successfully';
-
-      return { verified: true, requiresTotpSetup, message, user: returnedUser };
-    } else {
-      throw new Error('ERR_VERIFICATION_FAILED');
-    }
+    });
   }
 
   // --- Session Orchestration ---
@@ -426,30 +440,38 @@ export class AuthApplicationService {
     await this.authCache.storeTotpSecret(userId, secret, ttlSeconds);
   }
 
+  /**
+   * Callers: [UserController.verifyTotpSetup]
+   * Callees: [IUnitOfWork.execute, AuthApplicationService.getTotpSecret, ITotpPort.verify, IUserRepository.findById, User.enableTotp, IUserRepository.save, AuthApplicationService.removeTotpSecret]
+   * Description: Verifies TOTP registration and enables it for the user in a transaction.
+   * Keywords: totp, verify, registration, identity
+   */
   public async verifyTotpRegistration(userId: string, code: string): Promise<string> {
-    const pendingSecret = await this.getTotpSecret(userId);
-    if (!pendingSecret) {
-      throw new Error('ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED');
-    }
+    return this.unitOfWork.execute(async () => {
+      const pendingSecret = await this.getTotpSecret(userId);
+      if (!pendingSecret) {
+        throw new Error('ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED');
+      }
 
-    const isValid = this.totpPort.verify(pendingSecret, code);
-    if (!isValid) {
-      throw new Error('ERR_INVALID_TOTP_CODE');
-    }
+      const isValid = this.totpPort.verify(pendingSecret, code);
+      if (!isValid) {
+        throw new Error('ERR_INVALID_TOTP_CODE');
+      }
 
-    const user = await this.userRepository.findById(userId);
-    if (!user) throw new Error('ERR_USER_NOT_FOUND');
-    
-    if (user.isTotpEnabled) {
-      throw new Error('ERR_TOTP_ALREADY_ENABLED');
-    }
-    
-    user.enableTotp(pendingSecret);
-    await this.userRepository.save(user);
+      const user = await this.userRepository.findById(userId);
+      if (!user) throw new Error('ERR_USER_NOT_FOUND');
+      
+      if (user.isTotpEnabled) {
+        throw new Error('ERR_TOTP_ALREADY_ENABLED');
+      }
+      
+      user.enableTotp(pendingSecret);
+      await this.userRepository.save(user);
 
-    await this.removeTotpSecret(userId);
+      await this.removeTotpSecret(userId);
 
-    return pendingSecret;
+      return pendingSecret;
+    });
   }
 
   public async getTotpSecret(userId: string): Promise<string | null> {
@@ -594,62 +616,70 @@ export class AuthApplicationService {
     return await this.verifyPasskeyAuthenticationResponse(userId, response, challengeId);
   }
 
+  /**
+   * Callers: [AuthApplicationService.processPasskeyAuthentication]
+   * Callees: [IUnitOfWork.execute, AuthApplicationService.consumeAuthChallenge, IPasskeyRepository.findById, IPasskeyPort.verifyAuthenticationResponse, AuthApplicationService.updatePasskeyCounter, IUserRepository.findById]
+   * Description: Verifies the passkey authentication response in a transaction and returns user data.
+   * Keywords: passkey, verify, authenticate, identity
+   */
   public async verifyPasskeyAuthenticationResponse(userId: string | undefined, response: any, challengeId: string): Promise<any> {
-    if (!challengeId) {
-      throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED');
-    }
-    
-    const expectedChallenge = await this.consumeAuthChallenge(challengeId);
-    
-    const passkey = await this.passkeyRepository.findById(response.id);
-    if (!passkey) {
-      throw new Error('ERR_PASSKEY_NOT_FOUND');
-    }
-    
-    if (userId && passkey.userId !== userId) {
-      throw new Error('ERR_PASSKEY_DOES_NOT_BELONG_TO_USER');
-    }
-    
-    const credential = {
-      id: passkey.id,
-      publicKey: new Uint8Array(passkey.publicKey),
-      counter: Number(passkey.counter),
-    };
-    
-    const verification = await this.passkeyPort.verifyAuthenticationResponse(
-      response,
-      expectedChallenge.challenge,
-      origin,
-      rpID,
-      credential
-    );
-    
-    if (verification.verified && verification.authenticationInfo) {
-      const { newCounter } = verification.authenticationInfo;
-      await this.updatePasskeyCounter(passkey.id, BigInt(newCounter));
-      
-      const authenticatedUserId = passkey.userId;
-      const user = await this.userRepository.findById(authenticatedUserId);
-      if (!user) throw new Error('ERR_USER_NOT_FOUND');
-      
-      let roleName = null;
-      if (user.roleId) {
-        const role = await this.roleRepository.findById(user.roleId);
-        if (role) roleName = role.name;
+    return this.unitOfWork.execute(async () => {
+      if (!challengeId) {
+        throw new Error('ERR_CHALLENGE_ID_IS_REQUIRED');
       }
       
-      return {
-        verified: true,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: { name: roleName }
-        }
+      const expectedChallenge = await this.consumeAuthChallenge(challengeId);
+      
+      const passkey = await this.passkeyRepository.findById(response.id);
+      if (!passkey) {
+        throw new Error('ERR_PASSKEY_NOT_FOUND');
+      }
+      
+      if (userId && passkey.userId !== userId) {
+        throw new Error('ERR_PASSKEY_DOES_NOT_BELONG_TO_USER');
+      }
+      
+      const credential = {
+        id: passkey.id,
+        publicKey: new Uint8Array(passkey.publicKey),
+        counter: Number(passkey.counter),
       };
-    } else {
-      throw new Error('ERR_VERIFICATION_FAILED');
-    }
+      
+      const verification = await this.passkeyPort.verifyAuthenticationResponse(
+        response,
+        expectedChallenge.challenge,
+        origin,
+        rpID,
+        credential
+      );
+      
+      if (verification.verified && verification.authenticationInfo) {
+        const { newCounter } = verification.authenticationInfo;
+        await this.updatePasskeyCounter(passkey.id, BigInt(newCounter));
+        
+        const authenticatedUserId = passkey.userId;
+        const user = await this.userRepository.findById(authenticatedUserId);
+        if (!user) throw new Error('ERR_USER_NOT_FOUND');
+        
+        let roleName = null;
+        if (user.roleId) {
+          const role = await this.roleRepository.findById(user.roleId);
+          if (role) roleName = role.name;
+        }
+        
+        return {
+          verified: true,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: { name: roleName }
+          }
+        };
+      } else {
+        throw new Error('ERR_VERIFICATION_FAILED');
+      }
+    });
   }
 
   public async verifyTotpLogin(userId: string, code: string): Promise<any> {

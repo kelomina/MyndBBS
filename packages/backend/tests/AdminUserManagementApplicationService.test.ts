@@ -57,6 +57,8 @@ describe('AdminUserManagementApplicationService', () => {
     });
     await userRepo.save(u);
 
+    const unitOfWork = { execute: async (w: any) => w() };
+
     const svc = new AdminUserManagementApplicationService(
       userRepo as any,
       roleRepo as any,
@@ -64,7 +66,8 @@ describe('AdminUserManagementApplicationService', () => {
       sessionRepo as any,
       sessionCache as any,
       new RoleHierarchyPolicy(),
-      eventBus as any
+      eventBus as any,
+      unitOfWork as any
     );
 
     await expect(
