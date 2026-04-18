@@ -6,7 +6,7 @@ import { fetcher } from './fetcher';
  * @returns 用户列表
  */
 export const getUsers = (query?: string) => {
-  const url = query ? `/api/admin/users?query=${encodeURIComponent(query)}` : '/api/admin/users';
+  const url = query ? `/api/admin/users?q=${encodeURIComponent(query)}` : '/api/admin/users';
   return fetcher(url);
 };
 

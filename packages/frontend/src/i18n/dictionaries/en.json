@@ -19,7 +19,9 @@
     "confirm": "Confirm",
     "linkCopied": "Link copied to clipboard!",
     "passkeyBannerText": "For account security, binding a Passkey is required. You have not bound a Passkey, so your account is permanently restricted to Level 1 and cannot receive any level promotions (including automatic ones).",
-    "passkeyBannerLink": "Bind Passkey Now"
+    "passkeyBannerLink": "Bind Passkey Now",
+    "search": "Search",
+    "noData": "No data"
   },
   "nav": {
     "home": "Home",
