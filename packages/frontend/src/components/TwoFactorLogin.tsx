@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { usePasskey } from '../lib/hooks/usePasskey';
 import { useTranslation } from './TranslationProvider';
+import { verifyTotpLogin } from '../lib/api/twoFactor';
 
 interface TwoFactorLoginProps {
   methods: string[];
@@ -51,24 +52,11 @@ export function TwoFactorLogin({ methods }: TwoFactorLoginProps) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/v1/auth/totp/login-verify', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ code: totpCode }),
-      });
-      
-      if (res.ok) {
-        window.location.href = '/';
-      } else {
-        const data = await res.json();
-        setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.twoFactor.invalidTotpCode);
-      }
-    } catch {
-      setError(dict.auth.networkError);
+      await verifyTotpLogin('/api/v1/auth/totp/login-verify', totpCode);
+      window.location.href = '/';
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : '';
+      setError(dict.apiErrors?.[errorMsg as keyof typeof dict.apiErrors] || errorMsg || dict.twoFactor.invalidTotpCode);
     } finally {
       setLoading(false);
     }

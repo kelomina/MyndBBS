@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { startRegistration } from '@simplewebauthn/browser';
 import Image from 'next/image';
 import { useTranslation } from './TranslationProvider';
+import { generateTotp, verifyTotp as verifyTotpAPI, generatePasskeyOptions, verifyPasskeyRegistration } from '../lib/api/twoFactor';
 
 export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false }: { onComplete?: () => void, context?: 'auth' | 'user', forceTotp?: boolean }) {
   const dict = useTranslation();
@@ -22,18 +23,11 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(getEndpoint('/totp/generate'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setTotpSetup(data);
-      } else {
-        setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.twoFactor.failedGenerateTotp);
-      }
-    } catch {
-      setError(dict.auth.networkError);
+      const data = await generateTotp(getEndpoint('/totp/generate'));
+      setTotpSetup(data);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : '';
+      setError(dict.apiErrors?.[errorMsg as keyof typeof dict.apiErrors] || errorMsg || dict.twoFactor.failedGenerateTotp);
     } finally {
       setLoading(false);
     }
@@ -42,14 +36,7 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       const tryPasskeyRegistration = useCallback(async () => {
     try {
       // 1. Get options from server
-      const optionsRes = await fetch(getEndpoint('/passkey/generate-registration-options'), {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!optionsRes.ok) {
-        throw new Error('Failed to generate passkey options');
-      }
-      const options = await optionsRes.json();
+      const options = await generatePasskeyOptions(getEndpoint('/passkey/generate-registration-options'));
 
       // 2. Start registration in browser
       const authOptions = options;
@@ -58,33 +45,21 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
       const attResp = await startRegistration({ optionsJSON: authOptions });
 
       // 3. Verify on server
-      const verifyRes = await fetch(getEndpoint('/passkey/verify-registration'), {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify({ response: attResp, challengeId: options.challengeId }),
-      });
+      await verifyPasskeyRegistration(getEndpoint('/passkey/verify-registration'), attResp, options.challengeId);
 
-      if (verifyRes.ok) {
-        if (context === 'auth' && !forceTotp) {
-          // Passkey verified. They are now logged in. We MUST enforce TOTP now.
-          await loadTotp();
-        } else {
-          if (onComplete) onComplete();
-          else window.location.href = '/';
-        }
+      if (context === 'auth' && !forceTotp) {
+        // Passkey verified. They are now logged in. We MUST enforce TOTP now.
+        await loadTotp();
       } else {
-        const data = await verifyRes.json();
-        throw new Error(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.auth.passkeyVerificationFailed);
+        if (onComplete) onComplete();
+        else window.location.href = '/';
       }
     } catch (err) {
       const errorObj = err as Error;
       console.error('Passkey registration failed:', err);
       const isCancel = errorObj?.name === 'NotAllowedError' || errorObj?.message?.includes('timed out or was not allowed');
       if (!isCancel) {
-        setError(errorObj.message || dict.twoFactor.passkeySetupFailed);
+        setError(dict.apiErrors?.[errorObj.message as keyof typeof dict.apiErrors] || errorObj.message || dict.twoFactor.passkeySetupFailed);
       }
       await loadTotp();
     }
@@ -116,26 +91,15 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
     setError('');
     try {
       const endpoint = getEndpoint('/totp/verify');
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify({ code: totpCode }),
-      });
+      await verifyTotpAPI(endpoint, totpCode);
       
-      if (res.ok) {
-        if (onComplete) onComplete();
-        else {
-          window.location.href = '/';
-        }
-      } else {
-        const data = await res.json();
-        setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.twoFactor.invalidTotpCode);
+      if (onComplete) onComplete();
+      else {
+        window.location.href = '/';
       }
-    } catch {
-      setError(dict.auth.networkError);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : '';
+      setError(dict.apiErrors?.[errorMsg as keyof typeof dict.apiErrors] || errorMsg || dict.twoFactor.invalidTotpCode);
     } finally {
       setLoading(false);
     }
