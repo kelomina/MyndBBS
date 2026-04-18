@@ -10,12 +10,6 @@ import { getPostListEmptyMessage } from "../lib/utils";
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Callers: []
- * Callees: [headers, get, getDictionary, fetch, json, error, getPostListEmptyMessage]
- * Description: Handles the home logic for the application.
- * Keywords: home, auto-annotated
- */
 export default async function Home() {
   const headersList = await headers();
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;

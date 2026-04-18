@@ -12,7 +12,8 @@ export type AppSubjects =
   | 'Category'
   | 'Role'
   | 'Permission'
-  | 'Comment';
+  | 'Comment'
+  | 'ModeratedWord';
 
 export type AppAbility = PureAbility<[Action, AppSubjects]>;
 
@@ -70,6 +71,7 @@ export function defineAbilityForContext(context?: AccessContextDTO, extraRules?:
   if (context.moderatedCategoryIds && context.moderatedCategoryIds.length > 0) {
     can('manage', 'Post', { categoryId: { $in: context.moderatedCategoryIds } } as any);
     can('manage', 'Comment', { 'post.categoryId': { $in: context.moderatedCategoryIds } } as any);
+    can('manage', 'ModeratedWord', { categoryId: { $in: context.moderatedCategoryIds } } as any);
   }
 
   // Dynamic DB-driven rules

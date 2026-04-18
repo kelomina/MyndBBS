@@ -1,10 +1,4 @@
 import { ml_kem1024 } from '@noble/post-quantum/ml-kem.js';
-/**
- * Callers: []
- * Callees: [generateKey]
- * Description: Handles the generate e c d h key pair logic for the application.
- * Keywords: generateecdhkeypair, generate, e, c, d, h, key, pair, auto-annotated
- */
 export const generateECDHKeyPair = async () => {
   return window.crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-521' },
@@ -13,23 +7,11 @@ export const generateECDHKeyPair = async () => {
   );
 };
 
-/**
- * Callers: []
- * Callees: [exportKey, btoa, fromCharCode]
- * Description: Handles the export key to base64 logic for the application.
- * Keywords: exportkeytobase64, export, key, to, base64, auto-annotated
- */
 export const exportKeyToBase64 = async (key: CryptoKey): Promise<string> => {
   const exported = await window.crypto.subtle.exportKey(key.type === 'public' ? 'spki' : 'pkcs8', key);
   return btoa(String.fromCharCode(...new Uint8Array(exported)));
 };
 
-/**
- * Callers: []
- * Callees: [atob, charCodeAt, importKey]
- * Description: Handles the import public key from base64 logic for the application.
- * Keywords: importpublickeyfrombase64, import, public, key, from, base64, auto-annotated
- */
 export const importPublicKeyFromBase64 = async (base64: string): Promise<CryptoKey> => {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -39,12 +21,6 @@ export const importPublicKeyFromBase64 = async (base64: string): Promise<CryptoK
   );
 };
 
-/**
- * Callers: []
- * Callees: [atob, charCodeAt, importKey]
- * Description: Handles the import private key from base64 logic for the application.
- * Keywords: importprivatekeyfrombase64, import, private, key, from, base64, auto-annotated
- */
 export const importPrivateKeyFromBase64 = async (base64: string): Promise<CryptoKey> => {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -54,24 +30,12 @@ export const importPrivateKeyFromBase64 = async (base64: string): Promise<Crypto
   );
 };
 
-/**
- * Callers: []
- * Callees: [importKey]
- * Description: Handles the get aes key from prf logic for the application.
- * Keywords: getaeskeyfromprf, get, aes, key, from, prf, auto-annotated
- */
 export const getAesKeyFromPrf = async (prfBytes: Uint8Array): Promise<CryptoKey> => {
   return window.crypto.subtle.importKey(
     'raw', prfBytes as BufferSource, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
   );
 };
 
-/**
- * Callers: []
- * Callees: [getRandomValues, encrypt, encode, set, btoa, fromCharCode]
- * Description: Handles the encrypt private key logic for the application.
- * Keywords: encryptprivatekey, encrypt, private, key, auto-annotated
- */
 export const encryptPrivateKey = async (privateKeyBase64: string, aesKey: CryptoKey): Promise<string> => {
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
   const enc = new TextEncoder();
@@ -85,12 +49,6 @@ export const encryptPrivateKey = async (privateKeyBase64: string, aesKey: Crypto
   return btoa(String.fromCharCode(...combined));
 };
 
-/**
- * Callers: []
- * Callees: [atob, charCodeAt, slice, decrypt, decode]
- * Description: Handles the decrypt private key logic for the application.
- * Keywords: decryptprivatekey, decrypt, private, key, auto-annotated
- */
 export const decryptPrivateKey = async (encryptedBase64: string, aesKey: CryptoKey): Promise<string> => {
   const binaryString = atob(encryptedBase64);
   const combined = new Uint8Array(binaryString.length);
@@ -105,12 +63,6 @@ export const decryptPrivateKey = async (encryptedBase64: string, aesKey: CryptoK
   return new TextDecoder().decode(decrypted);
 };
 
-/**
- * Callers: []
- * Callees: [deriveBits, set, importKey, deriveKey, encode]
- * Description: Handles the derive aes gcm key logic for the application.
- * Keywords: deriveaesgcmkey, derive, aes, gcm, key, auto-annotated
- */
 const deriveAesGcmKey = async (privateKey: CryptoKey, publicKey: CryptoKey, mlKemSharedSecret?: Uint8Array): Promise<CryptoKey> => {
   // Derive P-521 shared secret bits
   const p521SecretBits = await window.crypto.subtle.deriveBits(
@@ -150,12 +102,6 @@ const deriveAesGcmKey = async (privateKey: CryptoKey, publicKey: CryptoKey, mlKe
   );
 };
 
-/**
- * Callers: []
- * Callees: [deriveAesGcmKey, getRandomValues, encrypt, encode, set, btoa, fromCharCode]
- * Description: Handles the encrypt message logic for the application.
- * Keywords: encryptmessage, encrypt, message, auto-annotated
- */
 export const encryptMessage = async (text: string, myPrivateKey: CryptoKey, theirPublicKey: CryptoKey, mlKemSharedSecret?: Uint8Array): Promise<string> => {
   const aesKey = await deriveAesGcmKey(myPrivateKey, theirPublicKey, mlKemSharedSecret);
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
@@ -169,12 +115,6 @@ export const encryptMessage = async (text: string, myPrivateKey: CryptoKey, thei
   return btoa(String.fromCharCode(...combined));
 };
 
-/**
- * Callers: []
- * Callees: [deriveAesGcmKey, atob, charCodeAt, slice, decrypt, decode]
- * Description: Handles the decrypt message logic for the application.
- * Keywords: decryptmessage, decrypt, message, auto-annotated
- */
 export const decryptMessage = async (encryptedBase64: string, myPrivateKey: CryptoKey, theirPublicKey: CryptoKey, mlKemSharedSecret?: Uint8Array): Promise<string> => {
   const aesKey = await deriveAesGcmKey(myPrivateKey, theirPublicKey, mlKemSharedSecret);
   const binaryString = atob(encryptedBase64);
@@ -190,12 +130,6 @@ export const decryptMessage = async (encryptedBase64: string, myPrivateKey: Cryp
   return new TextDecoder().decode(decrypted);
 };
 
-/**
- * Callers: []
- * Callees: [keygen, btoa, fromCharCode]
- * Description: Handles the generate ml kem1024 key pair logic for the application.
- * Keywords: generatemlkem1024keypair, generate, ml, kem1024, key, pair, auto-annotated
- */
 export const generateMlKem1024KeyPair = async () => {
   const keys = ml_kem1024.keygen();
   return {
@@ -203,12 +137,6 @@ export const generateMlKem1024KeyPair = async () => {
     privateKeyBase64: btoa(String.fromCharCode(...keys.secretKey))
   };
 };
-/**
- * Callers: []
- * Callees: [atob, charCodeAt, encapsulate, btoa, fromCharCode]
- * Description: Handles the encapsulate ml kem1024 logic for the application.
- * Keywords: encapsulatemlkem1024, encapsulate, ml, kem1024, auto-annotated
- */
 export const encapsulateMlKem1024 = async (publicKeyBase64: string) => {
   const binaryString = atob(publicKeyBase64);
   const publicKeyBytes = new Uint8Array(binaryString.length);
@@ -221,12 +149,6 @@ export const encapsulateMlKem1024 = async (publicKeyBase64: string) => {
     ciphertextBase64: btoa(String.fromCharCode(...cipherText))
   };
 };
-/**
- * Callers: []
- * Callees: [atob, charCodeAt, decapsulate]
- * Description: Handles the decapsulate ml kem1024 logic for the application.
- * Keywords: decapsulatemlkem1024, decapsulate, ml, kem1024, auto-annotated
- */
 export const decapsulateMlKem1024 = async (ciphertextBase64: string, privateKeyBase64: string) => {
   const ctStr = atob(ciphertextBase64);
   const ctBytes = new Uint8Array(ctStr.length);

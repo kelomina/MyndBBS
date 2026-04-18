@@ -45,12 +45,6 @@ interface User {
   role: string | null;
 }
 
-/**
- * Callers: []
- * Callees: [useToast, useTranslation, useState, setLoading, all, getCategories, getUsers, setCategories, setUsers, filter, setError, useEffect, loadData, preventDefault, createCategory, setIsCreateModalOpen, setCreateData, toast, deleteCategory, setIsDeleteModalOpen, setDeletingId, assignCategoryModerator, setIsAssignModalOpen, setAssignData, confirm, removeCategoryModerator, map, handleRemoveModerator, Number]
- * Description: Handles the categories page logic for the application.
- * Keywords: categoriespage, categories, page, auto-annotated
- */
 export default function CategoriesPage() {
   const { toast } = useToast();
   const dict = useTranslation();
@@ -72,13 +66,7 @@ export default function CategoriesPage() {
     userId: '',
   });
 
-  /**
-     * Callers: []
-     * Callees: [setLoading, all, getCategories, getUsers, setCategories, setUsers, filter, setError]
-     * Description: Handles the load data logic for the application.
-     * Keywords: loaddata, load, data, auto-annotated
-     */
-    const loadData = async () => {
+      const loadData = async () => {
     try {
       setLoading(true);
       const [cats, allUsers] = await Promise.all([getCategories(), getUsers()]);
@@ -96,13 +84,7 @@ export default function CategoriesPage() {
     loadData();
   }, []);
 
-  /**
-     * Callers: []
-     * Callees: [preventDefault, createCategory, setIsCreateModalOpen, setCreateData, loadData, toast]
-     * Description: Handles the handle create logic for the application.
-     * Keywords: handlecreate, handle, create, auto-annotated
-     */
-    const handleCreate = async (e: React.FormEvent) => {
+      const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await createCategory(createData);
@@ -114,13 +96,7 @@ export default function CategoriesPage() {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [deleteCategory, setIsDeleteModalOpen, setDeletingId, loadData, toast]
-     * Description: Handles the handle delete logic for the application.
-     * Keywords: handledelete, handle, delete, auto-annotated
-     */
-    const handleDelete = async () => {
+      const handleDelete = async () => {
     if (!deletingId) return;
     try {
       await deleteCategory(deletingId);
@@ -132,13 +108,7 @@ export default function CategoriesPage() {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [preventDefault, assignCategoryModerator, setIsAssignModalOpen, setAssignData, loadData, toast]
-     * Description: Handles the handle assign moderator logic for the application.
-     * Keywords: handleassignmoderator, handle, assign, moderator, auto-annotated
-     */
-    const handleAssignModerator = async (e: React.FormEvent) => {
+      const handleAssignModerator = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignData.categoryId || !assignData.userId) return;
     try {
@@ -151,13 +121,7 @@ export default function CategoriesPage() {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [confirm, removeCategoryModerator, loadData, toast]
-     * Description: Handles the handle remove moderator logic for the application.
-     * Keywords: handleremovemoderator, handle, remove, moderator, auto-annotated
-     */
-    const handleRemoveModerator = async (categoryId: string, userId: string) => {
+      const handleRemoveModerator = async (categoryId: string, userId: string) => {
     if (!confirm(dict.admin?.confirmRemoveModerator || 'Are you sure you want to remove this moderator?')) return;
     try {
       await removeCategoryModerator(categoryId, userId);

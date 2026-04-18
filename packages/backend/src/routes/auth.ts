@@ -19,12 +19,6 @@ const router: Router = Router();
 // Utility to get the best possible IP address without relying on Express's trust proxy settings.
 // In a typical proxy chain, the first IP added to X-Forwarded-For is the real client IP.
 // Format: client, proxy1, proxy2...
-/**
- * Callers: []
- * Callees: [map, split, trim, ipKeyGenerator]
- * Description: Handles the get client ip logic for the application.
- * Keywords: getclientip, get, client, ip, auto-annotated
- */
 const getClientIp = (req: Request): string => {
   return ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown');
 };

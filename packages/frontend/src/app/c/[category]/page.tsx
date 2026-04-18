@@ -10,12 +10,6 @@ import { getCategoryTranslation, getPostListEmptyMessage } from '../../../lib/ut
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Callers: []
- * Callees: [headers, get, getDictionary, decodeURIComponent, fetch, encodeURIComponent, json, error, getCategoryTranslation, getPostListEmptyMessage]
- * Description: Handles the category page logic for the application.
- * Keywords: categorypage, category, page, auto-annotated
- */
 export default async function CategoryPage({ params }: { params: Promise<{ category: string }> }) {
   const headersList = await headers();
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;

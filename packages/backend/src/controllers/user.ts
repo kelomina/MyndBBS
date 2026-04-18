@@ -3,12 +3,6 @@ import { AuthRequest } from '../middleware/auth';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { authApplicationService, userApplicationService } from '../registry';
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, error]
- * Description: Handles the get profile logic for the application.
- * Keywords: getprofile, get, profile, auto-annotated
- */
 export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -31,12 +25,6 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findMany, sort, map, getTime, error]
- * Description: Handles the get bookmarked posts logic for the application.
- * Keywords: getbookmarkedposts, get, bookmarked, posts, auto-annotated
- */
 export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -54,12 +42,6 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response): Promi
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findMany, error]
- * Description: Handles the get passkeys logic for the application.
- * Keywords: getpasskeys, get, passkeys, auto-annotated
- */
 export const getPasskeys = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -77,12 +59,6 @@ export const getPasskeys = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-/**
- * Callers: []
- * Callees: [AuthApplicationService.deletePasskey, count, update, json, status, error]
- * Description: Orchestrates the deletion of a passkey via the domain service. Also handles automatic security level downgrades if no passkeys remain.
- * Keywords: delete, passkey, webauthn, service, identity
- */
 export const deletePasskey = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -110,12 +86,6 @@ export const deletePasskey = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, verify, verifySync, update, error]
- * Description: Handles the disable totp logic for the application.
- * Keywords: disabletotp, disable, totp, auto-annotated
- */
 export const disableTotp = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -144,12 +114,6 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
 };
 
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, verify, verifySync, test, hash, keys, update, error]
- * Description: Handles the update profile logic for the application.
- * Keywords: updateprofile, update, profile, auto-annotated
- */
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -165,20 +129,8 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    if (password) {
-      try {
-        authApplicationService.validatePasswordPolicy(password);
-      } catch (error: any) {
-        const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
-          ? error.message
-          : 'ERR_BAD_REQUEST';
-        res.status(400).json({ error: errorCode });
-        return;
-      }
-    }
-
     try {
-      const updatedUser = await userApplicationService.changePasswordWithVerification(
+      const updatedUser = await authApplicationService.changePasswordWithVerification(
         userId,
         currentPassword,
         totpCode,
@@ -204,12 +156,6 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, generateSecret, generateURI, toDataURL, set]
- * Description: Handles the generate totp logic for the application.
- * Keywords: generatetotp, generate, totp, auto-annotated
- */
 export const generateTotp = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -229,12 +175,6 @@ export const generateTotp = async (req: AuthRequest, res: Response): Promise<voi
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, get, verifySync, update, del]
- * Description: Handles the verify totp logic for the application.
- * Keywords: verifytotp, verify, totp, auto-annotated
- */
 export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { code } = req.body;
@@ -274,12 +214,6 @@ export const verifyTotp = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, findMany, generateRegistrationOptions, from, map, randomUUID, upsert, now]
- * Description: Handles the generate passkey options logic for the application.
- * Keywords: generatepasskeyoptions, generate, passkey, options, auto-annotated
- */
 export const generatePasskeyOptions = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -299,12 +233,6 @@ export const generatePasskeyOptions = async (req: AuthRequest, res: Response): P
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, verifyRegistrationResponse, create, from, BigInt, delete, update]
- * Description: Handles the verify passkey logic for the application.
- * Keywords: verifypasskey, verify, passkey, auto-annotated
- */
 export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { response, challengeId } = req.body;
@@ -328,12 +256,6 @@ export const verifyPasskey = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findMany, error]
- * Description: Handles the get sessions logic for the application.
- * Keywords: getsessions, get, sessions, auto-annotated
- */
 export const getSessions = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -351,12 +273,6 @@ export const getSessions = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findFirst, delete, del, error]
- * Description: Handles the revoke session logic for the application.
- * Keywords: revokesession, revoke, session, auto-annotated
- */
 export const revokeSession = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -389,12 +305,6 @@ export const revokeSession = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-/**
- * Callers: []
- * Callees: [findUnique, accessibleBy, json, status, error]
- * Description: Handles the get public profile logic for the application.
- * Keywords: getpublicprofile, get, public, profile, auto-annotated
- */
 export const getPublicProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const username = req.params.username as string;

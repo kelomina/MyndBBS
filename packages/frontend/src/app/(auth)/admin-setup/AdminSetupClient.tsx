@@ -8,12 +8,6 @@ import Image from 'next/image';
 import { useTranslation } from '../../../components/TranslationProvider';
 import { fetcher } from '../../../lib/api/fetcher';
 
-/**
- * Callers: []
- * Callees: [useTranslation, useRouter, useState, setLoading, setError, fetcher, startRegistration, stringify, setStep, loadTotp, error, setTotpSetup, setTimeout, push, setTotpCode]
- * Description: Handles the admin setup client logic for the application.
- * Keywords: adminsetupclient, admin, setup, client, auto-annotated
- */
 export function AdminSetupClient() {
   const dict = useTranslation();
   const router = useRouter();
@@ -24,13 +18,7 @@ export function AdminSetupClient() {
   const [totpCode, setTotpCode] = useState('');
 
   // 1. Setup Passkey
-  /**
-     * Callers: []
-     * Callees: [setLoading, setError, fetcher, startRegistration, stringify, setStep, loadTotp, error]
-     * Description: Handles the handle setup passkey logic for the application.
-     * Keywords: handlesetuppasskey, handle, setup, passkey, auto-annotated
-     */
-    const handleSetupPasskey = async () => {
+      const handleSetupPasskey = async () => {
     setLoading(true);
     setError('');
     try {
@@ -63,26 +51,14 @@ export function AdminSetupClient() {
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [setStep, loadTotp]
-     * Description: Handles the skip passkey logic for the application.
-     * Keywords: skippasskey, skip, passkey, auto-annotated
-     */
-    const skipPasskey = () => {
+      const skipPasskey = () => {
     // If they skip passkey, they must setup TOTP via auth endpoint, which logs them in.
     setStep('totp');
     loadTotp(true);
   };
 
   // 2. Load TOTP
-  /**
-     * Callers: []
-     * Callees: [setLoading, setError, fetcher, setTotpSetup]
-     * Description: Handles the load totp logic for the application.
-     * Keywords: loadtotp, load, totp, auto-annotated
-     */
-    const loadTotp = async (isAuthContext = false) => {
+      const loadTotp = async (isAuthContext = false) => {
     setLoading(true);
     setError('');
     try {
@@ -97,13 +73,7 @@ export function AdminSetupClient() {
   };
 
   // 3. Verify TOTP
-  /**
-     * Callers: []
-     * Callees: [setError, setLoading, fetcher, stringify, setStep, setTimeout, push]
-     * Description: Handles the handle verify totp logic for the application.
-     * Keywords: handleverifytotp, handle, verify, totp, auto-annotated
-     */
-    const handleVerifyTotp = async () => {
+      const handleVerifyTotp = async () => {
     if (!totpCode || totpCode.length !== 6) {
       setError(dict.auth?.invalidTotp || 'Invalid 6-digit code');
       return;

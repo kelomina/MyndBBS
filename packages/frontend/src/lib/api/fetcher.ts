@@ -1,9 +1,3 @@
-/**
- * Callers: []
- * Callees: [startsWith, fetch, catch, json]
- * Description: Handles the fetcher logic for the application.
- * Keywords: fetcher, auto-annotated
- */
 export const fetcher = async (url: string, options?: RequestInit) => {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   const fullUrl = url.startsWith('/api') && typeof window !== 'undefined' ? url : `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;

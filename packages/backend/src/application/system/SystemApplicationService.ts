@@ -21,7 +21,8 @@ export class SystemApplicationService {
    * Description: Persists an uploaded attachment and returns its public URL.
    * Keywords: upload, attachment, storage, system, application
    */
-  public async uploadAttachment(filename: string, content: Buffer): Promise<string> {
+  public async uploadAttachment(content: Buffer): Promise<string> {
+    const filename = `${uuidv4()}.enc`;
     return this.storagePort.saveFile(filename, content);
   }
 

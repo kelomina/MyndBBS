@@ -8,12 +8,6 @@ import { TwoFactorSetup } from '../../../components/TwoFactorSetup';
 import { isValidPassword } from '@myndbbs/shared';
 import type { Dictionary } from '../../../types';
 
-/**
- * Callers: []
- * Callees: [useState, preventDefault, setError, isValidPassword, setLoading, fetch, stringify, json, setRequires2FA, setCaptchaId, setEmail, setUsername, setPassword]
- * Description: Handles the register client logic for the application.
- * Keywords: registerclient, register, client, auto-annotated
- */
 export function RegisterClient({ dict }: { dict: Dictionary }) {
   
   const [email, setEmail] = useState('');
@@ -24,13 +18,7 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
 
-  /**
-     * Callers: []
-     * Callees: [preventDefault, setError, isValidPassword, setLoading, fetch, stringify, json, setRequires2FA, setCaptchaId]
-     * Description: Handles the handle submit logic for the application.
-     * Keywords: handlesubmit, handle, submit, auto-annotated
-     */
-    const handleSubmit = async (e: React.FormEvent) => {
+      const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 

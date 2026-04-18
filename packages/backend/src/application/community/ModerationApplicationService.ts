@@ -175,7 +175,17 @@ export class ModerationApplicationService {
     await this.auditApplicationService.logAudit(operatorId, 'HARD_DELETE_COMMENT', `Comment:${commentId}`);
   }
 
-  public async addModeratedWord(word: string, categoryId?: string): Promise<any> {
+  public async addModeratedWord(word: string, categoryId: string | undefined, operatorId: string, ability?: AppAbility): Promise<any> {
+    if (ability) {
+      const { subject } = await import('@casl/ability');
+      if (!ability.can('manage', subject('ModeratedWord', { categoryId } as any))) {
+        if (!categoryId) {
+          throw new Error('ERR_CANNOT_ADD_GLOBAL_WORD');
+        }
+        throw new Error('ERR_NOT_MODERATOR_OF_CATEGORY');
+      }
+    }
+
     const moderatedWord = ModeratedWord.create({
       id: uuidv4(),
       word,
@@ -184,17 +194,29 @@ export class ModerationApplicationService {
     });
 
     await this.moderatedWordRepository.save(moderatedWord);
+    await this.auditApplicationService.logAudit(operatorId, 'ADD_MODERATED_WORD', `Word:${moderatedWord.id}`);
     
     this.eventBus.publish(new ModeratedWordAddedEvent(moderatedWord.id, moderatedWord.word, moderatedWord.categoryId));
 
     return { id: moderatedWord.id, word: moderatedWord.word, categoryId: moderatedWord.categoryId };
   }
 
-  public async removeModeratedWord(id: string): Promise<void> {
+  public async removeModeratedWord(id: string, operatorId: string, ability?: AppAbility): Promise<void> {
     const word = await this.moderatedWordRepository.findById(id);
     if (!word) throw new Error('ERR_WORD_NOT_FOUND');
 
+    if (ability) {
+      const { subject } = await import('@casl/ability');
+      if (!ability.can('manage', subject('ModeratedWord', { categoryId: word.categoryId } as any))) {
+        if (!word.categoryId) {
+          throw new Error('ERR_CANNOT_DELETE_GLOBAL_WORD');
+        }
+        throw new Error('ERR_NOT_MODERATOR_OF_CATEGORY');
+      }
+    }
+
     await this.moderatedWordRepository.delete(id);
+    await this.auditApplicationService.logAudit(operatorId, 'REMOVE_MODERATED_WORD', `Word:${id}`);
     
     this.eventBus.publish(new ModeratedWordDeletedEvent(word.id, word.word, word.categoryId));
   }

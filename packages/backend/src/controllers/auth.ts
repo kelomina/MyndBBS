@@ -6,12 +6,6 @@ const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.ORIGIN || `http://${rpID}:3000`;
 
 // Helper to get user from tempToken
-/**
- * Callers: []
- * Callees: [verify, findUnique]
- * Description: Handles the get user from temp token logic for the application.
- * Keywords: getuserfromtemptoken, get, user, from, temp, token, auto-annotated
- */
 const getUserFromTempToken = async (req: Request, expectedType: 'registration' | 'login' = 'registration') => {
   const { tempToken } = req.cookies;
   if (!tempToken) return null;
@@ -25,12 +19,6 @@ const getUserFromTempToken = async (req: Request, expectedType: 'registration' |
 };
 
 
-/**
- * Callers: []
- * Callees: [create, now, sign, clearCookie, cookie, json]
- * Description: Handles the finalize auth logic for the application.
- * Keywords: finalizeauth, finalize, auth, auto-annotated
- */
 export const finalizeAuth = async (user: any, req: Request, res: Response) => {
   const { accessToken, refreshToken } = await authApplicationService.finalizeAuth(
     user,
@@ -59,12 +47,6 @@ export const finalizeAuth = async (user: any, req: Request, res: Response) => {
   res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: roleName } });
 };
 
-/**
- * Callers: []
- * Callees: [getUserFromTempToken, json, status, generateSecret, generateURI, toDataURL, set]
- * Description: Handles the generate totp logic for the application.
- * Keywords: generatetotp, generate, totp, auto-annotated
- */
 export const generateTotp = async (req: Request, res: Response): Promise<void> => {
   const user = await getUserFromTempToken(req);
   if (!user) {
@@ -80,12 +62,6 @@ export const generateTotp = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-/**
- * Callers: []
- * Callees: [getUserFromTempToken, json, status, get, verifySync, update, del, finalizeAuth]
- * Description: Handles the verify totp registration logic for the application.
- * Keywords: verifytotpregistration, verify, totp, registration, auto-annotated
- */
 export const verifyTotpRegistration = async (req: Request, res: Response): Promise<void> => {
   const { code } = req.body;
   const user = await getUserFromTempToken(req);
@@ -110,12 +86,6 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
   }
 };
 
-/**
- * Callers: []
- * Callees: [getUserFromTempToken, json, status, findMany, generateRegistrationOptions, from, map, randomUUID, upsert, now]
- * Description: Handles the generate passkey registration options logic for the application.
- * Keywords: generatepasskeyregistrationoptions, generate, passkey, registration, options, auto-annotated
- */
 export const generatePasskeyRegistrationOptions = async (req: Request, res: Response): Promise<void> => {
   const user = await getUserFromTempToken(req);
   if (!user) {
@@ -134,12 +104,6 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
   }
 };
 
-/**
- * Callers: []
- * Callees: [getUserFromTempToken, json, status, findUnique, verifyRegistrationResponse, create, from, BigInt, delete, update, finalizeAuth]
- * Description: Handles the verify passkey registration response logic for the application.
- * Keywords: verifypasskeyregistrationresponse, verify, passkey, registration, response, auto-annotated
- */
 export const verifyPasskeyRegistrationResponse = async (req: Request, res: Response): Promise<void> => {
   const { response, challengeId } = req.body;
   const user = await getUserFromTempToken(req);
@@ -168,22 +132,10 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
   }
 };
 
-/**
- * Callers: []
- * Callees: [json]
- * Description: Handles the get ability logic for the application.
- * Keywords: getability, get, ability, auto-annotated
- */
 export const getAbility = async (req: any, res: Response): Promise<void> => {
   res.json({ rules: req.ability?.rules || [] });
 };
 
-/**
- * Callers: []
- * Callees: [getUserFromTempToken, json, status, verifySync, finalizeAuth]
- * Description: Handles the verify totp login logic for the application.
- * Keywords: verifytotplogin, verify, totp, login, auto-annotated
- */
 export const verifyTotpLogin = async (req: Request, res: Response): Promise<void> => {
   const { code } = req.body;
   const user = await getUserFromTempToken(req, 'login');
@@ -209,12 +161,6 @@ export const verifyTotpLogin = async (req: Request, res: Response): Promise<void
   }
 };
 
-/**
- * Callers: []
- * Callees: [getUserFromTempToken, json, status, findMany, generateAuthenticationOptions, map, randomUUID, upsert, now]
- * Description: Handles the generate passkey authentication options logic for the application.
- * Keywords: generatepasskeyauthenticationoptions, generate, passkey, authentication, options, auto-annotated
- */
 export const generatePasskeyAuthenticationOptions = async (req: Request, res: Response): Promise<void> => {
   const { tempToken } = req.cookies;
   
@@ -244,12 +190,6 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
   }
 };
 
-/**
- * Callers: []
- * Callees: [getUserFromTempToken, json, status, findUnique, verifyAuthenticationResponse, Number, update, BigInt, delete, finalizeAuth]
- * Description: Handles the verify passkey authentication response logic for the application.
- * Keywords: verifypasskeyauthenticationresponse, verify, passkey, authentication, response, auto-annotated
- */
 export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Response): Promise<void> => {
   const { response, challengeId: bodyChallengeId } = req.body;
   const { tempToken } = req.cookies;

@@ -4,12 +4,6 @@ import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { finalizeAuth } from './auth';
 import { authApplicationService } from '../registry';
 
-/**
- * Callers: []
- * Callees: [AuthApplicationService.registerUser, isValidPassword, test, json, status, sign, cookie, error]
- * Description: Orchestrates the user registration process via the domain service, enforcing strong password requirements and consuming verified captchas.
- * Keywords: register, user, identity, auth, service
- */
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, username, password, captchaId } = req.body;
@@ -30,7 +24,6 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       throw error;
     }
 
-    // Generate Temp Token for 2FA Registration
     const tempToken = authApplicationService.generateTempToken(user.id, 'registration');
 
     res.cookie('tempToken', tempToken, {
@@ -47,12 +40,6 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findFirst, verify, push, sign, cookie, finalizeAuth, error]
- * Description: Handles the login user logic for the application.
- * Keywords: loginuser, login, user, auto-annotated
- */
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
@@ -93,12 +80,6 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-/**
- * Callers: []
- * Callees: [verify, deleteMany, del, clearCookie, json, error, status]
- * Description: Handles the logout user logic for the application.
- * Keywords: logoutuser, logout, user, auto-annotated
- */
 export const logoutUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { accessToken, refreshToken: tokenFromCookie } = req.cookies;
@@ -115,12 +96,6 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, verify, findUnique, clearCookie, sign, cookie, error]
- * Description: Handles the refresh token logic for the application.
- * Keywords: refreshtoken, refresh, token, auto-annotated
- */
 export const refreshToken = async (req: Request, res: Response): Promise<void> => {
   try {
     const { refreshToken } = req.cookies;

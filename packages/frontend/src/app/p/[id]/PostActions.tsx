@@ -7,12 +7,6 @@ import { ArrowBigUp, Bookmark, Share, Trash2, Edit2 } from 'lucide-react';
 import { useCurrentUser } from '../../../lib/hooks';
 import { useRouter } from 'next/navigation';
 
-/**
- * Callers: []
- * Callees: [useToast, useTranslation, useState, useCurrentUser, useRouter, useEffect, fetch, json, setHasUpvoted, setHasBookmarked, error, checkInteractions, setLoading, setUpvotes, toast, share, writeText, confirm, push]
- * Description: Handles the post actions logic for the application.
- * Keywords: postactions, post, actions, auto-annotated
- */
 export function PostActions({ 
   postId, 
   initialUpvotes, 
@@ -37,13 +31,7 @@ export function PostActions({
   useEffect(() => {
     
     // Check initial interaction status
-    /**
-       * Callers: []
-       * Callees: [fetch, json, setHasUpvoted, setHasBookmarked, error]
-       * Description: Handles the check interactions logic for the application.
-       * Keywords: checkinteractions, check, interactions, auto-annotated
-       */
-      const checkInteractions = async () => {
+          const checkInteractions = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${postId}/interactions`, {
           credentials: 'include'
@@ -60,13 +48,7 @@ export function PostActions({
     checkInteractions();
   }, [postId]);
 
-  /**
-     * Callers: []
-     * Callees: [setLoading, fetch, json, setHasUpvoted, setUpvotes, toast, error]
-     * Description: Handles the handle upvote logic for the application.
-     * Keywords: handleupvote, handle, upvote, auto-annotated
-     */
-    const handleUpvote = async () => {
+      const handleUpvote = async () => {
     if (loading) return;
     setLoading(true);
     try {
@@ -91,13 +73,7 @@ export function PostActions({
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [setLoading, fetch, json, setHasBookmarked, toast, error]
-     * Description: Handles the handle bookmark logic for the application.
-     * Keywords: handlebookmark, handle, bookmark, auto-annotated
-     */
-    const handleBookmark = async () => {
+      const handleBookmark = async () => {
     if (loading) return;
     setLoading(true);
     try {
@@ -122,13 +98,7 @@ export function PostActions({
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [share, writeText, toast]
-     * Description: Handles the handle share logic for the application.
-     * Keywords: handleshare, handle, share, auto-annotated
-     */
-    const handleShare = () => {
+      const handleShare = () => {
     if (navigator.share) {
       navigator.share({
         title: document.title,
@@ -140,13 +110,7 @@ export function PostActions({
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [confirm, setLoading, fetch, toast, push, json, error]
-     * Description: Handles the handle delete logic for the application.
-     * Keywords: handledelete, handle, delete, auto-annotated
-     */
-    const handleDelete = async () => {
+      const handleDelete = async () => {
     if (!confirm(dict.post?.confirmDeletePost || 'Are you sure you want to delete this post?')) return;
     if (loading) return;
     setLoading(true);

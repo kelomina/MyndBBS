@@ -8,23 +8,11 @@ import { AuthRequest } from '../middleware/auth';
 import { auditApplicationService, adminUserManagementApplicationService, authApplicationService, userApplicationService, installationApplicationService, systemApplicationService, communityApplicationService, roleApplicationService, moderationApplicationService } from '../registry';
 
 // Users
-/**
- * Callers: []
- * Callees: [findMany, map, json]
- * Description: Handles the get users logic for the application.
- * Keywords: getusers, get, users, auto-annotated
- */
 export const getUsers = async (req: Request, res: Response) => {
   const users = await adminQueryService.listUsers();
   res.json(users);
 };
 
-/**
- * Callers: []
- * Callees: [findUnique, json, status, findMany, update, logAudit, includes, pipeline, del, exec, deleteMany, set, findFirst]
- * Description: Handles the update user role logic for the application.
- * Keywords: updateuserrole, update, user, role, auto-annotated
- */
 export const updateUserRole = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { role, level } = req.body;
@@ -59,12 +47,6 @@ export const updateUserRole = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
-/**
- * Callers: []
- * Callees: [includes, json, status, findUnique, update, findMany, pipeline, del, exec, deleteMany, logAudit]
- * Description: Handles the update user status logic for the application.
- * Keywords: updateuserstatus, update, user, status, auto-annotated
- */
 export const updateUserStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { status } = req.body;
@@ -91,66 +73,61 @@ export const updateUserStatus = async (req: AuthRequest, res: Response): Promise
 };
 
 // Categories
-/**
- * Callers: []
- * Callees: [findMany, json]
- * Description: Handles the get categories logic for the application.
- * Keywords: getcategories, get, categories, auto-annotated
- */
 export const getCategories = async (req: Request, res: Response) => {
   const categories = await adminQueryService.listCategories();
   res.json(categories);
 };
 
-/**
- * Callers: []
- * Callees: [CommunityApplicationService.createCategory, logAudit, json, status]
- * Description: Orchestrates the creation of a new category via the domain service.
- * Keywords: create, category, community, service
- */
-export const createCategory = async (req: AuthRequest, res: Response) => {
-  const { name, description, sortOrder, minLevel } = req.body;
-  const operatorId = req.user?.userId || 'unknown';
-
+export const createCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const category = await communityApplicationService.createCategory(name, description, sortOrder, minLevel, operatorId);
-    res.status(201).json(category);
+    const { name, description, sortOrder, minLevel } = req.body;
+    const operatorId = req.user?.userId || 'unknown';
+
+    const category = await communityApplicationService.createCategory(
+      name,
+      description || null,
+      sortOrder || 0,
+      minLevel || 0,
+      operatorId
+    );
+
+    res.json(category);
   } catch (error: any) {
-    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
-      ? error.message
-      : 'ERR_BAD_REQUEST';
-    res.status(400).json({ error: errorCode });
+    if (error.message.startsWith('ERR_')) {
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_SERVER_ERROR' });
+    }
   }
 };
 
-/**
- * Callers: []
- * Callees: [CommunityApplicationService.updateCategory, json]
- * Description: Orchestrates the update of a category via the domain service.
- * Keywords: update, category, community, service
- */
-export const updateCategory = async (req: AuthRequest, res: Response) => {
-  const id = req.params.id as string;
-  const { name, description, sortOrder, minLevel } = req.body;
-  const operatorId = req.user?.userId || 'unknown';
-
+export const updateCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    await communityApplicationService.updateCategory(id, name, description, sortOrder, minLevel, operatorId);
+    const id = req.params.id as string;
+    const { name, description, sortOrder, minLevel } = req.body;
+    const operatorId = req.user?.userId || 'unknown';
+
+    await communityApplicationService.updateCategory(
+      id,
+      name,
+      description !== undefined ? description : null,
+      sortOrder,
+      minLevel,
+      operatorId
+    );
+
     res.json({ message: 'Category updated successfully' });
   } catch (error: any) {
-    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
-      ? error.message
-      : 'ERR_BAD_REQUEST';
-    res.status(400).json({ error: errorCode });
+    if (error.message === 'ERR_CATEGORY_NOT_FOUND') {
+      res.status(404).json({ error: 'ERR_CATEGORY_NOT_FOUND' });
+    } else if (error.message.startsWith('ERR_')) {
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_SERVER_ERROR' });
+    }
   }
 };
 
-/**
- * Callers: []
- * Callees: [CommunityApplicationService.deleteCategory, json, status]
- * Description: Orchestrates the deletion of a category via the domain service.
- * Keywords: delete, category, community, service
- */
 export const deleteCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
@@ -160,19 +137,14 @@ export const deleteCategory = async (req: AuthRequest, res: Response): Promise<v
 
     res.json({ message: 'Category deleted' });
   } catch (error: any) {
-    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
-      ? error.message
-      : 'ERR_FAILED_TO_DELETE_CATEGORY';
-    res.status(500).json({ error: errorCode });
+    if (error.message === 'ERR_CATEGORY_NOT_FOUND') {
+      res.status(404).json({ error: 'ERR_CATEGORY_NOT_FOUND' });
+    } else {
+      res.status(500).json({ error: 'ERR_SERVER_ERROR' });
+    }
   }
 };
 
-/**
- * Callers: []
- * Callees: [findUnique, json, status, upsert]
- * Description: Handles the assign category moderator logic for the application.
- * Keywords: assigncategorymoderator, assign, category, moderator, auto-annotated
- */
 export const assignCategoryModerator = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
@@ -187,12 +159,6 @@ export const assignCategoryModerator = async (req: AuthRequest, res: Response): 
   }
 };
 
-/**
- * Callers: []
- * Callees: [delete, json, status]
- * Description: Handles the remove category moderator logic for the application.
- * Keywords: removecategorymoderator, remove, category, moderator, auto-annotated
- */
 export const removeCategoryModerator = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
@@ -208,12 +174,6 @@ export const removeCategoryModerator = async (req: AuthRequest, res: Response): 
 };
 
 // Posts
-/**
- * Callers: []
- * Callees: [json, status, findMany, accessibleBy]
- * Description: Handles the get posts logic for the application.
- * Keywords: getposts, get, posts, auto-annotated
- */
 export const getPosts = async (req: AuthRequest, res: Response) => {
   if (!req.ability) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
@@ -224,12 +184,6 @@ export const getPosts = async (req: AuthRequest, res: Response) => {
   res.json(posts);
 };
 
-/**
- * Callers: []
- * Callees: [includes, json, status, findUnique, can, subject, update, logAudit]
- * Description: Handles the update post status logic for the application.
- * Keywords: updatepoststatus, update, post, status, auto-annotated
- */
 export const updatePostStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { status } = req.body;
@@ -255,12 +209,6 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
 };
 
 // Recycle Bin
-/**
- * Callers: []
- * Callees: [json, status, findMany, accessibleBy]
- * Description: Handles the get deleted posts logic for the application.
- * Keywords: getdeletedposts, get, deleted, posts, auto-annotated
- */
 export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
   if (!req.ability) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
@@ -270,12 +218,6 @@ export const getDeletedPosts = async (req: AuthRequest, res: Response) => {
   res.json(deletedPosts);
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findMany, accessibleBy]
- * Description: Handles the get deleted comments logic for the application.
- * Keywords: getdeletedcomments, get, deleted, comments, auto-annotated
- */
 export const getDeletedComments = async (req: AuthRequest, res: Response) => {
   if (!req.ability) {
     res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
@@ -288,12 +230,6 @@ export const getDeletedComments = async (req: AuthRequest, res: Response) => {
 
 
 
-/**
- * Callers: []
- * Callees: [handleAdminAction, findUnique, update]
- * Description: Handles the restore post logic for the application.
- * Keywords: restorepost, restore, post, auto-annotated
- */
 export const restorePost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
@@ -312,12 +248,6 @@ export const restorePost = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-/**
- * Callers: []
- * Callees: [handleAdminAction, findUnique, delete]
- * Description: Handles the hard delete post logic for the application.
- * Keywords: harddeletepost, hard, delete, post, auto-annotated
- */
 export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
@@ -336,12 +266,6 @@ export const hardDeletePost = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
-/**
- * Callers: []
- * Callees: [handleAdminAction, findUnique, update]
- * Description: Handles the restore comment logic for the application.
- * Keywords: restorecomment, restore, comment, auto-annotated
- */
 export const restoreComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
@@ -360,12 +284,6 @@ export const restoreComment = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
-/**
- * Callers: []
- * Callees: [handleAdminAction, findUnique, delete]
- * Description: Handles the hard delete comment logic for the application.
- * Keywords: harddeletecomment, hard, delete, comment, auto-annotated
- */
 export const hardDeleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const operatorId = req.user?.userId || 'unknown';
@@ -386,41 +304,31 @@ export const hardDeleteComment = async (req: AuthRequest, res: Response): Promis
 
 // Database Config
 
-/**
- * Callers: []
- * Callees: [json, status, parseInt, decodeURIComponent, slice]
- * Description: Handles the get db config logic for the application.
- * Keywords: getdbconfig, get, db, config, auto-annotated
- */
 export const getDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
-  if (req.user?.role !== 'SUPER_ADMIN') {
-    res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
-    return;
+  try {
+    const cfg = installationApplicationService.getCurrentDbConfig(req.user?.role);
+    res.json(cfg);
+  } catch (error: any) {
+    if (error.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
   }
-
-  const cfg = installationApplicationService.getCurrentDbConfig();
-  res.json(cfg);
 };
 
-/**
- * Callers: []
- * Callees: [json, status, encodeURIComponent, updateDatabaseConfiguration, logAudit, setTimeout, exit]
- * Description: Handles the update db config logic for the application.
- * Keywords: updatedbconfig, update, db, config, auto-annotated
- */
 export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<void> => {
-  if (req.user?.role !== 'SUPER_ADMIN') {
-    res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
-    return;
-  }
-
   const { host, port, username, password, database } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
   try {
     try {
-      await installationApplicationService.updateDbConfig(host, port, username, password, database);
+      await installationApplicationService.updateDbConfig(host, port, username, password, database, req.user?.role);
     } catch (err: any) {
+      if (err.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
+        res.status(403).json({ error: err.message });
+        return;
+      }
       console.error('Prisma Error on DB Update:', err.message);
       res.status(500).json({ error: 'ERR_DB_CONNECTION_FAILED' });
       return;
@@ -436,21 +344,19 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
 };
 
 export const getDomainConfig = async (req: AuthRequest, res: Response): Promise<void> => {
-  if (req.user?.role !== 'SUPER_ADMIN') {
-    res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
-    return;
+  try {
+    const config = installationApplicationService.getDomainConfig(req.user?.role);
+    res.json(config);
+  } catch (error: any) {
+    if (error.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
   }
-
-  const config = installationApplicationService.getDomainConfig();
-  res.json(config);
 };
 
 export const updateDomainConfig = async (req: AuthRequest, res: Response): Promise<void> => {
-  if (req.user?.role !== 'SUPER_ADMIN') {
-    res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
-    return;
-  }
-
   const { protocol, hostname, rpId, reverseProxyMode } = req.body;
 
   try {
@@ -459,9 +365,11 @@ export const updateDomainConfig = async (req: AuthRequest, res: Response): Promi
       hostname,
       rpId,
       reverseProxyMode,
-    });
+    }, req.user?.role);
   } catch (err: any) {
-    if (err.message === 'ERR_INVALID_DOMAIN_CONFIG') {
+    if (err.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
+      res.status(403).json({ error: err.message });
+    } else if (err.message === 'ERR_INVALID_DOMAIN_CONFIG') {
       res.status(400).json({ error: 'ERR_INVALID_DOMAIN_CONFIG' });
     } else {
       res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -475,12 +383,6 @@ export const updateDomainConfig = async (req: AuthRequest, res: Response): Promi
 
 
 // Route Whitelist Management
-/**
- * Callers: []
- * Callees: [findMany, json, status]
- * Description: Handles the get route whitelist logic for the application.
- * Keywords: getroutewhitelist, get, route, whitelist, auto-annotated
- */
 export const getRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const routes = await systemQueryService.listRouteWhitelist();
@@ -490,12 +392,6 @@ export const getRouteWhitelist = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Callers: []
- * Callees: [json, status, create]
- * Description: Handles the add route whitelist logic for the application.
- * Keywords: addroutewhitelist, add, route, whitelist, auto-annotated
- */
 export const addRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const { path, isPrefix, minRole, description } = req.body;
@@ -508,12 +404,6 @@ export const addRouteWhitelist = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Callers: []
- * Callees: [update, json, status]
- * Description: Handles the update route whitelist logic for the application.
- * Keywords: updateroutewhitelist, update, route, whitelist, auto-annotated
- */
 export const updateRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
@@ -526,12 +416,6 @@ export const updateRouteWhitelist = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Callers: []
- * Callees: [delete, json, status]
- * Description: Handles the delete route whitelist logic for the application.
- * Keywords: deleteroutewhitelist, delete, route, whitelist, auto-annotated
- */
 export const deleteRouteWhitelist = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;

@@ -16,12 +16,6 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
-/**
- * Callers: []
- * Callees: [useContext]
- * Description: Handles the use toast logic for the application.
- * Keywords: usetoast, use, toast, auto-annotated
- */
 export function useToast() {
   const context = useContext(ToastContext);
   if (!context) {
@@ -30,12 +24,6 @@ export function useToast() {
   return context;
 }
 
-/**
- * Callers: []
- * Callees: [useState, useCallback, substr, toString, random, setToasts, setTimeout, filter, map, removeToast]
- * Description: Handles the toast provider logic for the application.
- * Keywords: toastprovider, toast, provider, auto-annotated
- */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -48,13 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }, 3000);
   }, []);
 
-  /**
-     * Callers: []
-     * Callees: [setToasts, filter]
-     * Description: Handles the remove toast logic for the application.
-     * Keywords: removetoast, remove, toast, auto-annotated
-     */
-    const removeToast = (id: string) => {
+      const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 

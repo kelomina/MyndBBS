@@ -4,24 +4,12 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { User, Loader2, PenSquare, Mail } from 'lucide-react';
 
-/**
- * Callers: []
- * Callees: [useState, catch, then, fetch, now, json, setUnreadCount, useEffect, fetchUnreadCount, addEventListener, removeEventListener, finally, setUser, setLoading, charAt]
- * Description: Handles the user nav logic for the application.
- * Keywords: usernav, user, nav, auto-annotated
- */
 export function UserNav({ title, newPostText, messagesText }: { title: string; newPostText?: string; messagesText?: string }) {
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  /**
-     * Callers: []
-     * Callees: [catch, then, fetch, now, json, setUnreadCount]
-     * Description: Handles the fetch unread count logic for the application.
-     * Keywords: fetchunreadcount, fetch, unread, count, auto-annotated
-     */
-    const fetchUnreadCount = () => {
+      const fetchUnreadCount = () => {
     fetch('/api/v1/messages/unread?t=' + Date.now(), { credentials: 'include', cache: 'no-store' })
       .then(r => r.ok ? r.json() : { count: 0 })
       .then(d => setUnreadCount(d.count || 0))
@@ -29,13 +17,7 @@ export function UserNav({ title, newPostText, messagesText }: { title: string; n
   };
 
   useEffect(() => {
-    /**
-       * Callers: []
-       * Callees: [fetchUnreadCount]
-       * Description: Handles the handle unread update logic for the application.
-       * Keywords: handleunreadupdate, handle, unread, update, auto-annotated
-       */
-      const handleUnreadUpdate = () => fetchUnreadCount();
+          const handleUnreadUpdate = () => fetchUnreadCount();
     window.addEventListener('messages-read', handleUnreadUpdate);
     window.addEventListener('messages-received', handleUnreadUpdate);
 

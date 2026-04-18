@@ -3,24 +3,12 @@ import { AuthRequest } from '../middleware/auth';
 import { adminQueryService } from '../queries/admin/AdminQueryService';
 import { moderationApplicationService } from '../registry';
 
-/**
- * Callers: []
- * Callees: [findUnique, map, findMany, json]
- * Description: Handles the get moderated words logic for the application.
- * Keywords: getmoderatedwords, get, moderated, words, auto-annotated
- */
 export const getModeratedWords = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
   const words = await adminQueryService.listModeratedWords(userId);
   res.json({ words });
 };
 
-/**
- * Callers: []
- * Callees: [json, status, findUnique, some, create, clearModerationCache]
- * Description: Handles the add moderated word logic for the application.
- * Keywords: addmoderatedword, add, moderated, word, auto-annotated
- */
 export const addModeratedWord = async (req: AuthRequest, res: Response): Promise<void> => {
   const { word, categoryId } = req.body;
   if (!word) {
@@ -29,24 +17,15 @@ export const addModeratedWord = async (req: AuthRequest, res: Response): Promise
   }
   
   const userId = req.user!.userId;
-  const { isSuperAdmin, categoryIds } = await adminQueryService.getModeratorScope(userId);
-  
-  if (!isSuperAdmin) {
-    if (!categoryId) {
-      res.status(403).json({ error: 'ERR_CANNOT_ADD_GLOBAL_WORD' });
-      return;
-    }
-    const isMod = categoryIds?.includes(categoryId);
-    if (!isMod) {
-      res.status(403).json({ error: 'ERR_NOT_MODERATOR_OF_CATEGORY' });
-      return;
-    }
-  }
 
   try {
-    const newWord = await moderationApplicationService.addModeratedWord(word, categoryId);
+    const newWord = await moderationApplicationService.addModeratedWord(word, categoryId, userId, req.ability!);
     res.json({ word: newWord });
   } catch (error: any) {
+    if (['ERR_CANNOT_ADD_GLOBAL_WORD', 'ERR_NOT_MODERATOR_OF_CATEGORY'].includes(error.message)) {
+      res.status(403).json({ error: error.message });
+      return;
+    }
     if (error.code === 'P2002') {
       res.status(400).json({ error: 'ERR_WORD_ALREADY_EXISTS' });
       return;
@@ -55,63 +34,29 @@ export const addModeratedWord = async (req: AuthRequest, res: Response): Promise
   }
 };
 
-/**
- * Callers: []
- * Callees: [findUnique, json, status, some, delete, clearModerationCache]
- * Description: Handles the delete moderated word logic for the application.
- * Keywords: deletemoderatedword, delete, moderated, word, auto-annotated
- */
 export const deleteModeratedWord = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
-  
   const userId = req.user!.userId;
-  const { isSuperAdmin, categoryIds } = await adminQueryService.getModeratorScope(userId);
-
-  const word = await adminQueryService.getModeratedWordById(id);
-  if (!word) {
-    res.status(404).json({ error: 'ERR_WORD_NOT_FOUND' });
-    return;
-  }
-
-  if (!isSuperAdmin) {
-    if (!word.categoryId) {
-      res.status(403).json({ error: 'ERR_CANNOT_DELETE_GLOBAL_WORD' });
-      return;
-    }
-    const isMod = categoryIds?.includes(word.categoryId);
-    if (!isMod) {
-      res.status(403).json({ error: 'ERR_NOT_MODERATOR_OF_CATEGORY' });
-      return;
-    }
-  }
 
   try {
-    await moderationApplicationService.removeModeratedWord(id);
+    await moderationApplicationService.removeModeratedWord(id, userId, req.ability!);
     res.json({ message: 'Word deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
+    if (['ERR_CANNOT_DELETE_GLOBAL_WORD', 'ERR_NOT_MODERATOR_OF_CATEGORY'].includes(error.message)) {
+      res.status(403).json({ error: error.message });
+      return;
+    }
     res.status(404).json({ error: 'ERR_WORD_NOT_FOUND' });
   }
 };
 
 // Queue endpoints
-/**
- * Callers: []
- * Callees: [findUnique, map, findMany, json]
- * Description: Handles the get pending posts logic for the application.
- * Keywords: getpendingposts, get, pending, posts, auto-annotated
- */
 export const getPendingPosts = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
   const posts = await adminQueryService.listPendingPosts(userId);
   res.json({ posts });
 };
 
-/**
- * Callers: []
- * Callees: [update, sendNotification, json, status]
- * Description: Handles the approve pending post logic for the application.
- * Keywords: approvependingpost, approve, pending, post, auto-annotated
- */
 export const approvePendingPost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {
@@ -122,12 +67,6 @@ export const approvePendingPost = async (req: AuthRequest, res: Response): Promi
   }
 };
 
-/**
- * Callers: []
- * Callees: [update, sendNotification, json, status]
- * Description: Handles the reject pending post logic for the application.
- * Keywords: rejectpendingpost, reject, pending, post, auto-annotated
- */
 export const rejectPendingPost = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   const { reason } = req.body;
@@ -139,24 +78,12 @@ export const rejectPendingPost = async (req: AuthRequest, res: Response): Promis
   }
 };
 
-/**
- * Callers: []
- * Callees: [findUnique, map, findMany, json]
- * Description: Handles the get pending comments logic for the application.
- * Keywords: getpendingcomments, get, pending, comments, auto-annotated
- */
 export const getPendingComments = async (req: AuthRequest, res: Response): Promise<void> => {
   const userId = req.user!.userId;
   const comments = await adminQueryService.listPendingComments(userId);
   res.json({ comments });
 };
 
-/**
- * Callers: []
- * Callees: [update, json, status]
- * Description: Handles the approve pending comment logic for the application.
- * Keywords: approvependingcomment, approve, pending, comment, auto-annotated
- */
 export const approvePendingComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {
@@ -167,12 +94,6 @@ export const approvePendingComment = async (req: AuthRequest, res: Response): Pr
   }
 };
 
-/**
- * Callers: []
- * Callees: [update, json, status]
- * Description: Handles the reject pending comment logic for the application.
- * Keywords: rejectpendingcomment, reject, pending, comment, auto-annotated
- */
 export const rejectPendingComment = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = req.params.id as string;
   try {

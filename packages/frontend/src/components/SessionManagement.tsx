@@ -4,12 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Monitor, Trash2 } from 'lucide-react';
 import { useTranslation } from './TranslationProvider';
 
-/**
- * Callers: []
- * Callees: [useTranslation, useState, useEffect, fetchSessions, fetch, json, setSessions, setError, setLoading, confirm, filter, setMessage, map, toLocaleDateString, toLocaleString, handleRevoke]
- * Description: Handles the session management logic for the application.
- * Keywords: sessionmanagement, session, management, auto-annotated
- */
 export function SessionManagement() {
   const dict = useTranslation();
   const [sessions, setSessions] = useState<{ id: string; userAgent: string; ipAddress: string; expiresAt: string; createdAt: string }[]>([]);
@@ -17,13 +11,7 @@ export function SessionManagement() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  /**
-     * Callers: []
-     * Callees: [fetch, json, setSessions, setError, setLoading]
-     * Description: Handles the fetch sessions logic for the application.
-     * Keywords: fetchsessions, fetch, sessions, auto-annotated
-     */
-    const fetchSessions = useCallback(async () => {
+      const fetchSessions = useCallback(async () => {
     try {
       const res = await fetch('/api/v1/user/sessions', { credentials: 'include' });
       if (res.ok) {
@@ -43,13 +31,7 @@ export function SessionManagement() {
     void fetchSessions();
   }, [fetchSessions]);
 
-  /**
-     * Callers: []
-     * Callees: [confirm, fetch, setSessions, filter, setMessage, setError]
-     * Description: Handles the handle revoke logic for the application.
-     * Keywords: handlerevoke, handle, revoke, auto-annotated
-     */
-    const handleRevoke = async (id: string) => {
+      const handleRevoke = async (id: string) => {
     if (!confirm(dict.settings.confirmRevokeSession)) return;
     
     try {

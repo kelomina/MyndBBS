@@ -2,23 +2,11 @@ import { useState } from 'react';
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
 import type { Dictionary } from '../../types';
 
-/**
- * Callers: []
- * Callees: [useState, setError, setLoading, fetch, json, startAuthentication, startRegistration, includes, onError, stringify, onSuccess]
- * Description: Handles the use passkey logic for the application.
- * Keywords: usepasskey, use, passkey, auto-annotated
- */
 export function usePasskey() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  /**
-     * Callers: []
-     * Callees: [setError, setLoading, fetch, json, startAuthentication, startRegistration, includes, onError, stringify, onSuccess]
-     * Description: Handles the execute passkey flow logic for the application.
-     * Keywords: executepasskeyflow, execute, passkey, flow, auto-annotated
-     */
-    const executePasskeyFlow = async (
+      const executePasskeyFlow = async (
     type: 'login' | 'register',
     generateEndpoint: string,
     verifyEndpoint: string,

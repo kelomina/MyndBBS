@@ -20,12 +20,6 @@ import Image from 'next/image';
 import type { ChatMessage, Dictionary } from '../../../types';
 
 
-/**
- * Callers: []
- * Callees: [useState, useEffect, parse, fetch, arrayBuffer, from, atob, charCodeAt, importKey, decrypt, setBlobUrl, createObjectURL, error, decryptImage, revokeObjectURL, setTimeout, setShowMenu, clearTimeout, onPreview, preventDefault]
- * Description: Handles the encrypted image logic for the application.
- * Keywords: encryptedimage, encrypted, image, auto-annotated
- */
 const EncryptedImage = ({ payload, onPreview, dict }: { payload: string; onPreview: (url: string) => void; dict: Dictionary }) => {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -33,13 +27,7 @@ const EncryptedImage = ({ payload, onPreview, dict }: { payload: string; onPrevi
   useEffect(() => {
     let cancelled = false;
     let url: string | null = null;
-    /**
-       * Callers: []
-       * Callees: [parse, fetch, arrayBuffer, from, atob, charCodeAt, importKey, decrypt, setBlobUrl, createObjectURL, error]
-       * Description: Handles the decrypt image logic for the application.
-       * Keywords: decryptimage, decrypt, image, auto-annotated
-       */
-      const decryptImage = async () => {
+          const decryptImage = async () => {
       try {
         const data = JSON.parse(payload);
         if (data.type !== 'image') return;
@@ -83,20 +71,8 @@ const EncryptedImage = ({ payload, onPreview, dict }: { payload: string; onPrevi
   }, [payload]);
 
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /**
-     * Callers: []
-     * Callees: [setTimeout, setShowMenu]
-     * Description: Handles the handle touch start logic for the application.
-     * Keywords: handletouchstart, handle, touch, start, auto-annotated
-     */
-    const handleTouchStart = () => { pressTimerRef.current = setTimeout(() => setShowMenu(true), 500); };
-  /**
-     * Callers: []
-     * Callees: [clearTimeout]
-     * Description: Handles the handle touch end logic for the application.
-     * Keywords: handletouchend, handle, touch, end, auto-annotated
-     */
-    const handleTouchEnd = () => { if (pressTimerRef.current) clearTimeout(pressTimerRef.current); };
+      const handleTouchStart = () => { pressTimerRef.current = setTimeout(() => setShowMenu(true), 500); };
+      const handleTouchEnd = () => { if (pressTimerRef.current) clearTimeout(pressTimerRef.current); };
 
   if (!blobUrl) return <Loader2 className="animate-spin h-5 w-5" />;
   if (blobUrl === 'error') return <div className="flex flex-col items-center gap-1 p-4 bg-destructive/10 text-destructive rounded text-xs border border-destructive/20"><AlertCircle className="h-5 w-5" /><span>{dict.messages?.imageLoadError || "Failed to load image"}</span></div>;
@@ -126,12 +102,6 @@ const EncryptedImage = ({ payload, onPreview, dict }: { payload: string; onPrevi
   );
 };
 
-/**
- * Callers: []
- * Callees: [useToast, useTranslation, useState, useRef, setPasswordPrompt, useEffect, then, setUsername, loadInitialData, decryptAllMessages, scrollIntoView, all, fetch, json, setMyUserId, setCurrentUser, setTargetUserId, importPublicKeyFromBase64, setTheirPublicKey, setMessages, scrollToBottom, setAllowTwoSidedDelete, setError, setLoading, setUnlocking, map, startAuthentication, requestPassword, importKey, encode, deriveKey, getAesKeyFromPrf, decryptPrivateKey, importPrivateKeyFromBase64, setMyPublicKey, setMyPrivateKey, setUnlocked, decryptMessage, error, setIsLoadingOlder, setNextCursor, setHasMore, requestAnimationFrame, setSending, generateKey, getRandomValues, arrayBuffer, encrypt, append, exportKey, btoa, fromCharCode, stringify, generateECDHKeyPair, exportKeyToBase64, encryptMessage, preventDefault, trim, setInputText, setIsCoolingDown, setTimeout, filter, setIsAddingFriend, setFriendRequestSent, toast, confirm, setPreviewImage, charAt, replace, setShowSettings, startsWith, includes, toLocaleTimeString, toLocaleDateString, handleDeleteMessage, setExpiresIn, Number, setBurnAfterReading, click, resolve, getElementById]
- * Description: Handles the chat page logic for the application.
- * Keywords: chatpage, chat, page, auto-annotated
- */
 export default function ChatPage({ params }: { params: Promise<{ username: string }> }) {
   const { toast } = useToast();
   const dict = useTranslation();
@@ -169,13 +139,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string; level: number; role?: string } | null>(null);
   const [passwordPrompt, setPasswordPrompt] = useState<{ isOpen: boolean; message: string; resolve: (value: string | null) => void } | null>(null);
   
-  /**
-     * Callers: []
-     * Callees: [setPasswordPrompt]
-     * Description: Handles the request password logic for the application.
-     * Keywords: requestpassword, request, password, auto-annotated
-     */
-    const requestPassword = (message: string): Promise<string | null> => {
+      const requestPassword = (message: string): Promise<string | null> => {
     return new Promise((resolve) => {
       setPasswordPrompt({ isOpen: true, message, resolve });
     });
@@ -282,23 +246,11 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     };
   }, [messages, myPrivateKey, myUserId, theirPublicKey, unlocked]);
 
-  /**
-     * Callers: []
-     * Callees: [scrollIntoView]
-     * Description: Handles the scroll to bottom logic for the application.
-     * Keywords: scrolltobottom, scroll, to, bottom, auto-annotated
-     */
-    const scrollToBottom = () => {
+      const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  /**
-     * Callers: []
-     * Callees: [setUnlocking, setError, fetch, json, all, map, startAuthentication, requestPassword, importKey, encode, deriveKey, getAesKeyFromPrf, decryptPrivateKey, importPrivateKeyFromBase64, importPublicKeyFromBase64, setMyPublicKey, setMyPrivateKey, setUnlocked]
-     * Description: Handles the handle unlock logic for the application.
-     * Keywords: handleunlock, handle, unlock, auto-annotated
-     */
-    const handleUnlock = async () => {
+      const handleUnlock = async () => {
     setUnlocking(true);
     setError('');
     try {
@@ -392,13 +344,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [setIsLoadingOlder, fetch, json, setMessages, setNextCursor, setHasMore, requestAnimationFrame]
-     * Description: Handles the handle scroll logic for the application.
-     * Keywords: handlescroll, handle, scroll, auto-annotated
-     */
-    const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+      const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
     if (e.currentTarget.scrollTop < 50 && !isLoadingOlder && hasMore && nextCursor) {
       setIsLoadingOlder(true);
       const previousScrollHeight = scrollContainerRef.current?.scrollHeight || 0;
@@ -424,13 +370,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   };
 
   
-  /**
-     * Callers: []
-     * Callees: [setError, setSending, generateKey, getRandomValues, arrayBuffer, encrypt, append, fetch, json, exportKey, btoa, fromCharCode, stringify, generateECDHKeyPair, exportKeyToBase64, encryptMessage, setMessages, scrollToBottom]
-     * Description: Handles the handle image upload logic for the application.
-     * Keywords: handleimageupload, handle, image, upload, auto-annotated
-     */
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !unlocked || !myPrivateKey || !theirPublicKey) return;
     if (username === 'system') {
@@ -514,13 +454,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [preventDefault, trim, setError, setSending, generateECDHKeyPair, exportKeyToBase64, encryptMessage, fetch, stringify, json, setMessages, setInputText, scrollToBottom, setIsCoolingDown, setTimeout]
-     * Description: Handles the handle send logic for the application.
-     * Keywords: handlesend, handle, send, auto-annotated
-     */
-    const handleSend = async (e: React.FormEvent) => {
+      const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !unlocked || !myPrivateKey || !theirPublicKey || isCoolingDown) return;
     if (username === 'system') {
@@ -584,13 +518,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [fetch, stringify, setAllowTwoSidedDelete, error]
-     * Description: Handles the toggle two sided delete logic for the application.
-     * Keywords: toggletwosideddelete, toggle, two, sided, delete, auto-annotated
-     */
-    const toggleTwoSidedDelete = async () => {
+      const toggleTwoSidedDelete = async () => {
     try {
       const newValue = !allowTwoSidedDelete;
       await fetch(`/api/v1/messages/settings/${targetUserId}`, {
@@ -605,13 +533,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [fetch, setMessages, filter, error]
-     * Description: Handles the handle delete message logic for the application.
-     * Keywords: handledeletemessage, handle, delete, message, auto-annotated
-     */
-    const handleDeleteMessage = async (msgId: string) => {
+      const handleDeleteMessage = async (msgId: string) => {
     try {
       const res = await fetch(`/api/v1/messages/${msgId}`, {
         method: 'DELETE',
@@ -625,13 +547,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [setIsAddingFriend, fetch, stringify, setFriendRequestSent, json, toast, error]
-     * Description: Handles the handle add friend logic for the application.
-     * Keywords: handleaddfriend, handle, add, friend, auto-annotated
-     */
-    const handleAddFriend = async () => {
+      const handleAddFriend = async () => {
     if (!targetUserId || isAddingFriend) return;
     setIsAddingFriend(true);
     try {
@@ -658,13 +574,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     }
   };
 
-  /**
-     * Callers: []
-     * Callees: [confirm, fetch, setMessages, error]
-     * Description: Handles the handle clear chat logic for the application.
-     * Keywords: handleclearchat, handle, clear, chat, auto-annotated
-     */
-    const handleClearChat = async () => {
+      const handleClearChat = async () => {
     if (!confirm(dict.messages?.confirmClearChat || 'Are you sure you want to clear this chat?')) return;
     try {
       const res = await fetch(`/api/v1/messages/chat/${targetUserId}`, {

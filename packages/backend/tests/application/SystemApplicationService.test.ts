@@ -7,9 +7,9 @@ describe('SystemApplicationService', () => {
     const service = new SystemApplicationService(null as any, mockStorage);
     
     const buffer = Buffer.from('test');
-    const result = await service.uploadAttachment('test.png', buffer);
+    const result = await service.uploadAttachment(buffer);
     
-    expect(mockStorage.saveFile).toHaveBeenCalledWith('test.png', buffer);
+    expect(mockStorage.saveFile).toHaveBeenCalledWith(expect.stringMatching(/^[0-9a-fA-F-]{36}\.enc$/), buffer);
     expect(result).toBe('/uploads/test.png');
   });
 });

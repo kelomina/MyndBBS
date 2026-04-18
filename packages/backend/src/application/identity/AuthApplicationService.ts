@@ -180,6 +180,55 @@ export class AuthApplicationService {
     };
   }
 
+  public async changePasswordWithVerification(
+    userId: string,
+    currentPassword?: string,
+    totpCode?: string,
+    newPassword?: string,
+    newEmail?: string,
+    newUsername?: string
+  ): Promise<any> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new Error('ERR_USER_NOT_FOUND');
+
+    if (newPassword) {
+      this.validatePasswordPolicy(newPassword);
+    }
+
+    if (newEmail || newPassword) {
+      if (!currentPassword && !totpCode) {
+        throw new Error('ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES');
+      }
+      if (currentPassword && user.password) {
+        const isValid = await this.passwordHasher.verify(user.password, currentPassword);
+        if (!isValid) throw new Error('ERR_INVALID_CURRENT_PASSWORD');
+      }
+      if (totpCode && user.totpSecret) {
+        const isValid = this.totpPort.verify(user.totpSecret, totpCode);
+        if (!isValid) throw new Error('ERR_INVALID_TOTP_CODE');
+      }
+    }
+
+    if (newEmail && newEmail !== user.email) {
+      const existing = await this.userRepository.findByEmail(newEmail);
+      if (existing) throw new Error('ERR_EMAIL_ALREADY_IN_USE');
+    }
+    if (newUsername && newUsername !== user.username) {
+      const existing = await this.userRepository.findByUsername(newUsername);
+      if (existing) throw new Error('ERR_USERNAME_ALREADY_IN_USE');
+    }
+
+    let hashedPassword;
+    if (newPassword) {
+      hashedPassword = await this.passwordHasher.hash(newPassword);
+    }
+
+    user.updateProfile(newEmail, newUsername, hashedPassword);
+    await this.userRepository.save(user);
+
+    return { id: user.id, email: user.email, username: user.username, roleId: user.roleId };
+  }
+
   // --- Auth Orchestration ---
 
   public async loginUser(emailOrUsername: string, password: string): Promise<{
