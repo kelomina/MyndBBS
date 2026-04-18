@@ -1,3 +1,5 @@
+import { AggregateRoot } from '../shared/AggregateRoot';
+
 export interface CommentProps {
   id: string;
   content: string;
@@ -17,7 +19,7 @@ export type CreateCommentProps = Omit<CommentProps, 'isPending'>;
  * Description: Represents the Comment Aggregate Root within the Community domain. Manages forum reply states and transitions.
  * Keywords: comment, aggregate, root, domain, entity, forum, reply, community
  */
-export class Comment {
+export class Comment extends AggregateRoot {
   private props: CommentProps;
 
   /**
@@ -27,6 +29,7 @@ export class Comment {
    * Keywords: constructor, comment, entity, instantiation
    */
   private constructor(props: CommentProps) {
+    super();
     this.props = { ...props };
   }
 

@@ -1,19 +1,29 @@
-import * as argon2 from 'argon2';
-import { generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { AuthApplicationService } from './AuthApplicationService';
 import { ISudoStore } from './ports/ISudoStore';
 import { IUserSecurityReadModel } from './ports/IUserSecurityReadModel';
+import { IPasswordHasher } from '../../domain/identity/IPasswordHasher';
+import { ITotpPort } from '../../domain/identity/ports/ITotpPort';
+import { IPasskeyPort } from '../../domain/identity/ports/IPasskeyPort';
 
 export type VerifyInput =
   | { type: 'password'; password: string }
   | { type: 'totp'; totpCode: string }
   | { type: 'passkey'; passkeyResponse: any; challengeId: string };
 
+/**
+ * Callers: [SudoController]
+ * Callees: [IUserSecurityReadModel, AuthApplicationService, ISudoStore, IPasswordHasher, ITotpPort, IPasskeyPort]
+ * Description: The Application Service for handling Sudo (elevated privilege) mode.
+ * Keywords: sudo, identity, application, service, elevated
+ */
 export class SudoApplicationService {
   constructor(
     private userSecurityReadModel: IUserSecurityReadModel,
     private authApplicationService: AuthApplicationService,
     private sudoStore: ISudoStore,
+    private passwordHasher: IPasswordHasher,
+    private totpPort: ITotpPort,
+    private passkeyPort: IPasskeyPort,
     private rpID: string,
     private origin: string
   ) {}
@@ -22,14 +32,12 @@ export class SudoApplicationService {
     const userPasskeys = await this.userSecurityReadModel.listUserPasskeyIds(userId);
     if (userPasskeys.length === 0) throw new Error('ERR_NO_PASSKEYS_REGISTERED');
 
-    const options = await generateAuthenticationOptions({
-      rpID: this.rpID,
-      allowCredentials: userPasskeys.map((passkey) => ({
-        id: passkey.id,
-        transports: ['internal'],
-      })),
-      userVerification: 'preferred',
-    });
+    const allowCredentials = userPasskeys.map((passkey) => ({
+      id: passkey.id,
+      transports: ['internal'] as any,
+    }));
+
+    const options = await this.passkeyPort.generateAuthenticationOptions(allowCredentials);
 
     const authChallenge = await this.authApplicationService.generateAuthChallenge(options.challenge);
     return { ...options, challengeId: authChallenge.id };
@@ -43,15 +51,12 @@ export class SudoApplicationService {
 
     if (input.type === 'password') {
       if (!user.password) throw new Error('ERR_INVALID_CREDENTIALS');
-      isValid = await argon2.verify(user.password, input.password);
+      isValid = await this.passwordHasher.verify(user.password, input.password);
     }
 
     if (input.type === 'totp') {
       if (!user.totpSecret) throw new Error('ERR_INVALID_TOTP');
-      const { OTP } = await import('otplib');
-      const authenticator = new OTP({ strategy: 'totp' });
-      const result = authenticator.verifySync({ token: input.totpCode, secret: user.totpSecret });
-      isValid = result && result.valid;
+      isValid = this.totpPort.verify(user.totpSecret, input.totpCode);
     }
 
     if (input.type === 'passkey') {
@@ -59,17 +64,19 @@ export class SudoApplicationService {
       const passkey = await this.userSecurityReadModel.getPasskeyById(input.passkeyResponse.id);
       if (!passkey || passkey.userId !== userId) throw new Error('ERR_INVALID_PASSKEY');
 
-      const verification = await verifyAuthenticationResponse({
-        response: input.passkeyResponse,
-        expectedChallenge: expectedChallenge.challenge,
-        expectedOrigin: this.origin,
-        expectedRPID: this.rpID,
-        credential: {
-          id: passkey.id,
-          publicKey: new Uint8Array(passkey.publicKey),
-          counter: Number(passkey.counter),
-        },
-      });
+      const credential = {
+        id: passkey.id,
+        publicKey: new Uint8Array(passkey.publicKey),
+        counter: Number(passkey.counter),
+      };
+
+      const verification = await this.passkeyPort.verifyAuthenticationResponse(
+        input.passkeyResponse,
+        expectedChallenge.challenge,
+        this.origin,
+        this.rpID,
+        credential
+      );
 
       isValid = verification.verified;
       if (isValid && verification.authenticationInfo) {

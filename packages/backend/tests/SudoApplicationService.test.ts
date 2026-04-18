@@ -1,12 +1,8 @@
 import { SudoApplicationService } from '../src/application/identity/SudoApplicationService';
 
-jest.mock('argon2', () => ({
-  verify: jest.fn().mockResolvedValue(true),
-}));
-
 class FakeIdentityQueryService {
   async listUserPasskeyIds() { return []; }
-  async getUserWithRoleById() { return { password: '$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$J9g1A4r9XHq5VYb5m4mCkH8Qx4bJ5mC7rYb0T9m0lY0', totpSecret: null }; }
+  async getUserWithRoleById() { return { password: 'hashed', totpSecret: null }; }
   async getPasskeyById() { return null; }
 }
 
@@ -22,6 +18,25 @@ class FakeSudoStore {
   async check() { return false; }
 }
 
+class FakePasswordHasher {
+  async verify(hash: string, plain: string) { return true; }
+  async hash(plain: string) { return 'hashed'; }
+}
+
+class FakeTotpPort {
+  generateSecret() { return 'secret'; }
+  generateURI() { return 'uri'; }
+  async generateQRCode() { return 'qrcode'; }
+  verify() { return true; }
+}
+
+class FakePasskeyPort {
+  async generateRegistrationOptions() { return {}; }
+  async verifyRegistrationResponse() { return { verified: true }; }
+  async generateAuthenticationOptions() { return { challenge: 'x' }; }
+  async verifyAuthenticationResponse() { return { verified: true }; }
+}
+
 describe('SudoApplicationService', () => {
   it('grants sudo when password is valid', async () => {
     const store = new FakeSudoStore();
@@ -29,6 +44,9 @@ describe('SudoApplicationService', () => {
       new FakeIdentityQueryService() as any,
       new FakeAuthApplicationService() as any,
       store as any,
+      new FakePasswordHasher(),
+      new FakeTotpPort(),
+      new FakePasskeyPort(),
       'localhost',
       'http://localhost:3000'
     );

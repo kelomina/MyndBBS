@@ -1,4 +1,8 @@
+import { AggregateRoot } from '../shared/AggregateRoot';
+import { CategoryCreatedEvent, CategoryUpdatedEvent, CategoryDeletedEvent, CategoryModeratorAssignedEvent, CategoryModeratorRemovedEvent } from '../shared/events/DomainEvents';
+
 export interface CategoryProps {
+
   id: string;
   name: string;
   description: string | null;
@@ -14,7 +18,7 @@ export interface CategoryProps {
  * Description: Represents the Category Aggregate Root within the Community domain. Encapsulates forum section invariants like minimum level requirements.
  * Keywords: category, aggregate, root, domain, entity, forum, community
  */
-export class Category {
+export class Category extends AggregateRoot {
   private props: CategoryProps;
 
   /**
@@ -24,6 +28,7 @@ export class Category {
    * Keywords: constructor, category, entity, instantiation
    */
   private constructor(props: CategoryProps) {
+    super();
     this.props = { ...props };
   }
 
@@ -33,14 +38,18 @@ export class Category {
    * Description: Static factory method creating a new Category entity after validating that its name is not empty.
    * Keywords: create, factory, category, domain, instantiation
    */
-  public static create(props: CategoryProps): Category {
+  public static create(props: CategoryProps, operatorId?: string): Category {
     if (!props.name || props.name.trim().length === 0) {
       throw new Error('ERR_CATEGORY_NAME_CANNOT_BE_EMPTY');
     }
     if (props.minLevel < 0) {
       throw new Error('ERR_CATEGORY_MIN_LEVEL_CANNOT_BE_NEGATIVE');
     }
-    return new Category(props);
+    const category = new Category(props);
+    if (operatorId) {
+      category.addDomainEvent(new CategoryCreatedEvent(category.id, operatorId));
+    }
+    return category;
   }
 
   // --- Accessors ---
@@ -57,17 +66,20 @@ export class Category {
 
   /**
    * Callers: [CommunityApplicationService.updateCategory]
-   * Callees: []
+   * Callees: [CategoryUpdatedEvent]
    * Description: Updates the category's core details and validates the new name.
    * Keywords: update, category, name, description, sort
    */
-  public updateDetails(name: string, description: string | null, sortOrder: number): void {
+  public updateDetails(name: string, description: string | null, sortOrder: number, operatorId?: string): void {
     if (!name || name.trim().length === 0) {
       throw new Error('ERR_CATEGORY_NAME_CANNOT_BE_EMPTY');
     }
     this.props.name = name.trim();
     this.props.description = description;
     this.props.sortOrder = sortOrder;
+    if (operatorId) {
+      this.addDomainEvent(new CategoryUpdatedEvent(this.id, operatorId));
+    }
   }
 
   /**
@@ -76,11 +88,14 @@ export class Category {
    * Description: Changes the minimum user level required to post in this category.
    * Keywords: change, minimum, level, category, requirement
    */
-  public changeMinLevel(level: number): void {
+  public changeMinLevel(level: number, operatorId?: string): void {
     if (level < 0) {
       throw new Error('ERR_CATEGORY_MIN_LEVEL_CANNOT_BE_NEGATIVE');
     }
     this.props.minLevel = level;
+    if (operatorId) {
+      this.addDomainEvent(new CategoryUpdatedEvent(this.id, operatorId));
+    }
   }
 
   /**
@@ -99,9 +114,12 @@ export class Category {
    * Description: Adds a user to the category's moderators.
    * Keywords: add, moderator, category, assign
    */
-  public addModerator(userId: string): void {
+  public addModerator(userId: string, operatorId?: string): void {
     if (!this.props.moderatorIds.includes(userId)) {
       this.props.moderatorIds.push(userId);
+      if (operatorId) {
+        this.addDomainEvent(new CategoryModeratorAssignedEvent(this.id, userId, operatorId));
+      }
     }
   }
 
@@ -111,7 +129,12 @@ export class Category {
    * Description: Removes a user from the category's moderators.
    * Keywords: remove, moderator, category, unassign
    */
-  public removeModerator(userId: string): void {
-    this.props.moderatorIds = this.props.moderatorIds.filter(id => id !== userId);
+  public removeModerator(userId: string, operatorId?: string): void {
+    if (this.props.moderatorIds.includes(userId)) {
+      this.props.moderatorIds = this.props.moderatorIds.filter(id => id !== userId);
+      if (operatorId) {
+        this.addDomainEvent(new CategoryModeratorRemovedEvent(this.id, userId, operatorId));
+      }
+    }
   }
 }

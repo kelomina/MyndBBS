@@ -1,5 +1,9 @@
 import { PostStatus } from '@myndbbs/shared';
 
+import { AggregateRoot } from '../shared/AggregateRoot';
+
+import { PostApprovedEvent, PostRejectedEvent } from '../shared/events/DomainEvents';
+
 export interface PostProps {
   id: string;
   title: string;
@@ -18,7 +22,7 @@ export type CreatePostProps = Omit<PostProps, 'status'>;
  * Description: Represents the Post Aggregate Root within the Community domain. Manages forum post states and transitions.
  * Keywords: post, aggregate, root, domain, entity, forum, community
  */
-export class Post {
+export class Post extends AggregateRoot {
   private props: PostProps;
 
   /**
@@ -28,6 +32,7 @@ export class Post {
    * Keywords: constructor, post, entity, instantiation
    */
   private constructor(props: PostProps) {
+    super();
     this.props = { ...props };
   }
 
@@ -104,6 +109,7 @@ export class Post {
       throw new Error('ERR_POST_NOT_PENDING');
     }
     this.props.status = PostStatus.PUBLISHED;
+    this.addDomainEvent(new PostApprovedEvent(this.id, this.authorId, this.title));
   }
 
   /**
@@ -112,11 +118,12 @@ export class Post {
    * Description: Rejects a pending post, changing its status to DELETED (soft delete).
    * Keywords: reject, post, moderation, status
    */
-  public reject(): void {
+  public reject(reason: string): void {
     if (this.props.status !== PostStatus.PENDING) {
       throw new Error('ERR_POST_NOT_PENDING');
     }
     this.props.status = PostStatus.DELETED;
+    this.addDomainEvent(new PostRejectedEvent(this.id, this.authorId, this.title, reason || 'N/A'));
   }
 
   /**

@@ -384,39 +384,43 @@ export class AuthApplicationService {
 
   /**
    * Callers: [AuthController.login, AuthController.verifyPasskeyAuthentication, RegisterController.registerUser]
-   * Callees: [Session.create, ISessionRepository.save]
-   * Description: Creates a new user session.
+   * Callees: [IUnitOfWork.execute, Session.create, ISessionRepository.save]
+   * Description: Creates a new user session in a transaction.
    * Keywords: create, session, command, identity
    */
   public async createSession(userId: string, ipAddress: string | null, userAgent: string | null, expiresInMs: number = 7 * 24 * 60 * 60 * 1000): Promise<Session> {
-    const session = Session.create({
-      id: uuidv4(),
-      userId,
-      ipAddress,
-      userAgent,
-      expiresAt: new Date(Date.now() + expiresInMs),
-      createdAt: new Date()
+    return this.unitOfWork.execute(async () => {
+      const session = Session.create({
+        id: uuidv4(),
+        userId,
+        ipAddress,
+        userAgent,
+        expiresAt: new Date(Date.now() + expiresInMs),
+        createdAt: new Date()
+      });
+  
+      await this.sessionRepository.save(session);
+      return session;
     });
-
-    await this.sessionRepository.save(session);
-    return session;
   }
 
   /**
    * Callers: [AuthController.logout, UserController.revokeSession]
-   * Callees: [ISessionRepository.delete]
-   * Description: Revokes a specific user session.
+   * Callees: [IUnitOfWork.execute, ISessionRepository.delete]
+   * Description: Revokes a specific user session in a transaction.
    * Keywords: revoke, session, command, identity
    */
   public async revokeSession(sessionId: string, expectedUserId?: string): Promise<void> {
-    if (expectedUserId) {
-      const session = await this.sessionRepository.findById(sessionId);
-      if (!session || session.userId !== expectedUserId) {
-        throw new Error('ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED');
+    return this.unitOfWork.execute(async () => {
+      if (expectedUserId) {
+        const session = await this.sessionRepository.findById(sessionId);
+        if (!session || session.userId !== expectedUserId) {
+          throw new Error('ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED');
+        }
       }
-    }
-    await this.sessionRepository.delete(sessionId);
-    await this.authCache.revokeSession(sessionId);
+      await this.sessionRepository.delete(sessionId);
+      await this.authCache.revokeSession(sessionId);
+    });
   }
 
   // --- TOTP Setup Orchestration ---
@@ -425,11 +429,7 @@ export class AuthApplicationService {
     const secret = this.totpPort.generateSecret();
     const otpauth = this.totpPort.generateURI(APP_NAME, email, secret);
     
-    // We need QRCode.toDataURL to generate the image. Since QRCode is infrastructure, we should probably return the otpauth URI and let the adapter or controller handle it, but the instructions say "completely to authApplicationService".
-    // Wait, the instruction says remove QRCode from auth.ts. So we must use QRCode here, or pass it to a port.
-    // The instruction didn't add QRCode to ITotpPort. So we have to import QRCode in AuthApplicationService.
-    const QRCode = require('qrcode');
-    const qrCodeUrl = await QRCode.toDataURL(otpauth);
+    const qrCodeUrl = await this.totpPort.generateQRCode(otpauth);
     
     await this.storeTotpSecret(userId, secret, 300); // 5 minutes
     
@@ -484,12 +484,14 @@ export class AuthApplicationService {
 
   /**
    * Callers: [UserController.revokeAllSessions, AdminController.kickUser, AdminController.updateUserRole, AdminController.updateUserLevel, AdminController.banUser, RegisterController.registerUser]
-   * Callees: [ISessionRepository.deleteManyByUserId]
-   * Description: Revokes all sessions for a specific user.
+   * Callees: [IUnitOfWork.execute, ISessionRepository.deleteManyByUserId]
+   * Description: Revokes all sessions for a specific user in a transaction.
    * Keywords: revoke, all, sessions, command, identity
    */
   public async revokeAllUserSessions(userId: string): Promise<void> {
-    await this.sessionRepository.deleteManyByUserId(userId);
+    return this.unitOfWork.execute(async () => {
+      await this.sessionRepository.deleteManyByUserId(userId);
+    });
   }
 
   /**
@@ -532,37 +534,41 @@ export class AuthApplicationService {
 
   /**
    * Callers: [AuthController.getPasskeyOptions, SudoController.getSudoPasskeyOptions]
-   * Callees: [AuthChallenge.create, IAuthChallengeRepository.save]
-   * Description: Generates a new authentication challenge (e.g., for WebAuthn).
+   * Callees: [IUnitOfWork.execute, AuthChallenge.create, IAuthChallengeRepository.save]
+   * Description: Generates a new authentication challenge (e.g., for WebAuthn) in a transaction.
    * Keywords: generate, authchallenge, command, identity
    */
   public async generateAuthChallenge(challengeString: string, expiresInMs: number = 5 * 60 * 1000): Promise<AuthChallenge> {
-    const challenge = AuthChallenge.create({
-      id: uuidv4(),
-      challenge: challengeString,
-      expiresAt: new Date(Date.now() + expiresInMs)
+    return this.unitOfWork.execute(async () => {
+      const challenge = AuthChallenge.create({
+        id: uuidv4(),
+        challenge: challengeString,
+        expiresAt: new Date(Date.now() + expiresInMs)
+      });
+  
+      await this.authChallengeRepository.save(challenge);
+      return challenge;
     });
-
-    await this.authChallengeRepository.save(challenge);
-    return challenge;
   }
 
   /**
    * Callers: [AuthController.verifyPasskeyAuthentication, AuthController.verifyPasskeyRegistration, SudoController.verifySudo]
-   * Callees: [IAuthChallengeRepository.findById, AuthChallenge.validateForConsumption, IAuthChallengeRepository.delete]
-   * Description: Validates that an auth challenge is not expired, then consumes (deletes) it.
+   * Callees: [IUnitOfWork.execute, IAuthChallengeRepository.findById, AuthChallenge.validateForConsumption, IAuthChallengeRepository.delete]
+   * Description: Validates that an auth challenge is not expired, then consumes (deletes) it in a transaction.
    * Keywords: verify, consume, authchallenge, identity
    */
   public async consumeAuthChallenge(challengeId: string): Promise<AuthChallenge> {
-    const challenge = await this.authChallengeRepository.findById(challengeId);
-    if (!challenge) {
-      throw new Error('ERR_CHALLENGE_NOT_FOUND');
-    }
-    
-    challenge.validateForConsumption();
-    await this.authChallengeRepository.delete(challengeId);
-    
-    return challenge;
+    return this.unitOfWork.execute(async () => {
+      const challenge = await this.authChallengeRepository.findById(challengeId);
+      if (!challenge) {
+        throw new Error('ERR_CHALLENGE_NOT_FOUND');
+      }
+      
+      challenge.validateForConsumption();
+      await this.authChallengeRepository.delete(challengeId);
+      
+      return challenge;
+    });
   }
 
   // --- Passkey Orchestration ---
@@ -841,8 +847,8 @@ export class AuthApplicationService {
 
   /**
    * Callers: [UserController.verifyPasskey, AuthController.verifyPasskeyRegistration]
-   * Callees: [Passkey.create, IPasskeyRepository.save]
-   * Description: Registers a new WebAuthn Passkey for a user.
+   * Callees: [IUnitOfWork.execute, Passkey.create, IPasskeyRepository.save]
+   * Description: Registers a new WebAuthn Passkey for a user in a transaction.
    * Keywords: add, passkey, webauthn, credential, command, identity
    */
   public async addPasskey(
@@ -854,63 +860,69 @@ export class AuthApplicationService {
     deviceType: string,
     backedUp: boolean
   ): Promise<void> {
-    const passkey = Passkey.create({
-      id: credentialId,
-      userId,
-      publicKey: credentialPublicKey,
-      webAuthnUserID,
-      counter,
-      deviceType,
-      backedUp,
-      createdAt: new Date()
+    return this.unitOfWork.execute(async () => {
+      const passkey = Passkey.create({
+        id: credentialId,
+        userId,
+        publicKey: credentialPublicKey,
+        webAuthnUserID,
+        counter,
+        deviceType,
+        backedUp,
+        createdAt: new Date()
+      });
+      await this.passkeyRepository.save(passkey);
     });
-    await this.passkeyRepository.save(passkey);
   }
 
   /**
    * Callers: [UserController.deletePasskey]
-   * Callees: [IPasskeyRepository.findById, IPasskeyRepository.delete, IPasskeyRepository.findByUserId, IUserRepository.findById, User.changeLevel, IUserRepository.save]
-   * Description: Deletes a specific passkey. If the user has no remaining passkeys, automatically downgrades them to level 1.
+   * Callees: [IUnitOfWork.execute, IPasskeyRepository.findById, IPasskeyRepository.delete, IPasskeyRepository.findByUserId, IUserRepository.findById, User.changeLevel, IUserRepository.save]
+   * Description: Deletes a specific passkey in a transaction. If the user has no remaining passkeys, automatically downgrades them to level 1.
    * Keywords: delete, passkey, webauthn, command, identity, level, downgrade
    */
   public async deletePasskey(id: string, requesterUserId: string): Promise<string> {
-    const passkey = await this.passkeyRepository.findById(id);
-    if (!passkey) {
-      throw new Error('ERR_PASSKEY_NOT_FOUND');
-    }
-    if (passkey.userId !== requesterUserId) {
-      throw new Error('ERR_FORBIDDEN_NOT_YOUR_PASSKEY');
-    }
-    
-    await this.passkeyRepository.delete(id);
-    
-    const remainingPasskeys = await this.passkeyRepository.findByUserId(requesterUserId);
-    if (remainingPasskeys.length === 0) {
-      const user = await this.userRepository.findById(requesterUserId);
-      if (user) {
-        user.changeLevel(1, false);
-        await this.userRepository.save(user);
+    return this.unitOfWork.execute(async () => {
+      const passkey = await this.passkeyRepository.findById(id);
+      if (!passkey) {
+        throw new Error('ERR_PASSKEY_NOT_FOUND');
       }
-    }
-    
-    return passkey.userId;
+      if (passkey.userId !== requesterUserId) {
+        throw new Error('ERR_FORBIDDEN_NOT_YOUR_PASSKEY');
+      }
+      
+      await this.passkeyRepository.delete(id);
+      
+      const remainingPasskeys = await this.passkeyRepository.findByUserId(requesterUserId);
+      if (remainingPasskeys.length === 0) {
+        const user = await this.userRepository.findById(requesterUserId);
+        if (user) {
+          user.changeLevel(1, false);
+          await this.userRepository.save(user);
+        }
+      }
+      
+      return passkey.userId;
+    });
   }
 
   /**
    * Callers: [AuthController.verifyPasskeyAuthentication]
-   * Callees: [IPasskeyRepository.findById, Passkey.updateCounter, IPasskeyRepository.save]
-   * Description: Verifies a passkey authentication attempt by updating its counter to prevent replay attacks.
+   * Callees: [IUnitOfWork.execute, IPasskeyRepository.findById, Passkey.updateCounter, IPasskeyRepository.save]
+   * Description: Verifies a passkey authentication attempt by updating its counter to prevent replay attacks in a transaction.
    * Keywords: verify, authenticate, passkey, counter, command, identity
    */
   public async updatePasskeyCounter(credentialId: string, newCounter: bigint): Promise<string> {
-    const passkey = await this.passkeyRepository.findById(credentialId);
-    if (!passkey) {
-      throw new Error('ERR_PASSKEY_NOT_FOUND');
-    }
-    
-    passkey.updateCounter(newCounter);
-    await this.passkeyRepository.save(passkey);
-    
-    return passkey.userId;
+    return this.unitOfWork.execute(async () => {
+      const passkey = await this.passkeyRepository.findById(credentialId);
+      if (!passkey) {
+        throw new Error('ERR_PASSKEY_NOT_FOUND');
+      }
+      
+      passkey.updateCounter(newCounter);
+      await this.passkeyRepository.save(passkey);
+      
+      return passkey.userId;
+    });
   }
 }

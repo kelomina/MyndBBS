@@ -123,6 +123,9 @@ export const sudoApplicationService = new SudoApplicationService(
   new PrismaUserSecurityReadModel(),
   authApplicationService,
   new RedisSudoStore(),
+  new Argon2PasswordHasher(),
+  totpAdapter,
+  passkeyAdapter,
   process.env.RP_ID || 'localhost',
   process.env.ORIGIN || `http://${process.env.RP_ID || 'localhost'}:3000`
 );

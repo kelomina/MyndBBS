@@ -40,7 +40,9 @@ export class ModerationApplicationService {
       post.approve();
       await this.postRepository.save(post);
 
-      this.eventBus.publish(new PostApprovedEvent(post.id, post.authorId, post.title));
+      post.domainEvents.forEach(e => this.eventBus.publish(e));
+      post.clearDomainEvents();
+
       return { id: post.id, status: post.status };
     });
   }
@@ -55,10 +57,12 @@ export class ModerationApplicationService {
       const post = await this.postRepository.findById(postId);
       if (!post) throw new Error('ERR_POST_NOT_FOUND');
 
-      post.reject();
+      post.reject(reason);
       await this.postRepository.save(post);
 
-      this.eventBus.publish(new PostRejectedEvent(post.id, post.authorId, post.title, reason || 'N/A'));
+      post.domainEvents.forEach(e => this.eventBus.publish(e));
+      post.clearDomainEvents();
+
       return { id: post.id, status: post.status };
     });
   }
