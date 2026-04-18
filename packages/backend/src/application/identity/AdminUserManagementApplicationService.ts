@@ -138,4 +138,23 @@ export class AdminUserManagementApplicationService {
       }
     }
   }
+
+  /**
+   * 更改用户角色和等级（在一个操作中）
+   * @param operator 执行操作的用户信息
+   * @param targetUserId 目标用户 ID
+   * @param options 包含要更新的 role 和 level 的选项
+   */
+  public async changeUserRoleAndLevel(
+    operator: OperatorContext,
+    targetUserId: string,
+    options: { role?: RoleName; level?: number }
+  ): Promise<void> {
+    if (options.level !== undefined) {
+      await this.changeUserLevel(operator, targetUserId, options.level);
+    }
+    if (options.role) {
+      await this.changeUserRole(operator, targetUserId, options.role);
+    }
+  }
 }
