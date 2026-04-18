@@ -4,7 +4,6 @@
  */
 import { Response, Request } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { subject } from '@casl/ability';
 
 import { communityApplicationService } from '../registry';
 import { communityQueryService } from '../queries/community/CommunityQueryService';
@@ -266,29 +265,22 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const post = await communityQueryService.getPostWithCategory(postId);
-
-    if (!post) {
-      res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
-      return;
-    }
-
-    // Instance-level authorization check
-    if (!req.ability?.can('update', subject('Post', { ...post } as any))) {
-      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_EDIT_THIS_POST' });
-      return;
-    }
-
-    const result = await communityApplicationService.updatePost(postId, title, content, categoryId);
+    const result = await communityApplicationService.updatePost(req.ability!, postId, title, content, categoryId);
     const postDto = await communityQueryService.getPostById(req.ability!, result.postId);
     if (postDto?.status === 'PENDING') {
       res.json({ message: 'ERR_PENDING_MODERATION', post: postDto });
       return;
     }
     res.json(postDto);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating post:', error);
-    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_POST' });
+    if (error.message === 'ERR_POST_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+    } else if (error.message?.includes('FORBIDDEN')) {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_POST' });
+    }
   }
 };
 
@@ -302,23 +294,16 @@ export const deletePost = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const postId = req.params.id as string;
     
-    const post = await communityQueryService.getPostWithCategory(postId);
-
-    if (!post) {
-      res.status(404).json({ error: 'ERR_POST_NOT_FOUND' });
-      return;
-    }
-
-    // Instance-level authorization check
-    if (!req.ability?.can('delete', subject('Post', { ...post } as any))) {
-      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_DELETE_THIS_POST' });
-      return;
-    }
-
-    await communityApplicationService.deletePost(postId);
+    await communityApplicationService.deletePost(req.ability!, postId);
     res.json({ message: 'Post and its comments deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_POST' });
+  } catch (error: any) {
+    if (error.message === 'ERR_POST_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+    } else if (error.message?.includes('FORBIDDEN')) {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_POST' });
+    }
   }
 };
 
@@ -338,21 +323,7 @@ export const updateComment = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const comment = await communityQueryService.getCommentWithPost(commentId);
-
-    if (!comment) {
-      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
-      return;
-    }
-
-    // Instance-level authorization check
-    if (!req.ability?.can('update', subject('Comment', { ...comment } as any))) {
-      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_EDIT_THIS_COMMENT' });
-      return;
-    }
-
-    
-    const result = await communityApplicationService.updateComment(commentId, content, comment.post.categoryId);
+    const result = await communityApplicationService.updateComment(req.ability!, commentId, content);
     const commentDto = await communityQueryService.getCommentById(result.commentId);
 
     if (commentDto?.isPending) {
@@ -361,8 +332,14 @@ export const updateComment = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     res.json(commentDto);
-  } catch (error) {
-    res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_COMMENT' });
+  } catch (error: any) {
+    if (error.message === 'ERR_COMMENT_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+    } else if (error.message?.includes('FORBIDDEN')) {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_FAILED_TO_UPDATE_COMMENT' });
+    }
   }
 };
 
@@ -376,23 +353,16 @@ export const deleteComment = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const commentId = req.params.commentId as string;
     
-    const comment = await communityQueryService.getCommentWithPost(commentId);
-
-    if (!comment) {
-      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
-      return;
-    }
-
-    // Instance-level authorization check
-    if (!req.ability?.can('delete', subject('Comment', { ...comment } as any))) {
-      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_DELETE_THIS_COMMENT' });
-      return;
-    }
-
-    await communityApplicationService.deleteComment(commentId);
+    await communityApplicationService.deleteComment(req.ability!, commentId);
     res.json({ message: 'Comment deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_COMMENT' });
+  } catch (error: any) {
+    if (error.message === 'ERR_COMMENT_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+    } else if (error.message?.includes('FORBIDDEN')) {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_COMMENT' });
+    }
   }
 };
 
@@ -407,24 +377,17 @@ export const toggleCommentUpvote = async (req: AuthRequest, res: Response): Prom
     const commentId = req.params.commentId as string;
     const userId = req.user!.userId;
 
-    const comment = await communityQueryService.getCommentWithPost(commentId);
-
-    if (!comment) {
-      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
-      return;
-    }
-
-    // Verify user can read the post this comment belongs to
-    if (!req.ability?.can('read', subject('Post', { ...comment.post } as any))) {
-      res.status(403).json({ error: 'ERR_FORBIDDEN' });
-      return;
-    }
-
-    const status = await communityApplicationService.toggleCommentUpvote(commentId, userId);
+    const status = await communityApplicationService.toggleCommentUpvote(req.ability!, commentId, userId);
     res.json({ upvoted: status });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error toggling comment upvote:', error);
-    res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_COMMENT_UPVOTE' });
+    if (error.message === 'ERR_COMMENT_NOT_FOUND' || error.message === 'ERR_POST_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+    } else if (error.message?.includes('FORBIDDEN')) {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_COMMENT_UPVOTE' });
+    }
   }
 };
 
@@ -439,23 +402,16 @@ export const toggleCommentBookmark = async (req: AuthRequest, res: Response): Pr
     const commentId = req.params.commentId as string;
     const userId = req.user!.userId;
 
-    const comment = await communityQueryService.getCommentWithPost(commentId);
-
-    if (!comment) {
-      res.status(404).json({ error: 'ERR_COMMENT_NOT_FOUND' });
-      return;
-    }
-
-    // Verify user can read the post this comment belongs to
-    if (!req.ability?.can('read', subject('Post', { ...comment.post } as any))) {
-      res.status(403).json({ error: 'ERR_FORBIDDEN' });
-      return;
-    }
-
-    const status = await communityApplicationService.toggleCommentBookmark(commentId, userId);
+    const status = await communityApplicationService.toggleCommentBookmark(req.ability!, commentId, userId);
     res.json({ bookmarked: status });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error toggling comment bookmark:', error);
-    res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK' });
+    if (error.message === 'ERR_COMMENT_NOT_FOUND' || error.message === 'ERR_POST_NOT_FOUND') {
+      res.status(404).json({ error: error.message });
+    } else if (error.message?.includes('FORBIDDEN')) {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_FAILED_TO_TOGGLE_COMMENT_BOOKMARK' });
+    }
   }
 };

@@ -16,6 +16,7 @@ import { ICaptchaValidator } from '../../domain/community/ICaptchaValidator';
 import { IEventBus } from '../../domain/shared/events/IEventBus';
 import { PostRepliedEvent, CommentRepliedEvent, CategoryModeratorAssignedEvent, CategoryModeratorRemovedEvent } from '../../domain/shared/events/DomainEvents';
 import { AuditApplicationService } from '../system/AuditApplicationService';
+import { subject, AnyAbility } from '@casl/ability';
 
 /**
  * Callers: [AdminController, PostController]
@@ -37,6 +38,48 @@ export class CommunityApplicationService {
   ) {}
 
   // --- Category Management ---
+
+  private async getPostSubject(post: Post) {
+    const category = await this.categoryRepository.findById(post.categoryId);
+    return subject('Post', {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      categoryId: post.categoryId,
+      authorId: post.authorId,
+      status: post.status,
+      createdAt: post.createdAt,
+      category: category ? {
+        id: category.id,
+        minLevel: category.minLevel
+      } : null
+    } as any);
+  }
+
+  private async getCommentSubject(comment: Comment, postObj?: Post) {
+    const post = postObj || await this.postRepository.findById(comment.postId);
+    const category = post ? await this.categoryRepository.findById(post.categoryId) : null;
+    return subject('Comment', {
+      id: comment.id,
+      content: comment.content,
+      postId: comment.postId,
+      authorId: comment.authorId,
+      parentId: comment.parentId,
+      isPending: comment.isPending,
+      deletedAt: comment.deletedAt,
+      createdAt: comment.createdAt,
+      post: post ? {
+        id: post.id,
+        categoryId: post.categoryId,
+        authorId: post.authorId,
+        status: post.status,
+        category: category ? {
+          id: category.id,
+          minLevel: category.minLevel
+        } : null
+      } : null
+    } as any);
+  }
 
   /**
    * 创建分类并记录审计日志
@@ -164,9 +207,13 @@ export class CommunityApplicationService {
     return { postId: post.id, isModerated };
   }
 
-  public async updatePost(postId: string, title: string, content: string, categoryId: string): Promise<{ postId: string }> {
+  public async updatePost(ability: AnyAbility, postId: string, title: string, content: string, categoryId: string): Promise<{ postId: string }> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    if (!ability.can('update', await this.getPostSubject(post))) {
+      throw new Error('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_EDIT_THIS_POST');
+    }
 
     const checkTitle = title || post.title;
     const checkContent = content || post.content;
@@ -178,9 +225,13 @@ export class CommunityApplicationService {
     return { postId: post.id };
   }
 
-  public async deletePost(postId: string): Promise<void> {
+  public async deletePost(ability: AnyAbility, postId: string): Promise<void> {
     const post = await this.postRepository.findById(postId);
     if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    if (!ability.can('delete', await this.getPostSubject(post))) {
+      throw new Error('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_DELETE_THIS_POST');
+    }
 
     post.delete();
     await this.postRepository.save(post);
@@ -228,20 +279,32 @@ export class CommunityApplicationService {
     return { commentId: comment.id };
   }
 
-  public async updateComment(commentId: string, content: string, categoryId: string): Promise<{ commentId: string }> {
+  public async updateComment(ability: AnyAbility, commentId: string, content: string): Promise<{ commentId: string }> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
 
-    const isModerated = await this.moderationPolicy.containsModeratedWord(content, categoryId);
+    if (!ability.can('update', await this.getCommentSubject(comment))) {
+      throw new Error('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_EDIT_THIS_COMMENT');
+    }
+
+    const post = await this.postRepository.findById(comment.postId);
+    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    const isModerated = await this.moderationPolicy.containsModeratedWord(content, post.categoryId);
     comment.updateContent(content, isModerated);
     await this.commentRepository.save(comment);
 
     return { commentId: comment.id };
   }
 
-  public async deleteComment(commentId: string): Promise<void> {
+  public async deleteComment(ability: AnyAbility, commentId: string): Promise<void> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+
+    if (!ability.can('delete', await this.getCommentSubject(comment))) {
+      throw new Error('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_DELETE_THIS_COMMENT');
+    }
+
     comment.delete();
     await this.commentRepository.save(comment);
   }
@@ -296,9 +359,16 @@ export class CommunityApplicationService {
    * Description: Toggles an upvote on a comment. Enforces domain invariants.
    * Keywords: toggle, upvote, comment, engagement
    */
-  public async toggleCommentUpvote(commentId: string, userId: string): Promise<boolean> {
+  public async toggleCommentUpvote(ability: AnyAbility, commentId: string, userId: string): Promise<boolean> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+
+    const post = await this.postRepository.findById(comment.postId);
+    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    if (!ability.can('read', await this.getPostSubject(post))) {
+      throw new Error('ERR_FORBIDDEN');
+    }
 
     const existing = await this.engagementRepository.findCommentUpvote(commentId, userId);
     if (existing) {
@@ -317,9 +387,16 @@ export class CommunityApplicationService {
    * Description: Toggles a bookmark on a comment. Enforces domain invariants.
    * Keywords: toggle, bookmark, comment, engagement
    */
-  public async toggleCommentBookmark(commentId: string, userId: string): Promise<boolean> {
+  public async toggleCommentBookmark(ability: AnyAbility, commentId: string, userId: string): Promise<boolean> {
     const comment = await this.commentRepository.findById(commentId);
     if (!comment) throw new Error('ERR_COMMENT_NOT_FOUND');
+
+    const post = await this.postRepository.findById(comment.postId);
+    if (!post) throw new Error('ERR_POST_NOT_FOUND');
+
+    if (!ability.can('read', await this.getPostSubject(post))) {
+      throw new Error('ERR_FORBIDDEN');
+    }
 
     const existing = await this.engagementRepository.findCommentBookmark(commentId, userId);
     if (existing) {
