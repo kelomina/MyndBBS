@@ -18,7 +18,7 @@ import { auditApplicationService, adminUserManagementApplicationService, authApp
  * @param {Response} res - Express Response object.
  */
 export const getUsers = async (req: Request, res: Response) => {
-  const q = req.query.q as string | undefined;
+  const q = (req.query.q || req.query.query) as string | undefined;
   const users = await adminQueryService.listUsers(q);
   res.json(users);
 };
