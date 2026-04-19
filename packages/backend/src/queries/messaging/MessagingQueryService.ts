@@ -70,12 +70,14 @@ export class MessagingQueryService {
 
   /**
    * Callers: [messageController.getUnreadCount]
-   * Callees: [prisma.privateMessage.count]
-   * Description: Counts the number of unread private messages for a user.
-   * Keywords: unread, count, private, messages
+   * Callees: [prisma.privateMessage.count, prisma.friendship.count]
+   * Description: Counts the number of unread private messages and pending friend requests for a user.
+   * Keywords: unread, count, private, messages, friend, requests
    */
   public async getUnreadCount(userId: string): Promise<number> {
-    return prisma.privateMessage.count({ where: { receiverId: userId, isRead: false } });
+    const unreadMessages = await prisma.privateMessage.count({ where: { receiverId: userId, isRead: false } });
+    const pendingFriendRequests = await prisma.friendship.count({ where: { addresseeId: userId, status: 'PENDING' } });
+    return unreadMessages + pendingFriendRequests;
   }
 
   /**
