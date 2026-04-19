@@ -13,6 +13,7 @@ export type PostListItemDTO = {
   title: string;
   content: string;
   createdAt: Date;
+  updatedAt: Date;
   status: PostStatus;
   author: { id: string; username: string };
   category: { id: string; name: string; description: string | null };
@@ -24,6 +25,7 @@ export type PostDetailDTO = {
   title: string;
   content: string;
   createdAt: Date;
+  updatedAt: Date;
   status: PostStatus;
   author: { id: string; username: string };
   category: { id: string; name: string; description: string | null };
@@ -36,6 +38,7 @@ export type CommentListItemDTO = {
   id: string;
   content: string;
   createdAt: Date;
+  updatedAt: Date;
   deletedAt: Date | null;
   isPending: boolean;
   author: { id: string; username: string };
