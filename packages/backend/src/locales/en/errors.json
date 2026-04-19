@@ -18,6 +18,7 @@
   "ERR_FAILED_TO_DELETE_ROUTE_WHITELIST": "Failed to delete route whitelist",
   "ERR_ACCOUNT_IS_BANNED": "Account is banned",
   "ERR_AUDIT_LOG_MISSING_REQUIRED_FIELDS": "Audit log missing required fields",
+  "ERR_FAILED_TO_FETCH_AUDIT_LOGS": "Failed to fetch audit logs",
   "ERR_AUTH_CHALLENGE_ALREADY_EXPIRED": "Auth challenge already expired",
   "ERR_AUTH_CHALLENGE_EXPIRED": "Auth challenge expired",
   "ERR_AUTH_CHALLENGE_MISSING_DATA": "Auth challenge missing data",

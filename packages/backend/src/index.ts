@@ -81,6 +81,9 @@ if (!isInstalled) {
   }));
   app.use(helmet());
   
+  const { auditMiddleware } = require('./middleware/audit');
+  app.use(auditMiddleware);
+
   // CSRF Protection Middleware
   app.use('/api', (req, res, next) => {
     const safeMethods = ['GET', 'HEAD', 'OPTIONS', 'TRACE'];
@@ -137,7 +140,7 @@ if (!isInstalled) {
   }, express.static(require('path').join(process.cwd(), 'uploads')));
 
   // Global error handler
-  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Unhandled Error:', err);
     const errorCode = typeof err?.message === 'string' && err.message.startsWith('ERR_')
       ? err.message

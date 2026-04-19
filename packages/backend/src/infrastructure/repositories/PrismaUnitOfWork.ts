@@ -1,5 +1,7 @@
 import { IUnitOfWork } from '../../domain/shared/IUnitOfWork';
 import { basePrisma, prismaTxLocalStorage } from '../../db';
+import { IAuditLogRepository } from '../../domain/system/IAuditLogRepository';
+import { PrismaAuditLogRepository } from './PrismaAuditLogRepository';
 
 /**
  * Prisma implementation of the UnitOfWork pattern.
@@ -7,6 +9,12 @@ import { basePrisma, prismaTxLocalStorage } from '../../db';
  * to the repositories without needing to pass it explicitly.
  */
 export class PrismaUnitOfWork implements IUnitOfWork {
+  public readonly auditLogs: IAuditLogRepository;
+
+  constructor() {
+    this.auditLogs = new PrismaAuditLogRepository();
+  }
+
   /**
    * Executes the given work block within a Prisma transaction context.
    * If a transaction is already active in the current AsyncLocalStorage context,

@@ -338,7 +338,20 @@
     "failedToUpdateRole": "更新角色失败",
     "failedToUpdateStatus": "更新状态失败",
     "unban": "解封",
-    "ban": "封禁"
+    "ban": "封禁",
+    "auditLogs": "审计日志",
+    "auditLogsDesc": "查看和管理系统审计日志。",
+    "operator": "操作人",
+    "operationType": "操作类型",
+    "target": "操作目标",
+    "requestPath": "请求路径",
+    "ipAddress": "IP 地址",
+    "timestamp": "时间戳",
+    "payload": "请求载荷",
+    "noAuditLogs": "暂无审计日志。",
+    "operatorId": "操作人 ID",
+    "permissionGroup": "权限组",
+    "viewDetails": "查看详情"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "用户未找到",
@@ -455,7 +468,8 @@
     "ERR_FORBIDDEN_NOT_YOUR_PASSKEY": "权限不足：这不是您的通行密钥",
     "ERR_INVALID_CAPTCHA": "验证码无效",
     "ERR_TOTP_ALREADY_ENABLED": "已启用 TOTP",
-    "ERR_USERNAME_ALREADY_EXISTS": "用户名已存在"
+    "ERR_USERNAME_ALREADY_EXISTS": "用户名已存在",
+    "ERR_FAILED_TO_FETCH_AUDIT_LOGS": "获取审计日志失败"
   },
   "category": {
     "postsTitle": "帖子",

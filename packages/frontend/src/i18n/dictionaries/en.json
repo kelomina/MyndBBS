@@ -338,7 +338,20 @@
     "failedToUpdateRole": "Failed to update role",
     "failedToUpdateStatus": "Failed to update status",
     "unban": "Unban",
-    "ban": "Ban"
+    "ban": "Ban",
+    "auditLogs": "Audit Logs",
+    "auditLogsDesc": "View and manage system audit logs.",
+    "operator": "Operator",
+    "operationType": "Operation Type",
+    "target": "Target",
+    "requestPath": "Request Path",
+    "ipAddress": "IP Address",
+    "timestamp": "Timestamp",
+    "payload": "Payload",
+    "noAuditLogs": "No audit logs found.",
+    "operatorId": "Operator ID",
+    "permissionGroup": "Permission Group",
+    "viewDetails": "View Details"
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "User not found",
@@ -455,7 +468,8 @@
     "ERR_FORBIDDEN_NOT_YOUR_PASSKEY": "Forbidden: Not your passkey",
     "ERR_INVALID_CAPTCHA": "Invalid captcha",
     "ERR_TOTP_ALREADY_ENABLED": "TOTP is already enabled",
-    "ERR_USERNAME_ALREADY_EXISTS": "Username already exists"
+    "ERR_USERNAME_ALREADY_EXISTS": "Username already exists",
+    "ERR_FAILED_TO_FETCH_AUDIT_LOGS": "Failed to fetch audit logs"
   },
   "category": {
     "postsTitle": "Posts",

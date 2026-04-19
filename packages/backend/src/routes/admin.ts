@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireAbility } from '../middleware/auth';
+import { getAuditLogs } from '../controllers/auditLog';
 import {
   getModeratedWords, addModeratedWord, deleteModeratedWord,
   getPendingPosts, approvePendingPost, rejectPendingPost,
@@ -21,8 +22,10 @@ const router: Router = Router();
 // Public endpoint for proxy to fetch whitelist
 router.get('/routing-whitelist', getRouteWhitelist);
 
-
 router.use(requireAuth);
+
+// Audit logs (SUPER_ADMIN only, handled in controller)
+router.get('/audit-logs', getAuditLogs);
 
 // User Management routes
 router.get('/users', requireAbility('manage', 'User'), getUsers);
