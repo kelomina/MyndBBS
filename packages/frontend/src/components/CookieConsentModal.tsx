@@ -111,7 +111,7 @@ export const CookieConsentModal = () => {
           </div>
           
           <div className="mt-6 text-xs text-muted-foreground">
-            {dict.consent?.readMore || "Read more about our"} <a href="#" className="underline text-primary">{dict.consent?.terms || "Terms"}</a> {dict.consent?.and || "and"} <a href="#" className="underline text-primary">{dict.consent?.privacy || "Privacy Policy"}</a>.
+            {dict.consent?.readMore || "Read more about our"} <a href="/terms" className="underline text-primary">{dict.consent?.terms || "Terms"}</a> {dict.consent?.and || "and"} <a href="/privacy" className="underline text-primary">{dict.consent?.privacy || "Privacy Policy"}</a>.
           </div>
         </div>
 
