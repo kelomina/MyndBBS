@@ -206,7 +206,27 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
   }, [params]);
 
   useEffect(() => {
-    if (!unlocked || !myPrivateKey || !theirPublicKey || messages.length === 0) return;
+      if (!targetUserId || !messages || messages.length === 0) return;
+      const unreadMessages = messages.filter(m => !m.isRead && m.receiverId === myUserId);
+      if (unreadMessages.length > 0) {
+        fetch('/api/v1/messages/read', {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'include',
+          body: JSON.stringify({ senderId: targetUserId })
+        }).then(res => {
+          if (res.ok) {
+            window.dispatchEvent(new Event('messages-read'));
+          }
+        }).catch(console.error);
+      }
+    }, [messages, targetUserId, myUserId]);
+
+    useEffect(() => {
+      if (!unlocked || !myPrivateKey || !theirPublicKey || messages.length === 0) return;
     let cancelled = false;
     const run = async () => {
       let needsUpdate = false;
