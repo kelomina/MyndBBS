@@ -175,7 +175,12 @@
     "notificationSettings": "通知设置",
     "commentDeleted": "此评论已被删除。",
     "commentOn": "评论于：",
-    "postDeleted": "此帖子已被删除。"
+    "postDeleted": "此帖子已被删除。",
+    "privacyOptions": "隐私与法律",
+    "legalDocuments": "法律文件",
+    "legalDesc": "阅读并查看我们的服务条款和隐私政策。",
+    "preferencesSaved": "偏好设置已成功保存！",
+    "preferencesSaveError": "保存偏好设置失败。"
   },
   "settings": {
     "loadingProfile": "加载资料中...",
@@ -224,7 +229,9 @@
     "failedFetchSessions": "加载会话失败",
     "failedRevokeSession": "注销会话失败",
     "passwordChangedRelogin": "密码修改成功，请重新登录。3秒后跳转...",
-    "passkeyNotSupported": "设备不支持或取消了通行密钥操作。"
+    "passkeyNotSupported": "设备不支持或取消了通行密钥操作。",
+    "passkeyDevice": "设备类型",
+    "passkeyBackedUp": "已备份"
   },
   "admin": {
     "categoryManagement": "分类管理",
