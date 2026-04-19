@@ -542,6 +542,8 @@
     "chat": "Chat",
     "systemNotification": "System Notification",
     "friendRequestReceived": "{username} wants to be your friend.",
+    "friendRequests": "Friend Requests",
+    "friendList": "Friend List",
     "pending": "Pending",
     "accepted": "Accepted",
     "rejected": "Rejected",
