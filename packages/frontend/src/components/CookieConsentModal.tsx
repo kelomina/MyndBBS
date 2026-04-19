@@ -50,7 +50,10 @@ export const CookieConsentModal = () => {
     try {
       await fetch('/api/v1/user/cookie-preferences', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         credentials: 'include',
         body: JSON.stringify({ preferences: prefs }),
       });
