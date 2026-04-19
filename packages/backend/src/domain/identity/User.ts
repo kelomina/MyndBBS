@@ -11,6 +11,7 @@ export interface UserProps {
   isPasskeyMandatory: boolean;
   totpSecret: string | null;
   isTotpEnabled: boolean;
+  cookiePreferences?: any | null;
   createdAt: Date;
 }
 
@@ -55,6 +56,7 @@ export class User {
   public get isPasskeyMandatory(): boolean { return this.props.isPasskeyMandatory; }
   public get totpSecret(): string | null { return this.props.totpSecret; }
   public get isTotpEnabled(): boolean { return this.props.isTotpEnabled; }
+  public get cookiePreferences(): any | null { return this.props.cookiePreferences; }
   public get createdAt(): Date { return this.props.createdAt; }
 
   // --- Domain Behaviors ---
@@ -128,5 +130,15 @@ export class User {
    */
   public changeStatus(status: UserStatus): void {
     this.props.status = status;
+  }
+
+  /**
+   * Callers: [UserApplicationService.updateCookiePreferences]
+   * Callees: []
+   * Description: Updates the user's cookie preferences.
+   * Keywords: user, update, cookie, preferences
+   */
+  public updateCookiePreferences(preferences: any): void {
+    this.props.cookiePreferences = preferences;
   }
 }

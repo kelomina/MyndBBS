@@ -136,4 +136,19 @@ export class UserApplicationService {
       await this.abilityCache.invalidateUserRules(userId);
     });
   }
+
+  /**
+   * Callers: [UserController.updateCookiePreferences]
+   * Callees: [IUserRepository.findById, User.updateCookiePreferences, IUserRepository.save, IUnitOfWork.execute]
+   * Description: Updates a user's cookie preferences.
+   * Keywords: cookie, preferences, update, user, identity
+   */
+  public async updateCookiePreferences(userId: string, preferences: any): Promise<void> {
+    return this.unitOfWork.execute(async () => {
+      const user = await this.userRepository.findById(userId);
+      if (!user) throw new Error('ERR_USER_NOT_FOUND');
+      user.updateCookiePreferences(preferences);
+      await this.userRepository.save(user);
+    });
+  }
 }

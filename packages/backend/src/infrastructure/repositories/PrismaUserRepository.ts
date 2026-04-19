@@ -27,6 +27,7 @@ export class PrismaUserRepository implements IUserRepository {
       isPasskeyMandatory: raw.isPasskeyMandatory,
       totpSecret: raw.totpSecret,
       isTotpEnabled: raw.isTotpEnabled,
+      cookiePreferences: raw.cookiePreferences,
       createdAt: raw.createdAt,
     };
     return User.create(props);
@@ -69,6 +70,7 @@ export class PrismaUserRepository implements IUserRepository {
         isPasskeyMandatory: user.isPasskeyMandatory,
         totpSecret: user.totpSecret,
         isTotpEnabled: user.isTotpEnabled,
+        cookiePreferences: user.cookiePreferences ? (user.cookiePreferences as any) : null,
         createdAt: user.createdAt,
       },
       update: {
@@ -81,6 +83,7 @@ export class PrismaUserRepository implements IUserRepository {
         isPasskeyMandatory: user.isPasskeyMandatory,
         totpSecret: user.totpSecret,
         isTotpEnabled: user.isTotpEnabled,
+        cookiePreferences: user.cookiePreferences ? (user.cookiePreferences as any) : null,
       },
     });
   }

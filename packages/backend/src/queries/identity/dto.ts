@@ -79,6 +79,7 @@ export type UserWithRoleDTO = {
   isTotpEnabled: boolean;
   totpSecret: string | null;
   isPasskeyMandatory: boolean;
+  cookiePreferences?: any | null;
   createdAt: Date;
   updatedAt: Date;
   role: {
@@ -89,9 +90,10 @@ export type UserWithRoleDTO = {
 
 export type UserForLoginDTO = UserWithRoleDTO & {
   passkeys: PasskeyDTO[];
+  cookiePreferences?: any | null;
 };
 
-export type UserDTO = {
+export interface UserDTO {
   id: string;
   email: string;
   username: string;
@@ -101,6 +103,7 @@ export type UserDTO = {
   isTotpEnabled: boolean;
   totpSecret: string | null;
   isPasskeyMandatory: boolean;
+  cookiePreferences?: any | null;
   createdAt: Date;
   updatedAt: Date;
 };

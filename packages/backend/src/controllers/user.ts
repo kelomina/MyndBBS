@@ -33,6 +33,34 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
 
 /**
  * Callers: [Router]
+ * Callees: [userApplicationService.updateCookiePreferences]
+ * Description: Updates the user's cookie preferences.
+ * Keywords: cookie, preferences, update, user
+ */
+export const updateCookiePreferences = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+      return;
+    }
+
+    const { preferences } = req.body;
+    if (!preferences) {
+      res.status(400).json({ error: 'ERR_NO_FIELDS_TO_UPDATE' });
+      return;
+    }
+
+    await userApplicationService.updateCookiePreferences(userId, preferences);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error updating cookie preferences:', error);
+    res.status(400).json({ error: error.message || 'ERR_UPDATE_FAILED' });
+  }
+};
+
+/**
+ * Callers: [Router]
  * Callees: [identityQueryService]
  * Description: Retrieves bookmarked posts for the authenticated user.
  * Keywords: user, bookmarks
