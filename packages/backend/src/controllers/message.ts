@@ -47,13 +47,15 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   const senderId = req.user?.userId;
   if (!senderId) { res.status(401).json({ error: 'ERR_UNAUTHORIZED' }); return; }
 
-  const { receiverId, encryptedContent, isBurnAfterRead } = req.body;
+  const { receiverId, encryptedContent, ephemeralPublicKey, senderEncryptedContent, isBurnAfterRead } = req.body;
 
   try {
     const msgId = await messagingApplicationService.sendMessageWithValidation(
       senderId,
       receiverId,
       encryptedContent,
+      ephemeralPublicKey,
+      senderEncryptedContent,
       false, // isSystem
       !!isBurnAfterRead
     );
