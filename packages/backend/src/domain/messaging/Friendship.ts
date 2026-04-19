@@ -81,4 +81,20 @@ export class Friendship {
     }
     this.props.status = 'REJECTED';
   }
+
+  /**
+   * Callers: [MessagingApplicationService.blockUser]
+   * Callees: []
+   * Description: Blocks the other user in this friendship. The blocker becomes the requester.
+   * Keywords: block, friend, user, friendship, messaging
+   */
+  public block(blockerId: string): void {
+    if (this.props.requesterId !== blockerId && this.props.addresseeId !== blockerId) {
+      throw new Error('ERR_FORBIDDEN_NOT_INVOLVED');
+    }
+    const blockedId = this.props.requesterId === blockerId ? this.props.addresseeId : this.props.requesterId;
+    this.props.requesterId = blockerId;
+    this.props.addresseeId = blockedId;
+    this.props.status = 'BLOCKED';
+  }
 }

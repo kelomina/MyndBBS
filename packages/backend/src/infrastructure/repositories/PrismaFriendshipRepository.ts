@@ -50,6 +50,8 @@ export class PrismaFriendshipRepository implements IFriendshipRepository {
         createdAt: friendship.createdAt,
       },
       update: {
+        requesterId: friendship.requesterId,
+        addresseeId: friendship.addresseeId,
         status: friendship.status,
       },
     });

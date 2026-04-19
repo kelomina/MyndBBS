@@ -69,3 +69,47 @@ export const getFriends = async (req: AuthRequest, res: Response): Promise<void>
 
   res.json({ friendships });
 };
+
+/**
+ * Callers: [Router]
+ * Callees: [messagingApplicationService]
+ * Description: Removes a friend or cancels a friend request.
+ * Keywords: remove, friend, unfriend
+ */
+export const removeFriend = async (req: AuthRequest, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
+  const { targetUserId } = req.body;
+  if (!userId || !targetUserId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
+
+  try {
+    await messagingApplicationService.removeFriend(userId, targetUserId);
+    res.json({ success: true });
+  } catch (error: any) {
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+    res.status(errorCode === 'ERR_NOT_FOUND' ? 404 : 400).json({ error: errorCode });
+  }
+};
+
+/**
+ * Callers: [Router]
+ * Callees: [messagingApplicationService]
+ * Description: Blocks a user, adding them to the blacklist.
+ * Keywords: block, user, blacklist
+ */
+export const blockUser = async (req: AuthRequest, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
+  const { targetUserId } = req.body;
+  if (!userId || !targetUserId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
+
+  try {
+    await messagingApplicationService.blockUser(userId, targetUserId);
+    res.json({ success: true });
+  } catch (error: any) {
+    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
+      ? error.message
+      : 'ERR_INTERNAL_SERVER_ERROR';
+    res.status(400).json({ error: errorCode });
+  }
+};

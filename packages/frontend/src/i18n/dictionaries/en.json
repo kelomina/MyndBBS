@@ -563,7 +563,13 @@
     "postRejectedDesc": "Your post \"{title}\" has been rejected. Reason: {reason}",
     "systemAlertDesc": "A new post \"{title}\" has been submitted for moderation. Please review it.",
     "viewPost": "View Post",
-    "friendRequestReceived": "{username} wants to be your friend."
+    "friendRequestReceived": "{username} wants to be your friend.",
+    "unblock": "Unblock",
+    "blacklist": "Blacklist",
+    "block": "Block",
+    "remove": "Remove",
+    "confirmRemove": "Are you sure you want to remove this friend?",
+    "confirmBlock": "Are you sure you want to block this user?"
   },
   "forbidden": {
     "title": "403 - Access Denied",

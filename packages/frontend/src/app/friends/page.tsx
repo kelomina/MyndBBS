@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { UserPlus, Check, X, ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
+import { UserPlus, Check, X, ArrowLeft, ChevronDown, ChevronRight, UserMinus, Ban } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from '../../components/TranslationProvider';
 import { useToast } from '../../components/ui/Toast';
@@ -83,7 +83,7 @@ export default function FriendsPage() {
     try {
       await fetch('/api/v1/friends/respond', {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
         },
@@ -97,8 +97,45 @@ export default function FriendsPage() {
     }
   };
 
+  const handleRemoveFriend = async (targetUserId: string) => {
+    if (!confirm(dict.messages?.confirmRemove || "Are you sure you want to remove this friend?")) return;
+    try {
+      await fetch('/api/v1/friends/remove', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ targetUserId })
+      });
+      loadFriends();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleBlockUser = async (targetUserId: string) => {
+    if (!confirm(dict.messages?.confirmBlock || "Are you sure you want to block this user?")) return;
+    try {
+      await fetch('/api/v1/friends/block', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ targetUserId })
+      });
+      loadFriends();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const pendingRequests = friendships.filter(f => f.status === 'PENDING' && f.requesterId !== myId);
   const friendsList = friendships.filter(f => f.status === 'ACCEPTED' || (f.status === 'PENDING' && f.requesterId === myId));
+  const blockedList = friendships.filter(f => f.status === 'BLOCKED' && f.requesterId === myId);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -198,12 +235,49 @@ export default function FriendsPage() {
                       {dict.messages?.chat || "Chat"}
                     </Link>
                   )}
+                  {f.status === 'ACCEPTED' && (
+                    <>
+                      <button onClick={() => handleRemoveFriend(otherUser.id)} className="text-sm font-medium text-red-600 hover:bg-red-50 px-2 py-1 rounded flex items-center gap-1">
+                        <UserMinus className="h-4 w-4" /> {dict.messages?.remove || "Remove"}
+                      </button>
+                      <button onClick={() => handleBlockUser(otherUser.id)} className="text-sm font-medium text-gray-600 hover:bg-gray-100 px-2 py-1 rounded flex items-center gap-1 dark:text-gray-400 dark:hover:bg-zinc-800">
+                        <Ban className="h-4 w-4" /> {dict.messages?.block || "Block"}
+                      </button>
+                    </>
+                  )}
+                  {f.status === 'PENDING' && isRequester && (
+                    <button onClick={() => handleRemoveFriend(otherUser.id)} className="text-sm font-medium text-red-600 hover:bg-red-50 px-2 py-1 rounded flex items-center gap-1">
+                       <X className="h-4 w-4" /> {dict.common?.cancel || "Cancel"}
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      {blockedList.length > 0 && (
+        <div className="mt-8 space-y-4">
+          <h2 className="font-semibold text-lg text-red-600 flex items-center gap-2"><Ban className="h-5 w-5" /> {dict.messages?.blacklist || "Blacklist"}</h2>
+          {blockedList.map(f => {
+            const otherUser = f.addressee;
+            const otherUsername = otherUser?.username || 'Unknown User';
+            return (
+              <div key={f.id} className="p-4 border border-border bg-card rounded-xl flex items-center justify-between shadow-sm opacity-70">
+                <div>
+                  <span className="font-bold line-through">{otherUsername}</span>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <button onClick={() => handleRemoveFriend(otherUser.id)} className="text-sm font-medium text-primary hover:underline px-3 py-1 bg-primary/10 rounded-md">
+                    {dict.messages?.unblock || "Unblock"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
