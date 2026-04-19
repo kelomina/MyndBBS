@@ -20,6 +20,12 @@ import Image from 'next/image';
 import type { ChatMessage, Dictionary } from '../../../types';
 
 
+/**
+ * Callers: [ChatPage]
+ * Callees: [window.crypto.subtle, JSON.parse, URL.createObjectURL]
+ * Description: Component to render an end-to-end encrypted image in private messages. Includes an action context menu with download and preview capabilities.
+ * Keywords: encrypted, image, messaging, context, menu
+ */
 const EncryptedImage = ({ payload, onPreview, dict }: { payload: string; onPreview: (url: string) => void; dict: Dictionary }) => {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -92,12 +98,12 @@ const EncryptedImage = ({ payload, onPreview, dict }: { payload: string; onPrevi
         onTouchEnd={handleTouchEnd}
       />
       {showMenu && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background border shadow-2xl rounded-lg p-2 z-50 flex flex-col gap-1 min-w-[120px] backdrop-blur-md dark:bg-zinc-900/95 animate-in zoom-in-95 duration-200">
-          <button onClick={() => { onPreview(blobUrl); setShowMenu(false); }} className="px-3 py-2 text-sm hover:bg-accent rounded text-left">{dict.messages?.fullScreen || "Full Screen"}</button>
-          <a href={blobUrl} download="secure_image" onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent rounded text-left block">{dict.messages?.download || "Download"}</a>
-          <button onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent text-destructive rounded text-left">{dict.common?.cancel || "Cancel"}</button>
-        </div>
-      )}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background text-foreground border shadow-2xl rounded-lg p-2 z-50 flex flex-col gap-1 min-w-[120px] backdrop-blur-md dark:bg-zinc-900/95 animate-in zoom-in-95 duration-200">
+            <button onClick={() => { onPreview(blobUrl); setShowMenu(false); }} className="px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded text-left">{dict.messages?.fullScreen || "Full Screen"}</button>
+            <a href={blobUrl} download="secure_image" onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded text-left block">{dict.messages?.download || "Download"}</a>
+            <button onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground text-destructive rounded text-left">{dict.common?.cancel || "Cancel"}</button>
+          </div>
+        )}
     </div>
   );
 };
