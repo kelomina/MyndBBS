@@ -14,20 +14,26 @@ export const CookieConsentModal = () => {
   });
 
   useEffect(() => {
+    const localConsent = localStorage.getItem('myndbbs_cookie_consent');
+    if (localConsent) {
+      // Already consented on this device
+      return;
+    }
+
     const checkConsent = async () => {
       try {
         const res = await fetch('/api/v1/user/profile', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          if (data.user && !data.user.cookiePreferences) {
+          if (data.user && data.user.cookiePreferences) {
+            // User consented on another device, sync down
+            localStorage.setItem('myndbbs_cookie_consent', JSON.stringify(data.user.cookiePreferences));
+          } else {
             setIsOpen(true);
           }
-        } else if (res.status === 401) {
-          // If not logged in, check local storage
-          const localConsent = localStorage.getItem('myndbbs_cookie_consent');
-          if (!localConsent) {
-            setIsOpen(true);
-          }
+        } else {
+          // Not logged in and no local consent
+          setIsOpen(true);
         }
       } catch (error) {
         console.error('Failed to check cookie consent:', error);

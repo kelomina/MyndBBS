@@ -7,6 +7,7 @@ export type UserProfileDTO = {
   level: number;
   role: { name: string } | null;
   isTotpEnabled: boolean;
+  cookiePreferences?: any | null;
   _count: { passkeys: number };
 };
 

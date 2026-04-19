@@ -26,6 +26,7 @@ export class IdentityQueryService {
         level: true,
         role: { select: { name: true } },
         isTotpEnabled: true,
+        cookiePreferences: true,
         _count: { select: { passkeys: true } },
       },
     });
@@ -37,6 +38,7 @@ export class IdentityQueryService {
       level: user.level,
       role: user.role ? { name: user.role.name } : null,
       isTotpEnabled: user.isTotpEnabled,
+      cookiePreferences: user.cookiePreferences,
       _count: { passkeys: user._count.passkeys },
     };
   }
