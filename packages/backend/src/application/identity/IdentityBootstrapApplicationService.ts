@@ -24,7 +24,7 @@ export class IdentityBootstrapApplicationService {
   /**
    * Callers: [InstallationApplicationService]
    * Callees: [IRoleRepository.findByName, Role.create, IRoleRepository.save, IPasswordHasher.hash, IUserRepository.findByUsername, IUserRepository.findByEmail, User.updateProfile, User.changeRole, User.changeStatus, IUserRepository.save, User.create, IUnitOfWork.execute]
-   * Description: Creates or updates the super admin user. Ensures the SUPER_ADMIN role exists.
+   * Description: Creates or updates the super admin user, and ensures the system user exists.
    * Keywords: bootstrap, superadmin, identity, setup, command
    */
   public async bootstrapSuperAdmin(username: string, email: string, password: string): Promise<string> {
@@ -33,6 +33,32 @@ export class IdentityBootstrapApplicationService {
       if (!role) {
         role = Role.create({ id: uuidv4(), name: 'SUPER_ADMIN', description: 'System Administrator', permissions: [] });
         await this.roleRepository.save(role);
+      }
+
+      let adminRole = await this.roleRepository.findByName('ADMIN');
+      if (!adminRole) {
+        adminRole = Role.create({ id: uuidv4(), name: 'ADMIN', description: 'Administrator', permissions: [] });
+        await this.roleRepository.save(adminRole);
+      }
+
+      // Ensure 'system' user exists
+      let systemUser = await this.userRepository.findByUsername('system');
+      if (!systemUser) {
+        const hashedSystemPass = await this.passwordHasher.hash(uuidv4()); // Random password
+        systemUser = User.create({
+          id: uuidv4(),
+          username: 'system',
+          email: 'system@localhost',
+          password: hashedSystemPass,
+          roleId: adminRole.id,
+          status: UserStatus.ACTIVE,
+          level: 4,
+          isPasskeyMandatory: false,
+          totpSecret: null,
+          isTotpEnabled: false,
+          createdAt: new Date()
+        });
+        await this.userRepository.save(systemUser);
       }
 
       const hashedPass = await this.passwordHasher.hash(password);

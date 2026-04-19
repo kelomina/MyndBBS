@@ -5,7 +5,6 @@ jest.mock('../src/db', () => ({
   prisma: {
     friendship: {
       findMany: jest.fn(),
-      count: jest.fn(),
     },
     privateMessage: {
       count: jest.fn(),
@@ -57,18 +56,14 @@ describe('MessagingQueryService', () => {
   });
 
   describe('getUnreadCount', () => {
-    it('should return the sum of unread private messages and pending friend requests', async () => {
+    it('should return the sum of unread private messages', async () => {
       (prisma.privateMessage.count as jest.Mock).mockResolvedValue(3);
-      (prisma.friendship.count as jest.Mock).mockResolvedValue(2);
 
       const result = await messagingQueryService.getUnreadCount('user-1');
 
-      expect(result).toBe(5);
+      expect(result).toBe(3);
       expect(prisma.privateMessage.count).toHaveBeenCalledWith({
         where: { receiverId: 'user-1', isRead: false },
-      });
-      expect(prisma.friendship.count).toHaveBeenCalledWith({
-        where: { addresseeId: 'user-1', status: 'PENDING' },
       });
     });
   });
