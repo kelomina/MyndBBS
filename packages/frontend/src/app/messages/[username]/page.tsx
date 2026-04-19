@@ -457,7 +457,19 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       
       if (res.ok) {
         const data = await res.json();
-        setMessages(prev => [...prev, { ...data.message, plaintext: payload }]);
+        setMessages(prev => [...prev, { 
+          id: data.messageId || `temp-${Date.now()}`,
+          senderId: myUserId,
+          receiverId: targetUserId,
+          ephemeralPublicKey: ephemeralPublicKeyBase64,
+          encryptedContent,
+          senderEncryptedContent,
+          isRead: false,
+          isSystem: false,
+          createdAt: new Date().toISOString(),
+          ...data.message, 
+          plaintext: payload 
+        }]);
         scrollToBottom();
       } else {
         const err = await res.json();
@@ -521,11 +533,25 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => [...prev, { ...data.message, plaintext: inputText }]);
-        setInputText('');
-        scrollToBottom();
-      } else {
+          const data = await res.json();
+          // Notice: We must ensure the object pushed to messages has an 'id' that matches what the backend returned,
+          // or fallback to a temporary unique ID, so React doesn't complain about unique "key" prop.
+          setMessages(prev => [...prev, { 
+            id: data.messageId || `temp-${Date.now()}`,
+            senderId: myUserId,
+            receiverId: targetUserId,
+            ephemeralPublicKey: ephemeralPublicKeyBase64,
+            encryptedContent,
+            senderEncryptedContent,
+            isRead: false,
+            isSystem: false,
+            createdAt: new Date().toISOString(),
+            ...data.message, 
+            plaintext: inputText 
+          }]);
+          setInputText('');
+          scrollToBottom();
+        } else {
         const err = await res.json();
         if (err.error === 'ERR_LEVEL_TOO_LOW') {
            throw new Error(dict.messages?.errLevelTooLow || '等级不足，无法发送私信 (Level < 2)');
