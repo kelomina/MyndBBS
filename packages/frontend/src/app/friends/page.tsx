@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { UserPlus, Check, X, ArrowLeft } from 'lucide-react';
+import { UserPlus, Check, X, ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from '../../components/TranslationProvider';
 import { useToast } from '../../components/ui/Toast';
@@ -11,6 +11,7 @@ export default function FriendsPage() {
   const [friendships, setFriendships] = useState<Friendship[]>([]);
   const [targetUsername, setTargetUsername] = useState('');
   const [myId, setMyId] = useState('');
+  const [showRequests, setShowRequests] = useState(false);
   const { toast } = useToast();
 
       const loadFriends = async () => {
@@ -96,6 +97,9 @@ export default function FriendsPage() {
     }
   };
 
+  const pendingRequests = friendships.filter(f => f.status === 'PENDING' && f.requesterId !== myId);
+  const friendsList = friendships.filter(f => f.status === 'ACCEPTED' || (f.status === 'PENDING' && f.requesterId === myId));
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="flex items-center gap-4 mb-6">
@@ -106,14 +110,14 @@ export default function FriendsPage() {
           <UserPlus className="h-6 w-6" /> {dict.messages?.manageFriends || "Manage Friends"}
         </h1>
       </div>
-      
+
       <div className="bg-card border border-border rounded-xl p-6 mb-8 shadow-sm">
         <h2 className="font-semibold mb-4">{dict.messages?.addFriend || "Add a Friend"}</h2>
         <form onSubmit={handleAddFriend} className="flex gap-2">
-          <input 
-            type="text" 
-            value={targetUsername} 
-            onChange={e => setTargetUsername(e.target.value)} 
+          <input
+            type="text"
+            value={targetUsername}
+            onChange={e => setTargetUsername(e.target.value)}
             placeholder={dict.messages?.enterUsernameToAdd || "Enter username to add"}
             className="border border-border bg-background rounded-lg px-4 py-2 flex-1 focus:ring-1 focus:ring-primary outline-none"
           />
@@ -123,12 +127,56 @@ export default function FriendsPage() {
         </form>
       </div>
 
+      {pendingRequests.length > 0 && (
+        <div className="mb-8">
+          <button
+            onClick={() => setShowRequests(!showRequests)}
+            className="flex items-center justify-between w-full bg-card border border-border rounded-xl p-4 shadow-sm hover:bg-accent/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-lg">{dict.messages?.friendRequests || "Friend Requests"}</h2>
+              <span className="bg-destructive text-destructive-foreground text-xs font-bold px-2 py-0.5 rounded-full">
+                {pendingRequests.length}
+              </span>
+            </div>
+            {showRequests ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+          </button>
+
+          {showRequests && (
+            <div className="mt-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+              {pendingRequests.map(f => {
+                const otherUser = f.requester;
+                const otherUsername = otherUser?.username || 'Unknown User';
+                return (
+                  <div key={f.id} className="p-4 border border-border bg-card rounded-xl flex items-center justify-between shadow-sm">
+                    <div>
+                      <span className="font-bold">{otherUsername}</span>
+                      <span className="text-xs ml-2 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                        {dict.messages?.pending || 'Pending'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <button onClick={() => handleRespond(f.id, true)} className="flex items-center gap-1 px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-md text-sm font-medium transition-colors">
+                        <Check className="w-4 h-4"/> {dict.messages?.accept || "Accept"}
+                      </button>
+                      <button onClick={() => handleRespond(f.id, false)} className="flex items-center gap-1 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-md text-sm font-medium transition-colors">
+                        <X className="w-4 h-4"/> {dict.messages?.reject || "Reject"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="space-y-4">
-        <h2 className="font-semibold text-lg">{dict.messages?.yourFriends || "Your Friends & Requests"}</h2>
-        {friendships.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{dict.messages?.noFriendsYet || "No friends or pending requests yet."}</p>
+        <h2 className="font-semibold text-lg">{dict.messages?.friendList || "Friend List"}</h2>
+        {friendsList.length === 0 ? (
+          <p className="text-muted-foreground text-sm">{dict.messages?.noFriendsYet || "No friends yet."}</p>
         ) : (
-          friendships.map(f => {
+          friendsList.map(f => {
             const isRequester = f.requesterId === myId;
             const otherUser = isRequester ? f.addressee : f.requester;
             const otherUsername = otherUser?.username || 'Unknown User';
@@ -145,16 +193,6 @@ export default function FriendsPage() {
                   </span>
                 </div>
                 <div className="flex gap-2 items-center">
-                  {!isRequester && f.status === 'PENDING' && (
-                    <div className="flex gap-1 mr-4">
-                      <button onClick={() => handleRespond(f.id, true)} className="flex items-center gap-1 px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-md text-sm font-medium transition-colors">
-                        <Check className="w-4 h-4"/> {dict.messages?.accept || "Accept"}
-                      </button>
-                      <button onClick={() => handleRespond(f.id, false)} className="flex items-center gap-1 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-md text-sm font-medium transition-colors">
-                        <X className="w-4 h-4"/> {dict.messages?.reject || "Reject"}
-                      </button>
-                    </div>
-                  )}
                   {f.status === 'ACCEPTED' && (
                     <Link href={`/messages/${otherUsername}`} className="text-sm font-medium text-primary hover:underline px-3 py-1 bg-primary/10 rounded-md">
                       {dict.messages?.chat || "Chat"}
