@@ -175,7 +175,12 @@
     "notificationSettings": "Notification Settings",
     "commentDeleted": "This comment has been deleted.",
     "commentOn": "Comment on: ",
-    "postDeleted": "This post has been deleted."
+    "postDeleted": "This post has been deleted.",
+    "privacyOptions": "Privacy & Legal",
+    "legalDocuments": "Legal Documents",
+    "legalDesc": "Review our terms of service and privacy policy.",
+    "preferencesSaved": "Preferences saved successfully!",
+    "preferencesSaveError": "Failed to save preferences."
   },
   "settings": {
     "loadingProfile": "Loading profile...",
@@ -224,7 +229,9 @@
     "failedFetchSessions": "Error loading sessions",
     "failedRevokeSession": "Failed to revoke session",
     "passwordChangedRelogin": "Password changed successfully. Please log in again. Redirecting in 3 seconds...",
-    "passkeyNotSupported": "Passkey is not supported or cancelled."
+    "passkeyNotSupported": "Passkey is not supported or cancelled.",
+    "passkeyDevice": "Device Type",
+    "passkeyBackedUp": "Backed Up"
   },
   "admin": {
     "categoryManagement": "Category Management",

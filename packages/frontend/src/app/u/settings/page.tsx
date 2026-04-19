@@ -6,11 +6,12 @@ import Link from 'next/link';
 import { ProfileSettings } from '../../../components/ProfileSettings';
 import { SecuritySettings } from '../../../components/SecuritySettings';
 import { SessionManagement } from '../../../components/SessionManagement';
+import { PrivacySettings } from '../../../components/PrivacySettings';
 import { useTranslation } from '../../../components/TranslationProvider';
 
 export default function SettingsPage() {
   const dict = useTranslation();
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'sessions'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'sessions' | 'privacy'>('profile');
   const [role, setRole] = useState<string>('USER');
 
   useEffect(() => {
@@ -43,11 +44,17 @@ export default function SettingsPage() {
           >
             <Shield className="h-4 w-4" /> {dict.profile.securityPasskeys}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('sessions')}
             className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'sessions' ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted hover:bg-card hover:text-foreground'}`}
           >
             <Monitor className="h-4 w-4" /> {dict.profile.activeSessions}
+          </button>
+          <button
+            onClick={() => setActiveTab('privacy')}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'privacy' ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted hover:bg-card hover:text-foreground'}`}
+          >
+            <Shield className="h-4 w-4" /> {dict.profile?.privacyOptions || "Privacy & Legal"}
           </button>
 
           {/* Placeholders for future */}
@@ -73,6 +80,7 @@ export default function SettingsPage() {
           {activeTab === 'profile' && <ProfileSettings />}
           {activeTab === 'security' && <SecuritySettings />}
           {activeTab === 'sessions' && <SessionManagement />}
+          {activeTab === 'privacy' && <PrivacySettings />}
         </div>
       </div>
     </div>
