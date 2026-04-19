@@ -75,7 +75,10 @@ export class MessagingApplicationService {
   public async sendFriendRequest(requesterId: string, receiverId: string): Promise<Friendship> {
     return this.unitOfWork.execute(async () => {
       const existing = await this.friendshipRepository.findByUsers(requesterId, receiverId);
-      if (existing) throw new Error('ERR_FRIENDSHIP_EXISTS');
+      if (existing) {
+        if (existing.status === 'BLOCKED') throw new Error('ERR_USER_BLOCKED');
+        throw new Error('ERR_FRIENDSHIP_EXISTS');
+      }
 
       const friendship = Friendship.create({
         id: uuidv4(),
@@ -107,6 +110,52 @@ export class MessagingApplicationService {
         friendship.reject(userId);
       }
 
+      await this.friendshipRepository.save(friendship);
+    });
+  }
+
+  /**
+   * Callers: [FriendController.removeFriend]
+   * Callees: [IFriendshipRepository.findByUsers, IFriendshipRepository.delete, IUnitOfWork.execute]
+   * Description: Removes a friend or cancels a friend request.
+   * Keywords: remove, delete, friend, unfriend, messaging
+   */
+  public async removeFriend(userId: string, targetUserId: string): Promise<void> {
+    return this.unitOfWork.execute(async () => {
+      const friendship = await this.friendshipRepository.findByUsers(userId, targetUserId);
+      if (!friendship) throw new Error('ERR_NOT_FOUND');
+      
+      // Allow removing if they are involved in the friendship
+      if (friendship.requesterId !== userId && friendship.addresseeId !== userId) {
+        throw new Error('ERR_FORBIDDEN_NOT_INVOLVED');
+      }
+      
+      await this.friendshipRepository.delete(friendship.id);
+    });
+  }
+
+  /**
+   * Callers: [FriendController.blockUser]
+   * Callees: [IFriendshipRepository.findByUsers, Friendship.create, Friendship.block, IFriendshipRepository.save, IUnitOfWork.execute]
+   * Description: Blocks a user, preventing them from sending messages or friend requests.
+   * Keywords: block, user, friend, blacklist, messaging
+   */
+  public async blockUser(userId: string, targetUserId: string): Promise<void> {
+    return this.unitOfWork.execute(async () => {
+      let friendship = await this.friendshipRepository.findByUsers(userId, targetUserId);
+      
+      if (friendship) {
+        friendship.block(userId);
+      } else {
+        friendship = Friendship.create({
+          id: uuidv4(),
+          requesterId: userId,
+          addresseeId: targetUserId,
+          status: 'BLOCKED',
+          createdAt: new Date()
+        });
+      }
+      
       await this.friendshipRepository.save(friendship);
     });
   }
@@ -150,9 +199,9 @@ export class MessagingApplicationService {
    * Keywords: send, message, private, messaging
    */
   public async sendMessage(
-    senderId: string, 
-    senderLevel: number, 
-    receiverId: string, 
+    senderId: string,
+    senderLevel: number,
+    receiverId: string,
     encryptedContent: string,
     ephemeralPublicKey: string,
     senderEncryptedContent: string,
@@ -160,6 +209,11 @@ export class MessagingApplicationService {
     isSystem: boolean = false
   ): Promise<string> {
     const friendship = await this.friendshipRepository.findByUsers(senderId, receiverId);
+
+    if (friendship && friendship.status === 'BLOCKED' && !isSystem) {
+      throw new Error('ERR_USER_BLOCKED');
+    }
+
     const isFriend = !!(friendship && friendship.status === 'ACCEPTED') || isSystem;
 
     let sentCount = 0;

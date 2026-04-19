@@ -562,7 +562,13 @@
     "postApprovedDesc": "您的帖子 \"{title}\" 已经通过审核并发布。",
     "postRejectedDesc": "您的帖子 \"{title}\" 未通过审核。原因: {reason}",
     "systemAlertDesc": "有新的帖子 \"{title}\" 提交到了人工审核队列，请前往后台处理。",
-    "viewPost": "查看帖子"
+    "viewPost": "查看帖子",
+    "unblock": "解除屏蔽",
+    "blacklist": "黑名单",
+    "block": "加入黑名单",
+    "remove": "删除好友",
+    "confirmRemove": "你确定要删除这个好友吗？",
+    "confirmBlock": "你确定要屏蔽这个用户吗？"
   },
   "forbidden": {
     "title": "403 - 访问受限",
