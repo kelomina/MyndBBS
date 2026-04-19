@@ -40,8 +40,8 @@ export class CommunityQueryService {
   /**
    * Callers: [postRouter.get('/')]
    * Callees: [accessibleBy, prisma.post.findMany]
-   * Description: Fetches a list of accessible posts optionally filtered by category and sorted.
-   * Keywords: post, list, findMany, filter, sort
+   * Description: Fetches a list of posts filtered by category and sorted by creation date or popularity.
+   * Keywords: list, posts, filter, category, popular, findMany
    */
   public async listPosts(params: ListPostsParams): Promise<PostListItemDTO[]> {
     const { ability, category, sortBy, take = 1000 } = params;
@@ -51,18 +51,32 @@ export class CommunityQueryService {
       whereClause.AND!.push({ category: { name: String(category) } });
     }
 
-    const orderByClause: LocalPostOrderByInput = sortBy === 'popular' ? { id: 'asc' } : { createdAt: 'desc' };
-
-    const rows = await prisma.post.findMany({
+    let rows = await prisma.post.findMany({
       take,
       where: whereClause,
-      orderBy: orderByClause,
+      orderBy: { createdAt: 'desc' }, // default to fetching latest first before sorting if popular
       include: {
         author: { select: { id: true, username: true } },
         category: { select: { id: true, name: true, description: true } },
         _count: { select: { comments: true, upvotes: true } },
       },
     });
+
+    if (sortBy === 'popular') {
+      const now = new Date().getTime();
+      rows.sort((a, b) => {
+        // Reddit-like hot ranking algorithm:
+        // Score = (Upvotes * 2 + Comments * 3) / (AgeInHours + 2)^1.8
+        const aAgeHours = (now - new Date(a.createdAt).getTime()) / (1000 * 60 * 60);
+        const bAgeHours = (now - new Date(b.createdAt).getTime()) / (1000 * 60 * 60);
+
+        const aScore = (a._count.upvotes * 2 + a._count.comments * 3) / Math.pow(aAgeHours + 2, 1.8);
+        const bScore = (b._count.upvotes * 2 + b._count.comments * 3) / Math.pow(bAgeHours + 2, 1.8);
+
+        return bScore - aScore; // Descending
+      });
+    }
+
     return rows.map((p) => ({
       id: p.id,
       title: p.title,
