@@ -583,5 +583,21 @@
     "noResults": "No results found",
     "users": "Users",
     "posts": "Posts"
+  },
+  "consent": {
+    "title": "Terms of Service & Privacy Policy",
+    "description": "We use cookies and similar technologies to enhance your experience, analyze our traffic, and personalize content. By clicking 'Accept All', you agree to the storing of cookies on your device. You can manage your preferences below. These preferences will sync with your account.",
+    "essential": "Essential Cookies",
+    "essentialDesc": "Required for the website to function properly.",
+    "analytics": "Analytics Cookies",
+    "analyticsDesc": "Help us understand how visitors interact with the website.",
+    "marketing": "Marketing Cookies",
+    "marketingDesc": "Used to deliver relevant advertisements.",
+    "readMore": "Read more about our",
+    "terms": "Terms",
+    "and": "and",
+    "privacy": "Privacy Policy",
+    "savePreferences": "Save Preferences",
+    "acceptAll": "Accept All"
   }
 }

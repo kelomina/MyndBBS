@@ -582,5 +582,22 @@
     "noResults": "暂无结果",
     "users": "用户",
     "posts": "帖子"
+  },
+  "consent": {
+    "title": "服务条款与隐私政策",
+    "description": "我们使用 Cookie 和类似技术来增强您的体验、分析我们的流量并个性化内容。点击“全部接受”，即表示您同意在设备上存储 Cookie。您可以在下方管理您的偏好设置。这些偏好将与您的账号同步。",
+    "essential": "必要的 Cookie",
+    "essentialDesc": "网站正常运行所必需的 Cookie。",
+    "analytics": "分析 Cookie",
+    "analyticsDesc": "帮助我们了解访客如何与网站互动。",
+    "marketing": "营销 Cookie",
+    "marketingDesc": "用于提供相关的广告内容。",
+    "readMore": "了解更多关于我们的",
+    "terms": "服务条款",
+    "and": "和",
+    "privacy": "隐私政策",
+    "savePreferences": "保存偏好",
+    "acceptAll": "全部接受"
   }
 }
+

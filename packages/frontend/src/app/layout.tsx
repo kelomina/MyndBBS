@@ -7,6 +7,7 @@ import { getDictionary } from "../i18n/get-dictionary";
 import { ThemeProvider } from "../components/ThemeProvider";
 import { TranslationProvider } from "../components/TranslationProvider";
 import { PasskeyBanner } from "../components/PasskeyBanner";
+import { CookieConsentModal } from "../components/CookieConsentModal";
 import { ToastProvider } from "../components/ui/Toast";
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default async function RootLayout({
             <ToastProvider>
             <PasskeyBanner />
             <Header locale={locale} />
+            <CookieConsentModal />
             <div className="flex-1">
               {children}
             </div>

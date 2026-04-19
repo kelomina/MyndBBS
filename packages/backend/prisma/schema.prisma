@@ -45,6 +45,7 @@ model User {
   isPasskeyMandatory Boolean    @default(false)
   totpSecret         String?
   isTotpEnabled      Boolean    @default(false)
+  cookiePreferences  Json?      // e.g. { "essential": true, "analytics": false }
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
