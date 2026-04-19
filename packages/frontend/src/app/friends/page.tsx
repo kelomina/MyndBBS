@@ -74,7 +74,7 @@ export default function FriendsPage() {
 
       /**
    * Callers: [onClick of Accept/Reject buttons]
-   * Callees: [fetch, loadFriends]
+   * Callees: [fetch, loadFriends, window.dispatchEvent]
    * Description: Handles responding (accept or reject) to an incoming friend request.
    * Keywords: friend, respond, accept, reject
    */
@@ -89,6 +89,7 @@ export default function FriendsPage() {
         credentials: 'include',
         body: JSON.stringify({ friendshipId: id, accept })
       });
+      window.dispatchEvent(new Event('messages-read')); // Update unread count
       loadFriends();
     } catch (e) {
       console.error(e);
