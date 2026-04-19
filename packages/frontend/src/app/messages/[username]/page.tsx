@@ -604,6 +604,19 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     }
   };
 
+  const renderSystemMessage = (plaintext: string | null | undefined) => {
+    if (!plaintext) return null;
+    try {
+      const data = JSON.parse(plaintext);
+      if (data.content === '{{username}} wants to be your friend.') {
+        return dict.messages?.friendRequestReceived?.replace('{username}', data.params.username) || `${data.params.username} wants to be your friend.`;
+      }
+      return data.content || "Friend request received.";
+    } catch {
+      return "Friend request received.";
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -745,8 +758,17 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
                         {msg.plaintext?.startsWith('{') && msg.plaintext.includes('"type":"image"') ? (
                           <EncryptedImage payload={msg.plaintext} onPreview={setPreviewImage} dict={dict} />
                         ) : (
-                          msg.plaintext || <span className="flex items-center gap-1 opacity-70"><Loader2 className="h-3 w-3 animate-spin" /> Decrypting...</span>
-                        )}
+                          msg.plaintext?.startsWith('{') && msg.plaintext.includes('"type":"FRIEND_REQUEST"') ? (
+                                <div className="flex flex-col gap-2">
+                                  <span className="font-bold text-primary">{dict.messages?.systemNotification || "System Notification"}</span>
+                                  <span>
+                                    {renderSystemMessage(msg.plaintext)}
+                                  </span>
+                                </div>
+                              ) : (
+                                  msg.plaintext || <span className="flex items-center gap-1 opacity-70"><Loader2 className="h-3 w-3 animate-spin" /> {dict.messages?.decrypting || "Decrypting..."}</span>
+                                )
+                          )}
                       </div>
                       <p className={`text-[10px] mt-1 ${isMine ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {new Date(msg.createdAt).toLocaleTimeString()} {new Date(msg.createdAt).toLocaleDateString()}

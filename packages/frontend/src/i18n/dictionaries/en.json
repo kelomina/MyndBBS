@@ -540,6 +540,8 @@
     "accept": "Accept",
     "reject": "Reject",
     "chat": "Chat",
+    "systemNotification": "System Notification",
+    "friendRequestReceived": "{username} wants to be your friend.",
     "pending": "Pending",
     "accepted": "Accepted",
     "rejected": "Rejected",
@@ -558,7 +560,8 @@
     "postApprovedDesc": "Your post \"{title}\" has been approved and published.",
     "postRejectedDesc": "Your post \"{title}\" has been rejected. Reason: {reason}",
     "systemAlertDesc": "A new post \"{title}\" has been submitted for moderation. Please review it.",
-    "viewPost": "View Post"
+    "viewPost": "View Post",
+    "friendRequestReceived": "{username} wants to be your friend."
   },
   "forbidden": {
     "title": "403 - Access Denied",

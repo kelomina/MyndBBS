@@ -30,8 +30,8 @@ export class MessagingApplicationService {
 
   /**
    * Callers: [FriendController.sendFriendRequest]
-   * Callees: [IIdentityIntegrationPort.getUserProfile, IIdentityIntegrationPort.getUserByUsername, sendFriendRequest, sendMessage]
-   * Description: Validates user profiles before sending a friend request. Sends a system message if applicable.
+   * Callees: [IIdentityIntegrationPort.getUserProfile, IIdentityIntegrationPort.getUserByUsername, sendFriendRequest, sendMessage, IUnitOfWork.execute]
+   * Description: Validates user profiles before sending a friend request. Sends a system message if applicable within a transaction.
    * Keywords: validate, friend, request, messaging
    */
   public async sendFriendRequestWithValidation(requesterId: string, addresseeId: string): Promise<void> {
@@ -40,66 +40,75 @@ export class MessagingApplicationService {
 
     const systemUser = await this.identityIntegrationPort.getUserByUsername('system');
 
-    const friendship = await this.sendFriendRequest(requesterId, addresseeId);
+    await this.unitOfWork.execute(async () => {
+      const friendship = await this.sendFriendRequest(requesterId, addresseeId);
 
-    const payload = {
-      title: 'Friend Request',
-      content: `${requester.username} wants to be your friend.`,
-      relatedId: friendship.id,
-      type: 'FRIEND_REQUEST'
-    };
+      const payload = {
+        title: 'Friend Request',
+        content: `{{username}} wants to be your friend.`,
+        params: { username: requester.username },
+        relatedId: friendship.id,
+        type: 'FRIEND_REQUEST'
+      };
 
-    if (systemUser) {
-      await this.sendMessage(
-        systemUser.id,
-        6, // system level
-        addresseeId,
-        JSON.stringify(payload),
-        false, // isBurnAfterRead
-        true   // isSystem
-      );
-    }
+      if (systemUser) {
+        await this.sendMessage(
+          systemUser.id,
+          6, // system level
+          addresseeId,
+          JSON.stringify(payload),
+          'system', // ephemeralPublicKey
+          '',       // senderEncryptedContent
+          false, // isBurnAfterRead
+          true   // isSystem
+        );
+      }
+    });
   }
 
   /**
    * Callers: [FriendController]
-   * Callees: [friendshipRepository.findByUsers, Friendship.create, friendshipRepository.save, userRepository.findById, userRepository.findByUsername, PrivateMessage.create, privateMessageRepository.save]
+   * Callees: [friendshipRepository.findByUsers, Friendship.create, friendshipRepository.save, userRepository.findById, userRepository.findByUsername, PrivateMessage.create, privateMessageRepository.save, IUnitOfWork.execute]
    * Description: Sends a friend request from one user to another, also dispatching a system notification.
    * Keywords: friend, request, send, messaging, friendship
    */
   public async sendFriendRequest(requesterId: string, receiverId: string): Promise<Friendship> {
-    const existing = await this.friendshipRepository.findByUsers(requesterId, receiverId);
-    if (existing) throw new Error('ERR_FRIENDSHIP_EXISTS');
+    return this.unitOfWork.execute(async () => {
+      const existing = await this.friendshipRepository.findByUsers(requesterId, receiverId);
+      if (existing) throw new Error('ERR_FRIENDSHIP_EXISTS');
 
-    const friendship = Friendship.create({
-      id: uuidv4(),
-      requesterId,
-      addresseeId: receiverId,
-      status: 'PENDING',
-      createdAt: new Date()
+      const friendship = Friendship.create({
+        id: uuidv4(),
+        requesterId,
+        addresseeId: receiverId,
+        status: 'PENDING',
+        createdAt: new Date()
+      });
+
+      await this.friendshipRepository.save(friendship);
+      return friendship;
     });
-
-    await this.friendshipRepository.save(friendship);
-    return friendship;
   }
 
   /**
    * Callers: [FriendController.respondFriendRequest]
-   * Callees: [IFriendshipRepository.findById, Friendship.accept, Friendship.reject, IFriendshipRepository.save]
+   * Callees: [IFriendshipRepository.findById, Friendship.accept, Friendship.reject, IFriendshipRepository.save, IUnitOfWork.execute]
    * Description: Responds to a friend request by accepting or rejecting it.
    * Keywords: respond, friend, request, messaging, friendship
    */
   public async respondFriendRequest(friendshipId: string, userId: string, accept: boolean): Promise<void> {
-    const friendship = await this.friendshipRepository.findById(friendshipId);
-    if (!friendship) throw new Error('ERR_NOT_FOUND');
+    await this.unitOfWork.execute(async () => {
+      const friendship = await this.friendshipRepository.findById(friendshipId);
+      if (!friendship) throw new Error('ERR_NOT_FOUND');
 
-    if (accept) {
-      friendship.accept(userId);
-    } else {
-      friendship.reject(userId);
-    }
+      if (accept) {
+        friendship.accept(userId);
+      } else {
+        friendship.reject(userId);
+      }
 
-    await this.friendshipRepository.save(friendship);
+      await this.friendshipRepository.save(friendship);
+    });
   }
 
   // --- Private Message Management ---
@@ -113,7 +122,9 @@ export class MessagingApplicationService {
   public async sendMessageWithValidation(
     senderId: string, 
     receiverId: string, 
-    content: string, 
+    content: string,
+    ephemeralPublicKey: string,
+    senderEncryptedContent: string,
     isSystem: boolean = false,
     isBurnAfterRead: boolean = false
   ): Promise<string> {
@@ -124,7 +135,9 @@ export class MessagingApplicationService {
       senderId, 
       sender.level, 
       receiverId, 
-      content, 
+      content,
+      ephemeralPublicKey,
+      senderEncryptedContent,
       isBurnAfterRead,
       isSystem
     );
@@ -132,7 +145,7 @@ export class MessagingApplicationService {
 
   /**
    * Callers: [sendMessageWithValidation, sendFriendRequestWithValidation]
-   * Callees: [IFriendshipRepository.findByUsers, IPrivateMessageRepository.countMessagesBetween, PrivateMessage.create, IPrivateMessageRepository.save]
+   * Callees: [IFriendshipRepository.findByUsers, IPrivateMessageRepository.countMessagesBetween, PrivateMessage.create, IPrivateMessageRepository.save, IUnitOfWork.execute]
    * Description: Sends a private message from one user to another. Checks friendship status and limits.
    * Keywords: send, message, private, messaging
    */
@@ -140,7 +153,9 @@ export class MessagingApplicationService {
     senderId: string, 
     senderLevel: number, 
     receiverId: string, 
-    encryptedContent: string, 
+    encryptedContent: string,
+    ephemeralPublicKey: string,
+    senderEncryptedContent: string,
     isBurnAfterRead: boolean,
     isSystem: boolean = false
   ): Promise<string> {
@@ -161,10 +176,10 @@ export class MessagingApplicationService {
       id: uuidv4(),
       senderId,
       receiverId,
-      ephemeralPublicKey: isSystem ? 'system' : '',
+      ephemeralPublicKey: isSystem ? 'system' : ephemeralPublicKey,
       ephemeralMlKemCiphertext: null,
       encryptedContent,
-      senderEncryptedContent: null,
+      senderEncryptedContent: isSystem ? null : senderEncryptedContent,
       isRead: false,
       isSystem,
       expiresAt,
@@ -172,13 +187,16 @@ export class MessagingApplicationService {
       createdAt: new Date()
     }, senderLevel, isFriend, sentCount);
 
-    await this.privateMessageRepository.save(message);
+    await this.unitOfWork.execute(async () => {
+      await this.privateMessageRepository.save(message);
+    });
+    
     return message.id;
   }
 
   /**
    * Callers: [MessageController.deleteMessage]
-   * Callees: [IPrivateMessageRepository.findById, IConversationSettingRepository.findByUsers, PrivateMessage.deleteForUser, IPrivateMessageRepository.delete, IPrivateMessageRepository.save]
+   * Callees: [IPrivateMessageRepository.findById, IConversationSettingRepository.findByUsers, PrivateMessage.deleteForUser, IPrivateMessageRepository.delete, IPrivateMessageRepository.save, IUnitOfWork.execute]
    * Description: Deletes a specific message for a user. Hard deletes if applicable based on conversation settings.
    * Keywords: delete, message, private, messaging, conversation
    */
@@ -193,13 +211,15 @@ export class MessagingApplicationService {
       canHardDelete = partnerSetting?.allowTwoSidedDelete || false;
     }
 
-    const shouldHardDelete = message.deleteForUser(userId, canHardDelete);
-    
-    if (shouldHardDelete) {
-      await this.privateMessageRepository.delete(message.id);
-    } else {
-      await this.privateMessageRepository.save(message);
-    }
+    await this.unitOfWork.execute(async () => {
+      const shouldHardDelete = message.deleteForUser(userId, canHardDelete);
+      
+      if (shouldHardDelete) {
+        await this.privateMessageRepository.delete(message.id);
+      } else {
+        await this.privateMessageRepository.save(message);
+      }
+    });
   }
 
   /**
@@ -277,53 +297,57 @@ export class MessagingApplicationService {
 
   /**
    * Callers: [MessageController]
-   * Callees: [userRepository.findById, userKeyRepository.findByUserId, userKey.updateKeys, UserKey.create, userKeyRepository.save]
+   * Callees: [userRepository.findById, userKeyRepository.findByUserId, userKey.updateKeys, UserKey.create, userKeyRepository.save, IUnitOfWork.execute]
    * Description: Uploads public and private encryption keys for a user.
    * Keywords: upload, keys, encryption, messaging, user
    */
   public async uploadKeys(userId: string, userLevel: number, scheme: string, publicKey: string, encryptedPrivateKey: string, mlKemPublicKey?: string, encryptedMlKemPrivateKey?: string): Promise<void> {
     if (userLevel < 2) throw new Error('ERR_LEVEL_TOO_LOW');
 
-    let userKey = await this.userKeyRepository.findByUserId(userId);
-    if (userKey) {
-      userKey.updateKeys(
-        scheme,
-        publicKey,
-        encryptedPrivateKey,
-        mlKemPublicKey || null,
-        encryptedMlKemPrivateKey || null,
-        userLevel
-      );
-    } else {
-      userKey = UserKey.create({
-        userId,
-        scheme,
-        publicKey,
-        encryptedPrivateKey,
-        mlKemPublicKey: mlKemPublicKey || null,
-        encryptedMlKemPrivateKey: encryptedMlKemPrivateKey || null
-      }, userLevel);
-    }
-    await this.userKeyRepository.save(userKey);
+    await this.unitOfWork.execute(async () => {
+      let userKey = await this.userKeyRepository.findByUserId(userId);
+      if (userKey) {
+        userKey.updateKeys(
+          scheme,
+          publicKey,
+          encryptedPrivateKey,
+          mlKemPublicKey || null,
+          encryptedMlKemPrivateKey || null,
+          userLevel
+        );
+      } else {
+        userKey = UserKey.create({
+          userId,
+          scheme,
+          publicKey,
+          encryptedPrivateKey,
+          mlKemPublicKey: mlKemPublicKey || null,
+          encryptedMlKemPrivateKey: encryptedMlKemPrivateKey || null
+        }, userLevel);
+      }
+      await this.userKeyRepository.save(userKey);
+    });
   }
 
   /**
    * Callers: [MessageController.updateConversationSettings]
-   * Callees: [IConversationSettingRepository.findByUsers, ConversationSetting.updatePreference, ConversationSetting.create, IConversationSettingRepository.save]
+   * Callees: [IConversationSettingRepository.findByUsers, ConversationSetting.updatePreference, ConversationSetting.create, IConversationSettingRepository.save, IUnitOfWork.execute]
    * Description: Updates a user's preference regarding two-sided hard deletes for a specific conversation.
    * Keywords: update, conversation, settings, preference, delete
    */
   public async updateConversationSettings(userId: string, partnerId: string, allowTwoSidedDelete: boolean): Promise<void> {
-    let setting = await this.conversationSettingRepository.findByUsers(userId, partnerId);
-    if (setting) {
-      setting.updatePreference(allowTwoSidedDelete);
-    } else {
-      setting = ConversationSetting.create({
-        userId,
-        partnerId,
-        allowTwoSidedDelete
-      });
-    }
-    await this.conversationSettingRepository.save(setting);
+    await this.unitOfWork.execute(async () => {
+      let setting = await this.conversationSettingRepository.findByUsers(userId, partnerId);
+      if (setting) {
+        setting.updatePreference(allowTwoSidedDelete);
+      } else {
+        setting = ConversationSetting.create({
+          userId,
+          partnerId,
+          allowTwoSidedDelete
+        });
+      }
+      await this.conversationSettingRepository.save(setting);
+    });
   }
 }

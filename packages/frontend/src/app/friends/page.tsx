@@ -36,7 +36,13 @@ export default function FriendsPage() {
     return () => clearTimeout(id);
   }, []);
 
-      const handleAddFriend = async (e: React.FormEvent) => {
+      /**
+   * Callers: [onSubmit in Add Friend form]
+   * Callees: [fetch, toast, loadFriends]
+   * Description: Handles adding a new friend by looking up the user's messaging keys and sending a friend request.
+   * Keywords: friend, request, add, messaging
+   */
+  const handleAddFriend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetUsername.trim()) return;
     try {
@@ -66,7 +72,13 @@ export default function FriendsPage() {
     }
   };
 
-      const handleRespond = async (id: string, accept: boolean) => {
+      /**
+   * Callers: [onClick of Accept/Reject buttons]
+   * Callees: [fetch, loadFriends]
+   * Description: Handles responding (accept or reject) to an incoming friend request.
+   * Keywords: friend, respond, accept, reject
+   */
+  const handleRespond = async (id: string, accept: boolean) => {
     try {
       await fetch('/api/v1/friends/respond', {
         method: 'PUT',
@@ -118,10 +130,11 @@ export default function FriendsPage() {
           friendships.map(f => {
             const isRequester = f.requesterId === myId;
             const otherUser = isRequester ? f.addressee : f.requester;
+            const otherUsername = otherUser?.username || 'Unknown User';
             return (
               <div key={f.id} className="p-4 border border-border bg-card rounded-xl flex items-center justify-between shadow-sm">
                 <div>
-                  <span className="font-bold">{otherUser.username}</span>
+                  <span className="font-bold">{otherUsername}</span>
                   <span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${
                     f.status === 'ACCEPTED' ? 'bg-green-100 text-green-700' :
                     f.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
@@ -142,7 +155,7 @@ export default function FriendsPage() {
                     </div>
                   )}
                   {f.status === 'ACCEPTED' && (
-                    <Link href={`/messages/${otherUser.username}`} className="text-sm font-medium text-primary hover:underline px-3 py-1 bg-primary/10 rounded-md">
+                    <Link href={`/messages/${otherUsername}`} className="text-sm font-medium text-primary hover:underline px-3 py-1 bg-primary/10 rounded-md">
                       {dict.messages?.chat || "Chat"}
                     </Link>
                   )}

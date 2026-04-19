@@ -98,6 +98,8 @@ export class MessagingQueryService {
       addresseeId: f.addresseeId,
       status: f.status,
       createdAt: f.createdAt,
+      requester: { id: f.requester.id, username: f.requester.username },
+      addressee: { id: f.addressee.id, username: f.addressee.username },
     }));
   }
 

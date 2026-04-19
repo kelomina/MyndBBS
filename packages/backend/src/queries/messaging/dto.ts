@@ -11,6 +11,8 @@ export type FriendshipDTO = {
   addresseeId: string;
   status: string;
   createdAt: Date;
+  requester: { id: string; username: string };
+  addressee: { id: string; username: string };
 };
 
 export type ConversationSettingsDTO = { allowTwoSidedDelete: boolean };
