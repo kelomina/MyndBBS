@@ -64,6 +64,7 @@ export class SearchQueryService {
         title: p.title,
         content: p.content,
         createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
         status: p.status as unknown as PostStatus,
         author: p.author,
         category: p.category,

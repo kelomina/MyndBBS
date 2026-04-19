@@ -82,6 +82,7 @@ export class CommunityQueryService {
       title: p.title,
       content: p.content,
       createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
       status: p.status as unknown as import('@myndbbs/shared').PostStatus,
       author: p.author,
       category: p.category,
@@ -112,6 +113,7 @@ export class CommunityQueryService {
       title: post.title,
       content: post.content,
       createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
       status: post.status as unknown as import('@myndbbs/shared').PostStatus,
       author: post.author,
       category: post.category,
@@ -159,10 +161,11 @@ export class CommunityQueryService {
       },
     });
 
-    if (!currentUserId) return comments.map(c => ({
+    if (!currentUserId) return comments.map((c) => ({
       id: c.id,
       content: c.content,
       createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
       deletedAt: c.deletedAt,
       isPending: c.isPending,
       author: c.author,
@@ -181,6 +184,7 @@ export class CommunityQueryService {
       id: comment.id,
       content: comment.content,
       createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
       deletedAt: comment.deletedAt,
       isPending: comment.isPending,
       author: comment.author,
