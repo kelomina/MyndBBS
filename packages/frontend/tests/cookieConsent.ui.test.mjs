@@ -7,11 +7,16 @@ test('Cookie Consent Modal logic checks', async (t) => {
   const modalPath = path.join(process.cwd(), 'src', 'components', 'CookieConsentModal.tsx');
   const content = await fs.readFile(modalPath, 'utf-8');
 
-  await t.test('Should fetch /api/v1/user/profile to check consent', () => {
+  await t.test('Should check localStorage before making API calls', () => {
     assert.equal(
-      content.includes('/api/v1/user/profile'),
+      content.includes('const localConsent = localStorage.getItem(\'myndbbs_cookie_consent\');'),
       true,
-      'Missing API call to check user profile'
+      'Missing initial localStorage check'
+    );
+    assert.equal(
+      content.includes('if (localConsent) {'),
+      true,
+      'Missing early return for localConsent'
     );
   });
 
