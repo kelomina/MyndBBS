@@ -237,15 +237,18 @@ model AuthChallenge {
 }
 
 model AuditLog {
-  id     String   @id @default(uuid()) @db.Uuid
-  who    String
-  when   DateTime @default(now())
-  target String
-  action String
+  id              String   @id @default(uuid()) @db.Uuid
+  operatorId      String   @db.Uuid
+  permissionGroup String
+  operationType   String
+  requestPath     String
+  payload         Json
+  ip              String   @db.Inet
+  createdAt       DateTime @default(now())
 
-  @@index([who])
-  @@index([action])
-  @@index([when])
+  @@index([operatorId])
+  @@index([operationType])
+  @@index([createdAt])
 }
 
 model Role {

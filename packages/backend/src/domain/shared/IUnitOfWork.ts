@@ -1,8 +1,15 @@
+import { IAuditLogRepository } from '../system/IAuditLogRepository';
+
 /**
  * Represents a Unit of Work, ensuring that a set of operations
  * either all succeed or all fail together.
  */
 export interface IUnitOfWork {
+  /**
+   * Access to the audit logs repository within the Unit of Work context.
+   */
+  auditLogs: IAuditLogRepository;
+
   /**
    * Executes the given work block within a transaction context.
    * If the block throws an error, the transaction is rolled back.

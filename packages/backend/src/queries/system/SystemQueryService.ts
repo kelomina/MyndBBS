@@ -26,6 +26,32 @@ export class SystemQueryService {
       updatedAt: item.updatedAt,
     }));
   }
+
+  public async getAuditLogs(params: {
+    skip?: number;
+    take?: number;
+    operatorId?: string;
+    operationType?: string;
+  }): Promise<{ items: any[]; total: number }> {
+    const { skip, take, operatorId, operationType } = params;
+    const where: any = {};
+    if (operatorId) where.operatorId = operatorId;
+    if (operationType) where.operationType = operationType;
+
+    const queryArgs: any = {
+      where,
+      orderBy: { createdAt: 'desc' },
+    };
+    if (skip !== undefined) queryArgs.skip = skip;
+    if (take !== undefined) queryArgs.take = take;
+
+    const [items, total] = await Promise.all([
+      prisma.auditLog.findMany(queryArgs),
+      prisma.auditLog.count({ where }),
+    ]);
+
+    return { items, total };
+  }
 }
 
 export const systemQueryService = new SystemQueryService();

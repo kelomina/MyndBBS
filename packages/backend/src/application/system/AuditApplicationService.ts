@@ -34,24 +34,53 @@ export class AuditApplicationService {
 
   /**
    * Logs an audit event to the repository using a unit of work.
-   * @param who The identifier of the user performing the action
-   * @param action The action being performed
+   * @param operatorId The identifier of the user performing the action
+   * @param operationType The action being performed
    * @param target The target of the action
+   * @param permissionGroup The permission group of the operator
+   * @param requestPath The API path that triggered the action
+   * @param ip The IP address of the operator
+   * @param payload Additional context
    */
-  public async logAudit(who: string, action: string, target: string): Promise<void> {
+  public async logAudit(
+    operatorId: string,
+    operationType: string,
+    target: string,
+    permissionGroup: string = 'SYSTEM',
+    requestPath: string = '/system/event',
+    ip: string = '127.0.0.1',
+    payload: Record<string, any> = {}
+  ): Promise<void> {
     try {
       await this.unitOfWork.execute(async () => {
         const auditLog = AuditLog.create({
           id: uuidv4(),
-          who: this.maskSensitiveData(who),
-          action: this.maskSensitiveData(action),
-          target: this.maskSensitiveData(target),
-          timestamp: new Date()
+          operatorId: this.maskSensitiveData(operatorId),
+          permissionGroup,
+          operationType: this.maskSensitiveData(operationType),
+          requestPath,
+          payload: { target: this.maskSensitiveData(target), ...payload },
+          ip,
+          createdAt: new Date()
         });
         await this.auditLogRepository.save(auditLog);
       });
     } catch (error) {
       console.error('Failed to write audit log:', error);
     }
+  }
+
+  /**
+   * Retrieves a paginated list of audit logs.
+   * @param params The pagination and filtering parameters
+   * @returns A paginated result containing items and the total count
+   */
+  public async getPaginatedLogs(params: {
+    skip?: number;
+    take?: number;
+    operatorId?: string;
+    operationType?: string;
+  }): Promise<{ items: AuditLog[]; total: number }> {
+    return this.auditLogRepository.findMany(params);
   }
 }
