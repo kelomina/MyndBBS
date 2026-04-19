@@ -50,6 +50,28 @@ async function main() {
     throw new Error('SUPER_ADMIN role not found after upsert');
   }
 
+  // 2.5 Ensure 'system' user exists
+  const adminRole = await prisma.role.findUnique({ where: { name: 'ADMIN' } });
+  if (!adminRole) {
+    throw new Error('ADMIN role not found after upsert');
+  }
+
+  const existingSystemUser = await prisma.user.findFirst({ where: { username: 'system' } });
+  if (!existingSystemUser) {
+    console.log('No system account found. Creating system account...');
+    const hashedSystemPassword = await argon2.hash(Math.random().toString(36).slice(-10));
+    await prisma.user.create({
+      data: {
+        username: 'system',
+        email: 'system@localhost',
+        password: hashedSystemPassword,
+        roleId: adminRole.id,
+        status: UserStatus.ACTIVE
+      }
+    });
+    console.log('System account created successfully');
+  }
+
   const existingSuperAdmin = await prisma.user.findFirst({
     where: { roleId: superAdminRole.id }
   });
