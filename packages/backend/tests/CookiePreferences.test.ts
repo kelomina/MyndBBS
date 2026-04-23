@@ -1,6 +1,6 @@
 import { UserApplicationService } from '../src/application/identity/UserApplicationService';
 import { IUserRepository } from '../src/domain/identity/IUserRepository';
-import { IUnitOfWork } from '../src/domain/common/IUnitOfWork';
+import { IUnitOfWork } from '../src/domain/shared/IUnitOfWork';
 import { UserStatus } from '@myndbbs/shared';
 import { User, UserProps } from '../src/domain/identity/User';
 

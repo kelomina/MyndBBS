@@ -7,16 +7,34 @@ test('Cookie Consent Modal logic checks', async (t) => {
   const modalPath = path.join(process.cwd(), 'src', 'components', 'CookieConsentModal.tsx');
   const content = await fs.readFile(modalPath, 'utf-8');
 
-  await t.test('Should check localStorage before making API calls', () => {
+  await t.test('Should define a reusable local storage key', () => {
     assert.equal(
-      content.includes('const localConsent = localStorage.getItem(\'myndbbs_cookie_consent\');'),
+      content.includes('const COOKIE_CONSENT_STORAGE_KEY = \'myndbbs_cookie_consent\';'),
       true,
-      'Missing initial localStorage check'
+      'Missing cookie consent storage key constant'
+    );
+  });
+
+  await t.test('Should reconcile local and remote preferences before opening the modal', () => {
+    assert.equal(
+      content.includes('const localPreferences = readStoredCookiePreferences();'),
+      true,
+      'Missing local preference reconciliation'
     );
     assert.equal(
-      content.includes('if (localConsent) {'),
+      content.includes('await fetch(\'/api/v1/user/profile\''),
       true,
-      'Missing early return for localConsent'
+      'Missing profile fetch for consent reconciliation'
+    );
+    assert.equal(
+      content.includes('await persistCookiePreferences(localPreferences);'),
+      true,
+      'Missing account backfill when only local consent exists'
+    );
+    assert.equal(
+      content.includes('writeStoredCookiePreferences(remotePreferences);'),
+      true,
+      'Missing device sync when remote consent exists'
     );
   });
 
@@ -30,7 +48,7 @@ test('Cookie Consent Modal logic checks', async (t) => {
 
   await t.test('Should save preferences to localStorage', () => {
     assert.equal(
-      content.includes('localStorage.setItem(\'myndbbs_cookie_consent\''),
+      content.includes('writeStoredCookiePreferences(prefs);'),
       true,
       'Missing localStorage logic'
     );

@@ -4,6 +4,7 @@ import { defaultLocale, locales } from './i18n/config';
 import { getAccessRedirectPath, sortWhitelist, matchRoute } from './lib/routingGuard';
 
 const isDev = process.env.NODE_ENV !== 'production';
+const ESSENTIAL_PUBLIC_PATHS = new Set(['/login', '/register', '/403', '/admin-setup', '/terms', '/privacy']);
 
 function toBase64(bytes: Uint8Array): string {
   let str = '';
@@ -71,6 +72,29 @@ function getLocale(request: NextRequest): string {
   return defaultLocale;
 }
 
+/**
+ * Callers: [middleware]
+ * Callees: []
+ * Description: Determines whether a pathname must remain publicly accessible even before dynamic whitelist lookup succeeds.
+ * 描述：判断某个路径是否必须在动态白名单加载前就保持公开可访问。
+ * Variables: `pathname` 表示经过 locale 归一化后的请求路径。
+ * 变量：`pathname` 表示完成 locale 归一化后的请求路径。
+ * Integration: Call this helper before dynamic whitelist fetches to prevent public legal/auth routes from being locked behind admin access.
+ * 接入方式：在拉取动态白名单前调用，避免公开的法律页和认证页被误锁成管理入口。
+ * Error Handling: Returns `true` for known public prefixes and files, otherwise `false`; it never throws.
+ * 错误处理：已知公开路径或静态资源返回 `true`，其他情况返回 `false`，不会抛异常。
+ * Keywords: public route, whitelist, middleware, auth, legal, 公共路由, 白名单, 中间件, 认证, 法律页面
+ */
+function isEssentialPublicPath(pathname: string): boolean {
+  return (
+    ESSENTIAL_PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/uploads') ||
+    pathname === '/favicon.ico'
+  );
+}
+
 
 
 type WhitelistRoute = { path: string; isPrefix: boolean; minRole?: string | null };
@@ -128,7 +152,7 @@ export async function middleware(request: NextRequest) {
   if (!isDev) response.headers.set('Content-Security-Policy', buildCsp(nonce));
 
   // 1. Essential paths to prevent lock-out
-  const isEssentialPublic = pathname === '/login' || pathname === '/register' || pathname === '/403' || pathname === '/admin-setup' || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/uploads') || pathname === '/favicon.ico';
+  const isEssentialPublic = isEssentialPublicPath(pathname);
 
   if (isEssentialPublic) return response;
 

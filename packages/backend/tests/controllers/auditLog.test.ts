@@ -62,6 +62,28 @@ describe('AuditLog Controller - getAuditLogs', () => {
     expect(res.json).toHaveBeenCalledWith(mockResult);
   });
 
+  it('should clamp take to the maximum page size', async () => {
+    const mockResult = { items: [], total: 0 };
+    (systemQueryService.getAuditLogs as jest.Mock).mockResolvedValue(mockResult);
+
+    req.query = { take: '9999' };
+
+    await getAuditLogs(req as AuthRequest, res as Response);
+
+    expect(systemQueryService.getAuditLogs).toHaveBeenCalledWith({ skip: 0, take: 100 });
+    expect(res.json).toHaveBeenCalledWith(mockResult);
+  });
+
+  it('should return 400 if pagination is invalid', async () => {
+    req.query = { skip: 'abc' };
+
+    await getAuditLogs(req as AuthRequest, res as Response);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'ERR_BAD_REQUEST' });
+    expect(systemQueryService.getAuditLogs).not.toHaveBeenCalled();
+  });
+
   it('should return 500 if query service throws an error', async () => {
     (systemQueryService.getAuditLogs as jest.Mock).mockRejectedValue(new Error('DB Error'));
 
