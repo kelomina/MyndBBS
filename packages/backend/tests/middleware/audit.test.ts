@@ -40,11 +40,11 @@ describe('auditMiddleware', () => {
     const app = express();
     app.use(express.json());
     app.use(auditMiddleware);
-    app.post('/test', (req, res) => res.status(200).json({ ok: true }));
+    app.post('/api/admin/routing-whitelist', (req, res) => res.status(200).json({ ok: true }));
 
     const { baseUrl, close } = await startServer(app);
     try {
-      await fetch(`${baseUrl}/test`, { method: 'POST' });
+      await fetch(`${baseUrl}/api/admin/routing-whitelist`, { method: 'POST' });
       // wait a bit for res.on('finish')
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(auditApplicationService.logAudit).not.toHaveBeenCalled();
@@ -62,11 +62,11 @@ describe('auditMiddleware', () => {
       next();
     });
     app.use(auditMiddleware);
-    app.post('/test', (req, res) => res.status(200).json({ ok: true }));
+    app.post('/api/admin/routing-whitelist', (req, res) => res.status(200).json({ ok: true }));
 
     const { baseUrl, close } = await startServer(app);
     try {
-      await fetch(`${baseUrl}/test`, { method: 'POST' });
+      await fetch(`${baseUrl}/api/admin/routing-whitelist`, { method: 'POST' });
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(auditApplicationService.logAudit).not.toHaveBeenCalled();
     } finally {
@@ -83,11 +83,11 @@ describe('auditMiddleware', () => {
       next();
     });
     app.use(auditMiddleware);
-    app.get('/test', (req, res) => res.status(200).json({ ok: true }));
+    app.get('/api/admin/audit-logs', (req, res) => res.status(200).json({ ok: true }));
 
     const { baseUrl, close } = await startServer(app);
     try {
-      await fetch(`${baseUrl}/test`, { method: 'GET' });
+      await fetch(`${baseUrl}/api/admin/audit-logs`, { method: 'GET' });
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(auditApplicationService.logAudit).not.toHaveBeenCalled();
     } finally {
@@ -104,11 +104,11 @@ describe('auditMiddleware', () => {
       next();
     });
     app.use(auditMiddleware);
-    app.post('/test', (req, res) => res.status(201).json({ ok: true }));
+    app.post('/api/admin/routing-whitelist', (req, res) => res.status(201).json({ ok: true }));
 
     const { baseUrl, close } = await startServer(app);
     try {
-      await fetch(`${baseUrl}/test`, {
+      await fetch(`${baseUrl}/api/admin/routing-whitelist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: 'secretpassword', otherData: 'value' })
@@ -118,10 +118,10 @@ describe('auditMiddleware', () => {
       expect(auditApplicationService.logAudit).toHaveBeenCalledTimes(1);
       expect(auditApplicationService.logAudit).toHaveBeenCalledWith(
         'admin1',
-        'POST /test',
-        'Route: /test',
+        'POST /api/admin/routing-whitelist',
+        'Route: /api/admin/routing-whitelist',
         'ADMIN',
-        '/test',
+        '/api/admin/routing-whitelist',
         expect.any(String), // IP address
         expect.objectContaining({
           body: {
@@ -131,6 +131,32 @@ describe('auditMiddleware', () => {
           statusCode: 201
         })
       );
+    } finally {
+      await close();
+    }
+  });
+
+  it('should skip routes already audited by domain services or events', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use((req, res, next) => {
+      // @ts-ignore
+      req.user = { userId: 'admin1', role: 'ADMIN' };
+      next();
+    });
+    app.use(auditMiddleware);
+    app.post('/api/admin/categories', (req, res) => res.status(201).json({ ok: true }));
+
+    const { baseUrl, close } = await startServer(app);
+    try {
+      await fetch(`${baseUrl}/api/admin/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'new-category' })
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(auditApplicationService.logAudit).not.toHaveBeenCalled();
     } finally {
       await close();
     }

@@ -100,19 +100,39 @@ async function main() {
       });
       console.log('Root account created successfully: username "root", password "root"');
     }
-  // 3. Ensure /api is in route whitelist
-  const apiRoute = await prisma.routeWhitelist.findFirst({ where: { path: '/api' } });
-  if (!apiRoute) {
-    await prisma.routeWhitelist.create({
-      data: {
-        id: '00000000-0000-0000-0000-000000000000',
-        path: '/api',
-        isPrefix: true,
-        minRole: null,
-        description: 'Global API prefix whitelist (managed internally)',
-      }
-    });
-    console.log('Added /api to route whitelist');
+  }
+
+  // 3. Ensure essential public routes exist in route whitelist
+  const defaultWhitelistRoutes = [
+    {
+      id: '00000000-0000-0000-0000-000000000000',
+      path: '/api',
+      isPrefix: true,
+      minRole: null,
+      description: 'Global API prefix whitelist (managed internally)',
+    },
+    {
+      id: '00000000-0000-0000-0000-000000000001',
+      path: '/terms',
+      isPrefix: false,
+      minRole: null,
+      description: 'Public terms of service page',
+    },
+    {
+      id: '00000000-0000-0000-0000-000000000002',
+      path: '/privacy',
+      isPrefix: false,
+      minRole: null,
+      description: 'Public privacy policy page',
+    },
+  ];
+
+  for (const route of defaultWhitelistRoutes) {
+    const existingRoute = await prisma.routeWhitelist.findUnique({ where: { path: route.path } });
+    if (!existingRoute) {
+      await prisma.routeWhitelist.create({ data: route });
+      console.log(`Added ${route.path} to route whitelist`);
+    }
   }
 
 }
