@@ -19,25 +19,50 @@ export function ReauthModal({ isOpen, onClose, onSuccess }: ReauthModalProps) {
   const { executePasskeyFlow, passkeyError, setPasskeyError } = usePasskey();
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) {
+      return;
+    }
+
+    let cancelled = false;
+    const timerId = window.setTimeout(() => {
       setPassword('');
       setTotpCode('');
       setError('');
       setPasskeyError('');
-      // Fetch user profile to see what auth methods they have
-      fetch('/api/v1/user/profile', { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.user) {
-            setAvailableMethods({ hasTotp: data.user.isTotpEnabled, hasPasskey: data.user._count?.passkeys > 0, hasPassword: data.user.hasPassword !== false });
-            if (data.user.hasPassword === false) {
-              if (data.user._count?.passkeys > 0) setMethod('passkey');
-              else if (data.user.isTotpEnabled) setMethod('totp');
+
+      void fetch('/api/v1/user/profile', { credentials: 'include' })
+        .then(async (response) => response.json())
+        .then((data: {
+          user?: {
+            isTotpEnabled?: boolean;
+            _count?: { passkeys?: number };
+            hasPassword?: boolean;
+          };
+        }) => {
+          if (cancelled || !data.user) {
+            return;
+          }
+
+          const hasPasskey = (data.user._count?.passkeys ?? 0) > 0;
+          const hasTotp = data.user.isTotpEnabled === true;
+          const hasPassword = data.user.hasPassword !== false;
+
+          setAvailableMethods({ hasTotp, hasPasskey, hasPassword });
+          if (!hasPassword) {
+            if (hasPasskey) {
+              setMethod('passkey');
+            } else if (hasTotp) {
+              setMethod('totp');
             }
           }
         })
         .catch(() => {});
-    }
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
   }, [isOpen, setPasskeyError]);
 
   if (!isOpen) return null;

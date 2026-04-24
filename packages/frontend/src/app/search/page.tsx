@@ -7,6 +7,12 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
+interface SearchUserResult {
+  id: string;
+  username: string;
+  level: number;
+}
+
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const headersList = await headers();
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;
@@ -16,7 +22,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const q = resolvedParams.q || '';
 
   let posts = [];
-  let users = [];
+  let users: SearchUserResult[] = [];
 
   if (q) {
     try {
@@ -58,7 +64,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-foreground border-b border-border pb-2">{dict.search.users}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {users.map((user: any) => (
+                {users.map((user) => (
                   <Link key={user.id} href={`/u/${user.username}`} className="block">
                     <div className="flex items-center space-x-3 rounded-xl bg-card p-4 shadow-sm transition-shadow hover:shadow-md border border-border/50">
                       <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg">

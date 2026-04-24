@@ -4,24 +4,46 @@ import { User } from '../src/domain/identity/User';
 
 describe('AuthApplicationService', () => {
   let service: AuthApplicationService;
-  let captchaChallengeRepository: any;
-  let passkeyRepository: any;
-  let sessionRepository: any;
-  let authChallengeRepository: any;
-  let userRepository: any;
-  let roleRepository: any;
-  let passwordHasher: any;
-  let authCache: any;
-  let totpPort: any;
-  let passkeyPort: any;
-  let tokenPort: any;
+  let captchaChallengeRepository: { findById?: jest.Mock; delete?: jest.Mock; save?: jest.Mock };
+  let passkeyRepository: { findByUserId: jest.Mock; findById?: jest.Mock; save?: jest.Mock; delete?: jest.Mock };
+  let sessionRepository: { deleteManyByUserId: jest.Mock };
+  let authChallengeRepository: { findById: jest.Mock; delete: jest.Mock };
+  let userRepository: {
+    findById: jest.Mock;
+    findByEmail: jest.Mock;
+    findByUsername: jest.Mock;
+    save: jest.Mock;
+  };
+  let roleRepository: { findById: jest.Mock; findByName: jest.Mock };
+  let emailRegistrationTicketRepository: {
+    findByVerificationToken: jest.Mock;
+    findByEmail: jest.Mock;
+    findByUsername: jest.Mock;
+    save: jest.Mock;
+    delete: jest.Mock;
+  };
+  let passwordResetTicketRepository: {
+    findByResetToken: jest.Mock;
+    findByEmail: jest.Mock;
+    findByUserId: jest.Mock;
+    save: jest.Mock;
+    delete: jest.Mock;
+  };
+  let passwordHasher: { verify: jest.Mock; hash: jest.Mock };
+  let authCache: Record<string, never>;
+  let totpPort: Record<string, never>;
+  let passkeyPort: { verifyRegistrationResponse: jest.Mock };
+  let tokenPort: Record<string, never>;
+  let emailSender: { sendEmail: jest.Mock };
 
   beforeEach(() => {
     captchaChallengeRepository = {};
     passkeyRepository = {
       findByUserId: jest.fn().mockResolvedValue([])
     };
-    sessionRepository = {};
+    sessionRepository = {
+      deleteManyByUserId: jest.fn().mockResolvedValue(undefined)
+    };
     authChallengeRepository = {
       findById: jest.fn(),
       delete: jest.fn()
@@ -33,10 +55,26 @@ describe('AuthApplicationService', () => {
       save: jest.fn()
     };
     roleRepository = {
-      findById: jest.fn()
+      findById: jest.fn(),
+      findByName: jest.fn()
+    };
+    emailRegistrationTicketRepository = {
+      findByVerificationToken: jest.fn(),
+      findByEmail: jest.fn(),
+      findByUsername: jest.fn(),
+      save: jest.fn(),
+      delete: jest.fn()
+    };
+    passwordResetTicketRepository = {
+      findByResetToken: jest.fn(),
+      findByEmail: jest.fn(),
+      findByUserId: jest.fn(),
+      save: jest.fn(),
+      delete: jest.fn()
     };
     passwordHasher = {
-      verify: jest.fn().mockResolvedValue(true)
+      verify: jest.fn().mockResolvedValue(true),
+      hash: jest.fn().mockResolvedValue('hashed-password')
     };
     authCache = {};
     totpPort = {};
@@ -44,6 +82,9 @@ describe('AuthApplicationService', () => {
       verifyRegistrationResponse: jest.fn()
     };
     tokenPort = {};
+    emailSender = {
+      sendEmail: jest.fn().mockResolvedValue(undefined)
+    };
 
     const unitOfWork = {
       execute: jest.fn().mockImplementation((work) => work())
@@ -56,11 +97,14 @@ describe('AuthApplicationService', () => {
       authChallengeRepository,
       userRepository,
       roleRepository,
+      emailRegistrationTicketRepository,
+      passwordResetTicketRepository,
       passwordHasher,
       authCache,
       totpPort,
       passkeyPort,
       tokenPort,
+      emailSender,
       unitOfWork
     );
     
@@ -68,6 +112,125 @@ describe('AuthApplicationService', () => {
     service.generateTempToken = jest.fn().mockReturnValue('mock-temp-token');
     service.consumeAuthChallenge = jest.fn().mockResolvedValue({ challenge: 'mock-challenge' });
     service.addPasskey = jest.fn().mockResolvedValue(undefined);
+  });
+
+  describe('registerUser', () => {
+    it('should persist a pending registration and send a verification email', async () => {
+      service.consumeCaptcha = jest.fn().mockResolvedValue(true);
+      userRepository.findByEmail.mockResolvedValue(null);
+      userRepository.findByUsername.mockResolvedValue(null);
+      emailRegistrationTicketRepository.findByEmail.mockResolvedValue(null);
+      emailRegistrationTicketRepository.findByUsername.mockResolvedValue(null);
+
+      const result = await service.registerUser('User@Test.com', 'demo-user', 'Aa!12345', 'captcha-1');
+
+      expect(result.email).toBe('user@test.com');
+      expect(emailRegistrationTicketRepository.save).toHaveBeenCalledTimes(1);
+      expect(emailSender.sendEmail).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('verifyEmailRegistration', () => {
+    it('should create the user and delete the pending registration ticket', async () => {
+      emailRegistrationTicketRepository.findByVerificationToken.mockResolvedValue({
+        id: 'ticket-1',
+        email: 'user@example.com',
+        username: 'demo-user',
+        passwordHash: 'hashed-password',
+        verificationToken: 'token-1',
+        expiresAt: new Date(Date.now() + 60_000),
+        createdAt: new Date(),
+        validateForCompletion: jest.fn(),
+      });
+      userRepository.findByEmail.mockResolvedValue(null);
+      userRepository.findByUsername.mockResolvedValue(null);
+      roleRepository.findByName.mockResolvedValue({ id: 'role-1', name: 'USER' });
+
+      const result = await service.verifyEmailRegistration('token-1');
+
+      expect(result.email).toBe('user@example.com');
+      expect(userRepository.save).toHaveBeenCalledTimes(1);
+      expect(emailRegistrationTicketRepository.delete).toHaveBeenCalledWith('ticket-1');
+    });
+  });
+
+  describe('resendEmailRegistration', () => {
+    it('should replace the pending registration ticket and send a fresh verification email', async () => {
+      const pendingTicket = {
+        id: 'ticket-1',
+        email: 'user@example.com',
+        username: 'demo-user',
+        passwordHash: 'hashed-password',
+      };
+
+      userRepository.findByEmail.mockResolvedValue(null);
+      emailRegistrationTicketRepository.findByEmail
+        .mockResolvedValueOnce(pendingTicket)
+        .mockResolvedValueOnce(pendingTicket);
+      emailRegistrationTicketRepository.findByUsername.mockResolvedValue(pendingTicket);
+
+      const result = await service.resendEmailRegistration('user@example.com');
+
+      expect(result.email).toBe('user@example.com');
+      expect(emailRegistrationTicketRepository.delete).toHaveBeenCalledWith('ticket-1');
+      expect(emailRegistrationTicketRepository.save).toHaveBeenCalledTimes(1);
+      expect(emailSender.sendEmail).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('requestPasswordReset', () => {
+    it('should persist a reset ticket and send a reset email for an existing user', async () => {
+      userRepository.findByEmail.mockResolvedValue({
+        id: 'user-1',
+        email: 'user@example.com',
+        username: 'demo-user'
+      });
+      passwordResetTicketRepository.findByUserId.mockResolvedValue(null);
+      passwordResetTicketRepository.findByEmail.mockResolvedValue(null);
+
+      const result = await service.requestPasswordReset('user@example.com');
+
+      expect(result.email).toBe('user@example.com');
+      expect(passwordResetTicketRepository.save).toHaveBeenCalledTimes(1);
+      expect(emailSender.sendEmail).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('resetPasswordWithToken', () => {
+    it('should update the stored password hash, revoke sessions, and delete the reset ticket', async () => {
+      const targetUser = User.create({
+        id: 'user-1',
+        email: 'user@example.com',
+        username: 'demo-user',
+        password: 'old-hash',
+        roleId: 'role-1',
+        level: 1,
+        status: UserStatus.ACTIVE,
+        isPasskeyMandatory: false,
+        totpSecret: null,
+        isTotpEnabled: false,
+        createdAt: new Date()
+      });
+
+      passwordResetTicketRepository.findByResetToken.mockResolvedValue({
+        id: 'reset-ticket-1',
+        userId: 'user-1',
+        email: 'user@example.com',
+        username: 'demo-user',
+        resetToken: 'reset-token',
+        expiresAt: new Date(Date.now() + 60_000),
+        createdAt: new Date(),
+        validateForReset: jest.fn()
+      });
+      userRepository.findById.mockResolvedValue(targetUser);
+
+      await service.resetPasswordWithToken('reset-token', 'Aa!12345');
+
+      expect(passwordHasher.hash).toHaveBeenCalledWith('Aa!12345');
+      expect(userRepository.save).toHaveBeenCalledTimes(1);
+      expect(sessionRepository.deleteManyByUserId).toHaveBeenCalledWith('user-1');
+      expect(passwordResetTicketRepository.delete).toHaveBeenCalledWith('reset-ticket-1');
+    });
   });
 
   describe('loginUser', () => {

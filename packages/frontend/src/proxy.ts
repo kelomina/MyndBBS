@@ -4,7 +4,16 @@ import { defaultLocale, locales } from './i18n/config';
 import { getAccessRedirectPath, sortWhitelist, matchRoute } from './lib/routingGuard';
 
 const isDev = process.env.NODE_ENV !== 'production';
-const ESSENTIAL_PUBLIC_PATHS = new Set(['/login', '/register', '/403', '/admin-setup', '/terms', '/privacy']);
+const ESSENTIAL_PUBLIC_PATHS = new Set([
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/403',
+  '/admin-setup',
+  '/terms',
+  '/privacy',
+]);
 
 function toBase64(bytes: Uint8Array): string {
   let str = '';
@@ -49,8 +58,7 @@ function normalizePathname(pathname: string): string {
 
   const parts = p.split('/');
   const maybeLocale = parts[1];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (maybeLocale && locales.includes(maybeLocale as any)) {
+  if (maybeLocale && locales.includes(maybeLocale as (typeof locales)[number])) {
     const rest = parts.slice(2).join('/');
     return rest ? `/${rest}` : '/';
   }
@@ -65,25 +73,25 @@ function getLocale(request: NextRequest): string {
   }
 
   const acceptLang = request.headers.get('Accept-Language');
-  if (acceptLang) {
-    if (acceptLang.includes('zh')) return 'zh';
+  if (acceptLang?.includes('zh')) {
+    return 'zh';
   }
 
   return defaultLocale;
 }
 
 /**
- * Callers: [middleware]
+ * Callers: [proxy]
  * Callees: []
- * Description: Determines whether a pathname must remain publicly accessible even before dynamic whitelist lookup succeeds.
- * 描述：判断某个路径是否必须在动态白名单加载前就保持公开可访问。
- * Variables: `pathname` 表示经过 locale 归一化后的请求路径。
+ * Description: Determines whether a pathname must remain publicly accessible before dynamic whitelist lookup succeeds.
+ * 描述：判断某个路径是否必须在动态白名单加载前保持公开可访问。
+ * Variables: `pathname` is the locale-normalized request pathname.
  * 变量：`pathname` 表示完成 locale 归一化后的请求路径。
  * Integration: Call this helper before dynamic whitelist fetches to prevent public legal/auth routes from being locked behind admin access.
- * 接入方式：在拉取动态白名单前调用，避免公开的法律页和认证页被误锁成管理入口。
+ * 接入方式：在拉取动态白名单前调用，避免公开的法律页和认证页被错误锁成管理入口。
  * Error Handling: Returns `true` for known public prefixes and files, otherwise `false`; it never throws.
- * 错误处理：已知公开路径或静态资源返回 `true`，其他情况返回 `false`，不会抛异常。
- * Keywords: public route, whitelist, middleware, auth, legal, 公共路由, 白名单, 中间件, 认证, 法律页面
+ * 错误处理：已知公开路径或静态资源返回 `true`，其余情况返回 `false`，不会抛出异常。
+ * Keywords: public route, whitelist, proxy, auth, legal, 公共路由, 白名单, 代理, 认证, 法律页面
  */
 function isEssentialPublicPath(pathname: string): boolean {
   return (
@@ -95,18 +103,16 @@ function isEssentialPublicPath(pathname: string): boolean {
   );
 }
 
-
-
 type WhitelistRoute = { path: string; isPrefix: boolean; minRole?: string | null };
 
 let cachedWhitelist: WhitelistRoute[] | null = null;
 let lastFetchTime = 0;
 
 const ROLE_LEVELS: Record<string, number> = {
-  'USER': 1,
-  'MODERATOR': 2,
-  'ADMIN': 3,
-  'SUPER_ADMIN': 4
+  USER: 1,
+  MODERATOR: 2,
+  ADMIN: 3,
+  SUPER_ADMIN: 4,
 };
 
 async function getWhitelist(): Promise<WhitelistRoute[]> {
@@ -117,13 +123,13 @@ async function getWhitelist(): Promise<WhitelistRoute[]> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
     const res = await fetch(`${apiUrl}/api/admin/routing-whitelist`, {
-      next: { revalidate: 30 }
+      next: { revalidate: 30 },
     });
     if (res.ok) {
       const data = (await res.json()) as WhitelistRoute[];
-      const normalizedData = data.map(route => ({
+      const normalizedData = data.map((route) => ({
         ...route,
-        path: normalizePathname(route.path)
+        path: normalizePathname(route.path),
       }));
       cachedWhitelist = sortWhitelist(normalizedData);
       lastFetchTime = now;
@@ -135,38 +141,39 @@ async function getWhitelist(): Promise<WhitelistRoute[]> {
   return cachedWhitelist || [];
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const nonce = isDev ? null : generateNonce();
   const requestHeaders = new Headers(request.headers);
-  if (nonce) requestHeaders.set('x-nonce', nonce);
+  if (nonce) {
+    requestHeaders.set('x-nonce', nonce);
+  }
 
   const locale = getLocale(request);
   const pathname = normalizePathname(request.nextUrl.pathname);
 
-  // Set response and locale header
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {
     response.cookies.set('NEXT_LOCALE', locale, { path: '/' });
   }
   response.headers.set('x-locale', locale);
-  if (!isDev) response.headers.set('Content-Security-Policy', buildCsp(nonce));
+  if (!isDev) {
+    response.headers.set('Content-Security-Policy', buildCsp(nonce));
+  }
 
-  // 1. Essential paths to prevent lock-out
   const isEssentialPublic = isEssentialPublicPath(pathname);
 
-  if (isEssentialPublic) return response;
+  if (isEssentialPublic) {
+    return response;
+  }
 
-  // 2. Fetch dynamic whitelist & find matching route
   const whitelist = (await getWhitelist()) || [];
   const matchedRoute = matchRoute(pathname, whitelist);
 
-  // Determine required role level (0 = public, 4 = SUPER_ADMIN)
-  // If no route matches, default to strictly requiring SUPER_ADMIN
   let requiredRoleLevel = 4;
-  
+
   if (matchedRoute) {
     if (!matchedRoute.minRole) {
-      requiredRoleLevel = 0; // Public
+      requiredRoleLevel = 0;
     } else {
       requiredRoleLevel = ROLE_LEVELS[matchedRoute.minRole] || 4;
     }
@@ -180,12 +187,15 @@ export async function middleware(request: NextRequest) {
       try {
         const payload = token.split('.')[1];
         let b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-        while (b64.length % 4) b64 += '=';
+        while (b64.length % 4) {
+          b64 += '=';
+        }
         const decoded = atob(b64);
-        const parsed = JSON.parse(decoded);
-        
-        userRoleLevel = ROLE_LEVELS[parsed.role] || 0;
+        const parsed = JSON.parse(decoded) as { role?: string };
+
+        userRoleLevel = parsed.role ? ROLE_LEVELS[parsed.role] || 0 : 0;
       } catch {
+        userRoleLevel = 0;
       }
     }
 
@@ -194,12 +204,13 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = redirectPath;
 
-      // Preserve locale cookie on redirect
       const redirectResponse = NextResponse.redirect(url);
       if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {
         redirectResponse.cookies.set('NEXT_LOCALE', locale, { path: '/' });
       }
-      if (!isDev) redirectResponse.headers.set('Content-Security-Policy', buildCsp(nonce));
+      if (!isDev) {
+        redirectResponse.headers.set('Content-Security-Policy', buildCsp(nonce));
+      }
       return redirectResponse;
     }
   }

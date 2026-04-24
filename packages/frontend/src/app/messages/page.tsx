@@ -103,7 +103,13 @@ export default function MessagesPage() {
   }, [loadInbox]);
 
   useEffect(() => {
-    void checkStatus();
+    const timerId = window.setTimeout(() => {
+      void checkStatus();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
   }, [checkStatus]);
 
   /**

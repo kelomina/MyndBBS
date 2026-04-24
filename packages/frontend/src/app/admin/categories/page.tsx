@@ -2,7 +2,7 @@
 import { useToast } from '../../../components/ui/Toast';
 import { useTranslation } from '../../../components/TranslationProvider';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -66,7 +66,7 @@ export default function CategoriesPage() {
     userId: '',
   });
 
-      const loadData = async () => {
+  const loadData = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       const [cats, allUsers] = await Promise.all([getCategories(), getUsers()]);
@@ -78,11 +78,17 @@ export default function CategoriesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const timerId = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [loadData]);
 
       const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

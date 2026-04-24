@@ -1,7 +1,7 @@
 'use client';
 import { useToast } from '../../../components/ui/Toast';
 import { useTranslation } from '../../../components/TranslationProvider';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -30,7 +30,7 @@ export default function RecycleBinPage() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'posts' | 'comments'>('posts');
 
-      const loadData = async () => {
+  const loadData = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       const [p, c] = await Promise.all([getDeletedPosts(), getDeletedComments()]);
@@ -42,11 +42,17 @@ export default function RecycleBinPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const timerId = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [loadData]);
 
       const handleRestorePost = async (id: string) => {
     if (!confirm(dict.admin?.confirmRestore || 'Are you sure you want to restore this item?')) return;

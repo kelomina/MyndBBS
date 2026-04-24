@@ -27,11 +27,12 @@ describe('ensureDefaultRouteWhitelist integration', () => {
 
   it('only inserts default routes that are still missing', async () => {
     const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const missingRoutePaths = new Set(['/terms', '/reset-password']);
     const findUnique = jest
       .fn()
-      .mockResolvedValueOnce({ id: 'existing-api' })
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: 'existing-privacy' });
+      .mockImplementation(async ({ where }: { where: { path: string } }) => {
+        return missingRoutePaths.has(where.path) ? null : { id: `existing-${where.path}` };
+      });
     const create = jest.fn().mockResolvedValue(undefined);
 
     await ensureDefaultRouteWhitelist({
@@ -41,12 +42,8 @@ describe('ensureDefaultRouteWhitelist integration', () => {
       },
     });
 
-    expect(create).toHaveBeenCalledTimes(1);
-    expect(create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        path: '/terms',
-      }),
-    });
-    expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledTimes(missingRoutePaths.size);
+    expect(create.mock.calls.map(([call]) => call.data.path)).toEqual(Array.from(missingRoutePaths));
+    expect(consoleLogSpy).toHaveBeenCalledTimes(missingRoutePaths.size);
   });
 });

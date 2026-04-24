@@ -82,7 +82,13 @@ export function TwoFactorSetup({ onComplete, context = 'auth', forceTotp = false
   }, [forceTotp, loadTotp, tryPasskeyRegistration]);
 
   useEffect(() => {
-    void initiateSetup();
+    const timerId = window.setTimeout(() => {
+      void initiateSetup();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
   }, [initiateSetup]);
 
       const verifyTotp = async (e: React.FormEvent) => {

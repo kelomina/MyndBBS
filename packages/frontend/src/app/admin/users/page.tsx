@@ -2,7 +2,7 @@
 import { useToast } from '../../../components/ui/Toast'
 import { useTranslation } from '../../../components/TranslationProvider'
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   Table,
   TableBody,
@@ -41,7 +41,7 @@ export default function UsersPage() {
    * 加载用户列表
    * @param query 搜索关键字
    */
-  const loadUsers = async (query?: string) => {
+  const loadUsers = useCallback(async (query?: string): Promise<void> => {
     try {
       setLoading(true)
       const data = await getUsers(query)
@@ -58,14 +58,17 @@ export default function UsersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dict])
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadUsers(searchQuery)
+    const timerId = window.setTimeout(() => {
+      void loadUsers(searchQuery)
     }, 300)
-    return () => clearTimeout(timer)
-  }, [searchQuery])
+
+    return () => {
+      window.clearTimeout(timerId)
+    }
+  }, [loadUsers, searchQuery])
 
   /**
    * 处理用户角色变更

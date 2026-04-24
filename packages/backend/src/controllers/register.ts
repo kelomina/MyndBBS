@@ -5,7 +5,7 @@ import { authApplicationService } from '../registry';
 /**
  * Callers: [Router]
  * Callees: [authApplicationService]
- * Description: Registers a new user and returns a temporary token for 2FA completion.
+ * Description: Starts email-based registration and asks the user to verify their mailbox before 2FA onboarding begins.
  * Keywords: auth, register, 2fa
  */
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
@@ -17,11 +17,47 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    let registrationRequest;
+    try {
+      registrationRequest = await authApplicationService.registerUser(email, username, password, captchaId);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.startsWith('ERR_')) {
+        const statusCode = error.message === 'ERR_EMAIL_DELIVERY_NOT_CONFIGURED' ? 503 : 400;
+        res.status(statusCode).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+
+    // @ts-ignore - t is injected by i18next middleware
+    const message = req.t ? req.t('EMAIL_REGISTRATION_VERIFICATION_SENT', 'Verification email sent. Please check your inbox.') : 'Verification email sent. Please check your inbox.';
+    res.status(202).json({ message, email: registrationRequest.email, expiresAt: registrationRequest.expiresAt.toISOString() });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+  }
+};
+
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Consumes the email-verification token, creates the user account, and resumes the existing 2FA registration flow by setting the temporary registration cookie.
+ * Keywords: auth, register, verify, email, 2fa
+ */
+export const verifyEmailRegistration = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token } = req.body;
+
+    if (!token || typeof token !== 'string') {
+      res.status(400).json({ error: 'ERR_MISSING_REQUIRED_FIELDS' });
+      return;
+    }
+
     let user;
     try {
-      user = await authApplicationService.registerUser(email, username, password, captchaId);
-    } catch (error: any) {
-      if (error.message.startsWith('ERR_')) {
+      user = await authApplicationService.verifyEmailRegistration(token);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.startsWith('ERR_')) {
         res.status(400).json({ error: error.message });
         return;
       }
@@ -34,12 +70,118 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 60 * 60 * 1000 // 1 hour
+      maxAge: 60 * 60 * 1000,
     });
 
     // @ts-ignore - t is injected by i18next middleware
     const message = req.t ? req.t('USER_REGISTERED_COMPLETE_2FA', 'User registered. Please complete 2FA.') : 'User registered. Please complete 2FA.';
-    res.status(201).json({ message, user: { id: user.id, username: user.username, role: user.role?.name } });
+    res.status(200).json({ message, user: { id: user.id, username: user.username, role: user.role.name } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+  }
+};
+
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Resends a fresh registration verification email for an existing pending mailbox signup.
+ * Keywords: auth, register, resend, email
+ */
+export const resendEmailRegistration = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ error: 'ERR_MISSING_REQUIRED_FIELDS' });
+      return;
+    }
+
+    let registrationRequest;
+    try {
+      registrationRequest = await authApplicationService.resendEmailRegistration(email);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.startsWith('ERR_')) {
+        const statusCode = error.message === 'ERR_EMAIL_DELIVERY_NOT_CONFIGURED' ? 503 : 400;
+        res.status(statusCode).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+
+    // @ts-ignore - t is injected by i18next middleware
+    const message = req.t ? req.t('EMAIL_REGISTRATION_VERIFICATION_RESENT', 'Verification email resent. Please check your inbox.') : 'Verification email resent. Please check your inbox.';
+    res.status(202).json({ message, email: registrationRequest.email, expiresAt: registrationRequest.expiresAt.toISOString() });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+  }
+};
+
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Starts the forgot-password flow and always returns an accepted response so the frontend can present a generic mailbox confirmation state.
+ * Keywords: auth, password, forgot, reset
+ */
+export const requestPasswordReset = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ error: 'ERR_MISSING_REQUIRED_FIELDS' });
+      return;
+    }
+
+    let passwordResetRequest;
+    try {
+      passwordResetRequest = await authApplicationService.requestPasswordReset(email);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.startsWith('ERR_')) {
+        const statusCode = error.message === 'ERR_EMAIL_DELIVERY_NOT_CONFIGURED' ? 503 : 400;
+        res.status(statusCode).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+
+    // @ts-ignore - t is injected by i18next middleware
+    const message = req.t ? req.t('PASSWORD_RESET_EMAIL_SENT', 'If the mailbox exists, a password reset email has been sent.') : 'If the mailbox exists, a password reset email has been sent.';
+    res.status(202).json({ message, email: passwordResetRequest.email, expiresAt: passwordResetRequest.expiresAt.toISOString() });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+  }
+};
+
+/**
+ * Callers: [Router]
+ * Callees: [authApplicationService]
+ * Description: Consumes a password-reset token and replaces the user's password with the submitted new password.
+ * Keywords: auth, password, reset, token
+ */
+export const resetPasswordWithToken = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || typeof token !== 'string' || !password || typeof password !== 'string') {
+      res.status(400).json({ error: 'ERR_MISSING_REQUIRED_FIELDS' });
+      return;
+    }
+
+    try {
+      await authApplicationService.resetPasswordWithToken(token, password);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.startsWith('ERR_')) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+
+    // @ts-ignore - t is injected by i18next middleware
+    const message = req.t ? req.t('PASSWORD_RESET_COMPLETED', 'Password reset completed. Please sign in with your new password.') : 'Password reset completed. Please sign in with your new password.';
+    res.status(200).json({ message });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
