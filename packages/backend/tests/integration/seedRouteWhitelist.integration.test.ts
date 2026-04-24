@@ -1,4 +1,4 @@
-import { DEFAULT_ROUTE_WHITELIST_ROUTES, ensureDefaultRouteWhitelist } from '../../prisma/seed';
+import { DEFAULT_ROUTE_WHITELIST_ROUTES, ensureDefaultRouteWhitelist } from '../../prisma/seedDefaults';
 
 describe('ensureDefaultRouteWhitelist integration', () => {
   afterEach(() => {
