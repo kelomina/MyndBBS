@@ -130,6 +130,11 @@ export class SmtpEmailSender implements IEmailSender {
         });
       }
     } catch (error) {
+      // Configuration errors must stay distinguishable from transient SMTP delivery failures.
+      if (error instanceof Error && error.message === 'ERR_EMAIL_DELIVERY_NOT_CONFIGURED') {
+        throw error;
+      }
+
       console.error('[Email Delivery Error]', error);
       throw new Error('ERR_EMAIL_DELIVERY_FAILED');
     }

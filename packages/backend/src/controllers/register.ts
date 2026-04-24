@@ -2,6 +2,28 @@ import { Request, Response } from 'express';
 import { finalizeAuth } from './auth';
 import { authApplicationService } from '../registry';
 
+const EMAIL_SERVICE_ERROR_CODES = new Set([
+  'ERR_EMAIL_DELIVERY_NOT_CONFIGURED',
+  'ERR_EMAIL_DELIVERY_FAILED',
+]);
+
+/**
+ * Callers: [registerUser, resendEmailRegistration, requestPasswordReset]
+ * Callees: [Set.has]
+ * Description: Maps identity email-flow error codes to HTTP status codes so transient mail infrastructure failures are reported as service-side failures instead of client validation mistakes.
+ * 描述：将身份域邮件流程错误码映射为 HTTP 状态码，让临时邮件基础设施故障返回服务端失败，而不是被误判为客户端校验错误。
+ * Variables: `errorCode` is the application error emitted by the identity service; `EMAIL_SERVICE_ERROR_CODES` lists failures caused by mail infrastructure.
+ * 变量：`errorCode` 是身份应用服务抛出的错误码；`EMAIL_SERVICE_ERROR_CODES` 列出由邮件基础设施导致的失败。
+ * Integration: Use this helper in public auth controllers that create or resend mailbox links.
+ * 接入方式：在创建或补发邮箱链接的公开认证控制器中调用本函数。
+ * Error Handling: Unknown identity error codes remain `400`, preserving existing validation behavior.
+ * 错误处理：未知身份域错误码仍返回 `400`，保持现有校验错误语义。
+ * Keywords: email status, delivery failure, smtp unavailable, auth controller, http mapping, 邮件状态码, 投递失败, SMTP不可用, 认证控制器, HTTP映射
+ */
+function getEmailFlowErrorStatusCode(errorCode: string): number {
+  return EMAIL_SERVICE_ERROR_CODES.has(errorCode) ? 503 : 400;
+}
+
 /**
  * Callers: [Router]
  * Callees: [authApplicationService]
@@ -22,7 +44,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       registrationRequest = await authApplicationService.registerUser(email, username, password, captchaId);
     } catch (error: unknown) {
       if (error instanceof Error && error.message.startsWith('ERR_')) {
-        const statusCode = error.message === 'ERR_EMAIL_DELIVERY_NOT_CONFIGURED' ? 503 : 400;
+        const statusCode = getEmailFlowErrorStatusCode(error.message);
         res.status(statusCode).json({ error: error.message });
         return;
       }
@@ -102,7 +124,7 @@ export const resendEmailRegistration = async (req: Request, res: Response): Prom
       registrationRequest = await authApplicationService.resendEmailRegistration(email);
     } catch (error: unknown) {
       if (error instanceof Error && error.message.startsWith('ERR_')) {
-        const statusCode = error.message === 'ERR_EMAIL_DELIVERY_NOT_CONFIGURED' ? 503 : 400;
+        const statusCode = getEmailFlowErrorStatusCode(error.message);
         res.status(statusCode).json({ error: error.message });
         return;
       }
@@ -138,7 +160,7 @@ export const requestPasswordReset = async (req: Request, res: Response): Promise
       passwordResetRequest = await authApplicationService.requestPasswordReset(email);
     } catch (error: unknown) {
       if (error instanceof Error && error.message.startsWith('ERR_')) {
-        const statusCode = error.message === 'ERR_EMAIL_DELIVERY_NOT_CONFIGURED' ? 503 : 400;
+        const statusCode = getEmailFlowErrorStatusCode(error.message);
         res.status(statusCode).json({ error: error.message });
         return;
       }

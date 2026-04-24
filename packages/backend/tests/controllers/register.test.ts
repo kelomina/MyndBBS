@@ -60,6 +60,47 @@ describe('Register Controller', () => {
     });
   });
 
+  it('returns 503 when registration email delivery is not configured', async () => {
+    req.body = {
+      email: 'user@example.com',
+      username: 'demo-user',
+      password: 'Aa!12345',
+      captchaId: 'captcha-1',
+    };
+    (authApplicationService.registerUser as jest.Mock)
+      .mockRejectedValue(new Error('ERR_EMAIL_DELIVERY_NOT_CONFIGURED'));
+
+    await registerUser(req as Request, res as Response);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'ERR_EMAIL_DELIVERY_NOT_CONFIGURED',
+    });
+  });
+
+  it('returns 500 when registration ticket storage is unavailable', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    req.body = {
+      email: 'user@example.com',
+      username: 'demo-user',
+      password: 'Aa!12345',
+      captchaId: 'captcha-1',
+    };
+    (authApplicationService.registerUser as jest.Mock)
+      .mockRejectedValue(new Error('REDIS_UNAVAILABLE'));
+
+    try {
+      await registerUser(req as Request, res as Response);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'ERR_INTERNAL_SERVER_ERROR',
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it('sets tempToken cookie after email verification succeeds', async () => {
     req.body = { token: 'verification-token' };
     (authApplicationService.verifyEmailRegistration as jest.Mock).mockResolvedValue({
@@ -102,6 +143,19 @@ describe('Register Controller', () => {
     });
   });
 
+  it('returns 503 when registration verification resend delivery fails', async () => {
+    req.body = { email: 'user@example.com' };
+    (authApplicationService.resendEmailRegistration as jest.Mock)
+      .mockRejectedValue(new Error('ERR_EMAIL_DELIVERY_FAILED'));
+
+    await resendEmailRegistration(req as Request, res as Response);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'ERR_EMAIL_DELIVERY_FAILED',
+    });
+  });
+
   it('returns 202 when password reset is requested', async () => {
     req.body = { email: 'user@example.com' };
     (authApplicationService.requestPasswordReset as jest.Mock).mockResolvedValue({
@@ -117,6 +171,37 @@ describe('Register Controller', () => {
       email: 'user@example.com',
       expiresAt: '2026-04-24T12:00:00.000Z',
     });
+  });
+
+  it('returns 503 when password reset email delivery fails', async () => {
+    req.body = { email: 'user@example.com' };
+    (authApplicationService.requestPasswordReset as jest.Mock)
+      .mockRejectedValue(new Error('ERR_EMAIL_DELIVERY_FAILED'));
+
+    await requestPasswordReset(req as Request, res as Response);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'ERR_EMAIL_DELIVERY_FAILED',
+    });
+  });
+
+  it('returns 500 when password reset ticket storage is unavailable', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    req.body = { email: 'user@example.com' };
+    (authApplicationService.requestPasswordReset as jest.Mock)
+      .mockRejectedValue(new Error('REDIS_UNAVAILABLE'));
+
+    try {
+      await requestPasswordReset(req as Request, res as Response);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'ERR_INTERNAL_SERVER_ERROR',
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it('returns 200 when password reset succeeds', async () => {
