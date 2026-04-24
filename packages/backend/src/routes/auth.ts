@@ -10,7 +10,16 @@ import {
   verifyPasskeyAuthenticationResponse,
   getAbility
 } from '../controllers/auth';
-import { registerUser, loginUser, refreshToken, logoutUser } from '../controllers/register';
+import {
+  registerUser,
+  resendEmailRegistration,
+  verifyEmailRegistration,
+  requestPasswordReset,
+  resetPasswordWithToken,
+  loginUser,
+  refreshToken,
+  logoutUser
+} from '../controllers/register';
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
 import { optionalAuth } from '../middleware/auth';
 
@@ -66,6 +75,10 @@ router.post('/captcha/verify', verifyCaptcha);
 
 // Auth
 router.post('/register', registerLimiter, registerUser);
+router.post('/register/resend-email', registerLimiter, resendEmailRegistration);
+router.post('/register/verify-email', strict2FALimiter, verifyEmailRegistration);
+router.post('/password/forgot', registerLimiter, requestPasswordReset);
+router.post('/password/reset', strict2FALimiter, resetPasswordWithToken);
 router.post('/login', loginLimiter, loginUser);
 router.post('/logout', logoutUser);
 router.post('/refresh', refreshToken); // Uses general authLimiter from router.use()

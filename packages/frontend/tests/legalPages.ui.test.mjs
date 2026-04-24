@@ -7,7 +7,7 @@ test('Legal Pages exist and have correct routing', async (t) => {
   const termsPagePath = path.join(process.cwd(), 'src', 'app', 'terms', 'page.tsx');
   const privacyPagePath = path.join(process.cwd(), 'src', 'app', 'privacy', 'page.tsx');
   const modalPath = path.join(process.cwd(), 'src', 'components', 'CookieConsentModal.tsx');
-  const middlewarePath = path.join(process.cwd(), 'src', 'middleware.ts');
+  const proxyPath = path.join(process.cwd(), 'src', 'proxy.ts');
 
   await t.test('Terms page exists', async () => {
     const termsContent = await fs.readFile(termsPagePath, 'utf-8');
@@ -27,9 +27,11 @@ test('Legal Pages exist and have correct routing', async (t) => {
     assert.equal(modalContent.includes('href="/privacy"'), true, 'Missing /privacy link in modal');
   });
 
-  await t.test('Frontend middleware keeps legal pages public', async () => {
-    const middlewareContent = await fs.readFile(middlewarePath, 'utf-8');
-    assert.equal(middlewareContent.includes("'/terms'"), true, 'Missing /terms from essential public paths');
-    assert.equal(middlewareContent.includes("'/privacy'"), true, 'Missing /privacy from essential public paths');
+  await t.test('Frontend proxy keeps legal pages public', async () => {
+    const proxyContent = await fs.readFile(proxyPath, 'utf-8');
+    assert.equal(proxyContent.includes("'/terms'"), true, 'Missing /terms from essential public paths');
+    assert.equal(proxyContent.includes("'/privacy'"), true, 'Missing /privacy from essential public paths');
+    assert.equal(proxyContent.includes("'/forgot-password'"), true, 'Missing /forgot-password from essential public paths');
+    assert.equal(proxyContent.includes("'/reset-password'"), true, 'Missing /reset-password from essential public paths');
   });
 });

@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test --test-isolation=none tests/*.test.mjs",
-    "test:lint": "node --test --test-isolation=none tests/lint.test.mjs"
+    "test:lint": "node --test --test-isolation=none tests/lint.test.mjs",
+    "test:e2e": "playwright test --config=playwright.config.ts"
   },
   "dependencies": {
     "@myndbbs/shared": "workspace:*",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@playwright/test": "^1.55.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

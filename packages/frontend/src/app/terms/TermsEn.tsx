@@ -6,10 +6,10 @@ export const TermsEn = () => (
     <p><strong>Effective Date:</strong> {new Date().toLocaleDateString('en-US')}</p>
     
     <h2>1. Acceptance of Terms</h2>
-    <p>By accessing or using MyndBBS (the "Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.</p>
+    <p>By accessing or using MyndBBS (the &quot;Service&quot;), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.</p>
 
     <h2>2. Eligibility and Age Requirements</h2>
-    <p>You must be at least 16 years of age to use the Service (or the minimum age required by the laws of your country, such as 14 years old under China's PIPL with parental consent). If you are under the required age, you may only use the Service with the involvement and consent of a parent or guardian.</p>
+    <p>You must be at least 16 years of age to use the Service (or the minimum age required by the laws of your country, such as 14 years old under China&apos;s PIPL with parental consent). If you are under the required age, you may only use the Service with the involvement and consent of a parent or guardian.</p>
 
     <h2>3. User Accounts</h2>
     <p>You are responsible for maintaining the confidentiality of your account credentials (including passkeys and passwords) and for all activities that occur under your account. You agree to notify us immediately of any unauthorized use of your account.</p>
@@ -30,7 +30,7 @@ export const TermsEn = () => (
     <p>We reserve the right to suspend or terminate your account at our sole discretion, without notice, for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties, or for any other reason.</p>
 
     <h2>7. Disclaimers and Limitation of Liability</h2>
-    <p>The Service is provided "AS IS" and "AS AVAILABLE" without warranties of any kind. To the fullest extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or relating to your use of the Service.</p>
+    <p>The Service is provided &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; without warranties of any kind. To the fullest extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or relating to your use of the Service.</p>
 
     <h2>8. Governing Law</h2>
     <p>These terms shall be governed by and construed in accordance with the applicable laws of the jurisdiction in which the Service operates, without regard to its conflict of law provisions.</p>

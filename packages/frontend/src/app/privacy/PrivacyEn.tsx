@@ -5,7 +5,7 @@ export const PrivacyEn = () => (
     <h1>Privacy Policy</h1>
     <p><strong>Effective Date:</strong> {new Date().toLocaleDateString('en-US')}</p>
 
-    <p>This Privacy Policy explains how MyndBBS ("we", "our", or "us") collects, uses, shares, and protects your personal information. We are committed to complying with applicable data protection laws, including the European Union's General Data Protection Regulation (GDPR) and the Personal Information Protection Law of the People's Republic of China (PIPL).</p>
+    <p>This Privacy Policy explains how MyndBBS (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) collects, uses, shares, and protects your personal information. We are committed to complying with applicable data protection laws, including the European Union&apos;s General Data Protection Regulation (GDPR) and the Personal Information Protection Law of the People&apos;s Republic of China (PIPL).</p>
 
     <h2>1. Information We Collect</h2>
     <p>We may collect the following types of information when you use our Service:</p>

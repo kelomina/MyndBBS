@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Fingerprint, Smartphone, Trash2 } from 'lucide-react';
 import { usePasskey } from '../lib/hooks/usePasskey';
 import { TwoFactorSetup } from './TwoFactorSetup';
@@ -20,11 +20,7 @@ export function SecuritySettings() {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const { executePasskeyFlow, passkeyError, setPasskeyError } = usePasskey();
 
-  useEffect(() => {
-    fetchSecurityData();
-  }, []);
-
-      const fetchSecurityData = async () => {
+  const fetchSecurityData = useCallback(async (): Promise<void> => {
     try {
       const [profileRes, passkeysRes] = await Promise.all([
         fetch('/api/v1/user/profile', { credentials: 'include' }),
@@ -45,7 +41,17 @@ export function SecuritySettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      void fetchSecurityData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [fetchSecurityData]);
 
       const executeWithSudo = async (action: () => void) => {
     try {

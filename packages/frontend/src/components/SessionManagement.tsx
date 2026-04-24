@@ -28,7 +28,13 @@ export function SessionManagement() {
   }, [dict]);
 
   useEffect(() => {
-    void fetchSessions();
+    const timerId = window.setTimeout(() => {
+      void fetchSessions();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
   }, [fetchSessions]);
 
       const handleRevoke = async (id: string) => {
@@ -43,13 +49,13 @@ export function SessionManagement() {
         credentials: 'include'
       });
       if (res.ok) {
-        setSessions(sessions.filter(s => s.id !== id));
+        setSessions((currentSessions) => currentSessions.filter((session) => session.id !== id));
         setMessage(dict.settings.sessionRevoked);
       } else {
         throw new Error(dict.settings.failedRevokeSession);
       }
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : dict.settings.failedRevokeSession);
     }
   };
 

@@ -39,7 +39,13 @@ export function ProfileSettings() {
   }, [dict]);
 
   useEffect(() => {
-    void fetchProfile();
+    const timerId = window.setTimeout(() => {
+      void fetchProfile();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
   }, [fetchProfile]);
 
       const executeUpdate = async (updateData: { email?: string; username?: string; password?: string }) => {

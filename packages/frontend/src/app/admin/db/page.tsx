@@ -1,6 +1,6 @@
 'use client';
 import { useTranslation } from '../../../components/TranslationProvider';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { getDbConfig, updateDbConfig } from '../../../lib/api/admin';
 
@@ -18,7 +18,7 @@ export default function DatabaseConfigPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-      const loadData = async () => {
+  const loadData = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       const data = await getDbConfig();
@@ -29,11 +29,17 @@ export default function DatabaseConfigPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const timerId = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [loadData]);
 
       const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

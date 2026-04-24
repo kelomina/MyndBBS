@@ -137,7 +137,9 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
               <label className="ml-2 block text-sm text-muted">{dict.auth.rememberMe}</label>
             </div>
             <div className="text-sm">
-              <a href="#" className="font-medium text-primary hover:text-primary/80">{dict.auth.forgotPassword}</a>
+              <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80">
+                {dict.auth.forgotPassword}
+              </Link>
             </div>
           </div>
 

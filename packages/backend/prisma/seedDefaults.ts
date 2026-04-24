@@ -35,6 +35,20 @@ export const DEFAULT_ROUTE_WHITELIST_ROUTES: ReadonlyArray<RouteWhitelistSeedRec
     minRole: null,
     description: 'Public privacy policy page',
   },
+  {
+    id: '00000000-0000-0000-0000-000000000003',
+    path: '/forgot-password',
+    isPrefix: false,
+    minRole: null,
+    description: 'Public password reset request page',
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000004',
+    path: '/reset-password',
+    isPrefix: false,
+    minRole: null,
+    description: 'Public password reset completion page',
+  },
 ];
 
 /**

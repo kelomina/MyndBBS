@@ -56,7 +56,13 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
   }, [apiUrl, resetUI, dict.captcha.networkError]);
 
   useEffect(() => {
-    fetchChallenge();
+    const timerId = window.setTimeout(() => {
+      void fetchChallenge();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
   }, [fetchChallenge]);
 
       const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {

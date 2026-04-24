@@ -15,6 +15,8 @@ import { PrismaSessionRepository } from './infrastructure/repositories/PrismaSes
 import { PrismaAuthChallengeRepository } from './infrastructure/repositories/PrismaAuthChallengeRepository';
 import { PrismaRoleRepository } from './infrastructure/repositories/PrismaRoleRepository';
 import { PrismaRouteWhitelistRepository } from './infrastructure/repositories/PrismaRouteWhitelistRepository';
+import { RedisEmailRegistrationTicketRepository } from './infrastructure/repositories/RedisEmailRegistrationTicketRepository';
+import { RedisPasswordResetTicketRepository } from './infrastructure/repositories/RedisPasswordResetTicketRepository';
 import { InMemoryInstallationSessionRepository } from './infrastructure/repositories/InMemoryInstallationSessionRepository';
 import { PrismaCategoryRepository } from './infrastructure/repositories/PrismaCategoryRepository';
 import { PrismaPostRepository } from './infrastructure/repositories/PrismaPostRepository';
@@ -48,6 +50,7 @@ import { RedisAbilityCache } from './infrastructure/services/RedisAbilityCache';
 import { RoleHierarchyPolicy } from './application/identity/policies/RoleHierarchyPolicy';
 import { TotpAdapter } from './infrastructure/services/identity/TotpAdapter';
 import { PasskeyAdapter } from './infrastructure/services/identity/PasskeyAdapter';
+import { SmtpEmailSender } from './infrastructure/services/identity/SmtpEmailSender';
 import { TokenAdapter } from './infrastructure/services/identity/TokenAdapter';
 import { LocalFileStorageAdapter } from './infrastructure/services/system/LocalFileStorageAdapter';
 
@@ -57,6 +60,7 @@ export const authCache = new RedisSessionCache();
 const totpAdapter = new TotpAdapter();
 const passkeyAdapter = new PasskeyAdapter();
 const tokenAdapter = new TokenAdapter();
+const smtpEmailSender = new SmtpEmailSender();
 const localFileStorageAdapter = new LocalFileStorageAdapter();
 
 export const abilityCacheInvalidationHandler = new AbilityCacheInvalidationHandler(
@@ -111,11 +115,14 @@ export const authApplicationService = new AuthApplicationService(
   new PrismaAuthChallengeRepository(),
   new PrismaUserRepository(),
   new PrismaRoleRepository(),
+  new RedisEmailRegistrationTicketRepository(),
+  new RedisPasswordResetTicketRepository(),
   new Argon2PasswordHasher(),
   authCache,
   totpAdapter,
   passkeyAdapter,
   tokenAdapter,
+  smtpEmailSender,
   unitOfWork
 );
 

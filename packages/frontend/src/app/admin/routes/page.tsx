@@ -1,7 +1,7 @@
 'use client';
 import { useToast } from '../../../components/ui/Toast';
 import { useTranslation } from '../../../components/TranslationProvider';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -35,7 +35,7 @@ export default function RoutingWhitelistPage() {
   const [formData, setFormData] = useState<{path: string, isPrefix: boolean, minRole: string, description: string}>({ path: '', isPrefix: false, minRole: '', description: '' });
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-      const loadData = async () => {
+  const loadData = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       const data = await getRouteWhitelist();
@@ -45,11 +45,17 @@ export default function RoutingWhitelistPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const timerId = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [loadData]);
 
       const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
