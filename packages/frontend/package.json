@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/clean-next-dev-cache.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
