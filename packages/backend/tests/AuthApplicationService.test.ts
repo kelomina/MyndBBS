@@ -128,6 +128,36 @@ describe('AuthApplicationService', () => {
       expect(emailRegistrationTicketRepository.save).toHaveBeenCalledTimes(1);
       expect(emailSender.sendEmail).toHaveBeenCalledTimes(1);
     });
+
+    it('should delete the pending registration ticket when verification email delivery fails', async () => {
+      service.consumeCaptcha = jest.fn().mockResolvedValue(true);
+      userRepository.findByEmail.mockResolvedValue(null);
+      userRepository.findByUsername.mockResolvedValue(null);
+      emailRegistrationTicketRepository.findByEmail.mockResolvedValue(null);
+      emailRegistrationTicketRepository.findByUsername.mockResolvedValue(null);
+      emailSender.sendEmail.mockRejectedValue(new Error('ERR_EMAIL_DELIVERY_FAILED'));
+
+      await expect(service.registerUser('User@Test.com', 'demo-user', 'Aa!12345', 'captcha-1'))
+        .rejects.toThrow('ERR_EMAIL_DELIVERY_FAILED');
+
+      const savedTicket = emailRegistrationTicketRepository.save.mock.calls[0][0];
+      expect(emailRegistrationTicketRepository.delete).toHaveBeenCalledWith(savedTicket.id);
+    });
+
+    it('should not send registration email when pending ticket persistence fails', async () => {
+      service.consumeCaptcha = jest.fn().mockResolvedValue(true);
+      userRepository.findByEmail.mockResolvedValue(null);
+      userRepository.findByUsername.mockResolvedValue(null);
+      emailRegistrationTicketRepository.findByEmail.mockResolvedValue(null);
+      emailRegistrationTicketRepository.findByUsername.mockResolvedValue(null);
+      emailRegistrationTicketRepository.save.mockRejectedValue(new Error('REDIS_UNAVAILABLE'));
+
+      await expect(service.registerUser('User@Test.com', 'demo-user', 'Aa!12345', 'captcha-1'))
+        .rejects.toThrow('REDIS_UNAVAILABLE');
+
+      expect(emailSender.sendEmail).not.toHaveBeenCalled();
+      expect(emailRegistrationTicketRepository.delete).not.toHaveBeenCalled();
+    });
   });
 
   describe('verifyEmailRegistration', () => {
@@ -193,6 +223,40 @@ describe('AuthApplicationService', () => {
       expect(result.email).toBe('user@example.com');
       expect(passwordResetTicketRepository.save).toHaveBeenCalledTimes(1);
       expect(emailSender.sendEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should delete the reset ticket when reset email delivery fails', async () => {
+      userRepository.findByEmail.mockResolvedValue({
+        id: 'user-1',
+        email: 'user@example.com',
+        username: 'demo-user'
+      });
+      passwordResetTicketRepository.findByUserId.mockResolvedValue(null);
+      passwordResetTicketRepository.findByEmail.mockResolvedValue(null);
+      emailSender.sendEmail.mockRejectedValue(new Error('ERR_EMAIL_DELIVERY_FAILED'));
+
+      await expect(service.requestPasswordReset('user@example.com'))
+        .rejects.toThrow('ERR_EMAIL_DELIVERY_FAILED');
+
+      const savedTicket = passwordResetTicketRepository.save.mock.calls[0][0];
+      expect(passwordResetTicketRepository.delete).toHaveBeenCalledWith(savedTicket.id);
+    });
+
+    it('should not send reset email when reset ticket persistence fails', async () => {
+      userRepository.findByEmail.mockResolvedValue({
+        id: 'user-1',
+        email: 'user@example.com',
+        username: 'demo-user'
+      });
+      passwordResetTicketRepository.findByUserId.mockResolvedValue(null);
+      passwordResetTicketRepository.findByEmail.mockResolvedValue(null);
+      passwordResetTicketRepository.save.mockRejectedValue(new Error('REDIS_UNAVAILABLE'));
+
+      await expect(service.requestPasswordReset('user@example.com'))
+        .rejects.toThrow('REDIS_UNAVAILABLE');
+
+      expect(emailSender.sendEmail).not.toHaveBeenCalled();
+      expect(passwordResetTicketRepository.delete).not.toHaveBeenCalled();
     });
   });
 
