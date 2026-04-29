@@ -52,7 +52,10 @@ export function ProfileSettings() {
       setSaving(true);
       const res = await fetch('/api/v1/user/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
         credentials: 'include',
         body: JSON.stringify(updateData)
       });

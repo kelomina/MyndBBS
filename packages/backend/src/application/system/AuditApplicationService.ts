@@ -83,4 +83,15 @@ export class AuditApplicationService {
   }): Promise<{ items: AuditLog[]; total: number }> {
     return this.auditLogRepository.findMany(params);
   }
+
+  /**
+   * Deletes audit logs older than the specified number of days.
+   * @param retentionDays Keep logs from the last N days, delete older entries.
+   * @returns Number of deleted records.
+   */
+  public async cleanupOldLogs(retentionDays: number = 90): Promise<number> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - retentionDays);
+    return this.auditLogRepository.deleteOlderThan(cutoff);
+  }
 }

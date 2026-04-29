@@ -84,9 +84,15 @@ export function defineAbilityForContext(context?: AccessContextDTO, extraRules?:
       // Make sure subjectName is passed as string
       const finalSubjectName = subjectName ? subjectName.toString() : 'all';
 
-      const parsedConditions = typeof (rule as any).conditions === 'string' 
-        ? JSON.parse((rule as any).conditions) 
-        : (rule as any).conditions;
+      let parsedConditions = (rule as any).conditions;
+      if (typeof (rule as any).conditions === 'string') {
+        try {
+          parsedConditions = JSON.parse((rule as any).conditions);
+        } catch {
+          console.error('Failed to parse CASL conditions JSON:', (rule as any).conditions);
+          continue;
+        }
+      }
 
       if (parsedConditions) {
         can(actionName as Action, finalSubjectName as any, parsedConditions);

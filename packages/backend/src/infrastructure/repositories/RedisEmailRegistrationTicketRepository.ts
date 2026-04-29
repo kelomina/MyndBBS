@@ -113,8 +113,28 @@ export class RedisEmailRegistrationTicketRepository implements IEmailRegistratio
       return null;
     }
 
-    const parsedRecord = JSON.parse(serializedRecord) as StoredEmailRegistrationTicketRecord;
-    return this.toDomain(parsedRecord);
+    let parsedRecord: unknown;
+    try {
+      parsedRecord = JSON.parse(serializedRecord);
+    } catch {
+      return null;
+    }
+
+    if (
+      typeof parsedRecord !== 'object' ||
+      parsedRecord === null ||
+      !('id' in parsedRecord) ||
+      !('email' in parsedRecord) ||
+      !('username' in parsedRecord) ||
+      !('passwordHash' in parsedRecord) ||
+      !('verificationToken' in parsedRecord) ||
+      !('expiresAt' in parsedRecord) ||
+      !('createdAt' in parsedRecord)
+    ) {
+      return null;
+    }
+
+    return this.toDomain(parsedRecord as StoredEmailRegistrationTicketRecord);
   }
 
   /**

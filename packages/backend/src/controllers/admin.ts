@@ -431,7 +431,7 @@ export const updateDbConfig = async (req: AuthRequest, res: Response): Promise<v
 
   try {
     await installationApplicationService.updateDbConfig(host, port, username, password, database, req.user?.role, operatorId);
-    res.json({ message: 'Database configuration updated successfully', config: { host, port, username, password, database } });
+    res.json({ message: 'Database configuration updated successfully', config: { host, port, username, database } });
   } catch (err: any) {
     if (err.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
       res.status(403).json({ error: err.message });

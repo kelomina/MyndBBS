@@ -124,6 +124,12 @@ export const resendEmailRegistration = async (req: Request, res: Response): Prom
       registrationRequest = await authApplicationService.resendEmailRegistration(email);
     } catch (error: unknown) {
       if (error instanceof Error && error.message.startsWith('ERR_')) {
+        if (error.message === 'ERR_EMAIL_REGISTRATION_NOT_FOUND') {
+          // Return generic accepted response to prevent user enumeration
+          const message = req.t ? req.t('EMAIL_REGISTRATION_VERIFICATION_RESENT', 'Verification email resent. Please check your inbox.') : 'Verification email resent. Please check your inbox.';
+          res.status(202).json({ message, email });
+          return;
+        }
         const statusCode = getEmailFlowErrorStatusCode(error.message);
         res.status(statusCode).json({ error: error.message });
         return;
@@ -240,7 +246,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     if (authResult.requires2FA && authResult.tempToken) {
       res.cookie('tempToken', authResult.tempToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production' && req.secure,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 1000 // 1 hour
       });
@@ -299,7 +305,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production' && req.secure,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 15 * 60 * 1000 // 15 minutes
       });

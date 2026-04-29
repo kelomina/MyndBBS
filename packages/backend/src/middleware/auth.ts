@@ -29,7 +29,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
   }
   
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ['HS256'] }) as any;
     
     // Check session validity using Redis cache
     if (decoded.sessionId) {
@@ -70,7 +70,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
           
           res.cookie('accessToken', newAccessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production' && req.secure,
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 15 * 60 * 1000 // 15 minutes
           });
@@ -125,7 +125,7 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string, { algorithms: ['HS256'] }) as any;
     req.user = { userId: decoded.userId, role: decoded.role, sessionId: decoded.sessionId };
 
     const rulesDTO = await accessControlQueryService.getAbilityRulesForUser(decoded.userId);

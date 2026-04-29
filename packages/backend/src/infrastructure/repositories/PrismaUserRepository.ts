@@ -1,6 +1,7 @@
 import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { User, UserProps } from '../../domain/identity/User';
 import { prisma } from '../../db';
+import { TotpEncryptionService } from '../services/identity/TotpEncryptionService';
 
 /**
  * Callers: [UserApplicationService.constructor]
@@ -9,13 +10,19 @@ import { prisma } from '../../db';
  * Keywords: prisma, user, repository, implementation, infrastructure
  */
 export class PrismaUserRepository implements IUserRepository {
+  constructor(private totpEncryptionService?: TotpEncryptionService) {}
+
   /**
    * Callers: [findById, findByEmail, findByUsername]
    * Callees: [User.create]
-   * Description: Maps a raw Prisma user row to the User Domain Aggregate Root.
+   * Description: Maps a raw Prisma user row to the User Domain Aggregate Root, decrypting totpSecret if encrypted.
    * Keywords: mapper, domain, prisma, convert, user
    */
   private toDomain(raw: any): User {
+    const decryptedTotp = this.totpEncryptionService
+      ? this.totpEncryptionService.decrypt(raw.totpSecret)
+      : raw.totpSecret;
+
     const props: UserProps = {
       id: raw.id,
       email: raw.email,
@@ -25,7 +32,7 @@ export class PrismaUserRepository implements IUserRepository {
       status: raw.status,
       level: raw.level,
       isPasskeyMandatory: raw.isPasskeyMandatory,
-      totpSecret: raw.totpSecret,
+      totpSecret: decryptedTotp,
       isTotpEnabled: raw.isTotpEnabled,
       cookiePreferences: raw.cookiePreferences,
       createdAt: raw.createdAt,
@@ -57,6 +64,10 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   public async save(user: User): Promise<void> {
+    const encryptedTotp = this.totpEncryptionService && user.totpSecret
+      ? this.totpEncryptionService.encrypt(user.totpSecret)
+      : user.totpSecret;
+
     await prisma.user.upsert({
       where: { id: user.id },
       create: {
@@ -68,7 +79,7 @@ export class PrismaUserRepository implements IUserRepository {
         status: user.status as any,
         level: user.level,
         isPasskeyMandatory: user.isPasskeyMandatory,
-        totpSecret: user.totpSecret,
+        totpSecret: encryptedTotp,
         isTotpEnabled: user.isTotpEnabled,
         cookiePreferences: user.cookiePreferences ? (user.cookiePreferences as any) : null,
         createdAt: user.createdAt,
@@ -81,7 +92,7 @@ export class PrismaUserRepository implements IUserRepository {
         status: user.status as any,
         level: user.level,
         isPasskeyMandatory: user.isPasskeyMandatory,
-        totpSecret: user.totpSecret,
+        totpSecret: encryptedTotp,
         isTotpEnabled: user.isTotpEnabled,
         cookiePreferences: user.cookiePreferences ? (user.cookiePreferences as any) : null,
       },

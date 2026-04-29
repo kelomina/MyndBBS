@@ -1,7 +1,10 @@
 import { redis } from '../../lib/redis';
 import { ISessionCache } from '../../application/identity/ports/ISessionCache';
+import { TotpEncryptionService } from './identity/TotpEncryptionService';
 
 export class RedisSessionCache implements ISessionCache {
+  constructor(private totpEncryptionService?: TotpEncryptionService) {}
+
   public async revokeSession(sessionId: string): Promise<void> {
     await redis.del(`session:${sessionId}`);
   }
@@ -29,11 +32,19 @@ export class RedisSessionCache implements ISessionCache {
   }
 
   public async storeTotpSecret(userId: string, secret: string, ttlSeconds: number): Promise<void> {
-    await redis.set(`totp_setup:${userId}`, secret, 'EX', ttlSeconds);
+    const encrypted = this.totpEncryptionService
+      ? this.totpEncryptionService.encrypt(secret)
+      : secret;
+    await redis.set(`totp_setup:${userId}`, encrypted, 'EX', ttlSeconds);
   }
 
   public async getTotpSecret(userId: string): Promise<string | null> {
-    return await redis.get(`totp_setup:${userId}`);
+    const raw = await redis.get(`totp_setup:${userId}`);
+    if (!raw) return null;
+    if (this.totpEncryptionService && this.totpEncryptionService.isEncrypted(raw)) {
+      return this.totpEncryptionService.decrypt(raw);
+    }
+    return raw;
   }
 
   public async removeTotpSecret(userId: string): Promise<void> {

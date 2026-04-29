@@ -88,6 +88,11 @@ if (!isInstalled) {
   app.use('/api', (req, res, next) => {
     const safeMethods = ['GET', 'HEAD', 'OPTIONS', 'TRACE'];
     if (!safeMethods.includes(req.method)) {
+      const origin = req.headers.origin;
+      if (origin && !allowedOrigins.includes(origin)) {
+        return res.status(403).json({ error: 'ERR_CSRF_ORIGIN_MISMATCH' });
+      }
+
       const requestedWith = req.headers['x-requested-with'];
       if (requestedWith !== 'XMLHttpRequest') {
         return res.status(403).json({ error: 'ERR_CSRF_TOKEN_MISSING_OR_INVALID' });
@@ -108,6 +113,7 @@ if (!isInstalled) {
   });
 
   const authRoutes = require('./routes/auth').default;
+  const publicRoutes = require('./routes/public').default;
   const userRoutes = require('./routes/user').default;
   const adminRoutes = require('./routes/admin').default;
   const postRoutes = require('./routes/post').default;
@@ -122,6 +128,7 @@ if (!isInstalled) {
   bootstrapDomainSubscribers();
 
   app.use('/api/v1/auth', authRoutes);
+  app.use('/api/public', publicRoutes);
   app.use('/api/v1/user', userRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/posts', postRoutes);
