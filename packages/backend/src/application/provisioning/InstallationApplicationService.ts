@@ -171,7 +171,7 @@ export class InstallationApplicationService {
   public generateTempToken(userId: string): string {
     return jwt.sign(
       { userId, type: 'registration' },
-      process.env.JWT_SECRET as string,
+      process.env.TEMP_TOKEN_SECRET || (process.env.JWT_SECRET as string),
       { expiresIn: '1h' }
     );
   }

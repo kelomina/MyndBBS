@@ -9,6 +9,7 @@ import Link from "next/link";
 import { getCategoryTranslation } from '../../../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,7 +86,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
             </h1>
             
             <div className="prose dark:prose-invert max-w-none text-foreground">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
                 {post.content?.replace(/\\n/g, '\n')}
               </ReactMarkdown>
             </div>

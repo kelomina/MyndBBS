@@ -22,6 +22,14 @@ import {
 } from '../controllers/register';
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
 import { optionalAuth } from '../middleware/auth';
+import { validate } from '../middleware/validation';
+import {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+} from '../lib/validation/schemas';
 
 const router: Router = Router();
 
@@ -67,6 +75,15 @@ const strict2FALimiter = rateLimit({
   message: { error: 'ERR_TOO_MANY_FAILED_2FA_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
 });
 
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10, // Moderate limit for refresh
+  skipSuccessfulRequests: true,
+  keyGenerator: getClientIp,
+  validate: { ip: false, xForwardedForHeader: false },
+  message: { error: 'ERR_TOO_MANY_REFRESH_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
+});
+
 router.use(authLimiter);
 
 // Captcha
@@ -74,14 +91,14 @@ router.get('/captcha', generateCaptcha);
 router.post('/captcha/verify', verifyCaptcha);
 
 // Auth
-router.post('/register', registerLimiter, registerUser);
+router.post('/register', registerLimiter, validate(registerSchema), registerUser);
 router.post('/register/resend-email', registerLimiter, resendEmailRegistration);
-router.post('/register/verify-email', strict2FALimiter, verifyEmailRegistration);
-router.post('/password/forgot', registerLimiter, requestPasswordReset);
-router.post('/password/reset', strict2FALimiter, resetPasswordWithToken);
-router.post('/login', loginLimiter, loginUser);
+router.post('/register/verify-email', strict2FALimiter, validate(verifyEmailSchema), verifyEmailRegistration);
+router.post('/password/forgot', registerLimiter, validate(forgotPasswordSchema), requestPasswordReset);
+router.post('/password/reset', strict2FALimiter, validate(resetPasswordSchema), resetPasswordWithToken);
+router.post('/login', loginLimiter, validate(loginSchema), loginUser);
 router.post('/logout', logoutUser);
-router.post('/refresh', refreshToken); // Uses general authLimiter from router.use()
+router.post('/refresh', refreshLimiter, refreshToken);
 router.post('/totp/generate', generateTotp);
 router.post('/totp/verify', strict2FALimiter, verifyTotpRegistration);
 router.get('/passkey/generate-registration-options', generatePasskeyRegistrationOptions);

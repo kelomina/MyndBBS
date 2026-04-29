@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { defaultLocale, locales } from './i18n/config';
-import { getAccessRedirectPath, sortWhitelist, matchRoute } from './lib/routingGuard';
+import { sortWhitelist, matchRoute } from './lib/routingGuard';
 
 const isDev = process.env.NODE_ENV !== 'production';
 const ESSENTIAL_PUBLIC_PATHS = new Set([
@@ -40,6 +40,7 @@ function buildCsp(nonce: string | null): string {
     `default-src 'self'`,
     scriptSrc,
     `style-src 'self' 'unsafe-inline'`,
+    `style-src-attr 'self'`,
     `img-src 'self' blob: data:`,
     `font-src 'self' data:`,
     connectSrc,
@@ -108,13 +109,6 @@ type WhitelistRoute = { path: string; isPrefix: boolean; minRole?: string | null
 let cachedWhitelist: WhitelistRoute[] | null = null;
 let lastFetchTime = 0;
 
-const ROLE_LEVELS: Record<string, number> = {
-  USER: 1,
-  MODERATOR: 2,
-  ADMIN: 3,
-  SUPER_ADMIN: 4,
-};
-
 async function getWhitelist(): Promise<WhitelistRoute[]> {
   const now = Date.now();
   if (cachedWhitelist && now - lastFetchTime < 30000) {
@@ -122,7 +116,7 @@ async function getWhitelist(): Promise<WhitelistRoute[]> {
   }
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
-    const res = await fetch(`${apiUrl}/api/admin/routing-whitelist`, {
+    const res = await fetch(`${apiUrl}/api/public/routing-whitelist`, {
       next: { revalidate: 30 },
     });
     if (res.ok) {
@@ -169,40 +163,20 @@ export async function proxy(request: NextRequest) {
   const whitelist = (await getWhitelist()) || [];
   const matchedRoute = matchRoute(pathname, whitelist);
 
-  let requiredRoleLevel = 4;
+  let routeProtected = true;
 
   if (matchedRoute) {
     if (!matchedRoute.minRole) {
-      requiredRoleLevel = 0;
-    } else {
-      requiredRoleLevel = ROLE_LEVELS[matchedRoute.minRole] || 4;
+      routeProtected = false;
     }
   }
 
-  if (requiredRoleLevel > 0) {
-    const token = request.cookies.get('accessToken')?.value;
-    let userRoleLevel = 0;
+  if (routeProtected) {
+    const hasToken = !!request.cookies.get('accessToken')?.value;
 
-    if (token) {
-      try {
-        const payload = token.split('.')[1];
-        let b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-        while (b64.length % 4) {
-          b64 += '=';
-        }
-        const decoded = atob(b64);
-        const parsed = JSON.parse(decoded) as { role?: string };
-
-        userRoleLevel = parsed.role ? ROLE_LEVELS[parsed.role] || 0 : 0;
-      } catch {
-        userRoleLevel = 0;
-      }
-    }
-
-    const redirectPath = getAccessRedirectPath(requiredRoleLevel, userRoleLevel);
-    if (redirectPath) {
+    if (!hasToken) {
       const url = request.nextUrl.clone();
-      url.pathname = redirectPath;
+      url.pathname = '/login';
 
       const redirectResponse = NextResponse.redirect(url);
       if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {

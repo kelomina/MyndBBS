@@ -13,9 +13,15 @@ describe('AuditLog Controller - getAuditLogs', () => {
   let req: Partial<AuthRequest>;
   let res: Partial<Response>;
 
+  const createAbility = (canManageAll: boolean) => ({
+    can: jest.fn().mockReturnValue(canManageAll),
+    rules: [],
+  });
+
   beforeEach(() => {
     req = {
-      user: { userId: 'superadmin1', role: 'SUPER_ADMIN', sessionId: 'session1', username: 'admin', level: 6 },
+      user: { userId: 'superadmin1', role: 'SUPER_ADMIN', sessionId: 'session1' },
+      ability: createAbility(true) as any,
       query: {},
     };
     res = {
@@ -27,6 +33,7 @@ describe('AuditLog Controller - getAuditLogs', () => {
 
   it('should return 403 if user is not SUPER_ADMIN', async () => {
     req.user!.role = 'ADMIN';
+    req.ability = createAbility(false) as any;
 
     await getAuditLogs(req as AuthRequest, res as Response);
 

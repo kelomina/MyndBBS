@@ -113,8 +113,28 @@ export class RedisPasswordResetTicketRepository implements IPasswordResetTicketR
       return null;
     }
 
-    const parsedRecord = JSON.parse(serializedRecord) as StoredPasswordResetTicketRecord;
-    return this.toDomain(parsedRecord);
+    let parsedRecord: unknown;
+    try {
+      parsedRecord = JSON.parse(serializedRecord);
+    } catch {
+      return null;
+    }
+
+    if (
+      typeof parsedRecord !== 'object' ||
+      parsedRecord === null ||
+      !('id' in parsedRecord) ||
+      !('userId' in parsedRecord) ||
+      !('email' in parsedRecord) ||
+      !('username' in parsedRecord) ||
+      !('resetToken' in parsedRecord) ||
+      !('expiresAt' in parsedRecord) ||
+      !('createdAt' in parsedRecord)
+    ) {
+      return null;
+    }
+
+    return this.toDomain(parsedRecord as StoredPasswordResetTicketRecord);
   }
 
   /**

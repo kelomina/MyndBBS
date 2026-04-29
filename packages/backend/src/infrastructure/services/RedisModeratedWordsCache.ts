@@ -9,7 +9,24 @@ export class RedisModeratedWordsCache implements IModeratedWordsCache {
 
   public async getModerationWords(): Promise<{ global: string[], category: Record<string, string[]> }> {
     const cached = await redis.get(MODERATION_CACHE_KEY);
-    if (cached) return JSON.parse(cached);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          'global' in parsed &&
+          Array.isArray(parsed.global) &&
+          'category' in parsed &&
+          typeof parsed.category === 'object' &&
+          parsed.category !== null
+        ) {
+          return parsed as { global: string[]; category: Record<string, string[]> };
+        }
+      } catch {
+        // Cache miss on malformed data
+      }
+    }
 
     const words = await this.moderatedWordRepository.findAll();
     const global: string[] = [];

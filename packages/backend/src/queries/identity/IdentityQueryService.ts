@@ -2,6 +2,7 @@ import { prisma } from '../../db';
 import { rulesToPrisma } from '../../lib/rulesToPrisma';
 import type { AppAbility } from '../../lib/casl';
 import { UserProfileDTO, BookmarkDTO, PasskeySummaryDTO, UserForLoginDTO, UserWithRoleDTO, SessionDTO, PublicProfileDTO, PasskeyOptionDTO, PasskeyDTO, UserDTO } from './dto';
+import { TotpEncryptionService } from '../../infrastructure/services/identity/TotpEncryptionService';
 
 /**
  * Callers: [userController, registerController, authController, sudoController]
@@ -10,6 +11,15 @@ import { UserProfileDTO, BookmarkDTO, PasskeySummaryDTO, UserForLoginDTO, UserWi
  * Keywords: query, service, identity, users, sessions, passkeys, bookmarks
  */
 export class IdentityQueryService {
+  constructor(private totpEncryptionService?: TotpEncryptionService) {}
+
+  private decryptTotp(rawSecret: string | null): string | null {
+    if (!rawSecret) return null;
+    if (this.totpEncryptionService && this.totpEncryptionService.isEncrypted(rawSecret)) {
+      return this.totpEncryptionService.decrypt(rawSecret);
+    }
+    return rawSecret;
+  }
   /**
    * Callers: [userController.getProfile]
    * Callees: [prisma.user.findUnique]
@@ -132,7 +142,7 @@ export class IdentityQueryService {
       level: user.level,
       roleId: user.roleId,
       isTotpEnabled: user.isTotpEnabled,
-      totpSecret: user.totpSecret,
+      totpSecret: this.decryptTotp(user.totpSecret),
       isPasskeyMandatory: user.isPasskeyMandatory,
       cookiePreferences: user.cookiePreferences,
       createdAt: user.createdAt,
@@ -168,7 +178,7 @@ export class IdentityQueryService {
       level: user.level,
       roleId: user.roleId,
       isTotpEnabled: user.isTotpEnabled,
-      totpSecret: user.totpSecret,
+      totpSecret: this.decryptTotp(user.totpSecret),
       isPasskeyMandatory: user.isPasskeyMandatory,
       cookiePreferences: user.cookiePreferences,
       createdAt: user.createdAt,
@@ -268,7 +278,7 @@ export class IdentityQueryService {
       level: user.level,
       roleId: user.roleId,
       isTotpEnabled: user.isTotpEnabled,
-      totpSecret: user.totpSecret,
+      totpSecret: this.decryptTotp(user.totpSecret),
       isPasskeyMandatory: user.isPasskeyMandatory,
       cookiePreferences: user.cookiePreferences,
       createdAt: user.createdAt,
@@ -329,7 +339,7 @@ export class IdentityQueryService {
       level: user.level,
       roleId: user.roleId,
       isTotpEnabled: user.isTotpEnabled,
-      totpSecret: user.totpSecret,
+      totpSecret: this.decryptTotp(user.totpSecret),
       isPasskeyMandatory: user.isPasskeyMandatory,
       cookiePreferences: user.cookiePreferences,
       createdAt: user.createdAt,
@@ -338,4 +348,4 @@ export class IdentityQueryService {
   }
 }
 
-export const identityQueryService = new IdentityQueryService();
+export const identityQueryService = new IdentityQueryService(new TotpEncryptionService());

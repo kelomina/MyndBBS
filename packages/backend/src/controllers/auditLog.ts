@@ -87,7 +87,7 @@ function readOptionalAuditFilter(rawValue: unknown): string | undefined {
 export const getAuditLogs = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     // Only SUPER_ADMIN can query audit logs
-    if (req.user?.role !== 'SUPER_ADMIN') {
+    if (!req.ability?.can('manage', 'all')) {
       res.status(403).json({ error: 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY' });
       return;
     }

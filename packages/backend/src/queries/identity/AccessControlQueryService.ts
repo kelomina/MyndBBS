@@ -23,7 +23,16 @@ export class AccessControlQueryService {
 
     if (cached) {
       try {
-        return JSON.parse(cached) as AbilityRulesDTO;
+        const parsed = JSON.parse(cached);
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          'context' in parsed &&
+          'rules' in parsed &&
+          Array.isArray(parsed.rules)
+        ) {
+          return parsed as AbilityRulesDTO;
+        }
       } catch (err) {
         // Fallback to db query if JSON is malformed
       }

@@ -49,13 +49,16 @@ import { RedisSessionCache } from './infrastructure/services/RedisSessionCache';
 import { RedisAbilityCache } from './infrastructure/services/RedisAbilityCache';
 import { RoleHierarchyPolicy } from './application/identity/policies/RoleHierarchyPolicy';
 import { TotpAdapter } from './infrastructure/services/identity/TotpAdapter';
+import { TotpEncryptionService } from './infrastructure/services/identity/TotpEncryptionService';
 import { PasskeyAdapter } from './infrastructure/services/identity/PasskeyAdapter';
 import { SmtpEmailSender } from './infrastructure/services/identity/SmtpEmailSender';
 import { TokenAdapter } from './infrastructure/services/identity/TokenAdapter';
 import { LocalFileStorageAdapter } from './infrastructure/services/system/LocalFileStorageAdapter';
 
 export const redisAbilityCache = new RedisAbilityCache();
-export const authCache = new RedisSessionCache();
+
+const totpEncryptionService = new TotpEncryptionService();
+export const authCache = new RedisSessionCache(totpEncryptionService);
 
 const totpAdapter = new TotpAdapter();
 const passkeyAdapter = new PasskeyAdapter();
@@ -69,7 +72,7 @@ export const abilityCacheInvalidationHandler = new AbilityCacheInvalidationHandl
 );
 
 export const userApplicationService = new UserApplicationService(
-  new PrismaUserRepository(),
+  new PrismaUserRepository(totpEncryptionService),
   new PrismaPasskeyRepository(),
   redisAbilityCache,
   new Argon2PasswordHasher(),
@@ -93,11 +96,11 @@ export const auditEventListener = new AuditEventListener(
 );
 
 export const adminUserManagementApplicationService = new AdminUserManagementApplicationService(
-  new PrismaUserRepository(),
+  new PrismaUserRepository(totpEncryptionService),
   new PrismaRoleRepository(),
   new PrismaPasskeyRepository(),
   new PrismaSessionRepository(),
-  new RedisSessionCache(),
+  new RedisSessionCache(totpEncryptionService),
   new RoleHierarchyPolicy(),
   globalEventBus,
   unitOfWork
@@ -113,7 +116,7 @@ export const authApplicationService = new AuthApplicationService(
   new PrismaPasskeyRepository(),
   new PrismaSessionRepository(),
   new PrismaAuthChallengeRepository(),
-  new PrismaUserRepository(),
+  new PrismaUserRepository(totpEncryptionService),
   new PrismaRoleRepository(),
   new RedisEmailRegistrationTicketRepository(),
   new RedisPasswordResetTicketRepository(),
@@ -127,11 +130,12 @@ export const authApplicationService = new AuthApplicationService(
 );
 
 export const sudoApplicationService = new SudoApplicationService(
-  new PrismaUserSecurityReadModel(),
+  new PrismaUserSecurityReadModel(totpEncryptionService),
   authApplicationService,
   new RedisSudoStore(),
   process.env.RP_ID || 'localhost',
-  process.env.ORIGIN || `http://${process.env.RP_ID || 'localhost'}:3000`
+  process.env.ORIGIN || `http://${process.env.RP_ID || 'localhost'}:3000`,
+  totpAdapter
 );
 
 export const systemApplicationService = new SystemApplicationService(
@@ -141,7 +145,7 @@ export const systemApplicationService = new SystemApplicationService(
 );
 
 export const identityBootstrapApplicationService = new IdentityBootstrapApplicationService(
-  new PrismaUserRepository(),
+  new PrismaUserRepository(totpEncryptionService),
   new PrismaRoleRepository(),
   new Argon2PasswordHasher(),
   unitOfWork
@@ -201,7 +205,7 @@ export const messagingApplicationService = new MessagingApplicationService(
 export const roleApplicationService = new RoleApplicationService(
   new PrismaRoleRepository(),
   new PrismaPermissionRepository(),
-  new PrismaUserRepository(),
+  new PrismaUserRepository(totpEncryptionService),
   redisAbilityCache,
   unitOfWork
 );

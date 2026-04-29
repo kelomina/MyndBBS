@@ -19,9 +19,10 @@ export default async function AdminLayout({
   const cookieStore = await cookies();
   const allCookies = cookieStore.getAll().map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
 
+  const apiOrigin = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
   let response: Response;
   try {
-    response = await fetch('http://localhost:3001/api/v1/user/profile', {
+    response = await fetch(`${apiOrigin}/api/v1/user/profile`, {
       headers: {
         Cookie: allCookies
       },

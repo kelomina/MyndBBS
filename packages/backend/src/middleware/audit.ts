@@ -67,6 +67,43 @@ function sanitizeAuditBody(body: unknown): Record<string, unknown> {
 }
 
 /**
+ * Callers: [sanitizeAuditBody]
+ * Callees: []
+ * Description: Redacts the value of a sensitive field by replacing it with a mask string.
+ * 描述：将敏感字段的值替换为脱敏标记字符串。
+ * Variables: `sanitized` 表示要修改的脱敏参数对象；`field` 表示字段名。
+ * 变量：`sanitized` 是脱敏参数对象；`field` 是字段名。
+ * Keywords: redact, sanitize, field, param, mask, 脱敏, 参数, 字段, 屏蔽, 审计
+ */
+function redactSensitiveField(sanitized: Record<string, unknown>, field: string): void {
+  sanitized[field] = '***';
+}
+
+/**
+ * Callers: [auditMiddleware]
+ * Callees: [redactSensitiveField]
+ * Description: Produces a scrubbed params snapshot that masks sensitive credential-like fields in query and route params.
+ * 描述：生成已脱敏的参数快照，屏蔽查询参数和路由参数中的凭证类字段。
+ * Variables: `params` 表示原始参数对象；`sanitized` 表示脱敏后的参数副本；`sensitiveField` 表示需脱敏的字段名列表。
+ * 变量：`params` 表示原始参数；`sanitized` 表示脱敏后的副本；`sensitiveField` 表示需脱敏的字段名。
+ * Integration: Use this helper before serializing query or route params into audit payloads.
+ * 接入方式：在将查询参数或路由参数序列化到审计负载前调用本函数。
+ * Error Handling: Non-object params are normalized to an empty object; never throws.
+ * 错误处理：非对象参数会被规范化为空对象，不会抛出异常。
+ * Keywords: sanitize, params, query, route, audit, mask, 脱敏, 查询参数, 路由参数, 审计
+ */
+function sanitizeAuditParams(params: Record<string, unknown>): Record<string, unknown> {
+  const sanitized = { ...params };
+
+  for (const sensitiveField of ['token', 'secret', 'key', 'accessToken', 'refreshToken', 'password', 'oldPassword', 'newPassword']) {
+    if (sensitiveField in sanitized) {
+      redactSensitiveField(sanitized, sensitiveField);
+    }
+  }
+
+  return sanitized;
+}
+/**
  * Callers: [auditMiddleware]
  * Callees: [getAuditRoutePath]
  * Description: Determines whether the current admin request still needs middleware-level fallback auditing.
@@ -99,8 +136,8 @@ function shouldWriteFallbackAudit(req: AuthRequest): boolean {
  * Callees: [shouldWriteFallbackAudit, getAuditRoutePath, sanitizeAuditBody, auditApplicationService.logAudit]
  * Description: Writes fallback audit logs only for admin write routes that are not already covered elsewhere.
  * 描述：仅为尚未被其他层覆盖的管理端写操作写入兜底审计日志。
- * Variables: `routePath` 表示规范化路由路径；`operationType` 表示方法与路由组合；`payload` 表示写入审计的上下文负载；`ip` 表示请求来源 IP。
- * 变量：`routePath` 是规范化路由路径；`operationType` 是方法与路由组合；`payload` 是审计上下文负载；`ip` 是请求来源 IP。
+ * Variables: `routePath` 表示规范化路由路径；`operationType` 表示方法与路由组合；`payload` 表示写入审计的上下文负载（body/query/params 均已脱敏）；`ip` 表示请求来源 IP。
+ * 变量：`routePath` 是规范化路由路径；`operationType` 是方法与路由组合；`payload` 是审计上下文负载（body/query/params 均已脱敏）；`ip` 是请求来源 IP。
  * Integration: Register this middleware globally before route mounting so it can observe every finished admin response.
  * 接入方式：将本中间件在路由挂载前全局注册，使其可以观察所有管理端请求完成后的响应。
  * Error Handling: Suppresses audit write failures after logging to stderr so admin operations themselves are not blocked.
@@ -118,8 +155,8 @@ export const auditMiddleware = (req: AuthRequest, res: Response, next: NextFunct
       const operationType = `${req.method} ${routePath}`;
       const payload = {
         body: sanitizeAuditBody(req.body),
-        query: req.query,
-        params: req.params,
+        query: sanitizeAuditParams(req.query as Record<string, unknown>),
+        params: sanitizeAuditParams(req.params as Record<string, unknown>),
         statusCode: res.statusCode,
       };
       const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';

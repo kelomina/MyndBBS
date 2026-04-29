@@ -66,4 +66,13 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
       },
     });
   }
+
+  public async deleteOlderThan(cutoffDate: Date): Promise<number> {
+    const result = await prisma.auditLog.deleteMany({
+      where: {
+        createdAt: { lt: cutoffDate },
+      },
+    });
+    return result.count;
+  }
 }

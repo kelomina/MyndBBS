@@ -3,6 +3,7 @@ import { generateAuthenticationOptions, verifyAuthenticationResponse } from '@si
 import { AuthApplicationService } from './AuthApplicationService';
 import { ISudoStore } from './ports/ISudoStore';
 import { IUserSecurityReadModel } from './ports/IUserSecurityReadModel';
+import { ITotpPort } from '../../domain/identity/ports/ITotpPort';
 
 export type VerifyInput =
   | { type: 'password'; password: string }
@@ -15,7 +16,8 @@ export class SudoApplicationService {
     private authApplicationService: AuthApplicationService,
     private sudoStore: ISudoStore,
     private rpID: string,
-    private origin: string
+    private origin: string,
+    private totpPort: ITotpPort
   ) {}
 
   public async getPasskeyOptions(userId: string): Promise<any> {
@@ -48,10 +50,8 @@ export class SudoApplicationService {
 
     if (input.type === 'totp') {
       if (!user.totpSecret) throw new Error('ERR_INVALID_TOTP');
-      const { OTP } = await import('otplib');
-      const authenticator = new OTP({ strategy: 'totp' });
-      const result = authenticator.verifySync({ token: input.totpCode, secret: user.totpSecret });
-      isValid = result && result.valid;
+      const isValidTotp = this.totpPort.verify(user.totpSecret, input.totpCode);
+      isValid = isValidTotp;
     }
 
     if (input.type === 'passkey') {

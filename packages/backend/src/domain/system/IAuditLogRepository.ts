@@ -26,4 +26,12 @@ export interface IAuditLogRepository {
    * Persists an AuditLog entity to the database.
    */
   save(auditLog: AuditLog): Promise<void>;
+
+  /**
+   * Deletes all audit logs created before the given cutoff date.
+   * Used for scheduled log cleanup / retention policy.
+   * @param cutoffDate Delete logs with createdAt older than this date.
+   * @returns Number of deleted records.
+   */
+  deleteOlderThan(cutoffDate: Date): Promise<number>;
 }
