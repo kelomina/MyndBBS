@@ -1,10 +1,17 @@
 import { AuditLog } from './AuditLog';
 
 /**
- * Callers: [AuditApplicationService]
- * Callees: []
- * Description: The repository interface for managing the persistence of AuditLog Aggregates.
- * Keywords: auditlog, repository, interface, contract, domain, system
+ * 接口名称：IAuditLogRepository
+ *
+ * 函数作用：
+ *   审计日志聚合的仓储接口——定义审计日志持久化的契约。
+ * Purpose:
+ *   Repository interface for AuditLog aggregates — defines the persistence contract.
+ *
+ * 中文关键词：
+ *   审计日志，仓储接口，持久化
+ * English keywords:
+ *   audit log, repository interface, persistence
  */
 export interface IAuditLogRepository {
   /**

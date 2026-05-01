@@ -10,10 +10,21 @@ export interface AuditLogProps {
 }
 
 /**
- * Callers: [PrismaAuditLogRepository, AuditApplicationService]
- * Callees: []
- * Description: Represents the AuditLog Aggregate Root within the System domain. Serves as an immutable record of an admin system action.
- * Keywords: auditlog, aggregate, root, domain, entity, system, logging, immutable, operator, permission
+ * 类名称：AuditLog
+ *
+ * 函数作用：
+ *   系统域中的审计日志聚合根。作为管理员系统操作的不可变记录。
+ * Purpose:
+ *   AuditLog Aggregate Root in the System domain. Immutable record of an admin system action.
+ *
+ * 调用方 / Called by:
+ *   - PrismaAuditLogRepository
+ *   - AuditApplicationService
+ *
+ * 中文关键词：
+ *   审计日志，聚合根，不可变记录
+ * English keywords:
+ *   audit log, aggregate root, immutable record
  */
 export class AuditLog {
   private props: AuditLogProps;
@@ -29,10 +40,26 @@ export class AuditLog {
   }
 
   /**
-   * Callers: [AuditApplicationService]
-   * Callees: [AuditLog.constructor]
-   * Description: Static factory method creating a new AuditLog entity. Validates essential components.
-   * Keywords: create, factory, auditlog, domain, instantiation
+   * 函数名称：create
+   *
+   * 函数作用：
+   *   静态工厂方法——创建新的审计日志。校验所有必填字段。
+   * Purpose:
+   *   Static factory method — creates a new AuditLog. Validates all required fields.
+   *
+   * 调用方 / Called by:
+   *   AuditApplicationService.logAudit
+   *
+   * 参数说明 / Parameters:
+   *   - props: AuditLogProps（operatorId、permissionGroup、operationType、requestPath、ip 必填）
+   *
+   * 错误处理 / Error handling:
+   *   - ERR_AUDIT_LOG_MISSING_REQUIRED_FIELDS
+   *
+   * 中文关键词：
+   创建审计日志，工厂方法
+   * English keywords:
+   *   create audit log, factory method
    */
   public static create(props: AuditLogProps): AuditLog {
     if (!props.operatorId || !props.permissionGroup || !props.operationType || !props.requestPath || !props.ip) {

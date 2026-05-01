@@ -1,3 +1,18 @@
+/**
+ * 中间件模块：Audit
+ *
+ * 函数作用：
+ *   审计日志中间件——为管理端写操作提供兜底审计日志记录。
+ *   包含脱敏辅助函数，确保审计负载中不包含明文密码、令牌等敏感信息。
+ * Purpose:
+ *   Audit logging middleware — provides fallback audit logging for admin write operations.
+ *   Includes sanitization helpers to ensure audit payloads contain no plain-text passwords or tokens.
+ *
+ * 中文关键词：
+ *   审计，日志，脱敏，管理操作，兜底
+ * English keywords:
+ *   audit, logging, sanitize, admin operation, fallback
+ */
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth';
 import { auditApplicationService } from '../registry';

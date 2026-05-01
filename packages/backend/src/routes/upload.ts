@@ -1,3 +1,25 @@
+/**
+ * 路由模块：Upload
+ *
+ * 函数作用：
+ *   文件上传 API 路由，支持图片上传，含 MIME 类型验证、扩展名过滤和魔数签名验证。
+ * Purpose:
+ *   File upload API route supporting image uploads with MIME type validation,
+ *   extension filtering, and magic byte signature verification.
+ *
+ * 路由前缀 / Route prefix:
+ *   /api/v1/messages/upload
+ *
+ * 安全注意 / Security:
+ *   - 仅允许图片类型（MIME + 扩展名双重校验）
+ *   - 魔数签名验证防止伪装文件
+ *   - 文件大小限制 10MB
+ *
+ * 中文关键词：
+ *   上传，文件，图片，安全验证，魔数
+ * English keywords:
+ *   upload, file, image, security validation, magic bytes
+ */
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { requireAuth } from '../middleware/auth';

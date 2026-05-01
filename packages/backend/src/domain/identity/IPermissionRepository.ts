@@ -1,10 +1,17 @@
 import { Permission } from './Permission';
 
 /**
- * Callers: [RoleApplicationService]
- * Callees: []
- * Description: The repository interface for managing the persistence of Permission Entities.
- * Keywords: permission, repository, interface, contract, domain, identity
+ * 接口名称：IPermissionRepository
+ *
+ * 函数作用：
+ *   权限实体的仓储接口。
+ * Purpose:
+ *   Repository interface for Permission entities.
+ *
+ * 中文关键词：
+ *   权限，仓储接口
+ * English keywords:
+ *   permission, repository interface
  */
 export interface IPermissionRepository {
   findById(id: string): Promise<Permission | null>;

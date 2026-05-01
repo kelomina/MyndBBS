@@ -1,8 +1,15 @@
 /**
- * Callers: [AuthApplicationService, SystemApplicationService, UserController, etc.]
- * Callees: []
- * Description: Interface for hashing and verifying passwords.
- * Keywords: password, hasher, interface, identity
+ * 接口名称：IPasswordHasher
+ *
+ * 函数作用：
+ *   密码哈希器接口——定义密码哈希和验证的契约。
+ * Purpose:
+ *   Password hasher interface — defines the contract for hashing and verifying passwords.
+ *
+ * 中文关键词：
+ *   密码，哈希，接口
+ * English keywords:
+ *   password, hash, interface
  */
 export interface IPasswordHasher {
   /**

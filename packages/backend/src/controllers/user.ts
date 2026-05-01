@@ -1,13 +1,52 @@
+/**
+ * 控制器模块：User
+ *
+ * 函数作用：
+ *   用户个人资料、安全设置（Passkey/TOTP）、会话管理、Cookie 偏好和公开资料查询的 HTTP 请求处理。
+ * Purpose:
+ *   HTTP request handling for user profile, security settings (Passkey/TOTP),
+ *   session management, cookie preferences, and public profile queries.
+ *
+ * 中文关键词：
+ *   用户，个人资料，安全，会话，公开资料
+ * English keywords:
+ *   user, profile, security, session, public profile
+ */
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { authApplicationService, userApplicationService } from '../registry';
 
 /**
- * Callers: [Router]
- * Callees: [identityQueryService]
- * Description: Retrieves the profile of the authenticated user.
- * Keywords: user, profile
+ * 函数名称：getProfile
+ *
+ * 函数作用：
+ *   获取当前认证用户的个人资料。
+ * Purpose:
+ *   Retrieves the authenticated user's profile.
+ *
+ * 调用方 / Called by:
+ *   GET /api/v1/user/profile
+ *
+ * 被调用方 / Calls:
+ *   - identityQueryService.getProfile
+ *
+ * 参数说明 / Parameters:
+ *   无请求体参数（从 req.user.userId 获取）
+ *
+ * 返回值说明 / Returns:
+ *   200: { user: UserProfileDTO }
+ *   401: { error: ERR_UNAUTHORIZED }
+ *   404: { error: ERR_USER_NOT_FOUND }
+ *   500: { error: ERR_INTERNAL_SERVER_ERROR }
+ *
+ * 副作用 / Side effects:
+ *   无——只读查询
+ *
+ * 中文关键词：
+ *   用户，个人资料，查询
+ * English keywords:
+ *   user, profile, query
  */
 export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -171,10 +210,48 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
 
 
 /**
- * Callers: [Router]
- * Callees: [authApplicationService, identityQueryService]
- * Description: Updates the authenticated user's profile information (password, email, username).
- * Keywords: user, profile, update
+ * 函数名称：updateProfile
+ *
+ * 函数作用：
+ *   更新当前用户的个人资料（邮箱、用户名、密码）。敏感变更需验证当前密码或 TOTP。
+ * Purpose:
+ *   Updates the authenticated user's profile (email, username, password).
+ *   Sensitive changes require current password or TOTP verification.
+ *
+ * 调用方 / Called by:
+ *   PUT /api/v1/user/profile
+ *
+ * 被调用方 / Calls:
+ *   - authApplicationService.changePasswordWithVerification
+ *   - identityQueryService.getUserWithRoleById
+ *
+ * 参数说明 / Parameters:
+ *   - req.body.email: string | undefined, 新邮箱
+ *   - req.body.username: string | undefined, 新用户名
+ *   - req.body.password: string | undefined, 新密码
+ *   - req.body.currentPassword: string | undefined, 当前密码（用于敏感变更）
+ *   - req.body.totpCode: string | undefined, TOTP 验证码（用于敏感变更）
+ *
+ * 返回值说明 / Returns:
+ *   200: { message, user }
+ *   400/401: { error: errorCode }
+ *   500: { error: ERR_INTERNAL_SERVER_ERROR }
+ *
+ * 错误处理 / Error handling:
+ *   - 400: 缺少更新字段、密码不合法、邮箱/用户名已存在
+ *   - 401: 当前密码或 TOTP 验证失败
+ *   - 500: 内部错误
+ *
+ * 副作用 / Side effects:
+ *   写数据库——更新用户资料
+ *
+ * 事务边界 / Transaction:
+ *   由 authApplicationService.changePasswordWithVerification 内部通过 UnitOfWork 管理
+ *
+ * 中文关键词：
+ *   用户，资料更新，邮箱，密码，双因素验证
+ * English keywords:
+ *   user, profile update, email, password, two-factor verification
  */
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

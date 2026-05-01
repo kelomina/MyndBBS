@@ -5,29 +5,52 @@ export interface AuthChallengeProps {
 }
 
 /**
- * Callers: [PrismaAuthChallengeRepository, AuthApplicationService]
- * Callees: []
- * Description: Represents the AuthChallenge Aggregate Root within the Identity domain. Manages short-lived authentication challenges.
- * Keywords: authchallenge, aggregate, root, domain, entity, identity, webauthn, sudo, challenge
+ * 类名称：AuthChallenge
+ *
+ * 函数作用：
+ *   身份域中的认证挑战聚合根。管理 WebAuthn、Sudo 等场景的短期挑战。
+ * Purpose:
+ *   AuthChallenge Aggregate Root in the Identity domain. Manages short-lived challenges for WebAuthn, sudo, etc.
+ *
+ * 中文关键词：
+ *   认证挑战，聚合根，WebAuthn，Sudo
+ * English keywords:
+ *   auth challenge, aggregate root, WebAuthn, sudo
  */
 export class AuthChallenge {
   private props: AuthChallengeProps;
 
   /**
-   * Callers: [AuthChallenge.create, PrismaAuthChallengeRepository.toDomain]
-   * Callees: []
-   * Description: Private constructor to enforce instantiation via static factory methods.
-   * Keywords: constructor, authchallenge, entity, instantiation
+   * 函数名称：constructor（私有）
+   *
+   * 函数作用：
+   *   私有构造函数，强制通过静态工厂方法实例化。
+   * Purpose:
+   *   Private constructor to enforce instantiation via static factory methods.
    */
   private constructor(props: AuthChallengeProps) {
     this.props = { ...props };
   }
 
   /**
-   * Callers: [PrismaAuthChallengeRepository, AuthApplicationService]
-   * Callees: [AuthChallenge.constructor]
-   * Description: Static factory method creating a new AuthChallenge entity.
-   * Keywords: create, factory, authchallenge, domain, instantiation
+   * 函数名称：create
+   *
+   * 函数作用：
+   *   静态工厂方法——创建新的认证挑战。
+   * Purpose:
+   *   Static factory method — creates a new auth challenge.
+   *
+   * 参数说明 / Parameters:
+   *   - props: AuthChallengeProps（challenge 必填，expiresAt 不能在过去）
+   *
+   * 错误处理 / Error handling:
+   *   - ERR_AUTH_CHALLENGE_MISSING_DATA
+   *   - ERR_AUTH_CHALLENGE_ALREADY_EXPIRED
+   *
+   * 中文关键词：
+   创建认证挑战
+   * English keywords:
+   *   create auth challenge
    */
   public static create(props: AuthChallengeProps): AuthChallenge {
     if (!props.challenge) {
@@ -58,10 +81,20 @@ export class AuthChallenge {
   // --- Domain Behaviors ---
 
   /**
-   * Callers: [AuthApplicationService.consumeAuthChallenge]
-   * Callees: []
-   * Description: Validates whether the challenge can still be consumed.
-   * Keywords: validate, consume, authchallenge, expired, identity
+   * 函数名称：validateForConsumption
+   *
+   * 函数作用：
+   *   验证挑战是否仍可消费（未过期）。
+   * Purpose:
+   *   Validates the challenge can still be consumed (not expired).
+   *
+   * 错误处理 / Error handling:
+   *   - ERR_AUTH_CHALLENGE_EXPIRED（挑战已过期）
+   *
+   * 中文关键词：
+   验证挑战，消费
+   * English keywords:
+   *   validate challenge, consume
    */
   public validateForConsumption(): void {
     if (new Date() > this.props.expiresAt) {

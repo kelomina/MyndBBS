@@ -1,13 +1,36 @@
+/**
+ * 模块：Redis 客户端
+ *
+ * 函数作用：
+ *   提供 Redis 客户端实例。当 REDIS_URL 环境变量未设置时，使用内存 MockRedis 作为降级方案。
+ * Purpose:
+ *   Provides a Redis client instance. Falls back to an in-memory MockRedis when REDIS_URL is not set.
+ *
+ * 中文关键词：
+ *   Redis，ioredis，内存模拟，缓存
+ * English keywords:
+ *   Redis, ioredis, mock, cache
+ */
 import Redis from 'ioredis';
 
 const redisUrl = process.env.REDIS_URL;
 
-// Mock Redis for environments without it
+/**
+ * 类名称：MockRedis
+ *
+ * 函数作用：
+ *   内存实现的简易 Redis 兼容类，支持 get/set(含 EX 过期)/del/pipeline/expire。
+ *   用于无 Redis 环境的开发或测试场景。
+ * Purpose:
+ *   In-memory Redis-compatible class supporting get/set(with EX TTL)/del/pipeline/expire.
+ *   Used for development or testing environments without Redis.
+ *
+ * 中文关键词：
+ *   内存 Redis，模拟，Mock，开发环境
+ * English keywords:
+ *   in-memory Redis, mock, development
+ */
 class MockRedis {
-  private data = new Map<string, string>();
-  private expirations = new Map<string, NodeJS.Timeout>();
-
-  async get(key: string) {
     return this.data.get(key) || null;
   }
   

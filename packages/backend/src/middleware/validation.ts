@@ -1,3 +1,16 @@
+/**
+ * 中间件模块：Validation
+ *
+ * 函数作用：
+ *   基于 Zod schema 的请求体验证中间件工厂。
+ * Purpose:
+ *   Zod schema-based request body validation middleware factory.
+ *
+ * 中文关键词：
+ *   校验，Zod，请求体验证，中间件
+ * English keywords:
+ *   validation, Zod, request body, middleware
+ */
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
 

@@ -1,10 +1,17 @@
 import { Notification } from './Notification';
 
 /**
- * Callers: [NotificationApplicationService]
- * Callees: []
- * Description: The repository interface for managing the persistence of Notification Aggregates.
- * Keywords: notification, repository, interface, contract, domain
+ * 接口名称：INotificationRepository
+ *
+ * 函数作用：
+ *   通知聚合的仓储接口。
+ * Purpose:
+ *   Repository interface for Notification aggregates.
+ *
+ * 中文关键词：
+ *   通知，仓储接口
+ * English keywords:
+ *   notification, repository interface
  */
 export interface INotificationRepository {
   /**

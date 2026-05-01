@@ -11,10 +11,21 @@ export interface PostBookmarkProps {
 }
 
 /**
- * Callers: [PrismaEngagementRepository, CommunityApplicationService]
- * Callees: []
- * Description: Represents the PostUpvote Aggregate Root within the Community domain.
- * Keywords: postupvote, upvote, post, engagement, aggregate, root, domain, entity
+ * 类名称：PostUpvote
+ *
+ * 函数作用：
+ *   社区域中的帖子点赞聚合根。
+ * Purpose:
+ *   PostUpvote Aggregate Root within the Community domain.
+ *
+ * 调用方 / Called by:
+ *   - PrismaEngagementRepository
+ *   - CommunityApplicationService
+ *
+ * 中文关键词：
+ *   帖子点赞，聚合根
+ * English keywords:
+ *   post upvote, aggregate root
  */
 export class PostUpvote {
   private props: PostUpvoteProps;
@@ -68,10 +79,21 @@ export class PostUpvote {
 }
 
 /**
- * Callers: [PrismaEngagementRepository, CommunityApplicationService]
- * Callees: []
- * Description: Represents the PostBookmark Aggregate Root within the Community domain.
- * Keywords: postbookmark, bookmark, post, engagement, aggregate, root, domain, entity
+ * 类名称：PostBookmark
+ *
+ * 函数作用：
+ *   社区域中的帖子书签聚合根。
+ * Purpose:
+ *   PostBookmark Aggregate Root within the Community domain.
+ *
+ * 调用方 / Called by:
+ *   - PrismaEngagementRepository
+ *   - CommunityApplicationService
+ *
+ * 中文关键词：
+ *   帖子书签，聚合根
+ * English keywords:
+ *   post bookmark, aggregate root
  */
 export class PostBookmark {
   private props: PostBookmarkProps;

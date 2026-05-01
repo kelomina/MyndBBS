@@ -6,10 +6,12 @@ export interface SendEmailCommand {
 }
 
 /**
- * Callers: [AuthApplicationService]
- * Callees: []
- * Description: Defines the outbound email delivery port used by the identity application service to send verification mail.
- * 描述：定义身份应用服务发送验证邮件时使用的出站邮件投递端口。
+ * 接口名称：IEmailSender
+ *
+ * 函数作用：
+ *   出站邮件发送端口接口——定义身份应用服务发送验证邮件的契约。
+ * Purpose:
+ *   Outbound email delivery port interface — defines the contract for sending verification emails.
  * Variables: `SendEmailCommand` encapsulates the recipient, subject, plain-text body, and HTML body for one outbound email.
  * 变量：`SendEmailCommand` 封装一次出站邮件的收件人、主题、纯文本正文与 HTML 正文。
  * Integration: Provide an infrastructure adapter such as SMTP and inject it into the registry where `AuthApplicationService` is composed.

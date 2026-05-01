@@ -1,10 +1,17 @@
 import { Passkey } from './Passkey';
 
 /**
- * Callers: [AuthApplicationService]
- * Callees: []
- * Description: The repository interface for managing the persistence of WebAuthn Passkeys associated with users.
- * Keywords: passkey, webauthn, repository, interface, contract, domain
+ * 接口名称：IPasskeyRepository
+ *
+ * 函数作用：
+ *   Passkey 聚合的仓储接口——定义 WebAuthn Passkey 持久化的契约。
+ * Purpose:
+ *   Repository interface for Passkey aggregates — defines the persistence contract for WebAuthn credentials.
+ *
+ * 中文关键词：
+ *   Passkey，WebAuthn，仓储接口
+ * English keywords:
+ *   passkey, WebAuthn, repository interface
  */
 export interface IPasskeyRepository {
   /**

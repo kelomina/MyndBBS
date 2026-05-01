@@ -194,6 +194,31 @@ export class CommunityQueryService {
     }));
   }
 
+  /**
+   * 函数名称：getCommentWithPost
+   *
+   * 函数作用：
+   *   按 ID 获取评论及其关联的帖子信息。
+   * Purpose:
+   *   Fetches a comment by ID with its associated post.
+   *
+   * 调用方 / Called by:
+   *   - postController（更新/删除评论时的权限校验）
+   *
+   * 参数说明 / Parameters:
+   *   - commentId: string, 评论 ID
+   *
+   * 返回值说明 / Returns:
+   *   comment & { post } | null
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   评论，帖子，关联查询
+   * English keywords:
+   *   comment, post, include query
+   */
   public async getCommentWithPost(commentId: string) {
     return prisma.comment.findUnique({
       where: { id: commentId },
@@ -201,6 +226,28 @@ export class CommunityQueryService {
     });
   }
 
+  /**
+   * 函数名称：getPostWithCategory
+   *
+   * 函数作用：
+   *   按 ID 获取帖子及其所属分类信息。
+   * Purpose:
+   *   Fetches a post by ID with its category info.
+   *
+   * 调用方 / Called by:
+   *   postController（权限校验）
+   *
+   * 参数说明 / Parameters:
+   *   - postId: string, 帖子 ID
+   *
+   * 返回值说明 / Returns:
+   *   post & { category } | null
+   *
+   * 中文关键词：
+   *   帖子，分类，关联查询
+   * English keywords:
+   *   post, category, include query
+   */
   public async getPostWithCategory(postId: string) {
     return prisma.post.findUnique({
       where: { id: postId },
@@ -208,19 +255,107 @@ export class CommunityQueryService {
     });
   }
 
+  /**
+   * 函数名称：getUserLevel
+   *
+   * 函数作用：
+   *   获取用户的等级。
+   * Purpose:
+   *   Gets a user's level.
+   *
+   * 调用方 / Called by:
+   *   postController.createPost
+   *
+   * 参数说明 / Parameters:
+   *   - userId: string, 用户 ID
+   *
+   * 返回值说明 / Returns:
+   *   number，用户等级（默认 0）
+   *
+   * 中文关键词：
+   *   用户等级，查询
+   * English keywords:
+   *   user level, query
+   */
   public async getUserLevel(userId: string) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { level: true } });
     return user?.level || 0;
   }
 
+  /**
+   * 函数名称：getCommentById
+   *
+   * 函数作用：
+   *   按 ID 获取评论。
+   * Purpose:
+   *   Fetches a comment by ID.
+   *
+   * 调用方 / Called by:
+   *   postController.createComment / updateComment
+   *
+   * 参数说明 / Parameters:
+   *   - commentId: string, 评论 ID
+   *
+   * 返回值说明 / Returns:
+   *   comment | null
+   *
+   * 中文关键词：
+   *   评论，ID 查询
+   * English keywords:
+   *   comment, ID query
+   */
   public async getCommentById(commentId: string) {
     return prisma.comment.findUnique({ where: { id: commentId } });
   }
 
+  /**
+   * 函数名称：getPostBasicInfo
+   *
+   * 函数作用：
+   *   获取帖子的基本信息（作者 ID 和标题）。
+   * Purpose:
+   *   Gets basic post info (author ID and title).
+   *
+   * 调用方 / Called by:
+   *   postController.createComment（用于发布事件）
+   *
+   * 参数说明 / Parameters:
+   *   - postId: string, 帖子 ID
+   *
+   * 返回值说明 / Returns:
+   *   { authorId, title } | null
+   *
+   * 中文关键词：
+   *   帖子基本信息
+   * English keywords:
+   *   post basic info
+   */
   public async getPostBasicInfo(postId: string) {
     return prisma.post.findUnique({ where: { id: postId }, select: { authorId: true, title: true } });
   }
 
+  /**
+   * 函数名称：getCommentBasicInfo
+   *
+   * 函数作用：
+   *   获取评论的基本信息（作者 ID）。
+   * Purpose:
+   *   Gets basic comment info (author ID).
+   *
+   * 调用方 / Called by:
+   *   postController.createComment（用于发布事件）
+   *
+   * 参数说明 / Parameters:
+   *   - commentId: string, 评论 ID
+   *
+   * 返回值说明 / Returns:
+   *   { authorId } | null
+   *
+   * 中文关键词：
+   *   评论基本信息
+   * English keywords:
+   *   comment basic info
+   */
   public async getCommentBasicInfo(commentId: string) {
     return prisma.comment.findUnique({ where: { id: commentId }, select: { authorId: true } });
   }

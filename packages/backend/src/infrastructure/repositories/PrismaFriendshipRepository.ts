@@ -20,12 +20,21 @@ export class PrismaFriendshipRepository implements IFriendshipRepository {
     return Friendship.create(props);
   }
 
+  /** 按 ID 查找好友关系 / Finds a friendship by ID */
   public async findById(id: string): Promise<Friendship | null> {
     const raw = await prisma.friendship.findUnique({ where: { id } });
     if (!raw) return null;
     return this.toDomain(raw);
   }
 
+  /**
+   * 函数名称：findByUsers
+   *
+   * 函数作用：
+   *   按两个用户 ID 查找它们之间的好友关系（不论方向）。
+   * Purpose:
+   *   Finds a friendship between two users regardless of direction.
+   */
   public async findByUsers(userId1: string, userId2: string): Promise<Friendship | null> {
     const raw = await prisma.friendship.findFirst({
       where: {

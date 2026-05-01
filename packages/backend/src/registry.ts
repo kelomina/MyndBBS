@@ -1,3 +1,19 @@
+/**
+ * 模块：依赖注入注册表
+ *
+ * 函数作用：
+ *   集中管理所有应用服务、仓储实现、基础设施适配器和事件处理器的实例化与依赖注入。
+ *   采用手动 DI 模式，避免引入 IoC 容器的额外复杂度。
+ * Purpose:
+ *   Central registry for all application services, repository implementations,
+ *   infrastructure adapters, and event handler instantiations with dependency injection.
+ *   Uses manual DI pattern to avoid IoC container complexity.
+ *
+ * 中文关键词：
+ *   依赖注入，注册表，服务，仓储，适配器
+ * English keywords:
+ *   dependency injection, registry, service, repository, adapter
+ */
 import { UserApplicationService } from './application/identity/UserApplicationService';
 import { AuthApplicationService } from './application/identity/AuthApplicationService';
 import { SystemApplicationService } from './application/system/SystemApplicationService';
@@ -30,6 +46,7 @@ import { PrismaPermissionRepository } from './infrastructure/repositories/Prisma
 import { PrismaModeratedWordRepository } from './infrastructure/repositories/PrismaModeratedWordRepository';
 import { PrismaUnitOfWork } from './infrastructure/repositories/PrismaUnitOfWork';
 
+/** 全局单例 Unit of Work 实例 */
 export const unitOfWork = new PrismaUnitOfWork();
 
 import { Argon2PasswordHasher } from './infrastructure/services/Argon2PasswordHasher';
@@ -57,9 +74,13 @@ import { LocalFileStorageAdapter } from './infrastructure/services/system/LocalF
 import { EmailConfigurationApplicationService } from './application/notification/EmailConfigurationApplicationService';
 import { PrismaEmailTemplateRepository } from './infrastructure/repositories/PrismaEmailTemplateRepository';
 
+// ── 共享基础设施实例 ──
+
+/** Redis 权限缓存 */
 export const redisAbilityCache = new RedisAbilityCache();
 
 const totpEncryptionService = new TotpEncryptionService();
+/** Redis 会话缓存（含 TOTP secret 临时存储） */
 export const authCache = new RedisSessionCache(totpEncryptionService);
 
 const totpAdapter = new TotpAdapter();
@@ -68,11 +89,15 @@ const tokenAdapter = new TokenAdapter();
 const smtpEmailSender = new SmtpEmailSender();
 const localFileStorageAdapter = new LocalFileStorageAdapter();
 
+/** 权限缓存失效事件处理器 */
 export const abilityCacheInvalidationHandler = new AbilityCacheInvalidationHandler(
   globalEventBus,
   redisAbilityCache
 );
 
+// ── 应用服务实例化 ──
+
+/** 用户管理应用服务 */
 export const userApplicationService = new UserApplicationService(
   new PrismaUserRepository(totpEncryptionService),
   new PrismaPasskeyRepository(),
@@ -87,16 +112,19 @@ export const userApplicationService = new UserApplicationService(
 import { AuditApplicationService } from './application/system/AuditApplicationService';
 import { PrismaAuditLogRepository } from './infrastructure/repositories/PrismaAuditLogRepository';
 
+/** 审计日志应用服务 */
 export const auditApplicationService = new AuditApplicationService(
   new PrismaAuditLogRepository(),
   unitOfWork
 );
 
+/** 审计事件侦听器（订阅领域事件写入审计日志） */
 export const auditEventListener = new AuditEventListener(
   globalEventBus,
   auditApplicationService
 );
 
+/** 管理员用户管理应用服务 */
 export const adminUserManagementApplicationService = new AdminUserManagementApplicationService(
   new PrismaUserRepository(totpEncryptionService),
   new PrismaRoleRepository(),
@@ -116,6 +144,7 @@ import { PrismaUserSecurityReadModel } from './infrastructure/queries/PrismaUser
 
 const emailTemplateRepo = new PrismaEmailTemplateRepository();
 
+/** 认证应用服务（注册/登录/2FA/Passkey/会话管理） */
 export const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
   new PrismaPasskeyRepository(),
@@ -135,6 +164,7 @@ export const authApplicationService = new AuthApplicationService(
   unitOfWork
 );
 
+/** Sudo 模式应用服务 */
 export const sudoApplicationService = new SudoApplicationService(
   new PrismaUserSecurityReadModel(totpEncryptionService),
   authApplicationService,
@@ -144,12 +174,14 @@ export const sudoApplicationService = new SudoApplicationService(
   totpAdapter
 );
 
+/** 系统应用服务（路由白名单、文件上传） */
 export const systemApplicationService = new SystemApplicationService(
   new PrismaRouteWhitelistRepository(),
   localFileStorageAdapter,
   unitOfWork
 );
 
+/** 身份引导应用服务（初始角色/用户创建） */
 export const identityBootstrapApplicationService = new IdentityBootstrapApplicationService(
   new PrismaUserRepository(totpEncryptionService),
   new PrismaRoleRepository(),
@@ -162,6 +194,7 @@ export const identityBootstrapServiceAdapter = new IdentityBootstrapServiceAdapt
   identityBootstrapApplicationService
 );
 
+/** 安装引导应用服务 */
 export const installationApplicationService = new InstallationApplicationService(
   new EnvStoreAdapter(),
   new PrismaDatabaseConnectionValidator(),
@@ -172,11 +205,14 @@ export const installationApplicationService = new InstallationApplicationService
   globalEventBus
 );
 
+/** 审核敏感词缓存（Redis/内存） */
 export const redisModeratedWordsCache = new RedisModeratedWordsCache(
   new PrismaModeratedWordRepository()
 );
+/** 内容审核策略（基于敏感词匹配） */
 export const moderationPolicy = new ModerationPolicy(redisModeratedWordsCache);
 
+/** 审核缓存失效事件处理器 */
 export const moderationCacheInvalidationHandler = new ModerationCacheInvalidationHandler(
   globalEventBus,
   moderationPolicy
@@ -186,6 +222,7 @@ import { IdentityIntegrationPort } from './infrastructure/services/IdentityInteg
 
 export const identityIntegrationPort = new IdentityIntegrationPort(identityQueryService);
 
+/** 社区应用服务（分类/帖子/评论/互动管理） */
 export const communityApplicationService = new CommunityApplicationService(
   new PrismaCategoryRepository(),
   new PrismaPostRepository(),
@@ -199,6 +236,7 @@ export const communityApplicationService = new CommunityApplicationService(
   unitOfWork
 );
 
+/** 私信应用服务 */
 export const messagingApplicationService = new MessagingApplicationService(
   new PrismaFriendshipRepository(),
   new PrismaPrivateMessageRepository(),
@@ -208,6 +246,7 @@ export const messagingApplicationService = new MessagingApplicationService(
   unitOfWork
 );
 
+/** 角色权限应用服务 */
 export const roleApplicationService = new RoleApplicationService(
   new PrismaRoleRepository(),
   new PrismaPermissionRepository(),
@@ -216,11 +255,13 @@ export const roleApplicationService = new RoleApplicationService(
   unitOfWork
 );
 
+/** 邮件配置应用服务 */
 export const emailConfigurationApplicationService = new EmailConfigurationApplicationService(
   new EnvStoreAdapter(),
   new PrismaEmailTemplateRepository(),
 );
 
+/** 内容审核应用服务 */
 export const moderationApplicationService = new ModerationApplicationService(
   new PrismaPostRepository(),
   new PrismaCommentRepository(),

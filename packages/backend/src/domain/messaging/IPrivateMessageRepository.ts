@@ -1,10 +1,17 @@
 import { PrivateMessage } from './PrivateMessage';
 
 /**
- * Callers: [MessagingApplicationService]
- * Callees: []
- * Description: The repository interface for managing the persistence of PrivateMessage Aggregates.
- * Keywords: privatemessage, repository, interface, contract, domain
+ * 接口名称：IPrivateMessageRepository
+ *
+ * 函数作用：
+ *   私信聚合的仓储接口——定义私信持久化的契约。
+ * Purpose:
+ *   Repository interface for PrivateMessage aggregates — defines the persistence contract.
+ *
+ * 中文关键词：
+ *   私信，仓储接口
+ * English keywords:
+ *   private message, repository interface
  */
 export interface IPrivateMessageRepository {
   /**

@@ -1,8 +1,10 @@
 /**
- * Callers: [Application Services, AuditApplicationService, PrismaUnitOfWork]
- * Callees: []
- * Description: Defines the Unit of Work contract that wraps application-layer write operations in a transaction.
- * 描述：定义工作单元契约，用于把应用层写操作包装进同一个事务边界。
+ * 接口名称：IUnitOfWork
+ *
+ * 函数作用：
+ *   工作单元接口——定义把应用层写操作包装进同一个事务边界的契约。
+ * Purpose:
+ *   Unit of Work interface — defines the contract for wrapping application-layer write operations in a transaction.
  * Variables: `work` 表示需要在事务内执行的异步工作单元；`T` 表示工作单元返回值类型。
  * 变量：`work` 表示事务内执行的异步逻辑；`T` 表示该逻辑的返回值类型。
  * Integration: Inject an `IUnitOfWork` implementation into application services that coordinate repository writes.

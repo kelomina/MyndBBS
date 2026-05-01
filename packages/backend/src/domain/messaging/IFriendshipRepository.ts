@@ -1,10 +1,17 @@
 import { Friendship } from './Friendship';
 
 /**
- * Callers: [MessagingApplicationService]
- * Callees: []
- * Description: The repository interface for managing the persistence of Friendship Aggregates.
- * Keywords: friendship, repository, interface, contract, domain
+ * 接口名称：IFriendshipRepository
+ *
+ * 函数作用：
+ *   好友关系聚合的仓储接口。
+ * Purpose:
+ *   Repository interface for Friendship aggregates.
+ *
+ * 中文关键词：
+ *   好友关系，仓储接口
+ * English keywords:
+ *   friendship, repository interface
  */
 export interface IFriendshipRepository {
   /**

@@ -9,10 +9,21 @@ export interface FriendshipProps {
 }
 
 /**
- * Callers: [PrismaFriendshipRepository, MessagingApplicationService]
- * Callees: []
- * Description: Represents a Friendship Aggregate Root in the Messaging domain. Manages the state machine of a friend request.
- * Keywords: friendship, aggregate, root, domain, entity, messaging, friend
+ * 类名称：Friendship
+ *
+ * 函数作用：
+ *   私信域中的好友关系聚合根。管理好友请求状态机（PENDING→ACCEPTED/REJECTED/BLOCKED）。
+ * Purpose:
+ *   Friendship Aggregate Root in the Messaging domain. Manages the friend request state machine.
+ *
+ * 调用方 / Called by:
+ *   - PrismaFriendshipRepository
+ *   - MessagingApplicationService
+ *
+ * 中文关键词：
+ *   好友关系，聚合根，状态机，请求
+ * English keywords:
+ *   friendship, aggregate root, state machine, request
  */
 export class Friendship {
   private props: FriendshipProps;
@@ -51,10 +62,27 @@ export class Friendship {
   // --- Domain Behaviors ---
 
   /**
-   * Callers: [MessagingApplicationService.acceptFriendRequest]
-   * Callees: []
-   * Description: Accepts a pending friend request.
-   * Keywords: accept, friend, request, friendship, messaging
+   * 函数名称：accept
+   *
+   * 函数作用：
+   *   接受好友请求。仅收件人可以操作，且状态必须为 PENDING。
+   * Purpose:
+   *   Accepts a pending friend request. Only the addressee can perform this action.
+   *
+   * 调用方 / Called by:
+   *   MessagingApplicationService.respondFriendRequest
+   *
+   * 参数说明 / Parameters:
+   *   - userId: string, 收件人用户 ID
+   *
+   * 错误处理 / Error handling:
+   *   - ERR_FORBIDDEN_NOT_ADDRESSEE（非收件人）
+   *   - ERR_FRIENDSHIP_NOT_PENDING（非待处理状态）
+   *
+   * 中文关键词：
+   接受好友，请求
+   * English keywords:
+   *   accept friend, request
    */
   public accept(userId: string): void {
     if (this.props.addresseeId !== userId) {
@@ -67,10 +95,27 @@ export class Friendship {
   }
 
   /**
-   * Callers: [MessagingApplicationService.rejectFriendRequest]
-   * Callees: []
-   * Description: Rejects a pending friend request.
-   * Keywords: reject, friend, request, friendship, messaging
+   * 函数名称：reject
+   *
+   * 函数作用：
+   *   拒绝好友请求。仅收件人可以操作，且状态必须为 PENDING。
+   * Purpose:
+   *   Rejects a pending friend request. Only the addressee can perform this action.
+   *
+   * 调用方 / Called by:
+   *   MessagingApplicationService.respondFriendRequest
+   *
+   * 参数说明 / Parameters:
+   *   - userId: string, 收件人用户 ID
+   *
+   * 错误处理 / Error handling:
+   *   - ERR_FORBIDDEN_NOT_ADDRESSEE
+   *   - ERR_FRIENDSHIP_NOT_PENDING
+   *
+   * 中文关键词：
+   拒绝好友，请求
+   * English keywords:
+   *   reject friend, request
    */
   public reject(userId: string): void {
     if (this.props.addresseeId !== userId) {
@@ -83,10 +128,26 @@ export class Friendship {
   }
 
   /**
-   * Callers: [MessagingApplicationService.blockUser]
-   * Callees: []
-   * Description: Blocks the other user in this friendship. The blocker becomes the requester.
-   * Keywords: block, friend, user, friendship, messaging
+   * 函数名称：block
+   *
+   * 函数作用：
+   *   拉黑对方用户。操作后状态变为 BLOCKED，拉黑者设为 requester。
+   * Purpose:
+   *   Blocks the other user. Status changes to BLOCKED, blocker becomes the requester.
+   *
+   * 调用方 / Called by:
+   *   MessagingApplicationService.blockUser
+   *
+   * 参数说明 / Parameters:
+   *   - blockerId: string, 执行拉黑的用户 ID
+   *
+   * 错误处理 / Error handling:
+   *   - ERR_FORBIDDEN_NOT_INVOLVED（非好友关系参与者）
+   *
+   * 中文关键词：
+   拉黑用户，屏蔽
+   * English keywords:
+   *   block user, blacklist
    */
   public block(blockerId: string): void {
     if (this.props.requesterId !== blockerId && this.props.addresseeId !== blockerId) {
