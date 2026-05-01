@@ -2,10 +2,17 @@ import { PostUpvote, PostBookmark } from './PostEngagement';
 import { CommentUpvote, CommentBookmark } from './CommentEngagement';
 
 /**
- * Callers: [CommunityApplicationService]
- * Callees: []
- * Description: The repository interface for managing user engagements (upvotes, bookmarks) via domain entities.
- * Keywords: engagement, repository, interface, contract, upvote, bookmark
+ * 接口名称：IEngagementRepository
+ *
+ * 函数作用：
+ *   用户互动（点赞、书签）的仓储接口。
+ * Purpose:
+ *   Repository interface for user engagements (upvotes, bookmarks).
+ *
+ * 中文关键词：
+ *   互动，点赞，书签，仓储接口
+ * English keywords:
+ *   engagement, upvote, bookmark, repository interface
  */
 export interface IEngagementRepository {
   findPostUpvote(postId: string, userId: string): Promise<PostUpvote | null>;

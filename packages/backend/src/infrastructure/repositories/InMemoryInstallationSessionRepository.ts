@@ -1,3 +1,16 @@
+/**
+ * 类名称：InMemoryInstallationSessionRepository
+ *
+ * 函数作用：
+ *   内存实现的安装会话仓储，用于安装流程的临时会话管理。
+ * Purpose:
+ *   In-memory installation session repository for temporary session management during setup.
+ *
+ * 中文关键词：
+ *   内存仓储，安装会话
+ * English keywords:
+ *   in-memory repository, installation session
+ */
 import { randomUUID as uuidv4 } from 'crypto';
 import { IInstallationSessionRepository } from '../../domain/provisioning/IInstallationSessionRepository';
 import { InstallationSession } from '../../domain/provisioning/InstallationSession';

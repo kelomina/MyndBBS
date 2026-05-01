@@ -103,6 +103,36 @@ export class MessagingQueryService {
     }));
   }
 
+  /**
+   * 函数名称：getMessages
+   *
+   * 函数作用：
+   *   获取用户的私信列表，支持分页（游标）和按对话伙伴过滤。
+   *   自动排除已过期（expiresAt）和用户已删除（deletedBy）的消息。
+   * Purpose:
+   *   Gets a user's private messages with cursor-based pagination and optional partner filtering.
+   *   Automatically excludes expired messages and messages deleted by the user.
+   *
+   * 调用方 / Called by:
+   *   messageController.getInbox → GET /api/v1/messages/inbox
+   *
+   * 参数说明 / Parameters:
+   *   - userId: string, 当前用户 ID
+   *   - limit: number, 每页条数
+   *   - cursor: string | undefined, 分页游标（上一页最后一条消息的 ID）
+   *   - withUserId: string | undefined, 过滤为仅与该用户的对话
+   *
+   * 返回值说明 / Returns:
+   *   MessageListDTO { messages: MessageDTO[], nextCursor?: string, hasMore: boolean }
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   私信，分页，游标，对话
+   * English keywords:
+   *   private message, pagination, cursor, conversation
+   */
   public async getMessages(userId: string, limit: number, cursor?: string, withUserId?: string): Promise<MessageListDTO> {
     const notExpiredCondition = {
       OR: [

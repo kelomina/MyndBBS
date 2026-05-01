@@ -1,10 +1,12 @@
 import { EmailRegistrationTicket } from './EmailRegistrationTicket';
 
 /**
- * Callers: [AuthApplicationService]
- * Callees: []
- * Description: Defines the repository contract for loading and persisting pending email-registration tickets across verification attempts.
- * 描述：定义待验证邮箱注册票据的仓储契约，用于跨多次验证请求加载和持久化票据。
+ * 接口名称：IEmailRegistrationTicketRepository
+ *
+ * 函数作用：
+ *   邮箱注册票据的仓储接口——定义待验证邮箱注册票据的加载和持久化契约。
+ * Purpose:
+ *   Repository interface for EmailRegistrationTicket aggregates — defines the contract for loading and persisting pending registration tickets.
  * Variables: The repository methods operate on `EmailRegistrationTicket` aggregates and lookup keys such as email, username, and verification token.
  * 变量：仓储方法围绕 `EmailRegistrationTicket` 聚合以及邮箱、用户名、验证令牌等查找键工作。
  * Integration: Inject an implementation into `AuthApplicationService` so registration start and completion share one persistence abstraction.

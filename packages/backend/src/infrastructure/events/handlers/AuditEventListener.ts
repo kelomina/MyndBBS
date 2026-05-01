@@ -13,10 +13,23 @@ import {
 } from '../../../domain/shared/events/DomainEvents';
 
 /**
- * Callers: [globalEventBus]
- * Callees: [AuditApplicationService.logAudit]
- * Description: Listens to various domain events and logs them using AuditApplicationService.
- * Keywords: event, listener, audit, log, infrastructure
+ * 类名称：AuditEventListener
+ *
+ * 函数作用：
+ *   审计事件侦听器——订阅各类领域事件，通过 AuditApplicationService 记录审计日志。
+ * Purpose:
+ *   Audit event listener — subscribes to domain events and records audit logs via AuditApplicationService.
+ *
+ * 订阅的事件 / Subscribed events:
+ *   - CategoryCreatedEvent / CategoryUpdatedEvent / CategoryDeletedEvent
+ *   - CategoryModeratorAssignedEvent / CategoryModeratorRemovedEvent
+ *   - UserPromotedEvent / UserStatusChangedEvent / UserRoleChangedEvent
+ *   - DbConfigUpdatedEvent
+ *
+ * 中文关键词：
+ *   审计，事件侦听器，领域事件
+ * English keywords:
+ *   audit, event listener, domain events
  */
 export class AuditEventListener {
   constructor(

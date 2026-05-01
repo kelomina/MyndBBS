@@ -1,10 +1,17 @@
 import { ConversationSetting } from './ConversationSetting';
 
 /**
- * Callers: [MessagingApplicationService]
- * Callees: []
- * Description: The repository interface for managing the persistence of ConversationSetting Aggregates.
- * Keywords: conversationsetting, repository, interface, contract, domain, messaging
+ * 接口名称：IConversationSettingRepository
+ *
+ * 函数作用：
+ *   会话设置聚合的仓储接口。
+ * Purpose:
+ *   Repository interface for ConversationSetting aggregates.
+ *
+ * 中文关键词：
+ *   会话设置，仓储接口
+ * English keywords:
+ *   conversation setting, repository interface
  */
 export interface IConversationSettingRepository {
   findByUsers(userId: string, partnerId: string): Promise<ConversationSetting | null>;

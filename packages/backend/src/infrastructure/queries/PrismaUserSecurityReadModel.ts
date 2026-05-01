@@ -1,3 +1,16 @@
+/**
+ * 类名称：PrismaUserSecurityReadModel
+ *
+ * 函数作用：
+ *   Prisma 实现的用户安全读模型——为 Sudo 模式提供 Passkey 和用户身份查询。
+ * Purpose:
+ *   Prisma-based user security read model — provides passkey and user identity queries for sudo mode.
+ *
+ * 中文关键词：
+ *   Prisma，用户安全，读模型，Sudo
+ * English keywords:
+ *   Prisma, user security, read model, sudo
+ */
 import { IUserSecurityReadModel } from '../../application/identity/ports/IUserSecurityReadModel';
 import { prisma } from '../../db';
 import { TotpEncryptionService } from '../services/identity/TotpEncryptionService';

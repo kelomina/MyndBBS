@@ -1,10 +1,17 @@
 import { CaptchaChallenge } from './CaptchaChallenge';
 
 /**
- * Callers: [AuthApplicationService]
- * Callees: []
- * Description: The repository interface for managing the persistence of slider captcha challenges.
- * Keywords: captcha, repository, interface, contract, domain
+ * 接口名称：ICaptchaChallengeRepository
+ *
+ * 函数作用：
+ *   滑块验证码挑战的仓储接口。
+ * Purpose:
+ *   Repository interface for CaptchaChallenge aggregates.
+ *
+ * 中文关键词：
+ *   验证码，挑战，仓储接口
+ * English keywords:
+ *   captcha, challenge, repository interface
  */
 export interface ICaptchaChallengeRepository {
   /**

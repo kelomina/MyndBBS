@@ -11,10 +11,17 @@ export interface CommentBookmarkProps {
 }
 
 /**
- * Callers: [PrismaEngagementRepository, CommunityApplicationService]
- * Callees: []
- * Description: Represents the CommentUpvote Aggregate Root within the Community domain.
- * Keywords: commentupvote, upvote, comment, engagement, aggregate, root, domain, entity
+ * 类名称：CommentUpvote
+ *
+ * 函数作用：
+ *   社区域中的评论点赞聚合根。
+ * Purpose:
+ *   CommentUpvote Aggregate Root within the Community domain.
+ *
+ * 中文关键词：
+ *   评论点赞，聚合根
+ * English keywords:
+ *   comment upvote, aggregate root
  */
 export class CommentUpvote {
   private props: CommentUpvoteProps;
@@ -58,10 +65,17 @@ export class CommentUpvote {
 }
 
 /**
- * Callers: [PrismaEngagementRepository, CommunityApplicationService]
- * Callees: []
- * Description: Represents the CommentBookmark Aggregate Root within the Community domain.
- * Keywords: commentbookmark, bookmark, comment, engagement, aggregate, root, domain, entity
+ * 类名称：CommentBookmark
+ *
+ * 函数作用：
+ *   社区域中的评论书签聚合根。
+ * Purpose:
+ *   CommentBookmark Aggregate Root within the Community domain.
+ *
+ * 中文关键词：
+ *   评论书签，聚合根
+ * English keywords:
+ *   comment bookmark, aggregate root
  */
 export class CommentBookmark {
   private props: CommentBookmarkProps;

@@ -1,8 +1,30 @@
+/**
+ * 模块：EnvStoreAdapter
+ *
+ * 函数作用：
+ *   环境变量存储适配器——读写 .env 文件，提供数据库/域名/SMTP 等配置的持久化与更新。
+ * Purpose:
+ *   Environment variable store adapter — reads and writes .env files, provides persistence
+ *   and updates for database, domain, and SMTP configuration.
+ *
+ * 中文关键词：
+ *   环境变量，.env，配置适配器，安装，SMTP，域名
+ * English keywords:
+ *   environment variable, .env, config adapter, setup, SMTP, domain
+ */
 import fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
 import { IEnvStore, EnvironmentConfigInput, DomainConfigInput, SmtpConfigInput } from '../../../domain/provisioning/IEnvStore';
 
+/**
+ * 函数名称：getBackendEnvPath
+ *
+ * 函数作用：
+ *   从调用目录向上查找 backend 包的 package.json，定位 .env 文件路径。
+ * Purpose:
+ *   Walks up from the calling directory to locate the .env file by finding the backend package.json.
+ */
 export function getBackendEnvPath(fromDirname: string): string {
   let dir = fromDirname;
   for (let i = 0; i < 8; i++) {
@@ -23,6 +45,14 @@ export function getBackendEnvPath(fromDirname: string): string {
   return path.resolve(fromDirname, '../../.env');
 }
 
+/**
+ * 函数名称：upsertKey
+ *
+ * 函数作用：
+ *   在 .env 内容中插入或更新单行键值对。
+ * Purpose:
+ *   Inserts or updates a single key-value pair in .env content.
+ */
 export function upsertKey(envContent: string, key: string, rawValue: string): string {
   const re = new RegExp(`^${key}=.*$`, 'm');
   if (re.test(envContent)) {
@@ -32,6 +62,7 @@ export function upsertKey(envContent: string, key: string, rawValue: string): st
   return `${envContent}${suffix}${key}=${rawValue}\n`;
 }
 
+/** 将 origin 合并到 FRONTEND_URL 环境变量中（去重）/ Merges an origin into FRONTEND_URL env var (deduplicated) */
 export function upsertFrontendUrlOrigin(envContent: string, origin: string): string {
   const key = 'FRONTEND_URL';
   const re = new RegExp(`^${key}=(.*)$`, 'm');
@@ -61,6 +92,7 @@ export function upsertFrontendUrlOrigin(envContent: string, origin: string): str
   return envContent.replace(re, `${key}=${next}`);
 }
 
+/** 校验主机名格式（禁止协议、路径、IP、特殊字符）/ Validates hostname format (no protocol, path, IP, special chars) */
 export function validateHostname(hostname: string): boolean {
   const h = hostname.trim();
   if (!h) return false;
@@ -83,14 +115,24 @@ export function validateHostname(hostname: string): boolean {
   return true;
 }
 
+/** 校验 WebAuthn RP ID 格式（同主机名校验）/ Validates WebAuthn RP ID format (same as hostname) */
 export function validateRpId(rpId: string): boolean {
   return validateHostname(rpId);
 }
 
+/** 构建 origin URL / Builds an origin URL from protocol and hostname */
 export function buildOrigin(protocol: string, hostname: string): string {
   return `${protocol}://${hostname}`;
 }
 
+/**
+ * 函数名称：applyDomainConfigToEnv
+ *
+ * 函数作用：
+ *   将域名配置应用到 .env 内容字符串中。
+ * Purpose:
+ *   Applies domain configuration to an .env content string.
+ */
 export function applyDomainConfigToEnv(envContent: string, input: DomainConfigInput): string {
   if (!validateHostname(input.hostname) || !validateRpId(input.rpId)) {
     throw new Error('ERR_INVALID_DOMAIN_CONFIG');
@@ -105,6 +147,14 @@ export function applyDomainConfigToEnv(envContent: string, input: DomainConfigIn
   return next;
 }
 
+/**
+ * 类名称：EnvStoreAdapter
+ *
+ * 函数作用：
+ *   .env 文件读写适配器——提供数据库/域名/SMTP 配置的持久化。
+ * Purpose:
+ *   .env file read/write adapter — provides persistence for database, domain, and SMTP configuration.
+ */
 export class EnvStoreAdapter implements IEnvStore {
   private envPath: string;
 
@@ -112,14 +162,24 @@ export class EnvStoreAdapter implements IEnvStore {
     this.envPath = getBackendEnvPath(__dirname);
   }
 
+  /** 读取 .env 文件内容 / Reads .env file content */
   async read(): Promise<string> {
     return fs.readFile(this.envPath, 'utf8').catch(() => '');
   }
 
+  /** 写入 .env 文件 / Writes .env file content */
   async write(content: string): Promise<void> {
     await fs.writeFile(this.envPath, content);
   }
 
+  /**
+   * 函数名称：updateDatabaseUrl
+   *
+   * 函数作用：
+   *   更新 .env 中的 DATABASE_URL，并同步到当前进程环境变量。
+   * Purpose:
+   *   Updates DATABASE_URL in .env and syncs to the current process env.
+   */
   async updateDatabaseUrl(newDbUrl: string): Promise<void> {
     let content = await this.read();
     if (content.includes('DATABASE_URL=')) {
@@ -131,6 +191,14 @@ export class EnvStoreAdapter implements IEnvStore {
     process.env.DATABASE_URL = newDbUrl;
   }
 
+  /**
+   * 函数名称：setupEnvironment
+   *
+   * 函数作用：
+   *   安装流程中初始化 .env 文件，写入全部必需配置并同步到进程环境。
+   * Purpose:
+   *   Initializes .env during installation, writes all required config and syncs to process env.
+   */
   async setupEnvironment(config: EnvironmentConfigInput, jwtSecret: string, jwtRefreshSecret: string): Promise<void> {
     if (!validateHostname(config.hostname) || !validateRpId(config.rpId)) {
       throw new Error('ERR_INVALID_DOMAIN_CONFIG');
@@ -168,6 +236,14 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
     }
   }
 
+  /**
+   * 函数名称：updateDomainConfig
+   *
+   * 函数作用：
+   *   更新 .env 中的域名配置并同步到进程环境。
+   * Purpose:
+   *   Updates domain config in .env and syncs to process env.
+   */
   async updateDomainConfig(config: DomainConfigInput): Promise<void> {
     if (!validateHostname(config.hostname) || !validateRpId(config.rpId)) {
       throw new Error('ERR_INVALID_DOMAIN_CONFIG');
@@ -187,6 +263,14 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
     }
   }
 
+  /**
+   * 函数名称：updateSmtpConfig
+   *
+   * 函数作用：
+   *   更新 .env 中的 SMTP 配置并同步到进程环境。
+   * Purpose:
+   *   Updates SMTP config in .env and syncs to process env.
+   */
   async updateSmtpConfig(config: SmtpConfigInput): Promise<void> {
     let content = await this.read();
     content = upsertKey(content, 'SMTP_HOST', `"${config.host}"`);

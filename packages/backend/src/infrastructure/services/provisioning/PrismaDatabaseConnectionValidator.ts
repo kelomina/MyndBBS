@@ -1,3 +1,16 @@
+/**
+ * 类名称：PrismaDatabaseConnectionValidator
+ *
+ * 函数作用：
+ *   使用 Prisma 验证数据库连接是否可用。
+ * Purpose:
+ *   Validates database connectivity using Prisma.
+ *
+ * 中文关键词：
+ *   数据库，连接验证，Prisma
+ * English keywords:
+ *   database, connection validation, Prisma
+ */
 import { PrismaClient } from '../../../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';

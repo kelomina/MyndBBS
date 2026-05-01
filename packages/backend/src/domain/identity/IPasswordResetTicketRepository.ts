@@ -1,10 +1,12 @@
 import { PasswordResetTicket } from './PasswordResetTicket';
 
 /**
- * Callers: [AuthApplicationService]
- * Callees: []
- * Description: Defines the repository contract for loading and persisting pending password-reset tickets across reset attempts.
- * 描述：定义待验证密码重置票据的仓储契约，用于跨多次重置请求加载和持久化票据。
+ * 接口名称：IPasswordResetTicketRepository
+ *
+ * 函数作用：
+ *   密码重置票据的仓储接口——定义待验证密码重置票据的加载和持久化契约。
+ * Purpose:
+ *   Repository interface for PasswordResetTicket aggregates — defines the contract for loading and persisting pending password-reset tickets.
  * Variables: The repository methods operate on `PasswordResetTicket` aggregates and lookup keys such as email, user id, and reset token.
  * 变量：仓储方法围绕 `PasswordResetTicket` 聚合以及邮箱、用户 ID、重置令牌等查找键工作。
  * Integration: Inject an implementation into `AuthApplicationService` so password-reset request and completion share one persistence abstraction.

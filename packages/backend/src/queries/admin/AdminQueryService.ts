@@ -6,20 +6,47 @@ import { PostStatus, UserStatus } from '@myndbbs/shared';
 import { AdminUserListDTO, AdminCategoryListDTO, AdminPostListDTO, AdminDeletedPostListDTO, AdminDeletedCommentListDTO, AdminPostDTO, AdminCommentWithPostDTO, AdminModeratorScopeDTO, AdminModeratedWordListDTO, AdminPendingPostListDTO, AdminPendingCommentListDTO, AdminModeratedWordDTO, AdminRoleDTO, AdminUserDTO } from './dto';
 
 /**
- * Callers: [adminController, moderationController]
- * Callees: [prisma.user, prisma.category, prisma.post, prisma.comment, prisma.moderatedWord]
- * Description: Query service for administrative and moderation read operations (users, categories, deleted items, pending items).
- * Keywords: query, service, admin, moderation, users, categories, posts, comments
+ * 类名称：AdminQueryService
+ *
+ * 函数作用：
+ *   管理后台和内容审核的查询服务，封装 Prisma 读取操作并返回 DTO。
+ * Purpose:
+ *   Query service for admin panel and content moderation, wrapping Prisma read operations and returning DTOs.
+ *
+ * 调用方 / Called by:
+ *   - adminController
+ *   - moderationController
+ *
+ * 中文关键词：
+ *   管理，审核，查询，用户，分类，帖子，评论
+ * English keywords:
+ *   admin, moderation, query, users, categories, posts, comments
  */
 export class AdminQueryService {
   /**
-   * Callers: [adminController.getUsers]
-   * Callees: [prisma.user.findMany]
-   * Description: Lists all users with their roles for the admin panel.
-   * Keywords: admin, users, list
+   * 函数名称：listUsers
    *
-   * @param query Optional search string to match username or email (case-insensitive)
-   * @returns List of users formatted as AdminUserListDTO
+   * 函数作用：
+   *   获取用户列表，支持按用户名或邮箱关键字模糊搜索。
+   * Purpose:
+   *   Lists all users with optional keyword search on username or email.
+   *
+   * 调用方 / Called by:
+   *   adminController.getUsers → GET /api/admin/users
+   *
+   * 参数说明 / Parameters:
+   *   - query: string | undefined, 搜索关键字（匹配用户名或邮箱，大小写不敏感）
+   *
+   * 返回值说明 / Returns:
+   *   AdminUserListDTO[] 用户列表
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   用户列表，搜索，管理后台
+   * English keywords:
+   *   user list, search, admin panel
    */
   public async listUsers(query?: string): Promise<AdminUserListDTO[]> {
     const where = query
@@ -57,20 +84,55 @@ export class AdminQueryService {
   }
 
   /**
-   * Callers: [adminController.getCategories]
-   * Callees: [prisma.category.findMany]
-   * Description: Lists all categories ordered by sortOrder.
-   * Keywords: admin, categories, list
+   * 函数名称：listCategories
+   *
+   * 函数作用：
+   *   获取按 sortOrder 排序的全部分类列表。
+   * Purpose:
+   *   Lists all categories ordered by sortOrder.
+   *
+   * 调用方 / Called by:
+   *   adminController.getCategories → GET /api/admin/categories
+   *
+   * 返回值说明 / Returns:
+   *   AdminCategoryListDTO[] 分类列表
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   分类列表，排序，管理后台
+   * English keywords:
+   *   category list, sort, admin panel
    */
   public async listCategories(): Promise<AdminCategoryListDTO[]> {
     return prisma.category.findMany({ take: 1000, orderBy: { sortOrder: 'asc' } });
   }
 
   /**
-   * Callers: [adminController.getPosts]
-   * Callees: [accessibleBy, prisma.post.findMany]
-   * Description: Lists all accessible posts for the admin panel.
-   * Keywords: admin, posts, list
+   * 函数名称：listPosts
+   *
+   * 函数作用：
+   *   获取当前用户管理后台可见的帖子列表，基于 CASL ability 过滤。
+   * Purpose:
+   *   Lists all posts accessible to the current user in the admin panel, filtered by CASL ability.
+   *
+   * 调用方 / Called by:
+   *   adminController.getPosts → GET /api/admin/posts
+   *
+   * 参数说明 / Parameters:
+   *   - ability: AppAbility, CASL 权限能力对象
+   *
+   * 返回值说明 / Returns:
+   *   AdminPostListDTO[] 帖子列表
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   帖子列表，权限过滤，管理后台
+   * English keywords:
+   *   post list, ability filter, admin panel
    */
   public async listPosts(ability: AppAbility): Promise<AdminPostListDTO[]> {
     const posts = await prisma.post.findMany({
@@ -89,6 +151,31 @@ export class AdminQueryService {
     }));
   }
 
+  /**
+   * 函数名称：listDeletedPosts
+   *
+   * 函数作用：
+   *   获取回收站中已删除的帖子列表。
+   * Purpose:
+   *   Lists soft-deleted posts in the recycle bin.
+   *
+   * 调用方 / Called by:
+   *   adminController.getDeletedPosts → GET /api/admin/recycle/posts
+   *
+   * 参数说明 / Parameters:
+   *   - ability: AppAbility, CASL 权限能力对象
+   *
+   * 返回值说明 / Returns:
+   *   AdminDeletedPostListDTO[] 已删除帖子列表
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   回收站，已删除帖子，列表
+   * English keywords:
+   *   recycle bin, deleted posts, list
+   */
   public async listDeletedPosts(ability: AppAbility): Promise<AdminDeletedPostListDTO[]> {
     const posts = await prisma.post.findMany({
       take: 1000,
@@ -107,10 +194,29 @@ export class AdminQueryService {
   }
 
   /**
-   * Callers: [adminController.updatePostStatus, adminController.restorePost, adminController.hardDeletePost]
-   * Callees: [prisma.post.findUnique]
-   * Description: Fetches a post by ID for administrative operations.
-   * Keywords: admin, post, get
+   * 函数名称：getPostById
+   *
+   * 函数作用：
+   *   按 ID 获取帖子的详细信息，用于管理操作。
+   * Purpose:
+   *   Fetches a post by ID with full details for admin operations.
+   *
+   * 调用方 / Called by:
+   *   adminController.restorePost / hardDeletePost / updatePostStatus
+   *
+   * 参数说明 / Parameters:
+   *   - id: string, 帖子 ID
+   *
+   * 返回值说明 / Returns:
+   *   AdminPostDTO | null，帖子不存在时返回 null
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   帖子详情，ID 查询，管理
+   * English keywords:
+   *   post detail, ID query, admin
    */
   public async getPostById(id: string): Promise<AdminPostDTO | null> {
     const post = await prisma.post.findUnique({ where: { id } });
@@ -128,10 +234,29 @@ export class AdminQueryService {
   }
 
   /**
-   * Callers: [adminController.getDeletedComments]
-   * Callees: [prisma.comment.findMany]
-   * Description: Lists all logically deleted comments for the admin panel.
-   * Keywords: admin, deleted, comments, list
+   * 函数名称：listDeletedComments
+   *
+   * 函数作用：
+   *   获取回收站中已删除的评论列表。
+   * Purpose:
+   *   Lists soft-deleted comments in the recycle bin.
+   *
+   * 调用方 / Called by:
+   *   adminController.getDeletedComments → GET /api/admin/recycle/comments
+   *
+   * 参数说明 / Parameters:
+   *   - ability: AppAbility, CASL 权限能力对象
+   *
+   * 返回值说明 / Returns:
+   *   AdminDeletedCommentListDTO[] 已删除评论列表
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   回收站，已删除评论
+   * English keywords:
+   *   recycle bin, deleted comments
    */
   public async listDeletedComments(ability: AppAbility): Promise<AdminDeletedCommentListDTO[]> {
     const comments = await prisma.comment.findMany({
@@ -190,10 +315,31 @@ export class AdminQueryService {
   }
 
   /**
-   * Callers: [listModeratedWords, listPendingPosts, listPendingComments]
-   * Callees: [prisma.user.findUnique]
-   * Description: Helper method to get the moderation scope (category IDs) for a user.
-   * Keywords: moderation, scope, categories, user
+   * 函数名称：getModeratorScope
+   *
+   * 函数作用：
+   *   获取用户的审核管辖范围（管辖分类 ID 列表或超级管理员标记）。
+   * Purpose:
+   *   Gets the moderation scope for a user (moderated category IDs or super admin flag).
+   *
+   * 调用方 / Called by:
+   *   - listModeratedWords
+   *   - listPendingPosts
+   *   - listPendingComments
+   *
+   * 参数说明 / Parameters:
+   *   - userId: string, 用户 ID
+   *
+   * 返回值说明 / Returns:
+   *   AdminModeratorScopeDTO { isSuperAdmin: boolean, categoryIds?: string[] }
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   审核范围，管辖分类，版主
+   * English keywords:
+   *   moderation scope, category IDs, moderator
    */
   public async getModeratorScope(userId: string): Promise<AdminModeratorScopeDTO> {
     const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true, moderatedCategories: true } });
@@ -206,10 +352,29 @@ export class AdminQueryService {
   }
 
   /**
-   * Callers: [moderationController.getModeratedWords]
-   * Callees: [getModeratorScope, prisma.moderatedWord.findMany]
-   * Description: Lists moderated words visible to the current moderator/admin.
-   * Keywords: moderation, words, list
+   * 函数名称：listModeratedWords
+   *
+   * 函数作用：
+   *   获取当前版主/管理员可见的敏感词列表。
+   * Purpose:
+   *   Lists moderated words visible to the current moderator or admin.
+   *
+   * 调用方 / Called by:
+   *   moderationController.getModeratedWords → GET /api/admin/moderation/words
+   *
+   * 参数说明 / Parameters:
+   *   - userId: string, 当前用户 ID（用于确定管辖范围）
+   *
+   * 返回值说明 / Returns:
+   *   AdminModeratedWordListDTO[] 敏感词列表
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   敏感词，列表，审核
+   * English keywords:
+   *   moderated words, list, moderation
    */
   public async listModeratedWords(userId: string): Promise<AdminModeratedWordListDTO[]> {
     const { categoryIds } = await this.getModeratorScope(userId);
@@ -282,6 +447,28 @@ export class AdminQueryService {
     }));
   }
 
+  /**
+   * 函数名称：getModeratedWordById
+   *
+   * 函数作用：
+   *   按 ID 获取敏感词详情。
+   * Purpose:
+   *   Fetches a moderated word by ID.
+   *
+   * 调用方 / Called by:
+   *   内部使用
+   *
+   * 参数说明 / Parameters:
+   *   - id: string, 敏感词 ID
+   *
+   * 返回值说明 / Returns:
+   *   AdminModeratedWordDTO | null
+   *
+   * 中文关键词：
+   *   敏感词，ID 查询
+   * English keywords:
+   *   moderated word, ID query
+   */
   public async getModeratedWordById(id: string): Promise<AdminModeratedWordDTO | null> {
     const word = await prisma.moderatedWord.findUnique({ where: { id } });
     if (!word) return null;
@@ -293,6 +480,31 @@ export class AdminQueryService {
     };
   }
 
+  /**
+   * 函数名称：getRoleByName
+   *
+   * 函数作用：
+   *   按角色名获取角色信息。
+   * Purpose:
+   *   Fetches a role by its name.
+   *
+   * 调用方 / Called by:
+   *   安装流程、初始化流程
+   *
+   * 参数说明 / Parameters:
+   *   - name: string, 角色名称（如 'USER'、'ADMIN'、'SUPER_ADMIN'）
+   *
+   * 返回值说明 / Returns:
+   *   AdminRoleDTO | null
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   角色，名称查询
+   * English keywords:
+   *   role, name query
+   */
   public async getRoleByName(name: string): Promise<AdminRoleDTO | null> {
     const role = await prisma.role.findUnique({ where: { name } });
     if (!role) return null;
@@ -305,6 +517,28 @@ export class AdminQueryService {
     };
   }
 
+  /**
+   * 函数名称：getRootUser
+   *
+   * 函数作用：
+   *   获取 root 超级管理员用户（未封禁的）。
+   * Purpose:
+   *   Fetches the root super admin user (not banned).
+   *
+   * 调用方 / Called by:
+   *   安装流程
+   *
+   * 返回值说明 / Returns:
+   *   AdminUserDTO | null
+   *
+   * 副作用 / Side effects:
+   *   无——只读查询
+   *
+   * 中文关键词：
+   *   Root 用户，超级管理员
+   * English keywords:
+   *   root user, super admin
+   */
   public async getRootUser(): Promise<AdminUserDTO | null> {
     const user = await prisma.user.findFirst({
       where: { username: 'root', status: { not: UserStatus.BANNED as any } }

@@ -1,3 +1,16 @@
+/**
+ * 类名称：PrismaAuditLogRepository
+ *
+ * 函数作用：
+ *   Prisma 实现的审计日志仓储。
+ * Purpose:
+ *   Prisma-based audit log repository.
+ *
+ * 中文关键词：
+ *   Prisma，审计日志，仓储
+ * English keywords:
+ *   Prisma, audit log, repository
+ */
 import { IAuditLogRepository } from '../../domain/system/IAuditLogRepository';
 import { AuditLog, AuditLogProps } from '../../domain/system/AuditLog';
 import { prisma } from '../../db';
@@ -17,12 +30,21 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
     return AuditLog.load(props);
   }
 
+  /** 按 ID 查找审计日志 / Finds an audit log by ID */
   public async findById(id: string): Promise<AuditLog | null> {
     const raw = await prisma.auditLog.findUnique({ where: { id } });
     if (!raw) return null;
     return this.toDomain(raw);
   }
 
+  /**
+   * 函数名称：findMany
+   *
+   * 函数作用：
+   *   分页查询审计日志，支持按操作者和操作类型过滤。
+   * Purpose:
+   *   Paginated audit log query with optional operator/operation type filtering.
+   */
   public async findMany(params: {
     skip?: number;
     take?: number;
