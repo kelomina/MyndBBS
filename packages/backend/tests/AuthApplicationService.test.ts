@@ -105,6 +105,7 @@ describe('AuthApplicationService', () => {
       passkeyPort,
       tokenPort,
       emailSender,
+      null, // emailTemplateRepository
       unitOfWork
     );
     

@@ -396,3 +396,18 @@ model RouteWhitelist {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+enum EmailTemplateType {
+  REGISTRATION_VERIFICATION
+  PASSWORD_RESET
+  TEST
+}
+
+model EmailTemplate {
+  id        String            @id @default(uuid()) @db.Uuid
+  type      EmailTemplateType @unique
+  subject   String
+  textBody  String            @db.Text
+  htmlBody  String            @db.Text
+  updatedAt DateTime          @updatedAt
+}

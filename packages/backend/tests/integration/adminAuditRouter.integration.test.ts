@@ -68,6 +68,10 @@ jest.mock('../../src/controllers/admin', () => {
     addRouteWhitelist: respond(201, { ok: true }),
     updateRouteWhitelist: respond(),
     deleteRouteWhitelist: respond(),
+    getEmailConfig: respond(),
+    updateEmailConfig: respond(),
+    updateEmailTemplate: respond(),
+    sendTestEmail: respond(),
   };
 });
 

@@ -1,7 +1,7 @@
 import fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
-import { IEnvStore, EnvironmentConfigInput, DomainConfigInput } from '../../../domain/provisioning/IEnvStore';
+import { IEnvStore, EnvironmentConfigInput, DomainConfigInput, SmtpConfigInput } from '../../../domain/provisioning/IEnvStore';
 
 export function getBackendEnvPath(fromDirname: string): string {
   let dir = fromDirname;
@@ -185,5 +185,23 @@ JWT_REFRESH_SECRET="${jwtRefreshSecret}"
     if (m?.[1]) {
       process.env.FRONTEND_URL = m[1].trim().replace(/^"(.*)"$/, '$1');
     }
+  }
+
+  async updateSmtpConfig(config: SmtpConfigInput): Promise<void> {
+    let content = await this.read();
+    content = upsertKey(content, 'SMTP_HOST', `"${config.host}"`);
+    content = upsertKey(content, 'SMTP_PORT', String(config.port));
+    content = upsertKey(content, 'SMTP_SECURE', config.secure ? 'true' : 'false');
+    content = upsertKey(content, 'SMTP_USER', `"${config.user}"`);
+    content = upsertKey(content, 'SMTP_PASS', `"${config.pass}"`);
+    content = upsertKey(content, 'SMTP_FROM', `"${config.from}"`);
+    await this.write(content);
+
+    process.env.SMTP_HOST = config.host;
+    process.env.SMTP_PORT = String(config.port);
+    process.env.SMTP_SECURE = config.secure ? 'true' : 'false';
+    process.env.SMTP_USER = config.user;
+    process.env.SMTP_PASS = config.pass;
+    process.env.SMTP_FROM = config.from;
   }
 }

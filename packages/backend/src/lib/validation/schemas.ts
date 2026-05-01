@@ -97,3 +97,30 @@ export const updateCategorySchema = z.object({
   sortOrder: z.number().int().min(0).optional(),
   minLevel: z.number().int().min(0).optional(),
 });
+
+// ── Email Configuration ──
+
+export const emailConfigSchema = z.object({
+  host: z.string().min(1, 'ERR_HOST_REQUIRED'),
+  port: z.number().int().min(1).max(65535).or(
+    z.string().regex(/^\d+$/).transform(Number).pipe(
+      z.number().int().min(1).max(65535)
+    )
+  ),
+  secure: z.boolean().optional(),
+  user: z.string().optional(),
+  pass: z.string().optional(),
+  from: z.string().min(1, 'ERR_FROM_REQUIRED'),
+});
+
+export const emailTemplateSchema = z.object({
+  type: z.string().min(1, 'ERR_TYPE_REQUIRED'),
+  subject: z.string().min(1, 'ERR_SUBJECT_REQUIRED'),
+  textBody: z.string().min(1, 'ERR_TEXT_BODY_REQUIRED'),
+  htmlBody: z.string().min(1, 'ERR_HTML_BODY_REQUIRED'),
+});
+
+export const testEmailSchema = z.object({
+  targetEmail: z.string().email('ERR_INVALID_EMAIL'),
+  smtpConfig: emailConfigSchema.optional(),
+});

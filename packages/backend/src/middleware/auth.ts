@@ -170,7 +170,7 @@ export const requireAbility = (action: Action, subject: AppSubjects) => {
       next();
     } else {
       console.log('Forbidden! user:', req.user, 'rules:', req.ability.rules, 'action:', action, 'subject:', subject);
-      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS' });
+      res.status(403).json({ error: 'ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS', _userRole: req.user?.role });
     }
   };
 };

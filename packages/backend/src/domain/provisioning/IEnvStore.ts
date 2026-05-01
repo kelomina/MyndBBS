@@ -13,10 +13,20 @@ export interface EnvironmentConfigInput extends DomainConfigInput {
   webRoot?: string;
 }
 
+export interface SmtpConfigInput {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  from: string;
+}
+
 export interface IEnvStore {
   read(): Promise<string>;
   write(content: string): Promise<void>;
   updateDatabaseUrl(newDbUrl: string): Promise<void>;
   setupEnvironment(config: EnvironmentConfigInput, jwtSecret: string, jwtRefreshSecret: string): Promise<void>;
   updateDomainConfig(config: DomainConfigInput): Promise<void>;
+  updateSmtpConfig(config: SmtpConfigInput): Promise<void>;
 }

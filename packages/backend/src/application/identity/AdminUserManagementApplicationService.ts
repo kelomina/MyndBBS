@@ -2,6 +2,7 @@ import { IUserRepository } from '../../domain/identity/IUserRepository';
 import { IRoleRepository } from '../../domain/identity/IRoleRepository';
 import { IPasskeyRepository } from '../../domain/identity/IPasskeyRepository';
 import { ISessionRepository } from '../../domain/identity/ISessionRepository';
+import { IAbilityCache } from '../../domain/identity/IAbilityCache';
 import { UserStatus } from '@myndbbs/shared';
 import { RoleHierarchyPolicy, RoleName } from './policies/RoleHierarchyPolicy';
 import { ISessionCache } from './ports/ISessionCache';
@@ -26,7 +27,8 @@ export class AdminUserManagementApplicationService {
     private sessionCache: ISessionCache,
     private roleHierarchyPolicy: RoleHierarchyPolicy,
     private eventBus: IEventBus,
-    private unitOfWork: IUnitOfWork
+    private unitOfWork: IUnitOfWork,
+    private abilityCache: IAbilityCache
   ) {}
 
   /**
@@ -53,6 +55,7 @@ export class AdminUserManagementApplicationService {
       user.changeLevel(level, passkeys.length > 0);
       await this.userRepository.save(user);
       this.eventBus.publish(new UserPromotedEvent(targetUserId, level, operator.userId));
+      await this.abilityCache.invalidateUserRules(targetUserId);
     });
   }
 
@@ -87,6 +90,7 @@ export class AdminUserManagementApplicationService {
       target.changeStatus(status);
       await this.userRepository.save(target);
       this.eventBus.publish(new UserStatusChangedEvent(targetUserId, status, operator.userId));
+      await this.abilityCache.invalidateUserRules(targetUserId);
 
       if (status === UserStatus.BANNED) {
         const sessions = await this.sessionRepository.findByUserId(targetUserId);
@@ -135,6 +139,7 @@ export class AdminUserManagementApplicationService {
       target.changeRole(newRole.id);
       await this.userRepository.save(target);
       this.eventBus.publish(new UserRoleChangedEvent(targetUserId, newRoleName, operator.userId));
+      await this.abilityCache.invalidateUserRules(targetUserId);
 
       // Auto-disable root if another user gets SUPER_ADMIN role
       if (newRoleName === 'SUPER_ADMIN' && target.username !== 'root') {

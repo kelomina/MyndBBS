@@ -21,7 +21,7 @@ export function LanguageSwitcher({ currentLocale }: { currentLocale: Locale }) {
       className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted transition-colors hover:bg-background hover:text-foreground"
       title={dict.common.toggleLanguage}
     >
-      <Globe className="h-5 w-5" />
+      <Globe className="h-5 w-5" suppressHydrationWarning />
       <span className="sr-only">{dict.common.toggleLanguage}</span>
     </button>
   );

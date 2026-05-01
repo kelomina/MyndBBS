@@ -5,7 +5,7 @@ import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { UserStatus, PostStatus } from '@myndbbs/shared';
 import { AuthRequest } from '../middleware/auth';
 
-import { auditApplicationService, adminUserManagementApplicationService, authApplicationService, userApplicationService, installationApplicationService, systemApplicationService, communityApplicationService, roleApplicationService, moderationApplicationService } from '../registry';
+import { auditApplicationService, adminUserManagementApplicationService, authApplicationService, userApplicationService, installationApplicationService, systemApplicationService, communityApplicationService, roleApplicationService, moderationApplicationService, emailConfigurationApplicationService } from '../registry';
 
 // Users
 /**
@@ -558,5 +558,92 @@ export const deleteRouteWhitelist = async (req: Request, res: Response) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'ERR_FAILED_TO_DELETE_ROUTE_WHITELIST' });
+  }
+};
+
+// ── Email Configuration ──
+
+/**
+ * Callers: [Router]
+ * Callees: [emailConfigurationApplicationService]
+ * Description: Retrieves the current SMTP configuration and email template list.
+ * Keywords: admin, email, config, smtp, templates
+ */
+export const getEmailConfig = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const smtpConfig = emailConfigurationApplicationService.getSmtpConfig(req.user?.role);
+    const templates = await emailConfigurationApplicationService.getEmailTemplates(req.user?.role);
+    res.json({ smtpConfig, templates });
+  } catch (error: any) {
+    if (error.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
+      res.status(403).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
+  }
+};
+
+/**
+ * Callers: [Router]
+ * Callees: [emailConfigurationApplicationService]
+ * Description: Updates the SMTP configuration.
+ * Keywords: admin, email, config, smtp, update
+ */
+export const updateEmailConfig = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { host, port, secure, user, pass, from } = req.body;
+    await emailConfigurationApplicationService.updateSmtpConfig({ host, port, secure: !!secure, user, pass, from }, req.user?.role);
+    res.json({ message: 'Email configuration saved. The server is restarting to apply changes.' });
+    installationApplicationService.scheduleRestart(1000);
+  } catch (error: any) {
+    if (error.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
+      res.status(403).json({ error: error.message });
+      return;
+    }
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+  }
+};
+
+/**
+ * Callers: [Router]
+ * Callees: [emailConfigurationApplicationService]
+ * Description: Updates an email template by type.
+ * Keywords: admin, email, template, update
+ */
+export const updateEmailTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { type, subject, textBody, htmlBody } = req.body;
+    await emailConfigurationApplicationService.updateEmailTemplate(type, subject, textBody, htmlBody, req.user?.role);
+    res.json({ message: 'Email template updated successfully' });
+  } catch (error: any) {
+    if (error.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
+      res.status(403).json({ error: error.message });
+      return;
+    }
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+  }
+};
+
+/**
+ * Callers: [Router]
+ * Callees: [emailConfigurationApplicationService]
+ * Description: Sends a test email to the specified address using current or provided SMTP config.
+ * Keywords: admin, email, test, send
+ */
+export const sendTestEmail = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { targetEmail, smtpConfig } = req.body;
+    await emailConfigurationApplicationService.sendTestEmail(targetEmail, smtpConfig, req.user?.role);
+    res.json({ message: 'Test email sent successfully' });
+  } catch (error: any) {
+    if (error.message === 'ERR_FORBIDDEN_SUPER_ADMIN_ONLY') {
+      res.status(403).json({ error: error.message });
+      return;
+    }
+    if (error.message === 'ERR_EMAIL_DELIVERY_FAILED' || error.message === 'ERR_EMAIL_DELIVERY_NOT_CONFIGURED') {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    res.status(500).json({ error: 'ERR_EMAIL_DELIVERY_FAILED' });
   }
 };
