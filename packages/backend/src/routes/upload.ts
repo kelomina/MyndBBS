@@ -14,6 +14,7 @@
  *   - 仅允许图片类型（MIME + 扩展名双重校验）
  *   - 魔数签名验证防止伪装文件
  *   - 文件大小限制 10MB
+ *   - SVG 已被排除（无固定魔数签名，存在 XSS 风险）
  *
  * 中文关键词：
  *   上传，文件，图片，安全验证，魔数
@@ -33,12 +34,11 @@ const ALLOWED_MIME_TYPES = [
   'image/png',
   'image/gif',
   'image/webp',
-  'image/svg+xml',
   'image/bmp',
   'image/tiff',
 ];
 
-const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff', '.tif'];
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif'];
 
 /**
  * Magic byte signatures for allowed image types.
@@ -99,12 +99,6 @@ function validateMagicBytes(req: Request, res: Response, next: NextFunction): vo
   }
 
   const mimeType = req.file.mimetype;
-
-  // SVG files are XML-based and don't have fixed magic bytes; skip binary check
-  if (mimeType === 'image/svg+xml') {
-    next();
-    return;
-  }
 
   if (!checkMagicBytes(req.file.buffer, mimeType)) {
     res.status(400).json({ error: 'ERR_FILE_CONTENT_TYPE_MISMATCH' });

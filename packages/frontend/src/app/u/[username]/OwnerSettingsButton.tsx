@@ -17,7 +17,8 @@ export function OwnerSettingsButton({ username }: { username: string }) {
           const checkOwner = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
-          credentials: 'include'
+          credentials: 'include',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         if (res.ok) {
           const data = await res.json();

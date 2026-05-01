@@ -159,8 +159,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       setUsername(p.username);
       try {
         const [profileRes, targetKeyRes] = await Promise.all([
-          fetch('/api/v1/user/profile', { credentials: 'include' }),
-          fetch(`/api/v1/messages/keys/${p.username}`, { credentials: 'include' })
+          fetch('/api/v1/user/profile', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+          fetch(`/api/v1/messages/keys/${p.username}`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         ]);
 
         if (cancelled) return;
@@ -180,7 +180,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
           if (cancelled) return;
           setTheirPublicKey(importedTheirKey);
 
-          const inboxRes = await fetch(`/api/v1/messages/inbox?withUserId=${targetData.userId}`, { credentials: 'include' });
+          const inboxRes = await fetch(`/api/v1/messages/inbox?withUserId=${targetData.userId}`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
           if (inboxRes.ok) {
             const inboxData = await inboxRes.json();
             if (cancelled) return;
@@ -190,7 +190,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
             });
           }
 
-          const settingsRes = await fetch(`/api/v1/messages/settings/${targetData.userId}`, { credentials: 'include' });
+          const settingsRes = await fetch(`/api/v1/messages/settings/${targetData.userId}`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
           if (settingsRes.ok) {
             const settingsData = await settingsRes.json();
             if (cancelled) return;
@@ -281,7 +281,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
     setError('');
     try {
       // Fetch my encrypted private key
-      const myKeyRes = await fetch('/api/v1/messages/keys/me', { credentials: 'include' });
+      const myKeyRes = await fetch('/api/v1/messages/keys/me', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (!myKeyRes.ok) throw new Error('Failed to fetch your keys. Please initialize secure messaging first.');
       const myKeyData = await myKeyRes.json();
 
@@ -291,8 +291,8 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
 
       // Start auth for PRF
       const [optionsRes, passkeysRes] = await Promise.all([
-        fetch('/api/v1/auth/passkey/generate-authentication-options', { credentials: 'include' }),
-        fetch('/api/v1/user/passkeys', { credentials: 'include' })
+        fetch('/api/v1/auth/passkey/generate-authentication-options', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+        fetch('/api/v1/user/passkeys', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       ]);
       if (!optionsRes.ok) throw new Error('Failed to get auth options');
       const optionsData = await optionsRes.json();
@@ -376,7 +376,7 @@ export default function ChatPage({ params }: { params: Promise<{ username: strin
       const previousScrollHeight = scrollContainerRef.current?.scrollHeight || 0;
       
       try {
-        const res = await fetch(`/api/v1/messages/inbox?withUserId=${targetUserId}&limit=20&cursor=${nextCursor}`, { credentials: 'include' });
+        const res = await fetch(`/api/v1/messages/inbox?withUserId=${targetUserId}&limit=20&cursor=${nextCursor}`, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         if (res.ok) {
           const data = await res.json();
           setMessages(prev => [...data.messages, ...prev]);

@@ -32,12 +32,12 @@ export default function MessagesPage() {
 
       const loadInbox = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/messages/inbox', { credentials: 'include' });
+      const res = await fetch('/api/v1/messages/inbox', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (res.ok) {
         const data = await res.json();
         const threadsMap = new Map<string, MessageThread>();
         // We'll need my user ID. Let's fetch it if we don't have it.
-        const profileRes = await fetch('/api/v1/user/profile', { credentials: 'include' });
+        const profileRes = await fetch('/api/v1/user/profile', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         const myId = profileRes.ok ? (await profileRes.json()).user.id : '';
 
         (data.messages as InboxMessage[]).forEach((msg) => {
@@ -77,8 +77,8 @@ export default function MessagesPage() {
       const checkStatus = useCallback(async () => {
     try {
       const [profileRes, keyRes] = await Promise.all([
-        fetch('/api/v1/user/profile', { credentials: 'include' }),
-        fetch('/api/v1/messages/keys/me', { credentials: 'include' })
+        fetch('/api/v1/user/profile', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+        fetch('/api/v1/messages/keys/me', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       ]);
 
       if (profileRes.ok) {
@@ -129,8 +129,8 @@ export default function MessagesPage() {
 
       // 2. Start Auth for PRF
       const [optionsRes, passkeysRes] = await Promise.all([
-        fetch('/api/v1/auth/passkey/generate-authentication-options', { credentials: 'include' }),
-        fetch('/api/v1/user/passkeys', { credentials: 'include' })
+        fetch('/api/v1/auth/passkey/generate-authentication-options', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+        fetch('/api/v1/user/passkeys', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       ]);
       if (!optionsRes.ok) throw new Error('Failed to get auth options');
       const optionsData = await optionsRes.json();
