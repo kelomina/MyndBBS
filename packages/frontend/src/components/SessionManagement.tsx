@@ -13,7 +13,7 @@ export function SessionManagement() {
 
       const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/user/sessions', { credentials: 'include' });
+      const res = await fetch('/api/v1/user/sessions', { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (res.ok) {
         const data = await res.json();
         setSessions(data.sessions);

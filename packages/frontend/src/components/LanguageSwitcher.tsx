@@ -11,7 +11,7 @@ export function LanguageSwitcher({ currentLocale }: { currentLocale: Locale }) {
 
       const toggleLanguage = () => {
     const nextLocale = currentLocale === 'en' ? 'zh' : 'en';
-    document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000`;
+    document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000; SameSite=Lax; Secure`;
     router.refresh();
   };
 

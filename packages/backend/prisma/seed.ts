@@ -2,6 +2,7 @@ import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { UserStatus } from '@myndbbs/shared';
+import crypto from 'crypto';
 import * as argon2 from 'argon2';
 import * as dotenv from 'dotenv';
 import { ensureDefaultRouteWhitelist } from './seedDefaults';
@@ -88,7 +89,7 @@ export async function main(): Promise<void> {
     const existingSystemUser = await prisma.user.findFirst({ where: { username: 'system' } });
     if (!existingSystemUser) {
       console.log('No system account found. Creating system account...');
-      const hashedSystemPassword = await argon2.hash(Math.random().toString(36).slice(-10));
+      const hashedSystemPassword = await argon2.hash(crypto.randomBytes(10).toString('hex'));
       await prisma.user.create({
         data: {
           username: 'system',

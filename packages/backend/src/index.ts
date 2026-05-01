@@ -159,10 +159,11 @@ if (!isInstalled) {
    * 全局错误处理中间件
    * 捕获所有未处理的异常，将 ERR_ 前缀错误码映射为对应 HTTP 状态码。
    */
-  app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Unhandled Error:', err);
-    const errorCode = typeof err?.message === 'string' && err.message.startsWith('ERR_')
-      ? err.message
+    const errorMessage = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+    const errorCode = errorMessage.startsWith('ERR_')
+      ? errorMessage
       : 'ERR_INTERNAL_SERVER_ERROR';
 
     const statusCode =
