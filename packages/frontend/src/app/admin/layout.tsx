@@ -4,7 +4,7 @@ import { getDictionary } from '../../i18n/get-dictionary';
 import { defaultLocale, Locale } from '../../i18n/config';
 import { headers, cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { ShieldCheck, Users, FolderTree, Trash2, Database, ShieldAlert, Globe } from 'lucide-react';
+import { ShieldCheck, Users, FolderTree, Trash2, Database, ShieldAlert, Globe, ScrollText, Mail } from 'lucide-react';
 
 export default async function AdminLayout({
   children,
@@ -96,6 +96,15 @@ export default async function AdminLayout({
           )}
           {isSuperAdmin && (
             <Link
+              href="/admin/email"
+              className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <Mail className="h-5 w-5" />
+              <span>{(dict.admin as unknown as { emailConfig?: string }).emailConfig || 'Email Config'}</span>
+            </Link>
+          )}
+          {isSuperAdmin && (
+            <Link
               href="/admin/db"
               className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
             >
@@ -110,6 +119,15 @@ export default async function AdminLayout({
             >
               <Globe className="h-5 w-5" />
               <span>{(dict.admin as unknown as { domainConfig?: string }).domainConfig || 'Domain & Passkey'}</span>
+            </Link>
+          )}
+          {isSuperAdmin && (
+            <Link
+              href="/admin/audit-logs"
+              className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <ScrollText className="h-5 w-5" />
+              <span>{dict.admin?.auditLogs || 'Audit Logs'}</span>
             </Link>
           )}
         </nav>

@@ -7,9 +7,12 @@ import { fetcher } from '../../../lib/api/fetcher';
 import { Trash2, Check, X, ShieldAlert } from 'lucide-react';
 import type { Dictionary, ModerationPost, ModerationComment, ModerationWord } from '../../../types';
 
-export default function ModerationClient({ dict }: { dict: Dictionary }) {
+type Tab = 'posts' | 'comments' | 'words';
+
+export default function ModerationClient({ dict, canManageWords }: { dict: Dictionary; canManageWords: boolean }) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'posts' | 'comments' | 'words'>('posts');
+  const [activeTab, setActiveTab] = useState<Tab>('posts');
+  const availableTabs: Tab[] = canManageWords ? ['posts', 'comments', 'words'] : ['posts', 'comments'];
   const [posts, setPosts] = useState<ModerationPost[]>([]);
   const [comments, setComments] = useState<ModerationComment[]>([]);
   const [words, setWords] = useState<ModerationWord[]>([]);
@@ -32,11 +35,13 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
         const data = await fetcher('/api/admin/moderation/words');
         setWords(data.words);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg, 'error');
     }
     setLoading(false);
-  }, [activeTab]);
+  }, [activeTab, dict, toast]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -49,8 +54,10 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     try {
       await fetcher(`/api/admin/moderation/posts/${id}/approve`, { method: 'POST' });
       fetchQueue();
-    } catch (e) {
-      console.error(e);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to approve';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg, 'error');
     }
   };
 
@@ -58,8 +65,10 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     try {
       await fetcher(`/api/admin/moderation/posts/${id}/reject`, { method: 'POST' });
       fetchQueue();
-    } catch (e) {
-      console.error(e);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reject';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg, 'error');
     }
   };
 
@@ -67,8 +76,10 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     try {
       await fetcher(`/api/admin/moderation/comments/${id}/approve`, { method: 'POST' });
       fetchQueue();
-    } catch (e) {
-      console.error(e);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to approve';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg, 'error');
     }
   };
 
@@ -76,8 +87,10 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     try {
       await fetcher(`/api/admin/moderation/comments/${id}/reject`, { method: 'POST' });
       fetchQueue();
-    } catch (e) {
-      console.error(e);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reject';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg, 'error');
     }
   };
 
@@ -103,8 +116,10 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     try {
       await fetcher(`/api/admin/moderation/words/${id}`, { method: 'DELETE' });
       fetchQueue();
-    } catch (e) {
-      console.error(e);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete word';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg, 'error');
     }
   };
 
@@ -112,7 +127,7 @@ export default function ModerationClient({ dict }: { dict: Dictionary }) {
     <div className="space-y-6">
       <div className="border-b border-border">
         <nav className="-mb-px flex space-x-8">
-          {(['posts', 'comments', 'words'] as const).map((tab) => (
+          {availableTabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}

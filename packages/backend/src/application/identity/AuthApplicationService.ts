@@ -24,6 +24,8 @@ import { ITotpPort } from '../../domain/identity/ports/ITotpPort';
 import { IPasskeyPort } from '../../domain/identity/ports/IPasskeyPort';
 import { ITokenPort } from '../../domain/identity/ports/ITokenPort';
 import { IEmailSender, type SendEmailCommand } from '../../domain/identity/ports/IEmailSender';
+import { IEmailTemplateRepository } from '../../domain/notification/IEmailTemplateRepository';
+import { EmailTemplateType } from '../../domain/notification/EmailTemplate';
 import { IUnitOfWork } from '../../domain/shared/IUnitOfWork';
 
 import { SvgCaptchaGenerator } from './SvgCaptchaGenerator';
@@ -78,6 +80,7 @@ export class AuthApplicationService {
     private passkeyPort: IPasskeyPort,
     private tokenPort: ITokenPort,
     private emailSender: IEmailSender,
+    private emailTemplateRepository: IEmailTemplateRepository | null,
     private unitOfWork: IUnitOfWork
   ) {}
 
@@ -1341,7 +1344,7 @@ export class AuthApplicationService {
    * Keywords: send verification mail, mail rendering, pending ticket email, signup notification, identity communication, 发送验证邮件, 邮件渲染, 待注册通知, 注册提醒, 身份通信
    */
   private async sendRegistrationVerificationEmail(ticket: EmailRegistrationTicket): Promise<void> {
-    const command = this.buildRegistrationVerificationEmailCommand(ticket);
+    const command = await this.buildRegistrationVerificationEmailCommand(ticket);
     await this.emailSender.sendEmail(command);
   }
 
@@ -1359,8 +1362,26 @@ export class AuthApplicationService {
    * Keywords: send reset mail, mail rendering, pending reset email, password recovery notification, identity communication, 发送重置邮件, 邮件渲染, 待重置通知, 密码找回提醒, 身份通信
    */
   private async sendPasswordResetEmail(ticket: PasswordResetTicket): Promise<void> {
-    const command = this.buildPasswordResetEmailCommand(ticket);
+    const command = await this.buildPasswordResetEmailCommand(ticket);
     await this.emailSender.sendEmail(command);
+  }
+
+  private async renderTemplateOrDefault(
+    type: EmailTemplateType,
+    variables: Record<string, string>,
+    buildDefault: () => { subject: string; textBody: string; htmlBody: string },
+  ): Promise<{ subject: string; textBody: string; htmlBody: string }> {
+    if (this.emailTemplateRepository) {
+      try {
+        const template = await this.emailTemplateRepository.findByType(type);
+        if (template) {
+          return template.render(variables);
+        }
+      } catch {
+        // Fall through to default
+      }
+    }
+    return buildDefault();
   }
 
   /**
@@ -1376,34 +1397,45 @@ export class AuthApplicationService {
    * 错误处理：在聚合不变式成立的前提下，本渲染方法是纯函数，通常不会抛错。
    * Keywords: email template, verification subject, html body, text body, signup mail copy, 邮件模板, 验证主题, HTML正文, 文本正文, 注册邮件文案
    */
-  private buildRegistrationVerificationEmailCommand(ticket: EmailRegistrationTicket): SendEmailCommand {
+  private async buildRegistrationVerificationEmailCommand(ticket: EmailRegistrationTicket): Promise<SendEmailCommand> {
     const verificationLink = this.buildEmailRegistrationVerificationLink(ticket.verificationToken, ticket.email);
     const expiresInMinutes = Math.max(1, Math.ceil((ticket.expiresAt.getTime() - Date.now()) / 60000));
-    const subject = `${APP_NAME} email verification`;
-    const textBody = [
-      `Hello ${ticket.username},`,
-      '',
-      `Please verify your ${APP_NAME} registration by opening the link below:`,
-      verificationLink,
-      '',
-      `This link expires in ${expiresInMinutes} minutes.`,
-      '',
-      `If you did not start this registration, you can safely ignore this email.`,
-    ].join('\n');
+    const expiresInMinutesStr = String(expiresInMinutes);
 
-    const htmlBody = [
-      `<p>Hello ${ticket.username},</p>`,
-      `<p>Please verify your <strong>${APP_NAME}</strong> registration by opening the link below:</p>`,
-      `<p><a href="${verificationLink}">${verificationLink}</a></p>`,
-      `<p>This link expires in <strong>${expiresInMinutes} minutes</strong>.</p>`,
-      `<p>If you did not start this registration, you can safely ignore this email.</p>`,
-    ].join('');
+    const rendered = await this.renderTemplateOrDefault(
+      EmailTemplateType.REGISTRATION_VERIFICATION,
+      {
+        appName: APP_NAME,
+        username: ticket.username,
+        verificationLink,
+        expiresInMinutes: expiresInMinutesStr,
+      },
+      () => {
+        const subject = `${APP_NAME} email verification`;
+        const textBody = [
+          `Hello ${ticket.username},`,
+          '',
+          `Please verify your ${APP_NAME} registration by opening the link below:`,
+          verificationLink,
+          '',
+          `This link expires in ${expiresInMinutes} minutes.`,
+          '',
+          `If you did not start this registration, you can safely ignore this email.`,
+        ].join('\n');
+        const htmlBody = [
+          `<p>Hello ${ticket.username},</p>`,
+          `<p>Please verify your <strong>${APP_NAME}</strong> registration by opening the link below:</p>`,
+          `<p><a href="${verificationLink}">${verificationLink}</a></p>`,
+          `<p>This link expires in <strong>${expiresInMinutes} minutes</strong>.</p>`,
+          `<p>If you did not start this registration, you can safely ignore this email.</p>`,
+        ].join('');
+        return { subject, textBody, htmlBody };
+      },
+    );
 
     return {
       to: ticket.email,
-      subject,
-      textBody,
-      htmlBody,
+      ...rendered,
     };
   }
 
@@ -1420,34 +1452,45 @@ export class AuthApplicationService {
    * 错误处理：在聚合不变式成立的前提下，本渲染方法是纯函数，通常不会抛错。
    * Keywords: reset email template, recovery subject, html body, text body, password recovery copy, 重置邮件模板, 找回主题, HTML正文, 文本正文, 密码找回文案
    */
-  private buildPasswordResetEmailCommand(ticket: PasswordResetTicket): SendEmailCommand {
+  private async buildPasswordResetEmailCommand(ticket: PasswordResetTicket): Promise<SendEmailCommand> {
     const resetLink = this.buildPasswordResetLink(ticket.resetToken, ticket.email);
     const expiresInMinutes = Math.max(1, Math.ceil((ticket.expiresAt.getTime() - Date.now()) / 60000));
-    const subject = `${APP_NAME} password reset`;
-    const textBody = [
-      `Hello ${ticket.username},`,
-      '',
-      `You requested a password reset for ${APP_NAME}. Open the link below to choose a new password:`,
-      resetLink,
-      '',
-      `This link expires in ${expiresInMinutes} minutes.`,
-      '',
-      'If you did not request a password reset, you can safely ignore this email.',
-    ].join('\n');
+    const expiresInMinutesStr = String(expiresInMinutes);
 
-    const htmlBody = [
-      `<p>Hello ${ticket.username},</p>`,
-      `<p>You requested a password reset for <strong>${APP_NAME}</strong>. Open the link below to choose a new password:</p>`,
-      `<p><a href="${resetLink}">${resetLink}</a></p>`,
-      `<p>This link expires in <strong>${expiresInMinutes} minutes</strong>.</p>`,
-      '<p>If you did not request a password reset, you can safely ignore this email.</p>',
-    ].join('');
+    const rendered = await this.renderTemplateOrDefault(
+      EmailTemplateType.PASSWORD_RESET,
+      {
+        appName: APP_NAME,
+        username: ticket.username,
+        resetLink,
+        expiresInMinutes: expiresInMinutesStr,
+      },
+      () => {
+        const subject = `${APP_NAME} password reset`;
+        const textBody = [
+          `Hello ${ticket.username},`,
+          '',
+          `You requested a password reset for ${APP_NAME}. Open the link below to choose a new password:`,
+          resetLink,
+          '',
+          `This link expires in ${expiresInMinutes} minutes.`,
+          '',
+          'If you did not request a password reset, you can safely ignore this email.',
+        ].join('\n');
+        const htmlBody = [
+          `<p>Hello ${ticket.username},</p>`,
+          `<p>You requested a password reset for <strong>${APP_NAME}</strong>. Open the link below to choose a new password:</p>`,
+          `<p><a href="${resetLink}">${resetLink}</a></p>`,
+          `<p>This link expires in <strong>${expiresInMinutes} minutes</strong>.</p>`,
+          '<p>If you did not request a password reset, you can safely ignore this email.</p>',
+        ].join('');
+        return { subject, textBody, htmlBody };
+      },
+    );
 
     return {
       to: ticket.email,
-      subject,
-      textBody,
-      htmlBody,
+      ...rendered,
     };
   }
 

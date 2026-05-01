@@ -54,6 +54,8 @@ import { PasskeyAdapter } from './infrastructure/services/identity/PasskeyAdapte
 import { SmtpEmailSender } from './infrastructure/services/identity/SmtpEmailSender';
 import { TokenAdapter } from './infrastructure/services/identity/TokenAdapter';
 import { LocalFileStorageAdapter } from './infrastructure/services/system/LocalFileStorageAdapter';
+import { EmailConfigurationApplicationService } from './application/notification/EmailConfigurationApplicationService';
+import { PrismaEmailTemplateRepository } from './infrastructure/repositories/PrismaEmailTemplateRepository';
 
 export const redisAbilityCache = new RedisAbilityCache();
 
@@ -103,13 +105,16 @@ export const adminUserManagementApplicationService = new AdminUserManagementAppl
   new RedisSessionCache(totpEncryptionService),
   new RoleHierarchyPolicy(),
   globalEventBus,
-  unitOfWork
+  unitOfWork,
+  redisAbilityCache
 );
 
 import { SudoApplicationService } from './application/identity/SudoApplicationService';
 import { RedisSudoStore } from './infrastructure/services/RedisSudoStore';
 import { identityQueryService } from './queries/identity/IdentityQueryService';
 import { PrismaUserSecurityReadModel } from './infrastructure/queries/PrismaUserSecurityReadModel';
+
+const emailTemplateRepo = new PrismaEmailTemplateRepository();
 
 export const authApplicationService = new AuthApplicationService(
   new PrismaCaptchaChallengeRepository(),
@@ -126,6 +131,7 @@ export const authApplicationService = new AuthApplicationService(
   passkeyAdapter,
   tokenAdapter,
   smtpEmailSender,
+  emailTemplateRepo,
   unitOfWork
 );
 
@@ -208,6 +214,11 @@ export const roleApplicationService = new RoleApplicationService(
   new PrismaUserRepository(totpEncryptionService),
   redisAbilityCache,
   unitOfWork
+);
+
+export const emailConfigurationApplicationService = new EmailConfigurationApplicationService(
+  new EnvStoreAdapter(),
+  new PrismaEmailTemplateRepository(),
 );
 
 export const moderationApplicationService = new ModerationApplicationService(

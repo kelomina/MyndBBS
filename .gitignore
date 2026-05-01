@@ -173,3 +173,6 @@ skill/
 history/
 
 package-lock.json
+
+# AI agent workspace instructions
+AGENTS.md

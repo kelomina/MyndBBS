@@ -1,5 +1,21 @@
 import { fetcher } from './fetcher';
 
+export interface AuditLogEntry {
+  id: string;
+  operatorId: string;
+  permissionGroup: string;
+  operationType: string;
+  requestPath: string;
+  payload: Record<string, unknown>;
+  ip: string;
+  createdAt: string;
+}
+
+export interface AuditLogResponse {
+  items: AuditLogEntry[];
+  total: number;
+}
+
 /**
  * 获取用户列表
  * @param query 可选的搜索关键字
@@ -43,6 +59,21 @@ export const updateDbConfig = (data: Record<string, unknown>) =>
   });
 
 export const getDomainConfig = () => fetcher('/api/admin/domain-config');
+
+export const getAuditLogs = (params?: {
+  skip?: number;
+  take?: number;
+  operatorId?: string;
+  operationType?: string;
+}): Promise<AuditLogResponse> => {
+  const searchParams = new URLSearchParams();
+  if (params?.skip !== undefined) searchParams.set('skip', String(params.skip));
+  if (params?.take !== undefined) searchParams.set('take', String(params.take));
+  if (params?.operatorId) searchParams.set('operatorId', params.operatorId);
+  if (params?.operationType) searchParams.set('operationType', params.operationType);
+  const qs = searchParams.toString();
+  return fetcher(`/api/admin/audit-logs${qs ? `?${qs}` : ''}`);
+};
 
 export const updateDomainConfig = (data: Record<string, unknown>) =>
   fetcher('/api/admin/domain-config', {
@@ -90,3 +121,59 @@ export const updateRouteWhitelist = (id: string, data: { path: string; isPrefix:
   fetcher(`/api/admin/routing-whitelist/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteRouteWhitelist = (id: string) => 
   fetcher(`/api/admin/routing-whitelist/${id}`, { method: 'DELETE' });
+
+// ── Email Configuration ──
+
+export const getEmailConfig = (): Promise<{
+  smtpConfig: {
+    host: string;
+    port: number;
+    secure: boolean;
+    user: string;
+    pass: string;
+    from: string;
+  };
+  templates: Array<{
+    type: string;
+    subject: string;
+    textBody: string;
+    htmlBody: string;
+  }>;
+}> => fetcher('/api/admin/email-config');
+
+export const updateEmailConfig = (data: {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  from: string;
+}) =>
+  fetcher('/api/admin/email-config', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const updateEmailTemplate = (data: {
+  type: string;
+  subject: string;
+  textBody: string;
+  htmlBody: string;
+}) =>
+  fetcher('/api/admin/email-config/templates/' + data.type, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+export const sendTestEmail = (targetEmail: string, smtpConfig?: {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  from: string;
+}) =>
+  fetcher('/api/admin/email-config/test', {
+    method: 'POST',
+    body: JSON.stringify({ targetEmail, smtpConfig }),
+  });

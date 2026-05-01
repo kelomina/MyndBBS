@@ -3,10 +3,14 @@ import { IUserRepository } from '../../src/domain/identity/IUserRepository';
 import { IEventBus } from '../../src/domain/shared/events/IEventBus';
 import { UserStatus } from '@myndbbs/shared';
 
+const mockAbilityCache = {
+  invalidateUserRules: jest.fn().mockResolvedValue(undefined),
+};
+
 describe('AdminUserManagementApplicationService', () => {
   it('should throw ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6 if level is invalid', async () => {
     const service = new AdminUserManagementApplicationService(
-      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, { execute: async (w: any) => w() } as any
+      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, { execute: async (w: any) => w() } as any, mockAbilityCache as any
     );
     await expect(service.changeUserLevel({ userId: 'operator1', role: 'ADMIN' as any }, 'target1', 0)).rejects.toThrow('ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6');
     await expect(service.changeUserLevel({ userId: 'operator1', role: 'ADMIN' as any }, 'target1', 7)).rejects.toThrow('ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6');
@@ -14,14 +18,14 @@ describe('AdminUserManagementApplicationService', () => {
 
   it('should throw ERR_INVALID_STATUS if status is invalid', async () => {
     const service = new AdminUserManagementApplicationService(
-      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, { execute: async (w: any) => w() } as any
+      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, { execute: async (w: any) => w() } as any, mockAbilityCache as any
     );
     await expect(service.changeUserStatus({ userId: 'operator1', role: 'ADMIN' as any }, 'target1', 'INVALID_STATUS' as any)).rejects.toThrow('ERR_INVALID_STATUS');
   });
 
   it('should throw ERR_INVALID_ROLE if role is invalid', async () => {
     const service = new AdminUserManagementApplicationService(
-      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, { execute: async (w: any) => w() } as any
+      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, { execute: async (w: any) => w() } as any, mockAbilityCache as any
     );
     await expect(service.changeUserRole({ userId: 'operator1', role: 'ADMIN' as any }, 'target1', 'INVALID_ROLE' as any)).rejects.toThrow('ERR_INVALID_ROLE');
   });
@@ -67,7 +71,8 @@ describe('AdminUserManagementApplicationService', () => {
       mockSessionCache as any, 
       mockRolePolicy as any,
       mockEventBus as any,
-      { execute: async (w: any) => w() } as any
+      { execute: async (w: any) => w() } as any,
+      mockAbilityCache as any
     );
 
     await service.changeUserRole({ userId: 'operator1', role: 'SUPER_ADMIN' as any }, 'target1', 'SUPER_ADMIN' as any);
@@ -117,7 +122,8 @@ describe('AdminUserManagementApplicationService', () => {
       mockSessionCache as any, 
       mockRolePolicy as any,
       mockEventBus as any,
-      { execute: async (w: any) => w() } as any
+      { execute: async (w: any) => w() } as any,
+      mockAbilityCache as any
     );
 
     await service.changeUserRole({ userId: 'operator1', role: 'ADMIN' as any }, 'target1', 'MODERATOR' as any);
@@ -126,7 +132,7 @@ describe('AdminUserManagementApplicationService', () => {
 
   it('should change user role and level in a single operation', async () => {
     const service = new AdminUserManagementApplicationService(
-      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, { execute: async (w: any) => w() } as any
+      {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, { execute: async (w: any) => w() } as any, mockAbilityCache as any
     );
     service.changeUserLevel = jest.fn();
     service.changeUserRole = jest.fn();

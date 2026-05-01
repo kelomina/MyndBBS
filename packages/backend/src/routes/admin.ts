@@ -9,6 +9,9 @@ import {
   dbConfigSchema,
   domainConfigSchema,
   updatePostStatusSchema,
+  emailConfigSchema,
+  emailTemplateSchema,
+  testEmailSchema,
 } from '../lib/validation/schemas';
 import { getAuditLogs } from '../controllers/auditLog';
 import {
@@ -24,7 +27,8 @@ import {
   getDeletedPosts, getDeletedComments, restorePost, hardDeletePost, restoreComment, hardDeleteComment,
   getDbConfig, updateDbConfig,
   getDomainConfig, updateDomainConfig,
-  getRouteWhitelist, addRouteWhitelist, updateRouteWhitelist, deleteRouteWhitelist
+  getRouteWhitelist, addRouteWhitelist, updateRouteWhitelist, deleteRouteWhitelist,
+  getEmailConfig, updateEmailConfig, updateEmailTemplate, sendTestEmail
 } from '../controllers/admin';
 import { rateLimit } from 'express-rate-limit';
 import { getClientIp } from '../lib/rateLimit';
@@ -78,6 +82,11 @@ router.post('/db-config', requireAbility('manage', 'all'), validate(dbConfigSche
 router.get('/domain-config', requireAbility('manage', 'all'), getDomainConfig);
 router.post('/domain-config', requireAbility('manage', 'all'), validate(domainConfigSchema), updateDomainConfig);
 
+// Email Config routes (SUPER_ADMIN only)
+router.get('/email-config', requireAbility('manage', 'all'), getEmailConfig);
+router.post('/email-config', requireAbility('manage', 'all'), validate(emailConfigSchema), updateEmailConfig);
+router.put('/email-config/templates/:type', requireAbility('manage', 'all'), validate(emailTemplateSchema), updateEmailTemplate);
+router.post('/email-config/test', requireAbility('manage', 'all'), validate(testEmailSchema), sendTestEmail);
 
 // Moderation routes
 router.get('/moderation/words', requireAbility('manage', 'AdminPanel'), getModeratedWords);
