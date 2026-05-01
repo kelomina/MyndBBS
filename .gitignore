@@ -176,3 +176,7 @@ package-lock.json
 
 # AI agent workspace instructions
 AGENTS.md
+
+docs
+
+pnpm-lock.yaml
