@@ -1,2 +1,0 @@
-sed -i 's/"ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST": "禁止访问: Insufficient permissions to manage this post"/"ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS_TO_MANAGE_THIS_POST": "权限不足：没有管理此帖子的权限"/' packages/frontend/src/i18n/dictionaries/zh.json
-sed -i 's/"ERR_POST_NOT_FOUND_OR_ACCESS_DENIED": "帖子未找到 or access denied"/"ERR_POST_NOT_FOUND_OR_ACCESS_DENIED": "未找到帖子或拒绝访问"/' packages/frontend/src/i18n/dictionaries/zh.json
