@@ -1,0 +1,96 @@
+# ============================================================
+# MyndBBS - Docker Compose 部署配置
+# 使用方式:
+#   docker compose up -d
+#   docker compose logs -f
+# ============================================================
+
+services:
+  # ==================== PostgreSQL ====================
+  postgres:
+    image: postgres:16-alpine
+    container_name: myndbbs-postgres
+    restart: unless-stopped
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: myndbbs
+      POSTGRES_USER: myndbbs
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-myndbbs}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myndbbs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ==================== Redis ====================
+  redis:
+    image: redis:7-alpine
+    container_name: myndbbs-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ==================== Backend API ====================
+  backend:
+    image: myndbbs-backend:final
+    container_name: myndbbs-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://myndbbs:${DB_PASSWORD:-myndbbs}@postgres:5432/myndbbs?schema=public
+      # Redis (backend uses REDIS_URL env var; fallback internal)
+      REDIS_URL: redis://redis:6379
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      # CORS / Trust (支持内部 Docker 网络和外部宿主机访问)
+      FRONTEND_URL: http://127.0.0.1:3100,http://localhost:3100,http://frontend:3100
+      TRUST_PROXY: "true"
+      # WebAuthn (Passkey) - 生产部署时必须改为真�?HTTPS 域名
+      RP_ID: ${RP_ID:-localhost}
+      ORIGIN: ${ORIGIN:-http://localhost:3100}
+      # SMTP (email)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-MyndBBS <no-reply@example.com>}
+      # Token TTL
+      EMAIL_VERIFICATION_TTL_MINUTES: ${EMAIL_VERIFICATION_TTL_MINUTES:-30}
+      PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-30}
+    volumes:
+      - uploads-data:/app/packages/backend/uploads
+      - backend-envdata:/app/packages/backend
+
+  # ==================== Frontend (Next.js) ====================
+  frontend:
+    image: myndbbs-frontend:api
+    container_name: myndbbs-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      API_URL: http://backend:3001
+      NEXT_PUBLIC_API_URL: http://backend:3001
+      NODE_ENV: production
+    ports:
+      - "3100:3100"
+
+# ==================== Volumes ====================
+volumes:
+  redis-data:
+  uploads-data:
+  backend-envdata:

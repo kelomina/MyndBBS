@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+AGENTS.md
+
+# Dependencies
+node_modules
+.pnpm-store
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build output
+dist
+.next
+out
+build
+*.tsbuildinfo
+
+# IDE
+.idea
+.vscode
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+coverage
+reports
+docs
+uploads
+scripts/uploads
+*.db
+*.db-journal

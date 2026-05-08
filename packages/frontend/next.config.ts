@@ -10,6 +10,7 @@ const apiBaseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'ht
 const nextConfig: NextConfig = {
   ...(isDev && allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
   poweredByHeader: false,
+  output: 'standalone',
   /* config options here */
   async headers() {
     return [
@@ -41,6 +42,14 @@ const nextConfig: NextConfig = {
       {
         source: '/uploads/:path*',
         destination: `${apiBaseUrl}/uploads/:path*`,
+      },
+      {
+        source: '/install',
+        destination: `${apiBaseUrl}/install`,
+      },
+      {
+        source: '/install/:path*',
+        destination: `${apiBaseUrl}/install/:path*`,
       },
     ]
   }
