@@ -30,6 +30,52 @@ const FALLBACK_AUDIT_OPERATION_KEYS = new Set([
   'POST /api/admin/moderation/comments/:id/approve',
   'POST /api/admin/moderation/comments/:id/reject',
 ]);
+const SENSITIVE_AUDIT_FIELDS = new Set([
+  'password',
+  'oldpassword',
+  'newpassword',
+  'pass',
+  'token',
+  'secret',
+  'key',
+  'apikey',
+  'accesstoken',
+  'refreshtoken',
+  'privatekey',
+  'encryptedprivatekey',
+  'encryptedmlkemprivatekey',
+]);
+
+const isPlainAuditObject = (value: unknown): value is Record<string, unknown> => {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+};
+
+/**
+ * Callers: [sanitizeAuditBody, sanitizeAuditParams, sanitizeAuditValue]
+ * Callees: [isPlainAuditObject]
+ * Description: Recursively preserves request structure while masking credential-like keys at any depth.
+ * Integration: Use before writing body, query, or route params into audit payloads.
+ * Error Handling: Never throws for primitive, array, or object payloads.
+ * Keywords: recursive sanitize, audit, secret, token, password, 脱敏, 审计, 密码, 令牌, 递归
+ */
+function sanitizeAuditValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeAuditValue(item));
+  }
+
+  if (!isPlainAuditObject(value)) {
+    return value;
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(value)) {
+    sanitized[key] = SENSITIVE_AUDIT_FIELDS.has(key.toLowerCase())
+      ? '***'
+      : sanitizeAuditValue(nestedValue);
+  }
+
+  return sanitized;
+}
 
 /**
  * Callers: [shouldWriteFallbackAudit, auditMiddleware]
@@ -67,36 +113,13 @@ function getAuditRoutePath(req: AuthRequest): string {
  * Keywords: sanitize, payload, request body, secret, audit, 脱敏, 负载, 请求体, 密钥, 审计
  */
 function sanitizeAuditBody(body: unknown): Record<string, unknown> {
-  const sanitizedBody =
-    body && typeof body === 'object' && !Array.isArray(body)
-      ? { ...(body as Record<string, unknown>) }
-      : {};
-
-  for (const sensitiveField of ['password', 'oldPassword', 'newPassword', 'token', 'secret']) {
-    if (sensitiveField in sanitizedBody) {
-      sanitizedBody[sensitiveField] = '***';
-    }
-  }
-
-  return sanitizedBody;
-}
-
-/**
- * Callers: [sanitizeAuditBody]
- * Callees: []
- * Description: Redacts the value of a sensitive field by replacing it with a mask string.
- * 描述：将敏感字段的值替换为脱敏标记字符串。
- * Variables: `sanitized` 表示要修改的脱敏参数对象；`field` 表示字段名。
- * 变量：`sanitized` 是脱敏参数对象；`field` 是字段名。
- * Keywords: redact, sanitize, field, param, mask, 脱敏, 参数, 字段, 屏蔽, 审计
- */
-function redactSensitiveField(sanitized: Record<string, unknown>, field: string): void {
-  sanitized[field] = '***';
+  const sanitizedBody = sanitizeAuditValue(body);
+  return isPlainAuditObject(sanitizedBody) ? sanitizedBody : {};
 }
 
 /**
  * Callers: [auditMiddleware]
- * Callees: [redactSensitiveField]
+ * Callees: [sanitizeAuditValue]
  * Description: Produces a scrubbed params snapshot that masks sensitive credential-like fields in query and route params.
  * 描述：生成已脱敏的参数快照，屏蔽查询参数和路由参数中的凭证类字段。
  * Variables: `params` 表示原始参数对象；`sanitized` 表示脱敏后的参数副本；`sensitiveField` 表示需脱敏的字段名列表。
@@ -108,15 +131,8 @@ function redactSensitiveField(sanitized: Record<string, unknown>, field: string)
  * Keywords: sanitize, params, query, route, audit, mask, 脱敏, 查询参数, 路由参数, 审计
  */
 function sanitizeAuditParams(params: Record<string, unknown>): Record<string, unknown> {
-  const sanitized = { ...params };
-
-  for (const sensitiveField of ['token', 'secret', 'key', 'accessToken', 'refreshToken', 'password', 'oldPassword', 'newPassword']) {
-    if (sensitiveField in sanitized) {
-      redactSensitiveField(sanitized, sensitiveField);
-    }
-  }
-
-  return sanitized;
+  const sanitizedParams = sanitizeAuditValue(params);
+  return isPlainAuditObject(sanitizedParams) ? sanitizedParams : {};
 }
 /**
  * Callers: [auditMiddleware]

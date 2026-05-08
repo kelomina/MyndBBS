@@ -20,7 +20,7 @@ import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
  * 函数作用：
  *   从请求中提取客户端真实 IP，不依赖 Express trust proxy 设置。
  * Purpose:
- *   Extracts the real client IP from the request without relying on Express trust proxy settings.
+ *   Extracts the client IP calculated by Express trust proxy configuration without trusting raw X-Forwarded-For headers directly.
  *
  * 调用方 / Called by:
  *   本文件中的 postLimiter / uploadLimiter / friendRequestLimiter

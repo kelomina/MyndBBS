@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { messagingQueryService } from '../queries/messaging/MessagingQueryService';
 import { AuthRequest } from '../middleware/auth';
 import { messagingApplicationService } from '../registry';
+import { parseMessagePageLimit } from '../lib/messagePagination';
 
 /**
  * 函数名称：uploadKeys
@@ -514,7 +515,12 @@ export const getInbox = async (req: AuthRequest, res: Response): Promise<void> =
 
   const withUserId = req.query.withUserId as string | undefined;
   
-  const limit = parseInt(req.query.limit as string) || 20;
+  const limit = parseMessagePageLimit(req.query.limit);
+  if (limit === null) {
+    res.status(400).json({ error: 'ERR_INVALID_MESSAGE_PAGE_LIMIT' });
+    return;
+  }
+
   const cursor = req.query.cursor as string | undefined;
   const result = await messagingQueryService.getMessages(userId, limit, cursor as string | undefined, withUserId as string | undefined);
   res.json(result);

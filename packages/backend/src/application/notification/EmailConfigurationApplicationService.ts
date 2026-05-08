@@ -5,6 +5,117 @@ import { SmtpEmailSender } from '../../infrastructure/services/identity/SmtpEmai
 import nodemailer from 'nodemailer'
 import { randomUUID as uuidv4 } from 'crypto'
 
+const BLOCKED_SMTP_HOSTNAMES = new Set(['localhost', 'localhost.localdomain'])
+const BLOCKED_SMTP_HOST_SUFFIXES = ['.localhost', '.local', '.localdomain', '.internal', '.lan']
+
+type Ipv4Octets = [number, number, number, number]
+
+const parseIpv4Octets = (host: string): Ipv4Octets | null => {
+  const parts = host.split('.')
+  if (parts.length !== 4) {
+    return null
+  }
+
+  const octets = parts.map((part) => (/^\d+$/.test(part) ? Number(part) : Number.NaN))
+  if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+    return null
+  }
+  return [octets[0]!, octets[1]!, octets[2]!, octets[3]!]
+}
+
+const isBlockedIpv4Host = (host: string): boolean => {
+  const octets = parseIpv4Octets(host)
+  if (!octets) {
+    return false
+  }
+
+  const [first, second, third] = octets
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    first >= 224 ||
+    (first === 100 && second >= 64 && second <= 127) ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 192 && second === 0) ||
+    (first === 192 && second === 0 && third === 2) ||
+    (first === 198 && (second === 18 || second === 19)) ||
+    (first === 198 && second === 51 && third === 100) ||
+    (first === 203 && second === 0 && third === 113)
+  )
+}
+
+const isBlockedIpv6Host = (host: string): boolean => {
+  const normalized = host.replace(/^\[|\]$/g, '').toLowerCase()
+  if (!normalized.includes(':')) {
+    return false
+  }
+
+  return (
+    normalized === '::' ||
+    normalized === '::1' ||
+    normalized.startsWith('fc') ||
+    normalized.startsWith('fd') ||
+    normalized.startsWith('fe80') ||
+    normalized.startsWith('ff')
+  )
+}
+
+/**
+ * Function name:
+ *   validateSmtpHostForOutboundConnection
+ *
+ * Purpose:
+ *   Validates SMTP hosts before persisting or testing outbound mail connections, blocking
+ *   localhost, private networks, link-local, multicast, reserved IP ranges, and obvious
+ *   internal hostnames without performing DNS resolution.
+ *
+ * Called by:
+ *   EmailConfigurationApplicationService.updateSmtpConfig,
+ *   EmailConfigurationApplicationService.sendTestEmail.
+ *
+ * Calls:
+ *   parseIpv4Octets, isBlockedIpv4Host, isBlockedIpv6Host.
+ *
+ * Parameters:
+ *   - host: string, SMTP host supplied by SUPER_ADMIN, required and non-empty after trim.
+ *
+ * Returns:
+ *   void. The host is accepted when no exception is thrown.
+ *
+ * Error handling:
+ *   Throws ERR_SMTP_HOST_NOT_ALLOWED for blocked hosts.
+ *
+ * Side effects:
+ *   None; this function intentionally does not resolve DNS or open network sockets.
+ *
+ * Transaction boundary:
+ *   None.
+ *
+ * Concurrency and idempotency:
+ *   Pure and repeatable.
+ *
+ * English keywords:
+ *   smtp, ssrf, host, validate, private, localhost, loopback, link-local, admin, email
+ */
+export const validateSmtpHostForOutboundConnection = (host: string): void => {
+  const normalizedHost = host.trim().replace(/^\[|\]$/g, '').replace(/\.$/, '').toLowerCase()
+  if (!normalizedHost || /\s/.test(normalizedHost)) {
+    throw new Error('ERR_SMTP_HOST_NOT_ALLOWED')
+  }
+
+  if (
+    BLOCKED_SMTP_HOSTNAMES.has(normalizedHost) ||
+    BLOCKED_SMTP_HOST_SUFFIXES.some((suffix) => normalizedHost.endsWith(suffix)) ||
+    isBlockedIpv4Host(normalizedHost) ||
+    isBlockedIpv6Host(normalizedHost)
+  ) {
+    throw new Error('ERR_SMTP_HOST_NOT_ALLOWED')
+  }
+}
+
 /**
  * SMTP 配置的只读视图 DTO。用于向前端返回邮件服务器配置。
  *
@@ -236,6 +347,7 @@ export class EmailConfigurationApplicationService {
       throw new Error('ERR_FORBIDDEN_SUPER_ADMIN_ONLY')
     }
 
+    validateSmtpHostForOutboundConnection(config.host)
     await this.envStore.updateSmtpConfig(config)
   }
 
@@ -425,6 +537,7 @@ export class EmailConfigurationApplicationService {
     }
 
     if (smtpConfig) {
+      validateSmtpHostForOutboundConnection(smtpConfig.host)
       const transporter = nodemailer.createTransport({
         host: smtpConfig.host,
         port: smtpConfig.port,
@@ -440,6 +553,10 @@ export class EmailConfigurationApplicationService {
         html: '<p>This is a test email from <strong>MyndBBS</strong>.</p><p>If you received this, your SMTP configuration is working correctly.</p>',
       })
     } else {
+      const savedHost = process.env.SMTP_HOST?.trim()
+      if (savedHost) {
+        validateSmtpHostForOutboundConnection(savedHost)
+      }
       const sender = new SmtpEmailSender()
       await sender.sendEmail({
         to: targetEmail,

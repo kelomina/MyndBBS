@@ -31,10 +31,87 @@ const redisUrl = process.env.REDIS_URL;
  *   in-memory Redis, mock, development
  */
 class MockRedis {
+  private data = new Map<string, string>();
+  private expirations = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /**
+   * Function name:
+   *   get
+   *
+   * Purpose:
+   *   Reads an in-memory Redis value for development and test environments without REDIS_URL.
+   *
+   * Called by:
+   *   RedisSessionCache, RedisSudoStore, RedisModeratedWordsCache, AccessControlQueryService,
+   *   RedisEmailRegistrationTicketRepository, RedisPasswordResetTicketRepository.
+   *
+   * Calls:
+   *   Map.get.
+   *
+   * Parameters:
+   *   - key: string, Redis key, required.
+   *
+   * Returns:
+   *   Promise<string | null>, cached value or null when the key is absent.
+   *
+   * Error handling:
+   *   Does not throw for missing keys.
+   *
+   * Side effects:
+   *   None.
+   *
+   * Transaction boundary:
+   *   None.
+   *
+   * Concurrency and idempotency:
+   *   Single-process in-memory store; repeat reads are idempotent until set/del/expire changes state.
+   *
+   * English keywords:
+   *   redis, mock, memory, cache, get, fallback, development, test, key, value
+   */
+  async get(key: string): Promise<string | null> {
     return this.data.get(key) || null;
   }
   
-  async set(key: string, value: string, mode?: string, duration?: number) {
+  /**
+   * Function name:
+   *   set
+   *
+   * Purpose:
+   *   Writes an in-memory Redis value and optionally applies EX-style TTL expiration.
+   *
+   * Called by:
+   *   RedisSessionCache, RedisSudoStore, RedisModeratedWordsCache,
+   *   RedisEmailRegistrationTicketRepository, RedisPasswordResetTicketRepository.
+   *
+   * Calls:
+   *   Map.set, setTimeout, clearTimeout.
+   *
+   * Parameters:
+   *   - key: string, Redis key, required.
+   *   - value: string, value to store, required.
+   *   - mode: string | undefined, supports EX for TTL mode.
+   *   - duration: number | undefined, TTL seconds when mode is EX.
+   *
+   * Returns:
+   *   Promise<'OK'>, Redis-compatible success marker.
+   *
+   * Error handling:
+   *   Does not throw for unsupported mode; stores the value without TTL.
+   *
+   * Side effects:
+   *   Writes in-memory data and may register a timer.
+   *
+   * Transaction boundary:
+   *   None.
+   *
+   * Concurrency and idempotency:
+   *   Single-process in-memory store; repeated set overwrites the prior value and timer.
+   *
+   * English keywords:
+   *   redis, mock, memory, cache, set, ttl, expire, fallback, development, test
+   */
+  async set(key: string, value: string, mode?: string, duration?: number): Promise<'OK'> {
     this.data.set(key, value);
     if (mode === 'EX' && duration) {
       const existing = this.expirations.get(key);
@@ -49,7 +126,42 @@ class MockRedis {
     return 'OK';
   }
 
-  async del(key: string) {
+  /**
+   * Function name:
+   *   del
+   *
+   * Purpose:
+   *   Deletes an in-memory Redis value and clears any active TTL timer.
+   *
+   * Called by:
+   *   RedisSessionCache, RedisSudoStore, RedisModeratedWordsCache, RedisAbilityCache,
+   *   RedisEmailRegistrationTicketRepository, RedisPasswordResetTicketRepository.
+   *
+   * Calls:
+   *   Map.delete, clearTimeout.
+   *
+   * Parameters:
+   *   - key: string, Redis key, required.
+   *
+   * Returns:
+   *   Promise<number>, Redis-compatible delete count.
+   *
+   * Error handling:
+   *   Does not throw for missing keys.
+   *
+   * Side effects:
+   *   Mutates in-memory data and timer maps.
+   *
+   * Transaction boundary:
+   *   None.
+   *
+   * Concurrency and idempotency:
+   *   Single-process in-memory store; repeated deletion is safe.
+   *
+   * English keywords:
+   *   redis, mock, memory, cache, delete, ttl, clear, fallback, development, test
+   */
+  async del(key: string): Promise<number> {
     this.data.delete(key);
     const existing = this.expirations.get(key);
     if (existing) {
@@ -61,10 +173,10 @@ class MockRedis {
 
   pipeline() {
     const operations: (() => void)[] = [];
-    return {
+    const pipeline = {
       del: (key: string) => {
         operations.push(() => this.del(key));
-        return this;
+        return pipeline;
       },
       exec: async () => {
         for (const op of operations) {
@@ -73,9 +185,45 @@ class MockRedis {
         return [];
       }
     };
+    return pipeline;
   }
 
-  async expire(key: string, seconds: number) {
+  /**
+   * Function name:
+   *   expire
+   *
+   * Purpose:
+   *   Applies a TTL to an existing in-memory Redis value.
+   *
+   * Called by:
+   *   RedisSessionCache.extendRefreshGracePeriod.
+   *
+   * Calls:
+   *   Map.get, MockRedis.set.
+   *
+   * Parameters:
+   *   - key: string, Redis key, required.
+   *   - seconds: number, TTL seconds.
+   *
+   * Returns:
+   *   Promise<number>, 1 when the key exists and TTL is applied, otherwise 0.
+   *
+   * Error handling:
+   *   Does not throw for missing keys.
+   *
+   * Side effects:
+   *   Updates the active TTL timer for an existing key.
+   *
+   * Transaction boundary:
+   *   None.
+   *
+   * Concurrency and idempotency:
+   *   Single-process in-memory store; repeated calls replace the prior timer.
+   *
+   * English keywords:
+   *   redis, mock, memory, cache, expire, ttl, timer, fallback, development, test
+   */
+  async expire(key: string, seconds: number): Promise<number> {
     const val = this.data.get(key);
     if (val !== undefined) {
       await this.set(key, val, 'EX', seconds);

@@ -13,6 +13,125 @@ export interface EmailTemplateProps {
   updatedAt: Date;
 }
 
+const ALLOWED_EMAIL_HTML_TAGS = new Set([
+  'p',
+  'br',
+  'strong',
+  'em',
+  'ul',
+  'ol',
+  'li',
+  'a',
+  'table',
+  'tr',
+  'td',
+  'th',
+  'thead',
+  'tbody',
+  'div',
+  'span',
+]);
+
+const VOID_EMAIL_HTML_TAGS = new Set(['br']);
+const ALLOWED_EMAIL_HREF_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const sanitizeHref = (rawHref: string): string | null => {
+  const decodedHref = rawHref.replace(/&amp;/g, '&').trim();
+  if (!decodedHref) {
+    return null;
+  }
+
+  if (/^{{[A-Za-z0-9_.-]+}}$/.test(decodedHref)) {
+    return escapeHtml(decodedHref);
+  }
+
+  try {
+    const parsed = new URL(decodedHref);
+    if (!ALLOWED_EMAIL_HREF_PROTOCOLS.has(parsed.protocol)) {
+      return null;
+    }
+    return escapeHtml(decodedHref);
+  } catch {
+    if (decodedHref.startsWith('/') || decodedHref.startsWith('#')) {
+      return escapeHtml(decodedHref);
+    }
+    return null;
+  }
+};
+
+/**
+ * Function name:
+ *   sanitizeEmailTemplateHtml
+ *
+ * Purpose:
+ *   Sanitizes stored and rendered email-template HTML with a strict allowlist so admin
+ *   previews and outbound email bodies cannot retain scripts, event handlers, or unsafe URLs.
+ *
+ * Called by:
+ *   EmailTemplate.create, EmailTemplate.restore, EmailTemplate.update, EmailTemplate.render.
+ *
+ * Calls:
+ *   sanitizeHref, escapeHtml, URL.
+ *
+ * Parameters:
+ *   - htmlBody: string, raw email HTML body, non-null, may contain template placeholders.
+ *
+ * Returns:
+ *   string, sanitized HTML body. Disallowed tags and attributes are removed.
+ *
+ * Error handling:
+ *   The sanitizer does not throw for malformed HTML; malformed or unsupported fragments are dropped.
+ *
+ * Side effects:
+ *   None.
+ *
+ * Transaction boundary:
+ *   None.
+ *
+ * Concurrency and idempotency:
+ *   Pure and repeatable; sanitizing already sanitized HTML is safe.
+ *
+ * English keywords:
+ *   email, template, html, sanitize, xss, script, href, allowlist, render, preview
+ */
+export const sanitizeEmailTemplateHtml = (htmlBody: string): string => {
+  return htmlBody
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*\/?\s*>/gi, '')
+    .replace(/<\/?([a-zA-Z][\w:-]*)([^>]*)>/g, (fullMatch, rawTagName, rawAttributes) => {
+      const tagName = String(rawTagName).toLowerCase();
+      if (!ALLOWED_EMAIL_HTML_TAGS.has(tagName)) {
+        return '';
+      }
+
+      if (fullMatch.startsWith('</')) {
+        return VOID_EMAIL_HTML_TAGS.has(tagName) ? '' : `</${tagName}>`;
+      }
+
+      if (tagName !== 'a') {
+        return `<${tagName}>`;
+      }
+
+      const hrefMatch = String(rawAttributes).match(/\s+href\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i);
+      const href = hrefMatch ? sanitizeHref(hrefMatch[2] ?? hrefMatch[3] ?? hrefMatch[4] ?? '') : null;
+      return href ? `<a href="${href}">` : '<a>';
+    });
+};
+
+const sanitizeEmailTemplateProps = (props: EmailTemplateProps): EmailTemplateProps => ({
+  ...props,
+  htmlBody: sanitizeEmailTemplateHtml(props.htmlBody),
+});
+
 /**
  * 类名称：EmailTemplate
  *
@@ -64,11 +183,11 @@ export class EmailTemplate {
     if (!props.type || !props.subject || !props.textBody || !props.htmlBody) {
       throw new Error('ERR_EMAIL_TEMPLATE_MISSING_REQUIRED_FIELDS');
     }
-    return new EmailTemplate(props);
+    return new EmailTemplate(sanitizeEmailTemplateProps(props));
   }
 
   public static restore(props: EmailTemplateProps): EmailTemplate {
-    return new EmailTemplate(props);
+    return new EmailTemplate(sanitizeEmailTemplateProps(props));
   }
 
   public get id(): string { return this.props.id; }
@@ -105,7 +224,7 @@ export class EmailTemplate {
     }
     this.props.subject = subject;
     this.props.textBody = textBody;
-    this.props.htmlBody = htmlBody;
+    this.props.htmlBody = sanitizeEmailTemplateHtml(htmlBody);
   }
 
   /**
@@ -136,9 +255,9 @@ export class EmailTemplate {
       const placeholder = `{{${key}}}`;
       subject = subject.split(placeholder).join(value);
       textBody = textBody.split(placeholder).join(value);
-      htmlBody = htmlBody.split(placeholder).join(value);
+      htmlBody = htmlBody.split(placeholder).join(escapeHtml(value));
     }
 
-    return { subject, textBody, htmlBody };
+    return { subject, textBody, htmlBody: sanitizeEmailTemplateHtml(htmlBody) };
   }
 }

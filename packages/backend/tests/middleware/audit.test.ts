@@ -136,6 +136,59 @@ describe('auditMiddleware', () => {
     }
   });
 
+  it('should recursively mask nested credential fields while preserving non-sensitive payload', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use((req, res, next) => {
+      // @ts-ignore
+      req.user = { userId: 'admin1', role: 'ADMIN' };
+      next();
+    });
+    app.use(auditMiddleware);
+    app.post('/api/admin/routing-whitelist', (req, res) => res.status(201).json({ ok: true }));
+
+    const { baseUrl, close } = await startServer(app);
+    try {
+      await fetch(`${baseUrl}/api/admin/routing-whitelist?accessToken=query-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          smtpConfig: { host: 'smtp.example.com', pass: 'smtp-password' },
+          nested: {
+            encryptedPrivateKey: 'private',
+            values: [{ refreshToken: 'refresh-token', title: 'kept' }],
+          },
+          otherData: 'value',
+        })
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(auditApplicationService.logAudit).toHaveBeenCalledTimes(1);
+      expect(auditApplicationService.logAudit).toHaveBeenCalledWith(
+        'admin1',
+        'POST /api/admin/routing-whitelist',
+        'Route: /api/admin/routing-whitelist',
+        'ADMIN',
+        '/api/admin/routing-whitelist?accessToken=query-token',
+        expect.any(String),
+        expect.objectContaining({
+          body: {
+            smtpConfig: { host: 'smtp.example.com', pass: '***' },
+            nested: {
+              encryptedPrivateKey: '***',
+              values: [{ refreshToken: '***', title: 'kept' }],
+            },
+            otherData: 'value',
+          },
+          query: { accessToken: '***' },
+          statusCode: 201,
+        })
+      );
+    } finally {
+      await close();
+    }
+  });
+
   it('should skip routes already audited by domain services or events', async () => {
     const app = express();
     app.use(express.json());

@@ -1,4 +1,7 @@
-import { EmailConfigurationApplicationService } from '../../src/application/notification/EmailConfigurationApplicationService';
+import {
+  EmailConfigurationApplicationService,
+  validateSmtpHostForOutboundConnection,
+} from '../../src/application/notification/EmailConfigurationApplicationService';
 import { IEnvStore, SmtpConfigInput } from '../../src/domain/provisioning/IEnvStore';
 import { IEmailTemplateRepository } from '../../src/domain/notification/IEmailTemplateRepository';
 import { EmailTemplate, EmailTemplateType } from '../../src/domain/notification/EmailTemplate';
@@ -87,6 +90,40 @@ describe('EmailConfigurationApplicationService', () => {
       await service.updateSmtpConfig(config, 'SUPER_ADMIN');
       expect(envStore.updateSmtpConfig).toHaveBeenCalledWith(config);
     });
+
+    it.each([
+      'localhost',
+      '127.0.0.1',
+      '::1',
+      '10.0.0.1',
+      '172.16.0.1',
+      '192.168.1.1',
+      '169.254.169.254',
+    ])('should reject blocked SMTP host %s', async (host) => {
+      const config: SmtpConfigInput = { host, port: 465, secure: true, user: 'u', pass: 'p', from: 'f@e.com' };
+      await expect(service.updateSmtpConfig(config, 'SUPER_ADMIN')).rejects.toThrow('ERR_SMTP_HOST_NOT_ALLOWED');
+      expect(envStore.updateSmtpConfig).not.toHaveBeenCalled();
+    });
+
+    it('should allow public SMTP domain names', () => {
+      expect(() => validateSmtpHostForOutboundConnection('smtp.example.com')).not.toThrow();
+    });
+
+    it('should not treat public domains starting with IPv6 private prefixes as IP literals', () => {
+      expect(() => validateSmtpHostForOutboundConnection('fcdn.example.com')).not.toThrow();
+    });
+  });
+
+  describe('sendTestEmail', () => {
+    it('should reject blocked temporary SMTP config before creating a transport', async () => {
+      const config: SmtpConfigInput = { host: '127.0.0.1', port: 25, secure: false, user: '', pass: '', from: 'f@e.com' };
+      await expect(service.sendTestEmail('target@example.com', config, 'SUPER_ADMIN')).rejects.toThrow('ERR_SMTP_HOST_NOT_ALLOWED');
+    });
+
+    it('should reject blocked saved SMTP host before using saved sender', async () => {
+      process.env.SMTP_HOST = '169.254.169.254';
+      await expect(service.sendTestEmail('target@example.com', undefined, 'SUPER_ADMIN')).rejects.toThrow('ERR_SMTP_HOST_NOT_ALLOWED');
+    });
   });
 
   describe('getEmailTemplates', () => {
@@ -158,6 +195,49 @@ describe('EmailTemplate domain entity', () => {
     expect(result.subject).toBe('Hello World');
     expect(result.textBody).toBe('Hi World');
     expect(result.htmlBody).toBe('<p>Hi World</p>');
+  });
+
+  it('should sanitize dangerous HTML when created, updated, and rendered', () => {
+    const tpl = EmailTemplate.create({
+      id: 'id',
+      type: EmailTemplateType.TEST,
+      subject: 'Hello {{name}}',
+      textBody: 'Hi {{name}}',
+      htmlBody:
+        '<p onclick="evil()">Hi {{name}}</p><script>alert(1)</script><a href="javascript:alert(1)">bad</a><strong>safe</strong>',
+      updatedAt: new Date(),
+    });
+
+    expect(tpl.htmlBody).not.toContain('script');
+    expect(tpl.htmlBody).not.toContain('onclick');
+    expect(tpl.htmlBody).not.toContain('javascript:');
+    expect(tpl.htmlBody).toContain('<strong>safe</strong>');
+
+    const rendered = tpl.render({ name: '<img src=x onerror=alert(1)>' });
+    expect(rendered.htmlBody).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    expect(rendered.htmlBody).not.toContain('<img');
+
+    tpl.update('Updated', 'Updated text', '<div><span onmouseover="evil()">ok</span><a href="https://example.com">link</a></div>');
+    expect(tpl.htmlBody).toBe('<div><span>ok</span><a href="https://example.com">link</a></div>');
+  });
+
+  it('should preserve href placeholders and sanitize them after rendering', () => {
+    const tpl = EmailTemplate.create({
+      id: 'id',
+      type: EmailTemplateType.REGISTRATION_VERIFICATION,
+      subject: 'Verify',
+      textBody: '{{verificationLink}}',
+      htmlBody: '<p><a href="{{verificationLink}}">{{verificationLink}}</a></p>',
+      updatedAt: new Date(),
+    });
+
+    expect(tpl.htmlBody).toBe('<p><a href="{{verificationLink}}">{{verificationLink}}</a></p>');
+    expect(tpl.render({ verificationLink: 'https://example.com/verify' }).htmlBody).toBe(
+      '<p><a href="https://example.com/verify">https://example.com/verify</a></p>',
+    );
+    expect(tpl.render({ verificationLink: 'javascript:alert(1)' }).htmlBody).toBe(
+      '<p><a>javascript:alert(1)</a></p>',
+    );
   });
 
   it('should update content', () => {

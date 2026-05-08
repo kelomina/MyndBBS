@@ -25,20 +25,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth';
 import { uploadKeys, getMyKey, getUserPublicKey, sendMessage, getInbox, getUnreadCount, markAsRead, deleteMessage, clearChat, getConversationSettings, updateConversationSettings } from '../controllers/message';
 import { rateLimit } from 'express-rate-limit';
-
-const getClientIp = (req: any, res: any): string => {
-  const xForwardedFor = req.headers['x-forwarded-for'];
-  if (xForwardedFor) {
-    const headerValue = typeof xForwardedFor === 'string' ? xForwardedFor : xForwardedFor[0];
-    if (headerValue) {
-      const ips = headerValue.split(',').map((ip: string) => ip.trim());
-      if (ips.length > 0 && ips[0]) {
-        return ips[0];
-      }
-    }
-  }
-  return req.socket.remoteAddress || req.ip || 'unknown';
-};
+import { getClientIp } from '../lib/rateLimit';
 
 /**
  * 私信发送频率限制：每 2 秒最多 1 条
@@ -46,7 +33,7 @@ const getClientIp = (req: any, res: any): string => {
 const messageLimiter = rateLimit({
   windowMs: 2 * 1000,
   max: 1,
-  keyGenerator: (req: any, res: any) => req.user?.userId || getClientIp(req, res),
+  keyGenerator: (req: any) => req.user?.userId || getClientIp(req),
   validate: { ip: false, xForwardedForHeader: false },
   message: { error: 'ERR_MESSAGE_RATE_LIMIT_EXCEEDED' }
 });

@@ -43,6 +43,12 @@ app.use(cookieParser());
 app.use(i18nextMiddleware.handle(i18next));
 app.use(i18nErrorTranslationMiddleware);
 
+// 安装状态检测端点（在两种模式下均可用）
+// Install status endpoint (available in both install and production mode)
+app.get('/api/public/install-status', (req, res) => {
+  res.json({ installed: process.env.INSTALL_LOCKED === 'true' });
+});
+
 const isInstalled = process.env.INSTALL_LOCKED === 'true';
 
 if (!isInstalled) {

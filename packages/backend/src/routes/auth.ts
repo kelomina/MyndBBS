@@ -25,8 +25,9 @@
  * English keywords:
  *   auth, registration, login, password reset, two-factor auth, captcha
  */
-import { Router, Request } from 'express';
-import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
+import { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
+import { getClientIp } from '../lib/rateLimit';
 import { 
   generateTotp, 
   verifyTotpRegistration, 
@@ -59,14 +60,6 @@ import {
 } from '../lib/validation/schemas';
 
 const router: Router = Router();
-
-/**
- * 获取客户端真实 IP
- * 不使用 Express trust proxy 设置，直接解析 X-Forwarded-For 头部中首个 IP
- */
-const getClientIp = (req: Request): string => {
-  return ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown');
-};
 
 // ── 频率限制器定义 ──
 
