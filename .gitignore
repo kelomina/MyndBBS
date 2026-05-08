@@ -177,6 +177,15 @@ package-lock.json
 # AI agent workspace instructions
 AGENTS.md
 
-docs
+# Docker deployment data (bind mounts)
+data/
 
-pnpm-lock.yaml
+# Playwright browsers & Python test dependencies
+pw-browsers/
+pylibs/
+
+# Test artifacts
+test-screenshots/
+test_*.py
+
+
