@@ -30,6 +30,119 @@ const TEMPLATE_TYPE_LABELS: Record<string, { en: string; zh: string }> = {
   TEST: { en: 'Test Email', zh: '测试邮件' },
 };
 
+const ALLOWED_EMAIL_PREVIEW_TAGS = new Set([
+  'p',
+  'br',
+  'strong',
+  'em',
+  'ul',
+  'ol',
+  'li',
+  'a',
+  'table',
+  'tr',
+  'td',
+  'th',
+  'thead',
+  'tbody',
+  'div',
+  'span',
+]);
+const ALLOWED_EMAIL_PREVIEW_HREF_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+
+function escapeEmailPreviewHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeEmailPreviewHref(rawHref: string): string | null {
+  const decodedHref = rawHref.replace(/&amp;/g, '&').trim();
+  if (!decodedHref) {
+    return null;
+  }
+
+  if (/^{{[A-Za-z0-9_.-]+}}$/.test(decodedHref)) {
+    return escapeEmailPreviewHtml(decodedHref);
+  }
+
+  try {
+    const parsed = new URL(decodedHref);
+    return ALLOWED_EMAIL_PREVIEW_HREF_PROTOCOLS.has(parsed.protocol)
+      ? escapeEmailPreviewHtml(decodedHref)
+      : null;
+  } catch {
+    if (decodedHref.startsWith('/') || decodedHref.startsWith('#')) {
+      return escapeEmailPreviewHtml(decodedHref);
+    }
+    return null;
+  }
+}
+
+/**
+ * Function name:
+ *   sanitizeEmailPreviewHtml
+ *
+ * Purpose:
+ *   Sanitizes locally rendered admin email previews before dangerouslySetInnerHTML consumes them.
+ *
+ * Called by:
+ *   TemplateEditor preview useMemo.
+ *
+ * Calls:
+ *   sanitizeEmailPreviewHref, escapeEmailPreviewHtml, URL.
+ *
+ * Parameters:
+ *   - htmlBody: string, local preview HTML after placeholder replacement.
+ *
+ * Returns:
+ *   string, sanitized HTML containing only safe email preview tags and href attributes.
+ *
+ * Error handling:
+ *   Malformed or unsupported HTML fragments are removed without throwing.
+ *
+ * Side effects:
+ *   None.
+ *
+ * Transaction boundary:
+ *   None.
+ *
+ * Concurrency and idempotency:
+ *   Pure and repeatable.
+ *
+ * English keywords:
+ *   email, preview, html, sanitize, xss, admin, dangerouslySetInnerHTML, href, template, frontend
+ */
+function sanitizeEmailPreviewHtml(htmlBody: string): string {
+  return htmlBody
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*\/?\s*>/gi, '')
+    .replace(/<\/?([a-zA-Z][\w:-]*)([^>]*)>/g, (fullMatch, rawTagName, rawAttributes) => {
+      const tagName = String(rawTagName).toLowerCase();
+      if (!ALLOWED_EMAIL_PREVIEW_TAGS.has(tagName)) {
+        return '';
+      }
+
+      if (fullMatch.startsWith('</')) {
+        return tagName === 'br' ? '' : `</${tagName}>`;
+      }
+
+      if (tagName !== 'a') {
+        return `<${tagName}>`;
+      }
+
+      const hrefMatch = String(rawAttributes).match(/\s+href\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i);
+      const href = hrefMatch
+        ? sanitizeEmailPreviewHref(hrefMatch[2] ?? hrefMatch[3] ?? hrefMatch[4] ?? '')
+        : null;
+      return href ? `<a href="${href}">` : '<a>';
+    });
+}
+
 export default function EmailConfigPage() {
   const dict = useTranslation();
   const { toast } = useToast();
@@ -380,9 +493,9 @@ function TemplateForm({
       const ph = `{{${key}}}`;
       renderedSubject = renderedSubject.split(ph).join(value);
       renderedText = renderedText.split(ph).join(value);
-      renderedHtml = renderedHtml.split(ph).join(value);
+      renderedHtml = renderedHtml.split(ph).join(escapeEmailPreviewHtml(value));
     }
-    return { subject: renderedSubject, textBody: renderedText, htmlBody: renderedHtml };
+    return { subject: renderedSubject, textBody: renderedText, htmlBody: sanitizeEmailPreviewHtml(renderedHtml) };
   }, [subject, textBody, htmlBody, effectiveVarValues]);
 
   const handleSubmit = async (e: React.FormEvent) => {

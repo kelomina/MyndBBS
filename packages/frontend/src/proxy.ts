@@ -5,6 +5,7 @@ import { sortWhitelist, matchRoute } from './lib/routingGuard';
 
 const isDev = process.env.NODE_ENV !== 'production';
 const ESSENTIAL_PUBLIC_PATHS = new Set([
+  '/install',
   '/login',
   '/register',
   '/forgot-password',
@@ -31,7 +32,7 @@ function generateNonce(): string {
 
 function buildCsp(nonce: string | null): string {
   const scriptSrc = nonce
-    ? `script-src 'self' 'nonce-${nonce}'`
+    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-inline'`
     : `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`;
 
   const connectSrc = isDev ? `connect-src 'self' ws:` : `connect-src 'self'`;
@@ -97,6 +98,7 @@ function getLocale(request: NextRequest): string {
 function isEssentialPublicPath(pathname: string): boolean {
   return (
     ESSENTIAL_PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith('/install') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/uploads') ||
@@ -150,20 +152,43 @@ export async function proxy(request: NextRequest) {
     response.cookies.set('NEXT_LOCALE', locale, { path: '/' });
   }
   response.headers.set('x-locale', locale);
-  if (!isDev) {
+  if (!isDev && !pathname.startsWith('/install')) {
     response.headers.set('Content-Security-Policy', buildCsp(nonce));
   }
 
-  const isEssentialPublic = isEssentialPublicPath(pathname);
-
-  if (isEssentialPublic) {
-    return response;
+  // 通过 API 检测安装状态：
+  // - 未安装 + 非 /install 路径 → 重定向到 /install
+  // - 已安装 + /install 路径 → 重定向到首页
+  try {
+    const statusRes = await fetch('http://backend:3001/api/public/install-status', {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (statusRes.ok) {
+      const status = await statusRes.json();
+      if (status.installed && pathname.startsWith('/install')) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/';
+        return NextResponse.redirect(url);
+      }
+      if (!status.installed && !pathname.startsWith('/install')) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/install';
+        return NextResponse.redirect(url);
+      }
+    }
+  } catch {
+    if (!pathname.startsWith('/install')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/install';
+      return NextResponse.redirect(url);
+    }
   }
 
-  const whitelist = (await getWhitelist()) || [];
+  const isEssentialPublic = isEssentialPublicPath(pathname);
+  const whitelist = await getWhitelist();
   const matchedRoute = matchRoute(pathname, whitelist);
 
-  let routeProtected = true;
+  let routeProtected = !isEssentialPublic;
 
   if (matchedRoute) {
     if (!matchedRoute.minRole) {

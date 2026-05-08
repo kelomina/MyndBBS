@@ -17,11 +17,14 @@
     "save": "保存",
     "delete": "删除",
     "confirm": "确认",
-    "linkCopied": "链接已复制！","toggleTheme": "切换主题",
+    "linkCopied": "链接已复制！",
     "passkeyBannerText": "为了您的账号安全，系统强制要求绑定 Passkey（通行密钥）。您尚未绑定 Passkey，账号已被永久限制为 1 级，且无法接收任何等级提升（包含自动升级）。",
     "passkeyBannerLink": "立即前往绑定",
     "search": "搜索",
-    "noData": "暂无数据"
+    "noData": "暂无数据",
+    "total": "总计",
+    "previous": "上一页",
+    "next": "下一页"
   },
   "nav": {
     "home": "首页",
