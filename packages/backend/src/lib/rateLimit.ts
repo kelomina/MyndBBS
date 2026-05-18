@@ -118,3 +118,11 @@ export const friendRequestLimiter = rateLimit({
   validate: { ip: false, xForwardedForHeader: false },
   message: { error: 'Too many friend requests from this IP, please try again later.' }
 });
+
+export const publicReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: getClientIp,
+  validate: { ip: false, xForwardedForHeader: false },
+  message: { error: 'Too many requests from this IP, please try again later.' }
+});

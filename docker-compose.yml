@@ -87,7 +87,7 @@ services:
       NEXT_PUBLIC_API_URL: http://backend:3001
       NODE_ENV: production
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
 
 # ==================== Volumes ====================
 volumes:

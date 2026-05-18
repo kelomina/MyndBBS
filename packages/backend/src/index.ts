@@ -142,6 +142,13 @@ if (!isInstalled) {
   const { bootstrapDomainSubscribers } = require('./startup/bootstrapDomainSubscribers');
   bootstrapDomainSubscribers();
 
+  app.get('/api', (_req, res) => {
+    res.status(404).json({ error: 'ERR_NOT_FOUND' });
+  });
+  app.get('/api/', (_req, res) => {
+    res.status(404).json({ error: 'ERR_NOT_FOUND' });
+  });
+
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/public', publicRoutes);
   app.use('/api/v1/user', userRoutes);
@@ -155,11 +162,20 @@ if (!isInstalled) {
 
   // Serve static files from uploads directory safely
   app.use('/uploads', (req, res, next) => {
+    const requestedPath = req.path;
+    if (requestedPath === '/' || requestedPath === '') {
+      res.status(404).json({ error: 'ERR_NOT_FOUND' });
+      return;
+    }
+
     res.setHeader('Content-Disposition', 'attachment');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', "default-src 'none'");
     next();
-  }, express.static(require('path').join(process.cwd(), 'uploads')));
+  }, express.static(path.join(process.cwd(), 'uploads'), {
+    dotfiles: 'ignore',
+    index: false,
+  }));
 
   /**
    * 全局错误处理中间件

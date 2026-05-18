@@ -48,6 +48,20 @@ export const getPostsList = async (req: AuthRequest, res: Response): Promise<voi
       category: req.query.category as string,
       sortBy: req.query.sortBy as string,
     });
+
+    const isAuthenticated = !!(req.user && req.user.userId);
+    if (!isAuthenticated && Array.isArray(posts)) {
+      const MAX_PREVIEW_LENGTH = 200;
+      const sanitizedPosts = posts.map((post: any) => {
+        if (post.content && post.content.length > MAX_PREVIEW_LENGTH) {
+          return { ...post, content: post.content.slice(0, MAX_PREVIEW_LENGTH) };
+        }
+        return post;
+      });
+      res.json(sanitizedPosts);
+      return;
+    }
+
     res.json(posts);
   } catch (error) {
     console.error('Error fetching posts:', error);

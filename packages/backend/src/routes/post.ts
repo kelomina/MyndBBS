@@ -25,7 +25,7 @@
  */
 import { Router } from 'express';
 import { requireAuth, requireAbility, optionalAuth } from '../middleware/auth';
-import { postLimiter } from '../lib/rateLimit';
+import { postLimiter, publicReadLimiter } from '../lib/rateLimit';
 
 import {
   getPostsList,
@@ -47,16 +47,16 @@ import {
 const router: Router = Router();
 
 // ── 帖子 ──
-router.get('/', optionalAuth, getPostsList);
+router.get('/', publicReadLimiter, optionalAuth, getPostsList);
 router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), createPost);
 
-router.get('/:id', optionalAuth, getPostDetails);
+router.get('/:id', publicReadLimiter, optionalAuth, getPostDetails);
 router.get('/:id/interactions', requireAuth, getPostInteractions);
 router.post('/:id/upvote', requireAuth, toggleUpvote);
 router.post('/:id/bookmark', requireAuth, toggleBookmark);
 
 // ── 评论 ──
-router.get('/:id/comments', optionalAuth, getComments);
+router.get('/:id/comments', publicReadLimiter, optionalAuth, getComments);
 router.post('/:id/comments', requireAuth, postLimiter, createComment);
 
 // ── 帖子修改/删除 ──
