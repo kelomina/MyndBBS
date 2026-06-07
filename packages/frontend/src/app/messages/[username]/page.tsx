@@ -1,0 +1,1126 @@
+'use client';
+
+import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from '../../../components/TranslationProvider';
+import {
+  importPublicKeyFromBase64,
+  importPrivateKeyFromBase64,
+  getAesKeyFromPrf,
+  decryptPrivateKey,
+  encryptMessage,
+  decryptMessage,
+  generateECDHKeyPair,
+  exportKeyToBase64
+} from '../../../lib/crypto/e2ee';
+import { startAuthentication } from '@simplewebauthn/browser';
+import { fetchWithAuth } from '../../../lib/api/fetcher';
+import { useToast } from '../../../components/ui/Toast';
+import { Shield, Loader2, Send, Lock, ArrowLeft, Flame, Trash2, Settings, Clock, Trash, Image as ImageIcon, X, UserPlus, Check, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+import type { ChatMessage, Dictionary } from '../../../types';
+import { Avatar } from '../../../components/Avatar';
+import { useWebSocket } from '../../../lib/hooks/useWebSocket';
+
+
+/**
+ * Callers: [ChatPage]
+ * Callees: [window.crypto.subtle, JSON.parse, URL.createObjectURL]
+ * Description: Component to render an end-to-end encrypted image in private messages. Includes an action context menu with download and preview capabilities.
+ * Keywords: encrypted, image, messaging, context, menu
+ */
+const EncryptedImage = ({ payload, onPreview, dict }: { payload: string; onPreview: (url: string) => void; dict: Dictionary }) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let url: string | null = null;
+          const decryptImage = async () => {
+      try {
+        const data = JSON.parse(payload);
+        if (data.type !== 'image') return;
+
+        // Security Best Practice: Prevent SSRF by validating the image URL
+        // Ensure the URL is a valid relative path starting with /uploads/messages/
+        if (typeof data.url !== 'string' || !data.url.startsWith('/uploads/messages/')) {
+          console.error('Invalid or untrusted image URL');
+          return;
+        }
+
+        // Security Best Practice: Prevent XSS by validating MIME type
+        const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedMimes.includes(data.mime)) {
+          console.error('Invalid image MIME type');
+          return;
+        }
+
+        const res = await fetch(data.url);
+        const encryptedBuffer = await res.arrayBuffer();
+
+        const keyBytes = Uint8Array.from(atob(data.key), c => c.charCodeAt(0));
+        const ivBytes = Uint8Array.from(atob(data.iv), c => c.charCodeAt(0));
+
+        const aesKey = await window.crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt']);
+        const decryptedBuffer = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, aesKey, encryptedBuffer);
+
+        const blob = new Blob([decryptedBuffer], { type: data.mime });
+        url = URL.createObjectURL(blob);
+        if (cancelled) return;
+        setBlobUrl(url);
+      } catch (e) {
+        console.error('Failed to decrypt image', e);
+      }
+    };
+    decryptImage();
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [payload]);
+
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+      const handleTouchStart = () => { pressTimerRef.current = setTimeout(() => setShowMenu(true), 500); };
+      const handleTouchEnd = () => { if (pressTimerRef.current) clearTimeout(pressTimerRef.current); };
+
+  if (!blobUrl) return <Loader2 className="animate-spin h-5 w-5" />;
+  if (blobUrl === 'error') return <div className="flex flex-col items-center gap-1 p-4 bg-destructive/10 text-destructive rounded text-xs border border-destructive/20"><AlertCircle className="h-5 w-5" /><span>{dict.messages?.imageLoadError || "Failed to load image"}</span></div>;
+
+  return (
+    <div className="relative">
+      <Image
+        src={blobUrl}
+        alt="Encrypted"
+        width={200}
+        height={200}
+        unoptimized
+        className="max-w-[200px] rounded cursor-pointer"
+        onClick={() => onPreview(blobUrl)}
+        onContextMenu={(e) => { e.preventDefault(); setShowMenu(true); }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      />
+      {showMenu && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background text-foreground border shadow-2xl rounded-lg p-2 z-50 flex flex-col gap-1 min-w-[120px] backdrop-blur-md dark:bg-zinc-900/95 animate-in zoom-in-95 duration-200">
+            <button onClick={() => { onPreview(blobUrl); setShowMenu(false); }} className="px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded text-left">{dict.messages?.fullScreen || "Full Screen"}</button>
+            <a href={blobUrl} download="secure_image" onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded text-left block">{dict.messages?.download || "Download"}</a>
+            <button onClick={() => setShowMenu(false)} className="px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground text-destructive rounded text-left">{dict.common?.cancel || "Cancel"}</button>
+          </div>
+        )}
+    </div>
+  );
+};
+
+export default function ChatPage({ params }: { params: Promise<{ username: string }> }) {
+  const { toast } = useToast();
+  const dict = useTranslation();
+  const [username, setUsername] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [friendRequestSent, setFriendRequestSent] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Phase 3 States
+  const [expiresIn, setExpiresIn] = useState<number>(0);
+  const [allowTwoSidedDelete, setAllowTwoSidedDelete] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+
+  // Keys
+  const [myPrivateKey, setMyPrivateKey] = useState<CryptoKey | null>(null);
+  const [myPublicKey, setMyPublicKey] = useState<CryptoKey | null>(null);
+  const [timedMessageEnabled, setTimedMessageEnabled] = useState(false);
+  const [autoDeleteForSelf, setAutoDeleteForSelf] = useState(false);
+  const [isCoolingDown, setIsCoolingDown] = useState(false);
+  const [theirPublicKey, setTheirPublicKey] = useState<CryptoKey | null>(null);
+  const [targetUserId, setTargetUserId] = useState('');
+  const [myUserId, setMyUserId] = useState('');
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string; level: number; role?: string } | null>(null);
+  const [targetAvatarUrl, setTargetAvatarUrl] = useState<string | null | undefined>(undefined);
+  const [passwordPrompt, setPasswordPrompt] = useState<{ isOpen: boolean; message: string; resolve: (value: string | null) => void } | null>(null);
+  const refreshConversationRef = useRef<() => Promise<void>>(async () => {});
+
+      const requestPassword = (message: string): Promise<string | null> => {
+    return new Promise((resolve) => {
+      setPasswordPrompt({ isOpen: true, message, resolve });
+    });
+  };
+
+  const refreshConversation = React.useCallback(async () => {
+    if (!targetUserId) return;
+    const res = await fetchWithAuth(`/api/v1/messages/inbox?withUserId=${targetUserId}&t=${Date.now()}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setMessages(prev => {
+      const plaintextById = new Map(prev.map(m => [m.id, m.plaintext]));
+      return (data.messages as ChatMessage[]).map(msg => ({
+        ...msg,
+        plaintext: plaintextById.get(msg.id) ?? msg.plaintext,
+      }));
+    });
+    setNextCursor(data.nextCursor || null);
+    setHasMore(data.hasMore || false);
+  }, [targetUserId]);
+
+  useEffect(() => {
+    refreshConversationRef.current = refreshConversation;
+  }, [refreshConversation]);
+
+  useWebSocket({
+    enabled: !!currentUser,
+    onMessage: (message) => {
+      if (message.type === 'new_message' || message.type === 'message_removed' || message.type === 'message_expired') {
+        void refreshConversationRef.current();
+      }
+    },
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      const p = await params;
+      if (cancelled) return;
+      const decodedUsername = decodeURIComponent(p.username);
+      setUsername(decodedUsername);
+      try {
+        if (decodedUsername === 'system') {
+          const profileRes = await fetchWithAuth('/api/v1/user/profile');
+          if (cancelled) return;
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            setMyUserId(profileData.user.id);
+            setCurrentUser(profileData.user);
+          }
+
+          const publicRes = await fetchWithAuth(`/api/v1/user/public/system`);
+          if (cancelled) return;
+          if (publicRes.ok) {
+            const publicData = await publicRes.json();
+            setTargetUserId(publicData.user.id);
+            setTargetAvatarUrl(publicData.user.avatarUrl);
+            setUnlocked(true);
+
+            const inboxRes = await fetchWithAuth(`/api/v1/messages/inbox?withUserId=${publicData.user.id}`);
+            if (inboxRes.ok) {
+              const inboxData = await inboxRes.json();
+              if (cancelled) return;
+              const processedMessages = inboxData.messages.map((msg: { isSystem?: boolean; encryptedContent?: string; plaintext?: string }) => {
+                if (msg.plaintext) return msg;
+                if (msg.isSystem) return { ...msg, plaintext: msg.encryptedContent };
+                return msg;
+              });
+              setMessages(processedMessages as typeof inboxData.messages);
+              requestAnimationFrame(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              });
+            }
+          } else {
+            setError(dict.messages?.systemUserNotFound || 'System user not found.');
+          }
+          if (!cancelled) setLoading(false);
+          return;
+        }
+
+        const [profileRes, targetKeyRes, publicProfileRes] = await Promise.all([
+          fetchWithAuth('/api/v1/user/profile'),
+          fetchWithAuth(`/api/v1/messages/keys/${decodedUsername}`),
+          fetchWithAuth(`/api/v1/user/public/${decodedUsername}`)
+        ]);
+
+        if (cancelled) return;
+
+        let myId = '';
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (cancelled) return;
+          myId = profileData.user.id;
+          setMyUserId(profileData.user.id);
+          setCurrentUser(profileData.user);
+          if (profileData.user.username === decodedUsername) {
+            if (typeof window !== 'undefined') {
+              window.location.href = '/messages';
+            }
+            return;
+          }
+        }
+
+        if (publicProfileRes.ok) {
+          const publicData = await publicProfileRes.json();
+          if (publicData.user?.avatarUrl) {
+            setTargetAvatarUrl(publicData.user.avatarUrl);
+          }
+        } else {
+          console.warn('[ChatPage] public profile request failed:', publicProfileRes.status);
+        }
+
+        if (targetKeyRes.ok) {
+          const targetData = await targetKeyRes.json();
+          if (cancelled) return;
+          setTargetUserId(targetData.userId);
+
+          const importedTheirKey = await importPublicKeyFromBase64(targetData.publicKey);
+          if (cancelled) return;
+          setTheirPublicKey(importedTheirKey);
+
+          const inboxRes = await fetchWithAuth(`/api/v1/messages/inbox?withUserId=${targetData.userId}`);
+          if (inboxRes.ok) {
+            const inboxData = await inboxRes.json();
+            if (cancelled) return;
+            setMessages(inboxData.messages);
+            setTargetAvatarUrl(prev => {
+              if (prev) return prev;
+              const firstMsg = inboxData.messages[0];
+              if (!firstMsg || !myId) return prev;
+              return firstMsg.senderId === myId
+                ? firstMsg.receiver?.avatarUrl
+                : firstMsg.sender?.avatarUrl;
+            });
+            requestAnimationFrame(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            });
+          }
+
+          const settingsRes = await fetchWithAuth(`/api/v1/messages/settings/${targetData.userId}`);
+          if (settingsRes.ok) {
+            const settingsData = await settingsRes.json();
+            if (cancelled) return;
+            setAllowTwoSidedDelete(settingsData.allowTwoSidedDelete);
+          }
+        } else {
+          setError(dict.messages?.userNotInitialized?.replace('{username}', decodedUsername) || `User ${decodedUsername} has not initialized secure messaging.`);
+        }
+      } catch {
+        setError(dict.messages?.failedToLoadChat || 'Failed to load chat data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    params,
+    dict.messages?.failedToLoadChat,
+    dict.messages?.systemUserNotFound,
+    dict.messages?.userNotInitialized,
+  ]);
+
+  useEffect(() => {
+      if (!targetUserId || !messages || messages.length === 0) return;
+      const unreadMessages = messages.filter(m => !m.isRead && m.receiverId === myUserId);
+      if (unreadMessages.length > 0) {
+        fetchWithAuth('/api/v1/messages/read', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ senderId: targetUserId })
+        }).then(res => {
+          if (res.ok) {
+            window.dispatchEvent(new Event('messages-read'));
+            void refreshConversationRef.current();
+          }
+        }).catch(console.error);
+      }
+    }, [messages, targetUserId, myUserId]);
+
+    useEffect(() => {
+      if (!myUserId || messages.length === 0) return;
+
+      const now = Date.now();
+      const receiverExpiryTimes = messages
+        .filter(msg => msg.receiverId === myUserId && msg.expiresAt)
+        .map(msg => new Date(msg.expiresAt as string).getTime())
+        .filter(timestamp => Number.isFinite(timestamp));
+
+      if (receiverExpiryTimes.length === 0) return;
+
+      const removeExpiredReceiverMessages = () => {
+        const currentTime = Date.now();
+        setMessages(prev =>
+          prev.filter(msg => {
+            if (msg.receiverId !== myUserId || !msg.expiresAt) return true;
+            return new Date(msg.expiresAt).getTime() > currentTime;
+          }),
+        );
+      };
+
+      if (receiverExpiryTimes.some(timestamp => timestamp <= now)) {
+        removeExpiredReceiverMessages();
+        return;
+      }
+
+      const nextExpiry = Math.min(...receiverExpiryTimes);
+      const timer = window.setTimeout(removeExpiredReceiverMessages, nextExpiry - now + 50);
+      return () => window.clearTimeout(timer);
+    }, [messages, myUserId]);
+
+    useEffect(() => {
+      if (!unlocked || !targetUserId || username === 'system') return;
+      let cancelled = false;
+      const pollNewMessages = async () => {
+        try {
+          const res = await fetchWithAuth(`/api/v1/messages/inbox?withUserId=${targetUserId}&t=${Date.now()}`);
+          if (!res.ok || cancelled) return;
+          const data = await res.json();
+          if (cancelled) return;
+          setMessages(prev => {
+            const serverMessages = data.messages as ChatMessage[];
+            const plaintextById = new Map(prev.map(m => [m.id, m.plaintext]));
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('messages-received'));
+            }
+            return serverMessages.map(msg => ({
+              ...msg,
+              plaintext: plaintextById.get(msg.id) ?? msg.plaintext,
+            }));
+          });
+          setNextCursor(data.nextCursor || null);
+          setHasMore(data.hasMore || false);
+        } catch {
+          // silent
+        }
+      };
+      const interval = setInterval(pollNewMessages, 15000);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }, [unlocked, targetUserId, username]);
+
+    useEffect(() => {
+      if (!unlocked || !myPrivateKey || !theirPublicKey || messages.length === 0) return;
+    let cancelled = false;
+    const run = async () => {
+      let needsUpdate = false;
+      const updatedMessages = await Promise.all(messages.map(async (msg) => {
+        if (msg.plaintext) return msg;
+        needsUpdate = true;
+        if (msg.isSystem) return { ...msg, plaintext: msg.encryptedContent };
+        try {
+          if (msg.senderId === myUserId) {
+            if (msg.senderEncryptedContent && myPrivateKey) {
+              const ephemeralPublicKey = await importPublicKeyFromBase64(msg.ephemeralPublicKey);
+              const decrypted = await decryptMessage(msg.senderEncryptedContent, myPrivateKey, ephemeralPublicKey);
+              return { ...msg, plaintext: decrypted };
+            }
+            return { ...msg, plaintext: '[阅后即焚消息 / Burn-after-reading message]' };
+          }
+          const ephemeralPublicKey = await importPublicKeyFromBase64(msg.ephemeralPublicKey);
+          const decrypted = await decryptMessage(msg.encryptedContent, myPrivateKey, ephemeralPublicKey);
+          return { ...msg, plaintext: decrypted };
+        } catch (err) {
+          console.error('Failed to decrypt message', msg.id, err);
+          return { ...msg, plaintext: '[Decryption Failed]' };
+        }
+      }));
+
+      if (cancelled) return;
+      if (needsUpdate) {
+        setMessages(updatedMessages);
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        });
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, myPrivateKey, myUserId, theirPublicKey, unlocked]);
+
+      const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+      const handleUnlock = async () => {
+    setUnlocking(true);
+    setError('');
+    try {
+      // Fetch my encrypted private key
+      const myKeyRes = await fetchWithAuth('/api/v1/messages/keys/me');
+      if (!myKeyRes.ok) throw new Error('Failed to fetch your keys. Please initialize secure messaging first.');
+      const myKeyData = await myKeyRes.json();
+
+      if (!myKeyData.key) {
+        throw new Error('You have not initialized secure messaging.');
+      }
+
+      // Start auth for PRF
+      const [optionsRes, passkeysRes] = await Promise.all([
+        fetchWithAuth('/api/v1/auth/passkey/generate-authentication-options'),
+        fetchWithAuth('/api/v1/user/passkeys')
+      ]);
+      if (!optionsRes.ok) throw new Error('Failed to get auth options');
+      const optionsData = await optionsRes.json();
+      const passkeysData = passkeysRes.ok ? await passkeysRes.json() : { passkeys: [] };
+
+      const authOptions = optionsData;
+      if (passkeysData.passkeys && passkeysData.passkeys.length > 0) {
+        authOptions.allowCredentials = (passkeysData.passkeys as { id: Uint8Array }[]).map((pk) => ({
+          id: pk.id,
+          type: 'public-key',
+          transports: ['internal', 'usb', 'ble', 'nfc']
+        }));
+      }
+      if (!authOptions.extensions) authOptions.extensions = {};
+      authOptions.extensions.prf = {
+        eval: {
+          first: new Uint8Array(32) // Use same salt as registration
+        }
+      };
+
+      let authResponse;
+      try {
+        authResponse = await startAuthentication({ optionsJSON: authOptions });
+      } catch (err: unknown) {
+        throw new Error(err instanceof Error ? err.message : 'Authentication failed or cancelled.');
+      }
+
+      // Extract PRF
+      // @ts-expect-error prf typing
+      const prfResults = authResponse.clientExtensionResults?.prf?.results?.first;
+
+      let aesKey: CryptoKey;
+
+      if (!prfResults) {
+        // Fallback Mechanism
+        const fallbackPassword = await requestPassword(dict.messages.enterRecoveryPasswordDesc || 'Please enter your Secure Messaging Recovery Password to unlock your inbox:');
+        if (!fallbackPassword) throw new Error(dict.messages.unlockCancelled || 'Unlock cancelled.');
+
+        const enc = new TextEncoder();
+        const keyMaterial = await window.crypto.subtle.importKey(
+          'raw', enc.encode(fallbackPassword), 'PBKDF2', false, ['deriveKey']
+        );
+        aesKey = await window.crypto.subtle.deriveKey(
+          {
+            name: 'PBKDF2',
+            salt: enc.encode(currentUser?.username + 'MyndBBS'), // Must match initialization salt
+            iterations: 100000,
+            hash: 'SHA-256'
+          },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt']
+        );
+      } else {
+        const prfBytes = new Uint8Array(prfResults);
+        aesKey = await getAesKeyFromPrf(prfBytes);
+      }
+
+      // Decrypt private key
+      const privateKeyBase64 = await decryptPrivateKey(myKeyData.key.encryptedPrivateKey, aesKey);
+      const privateKey = await importPrivateKeyFromBase64(privateKeyBase64);
+
+      if (myKeyData.key.publicKey) {
+        const pubKey = await importPublicKeyFromBase64(myKeyData.key.publicKey);
+        setMyPublicKey(pubKey);
+      }
+
+      setMyPrivateKey(privateKey);
+      setUnlocked(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to unlock messages');
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+      const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop < 50 && !isLoadingOlder && hasMore && nextCursor) {
+      setIsLoadingOlder(true);
+      const previousScrollHeight = scrollContainerRef.current?.scrollHeight || 0;
+
+      try {
+        const res = await fetchWithAuth(`/api/v1/messages/inbox?withUserId=${targetUserId}&limit=20&cursor=${nextCursor}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(prev => [...data.messages, ...prev]);
+          setNextCursor(data.nextCursor || null);
+          setHasMore(data.hasMore || false);
+
+          requestAnimationFrame(() => {
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight - previousScrollHeight;
+            }
+          });
+        }
+      } finally {
+        setIsLoadingOlder(false);
+      }
+    }
+  };
+
+
+      const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !unlocked || !myPrivateKey || !theirPublicKey) return;
+    if (username === 'system') {
+      setError(dict.messages?.cannotReplySystem || 'You cannot reply to system notifications.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      // 1. Generate AES key
+      const aesKey = await window.crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+      // 2. Read and Encrypt file
+      const arrayBuffer = await file.arrayBuffer();
+      const encryptedBuffer = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, arrayBuffer);
+
+      // 3. Upload encrypted blob
+      const formData = new FormData();
+      formData.append('file', new Blob([encryptedBuffer]));
+
+      const uploadRes = await fetchWithAuth('/api/v1/messages/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (!uploadRes.ok) throw new Error('Upload failed');
+      const { url } = await uploadRes.json();
+
+      // 4. Export keys
+      const exportedKey = await window.crypto.subtle.exportKey('raw', aesKey);
+      const keyBase64 = btoa(String.fromCharCode(...new Uint8Array(exportedKey)));
+      const ivBase64 = btoa(String.fromCharCode(...iv));
+
+      // 5. Send JSON payload
+      const payload = JSON.stringify({ type: 'image', url, key: keyBase64, iv: ivBase64, mime: file.type });
+
+      const ephemeralKeyPair = await generateECDHKeyPair();
+      const ephemeralPublicKeyBase64 = await exportKeyToBase64(ephemeralKeyPair.publicKey);
+      const encryptedContent = await encryptMessage(payload, ephemeralKeyPair.privateKey, theirPublicKey);
+
+      // Phase 3 required double encryption, check if senderEncryptedContent is needed:
+      // The backend expects senderEncryptedContent for the sender's own view if not using the Phase 4 unified DB.
+      // Wait, the backend uses ephemeral keys. The sender can't decrypt their own messages later if they don't save the ephemeral key.
+      // Actually, my Phase 3 code in page.tsx still has senderEncryptedContent logic!
+      const senderEncryptedContent = await encryptMessage(payload, ephemeralKeyPair.privateKey, myPublicKey!);
+
+      const res = await fetchWithAuth('/api/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          receiverId: targetUserId,
+          ephemeralPublicKey: ephemeralPublicKeyBase64,
+          encryptedContent,
+          senderEncryptedContent,
+          isTimedMessage: timedMessageEnabled,
+          autoDeleteForSelf,
+          expiresIn: timedMessageEnabled && expiresIn > 0 ? expiresIn : undefined
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => [...prev, {
+          id: data.messageId || `temp-${Date.now()}`,
+          senderId: myUserId,
+          receiverId: targetUserId,
+          ephemeralPublicKey: ephemeralPublicKeyBase64,
+          encryptedContent,
+          senderEncryptedContent,
+          isRead: false,
+          isSystem: false,
+          createdAt: new Date().toISOString(),
+          ...data.message,
+          plaintext: payload
+        }]);
+        scrollToBottom();
+      } else {
+        const err = await res.json();
+        if (err.error === 'ERR_LEVEL_TOO_LOW') {
+           throw new Error(dict.messages?.errLevelTooLow || '等级不足，无法发送私信 (Level < 2)');
+        } else if (err.error === 'ERR_FRIEND_REQUIRED_LIMIT_REACHED') {
+           throw new Error(dict.messages?.errFriendLimit || '非好友最多发送 3 条消息，请先添加好友。');
+        } else if (err.error === 'ERR_MESSAGE_RATE_LIMIT_EXCEEDED') {
+           throw new Error(dict.messages?.errRateLimit || '发送过于频繁，请稍后再试。');
+        }
+        throw new Error(err.error || 'Failed to send image');
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error sending image');
+    } finally {
+      setSending(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+      const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim() || !unlocked || !myPrivateKey || !theirPublicKey || isCoolingDown) return;
+    if (username === 'system') {
+      setError(dict.messages?.cannotReplySystem || 'You cannot reply to system notifications.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const ephemeralKeyPair = await generateECDHKeyPair();
+      const ephemeralPublicKeyBase64 = await exportKeyToBase64(ephemeralKeyPair.publicKey);
+
+      const encryptedContent = await encryptMessage(inputText, ephemeralKeyPair.privateKey, theirPublicKey);
+
+      let senderEncryptedContent = null;
+      if (myPublicKey) {
+        senderEncryptedContent = await encryptMessage(inputText, ephemeralKeyPair.privateKey, myPublicKey);
+      }
+
+      const body: Record<string, unknown> = {
+        receiverId: targetUserId,
+        ephemeralPublicKey: ephemeralPublicKeyBase64,
+        encryptedContent,
+        senderEncryptedContent,
+        isTimedMessage: timedMessageEnabled,
+        autoDeleteForSelf,
+      };
+      if (timedMessageEnabled && expiresIn > 0) {
+        body.expiresIn = expiresIn;
+      }
+
+      const res = await fetchWithAuth('/api/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+          const data = await res.json();
+          // Notice: We must ensure the object pushed to messages has an 'id' that matches what the backend returned,
+          // or fallback to a temporary unique ID, so React doesn't complain about unique "key" prop.
+          setMessages(prev => [...prev, {
+            id: data.messageId || `temp-${Date.now()}`,
+            senderId: myUserId,
+            receiverId: targetUserId,
+            ephemeralPublicKey: ephemeralPublicKeyBase64,
+            encryptedContent,
+            senderEncryptedContent,
+            isRead: false,
+            isSystem: false,
+            createdAt: new Date().toISOString(),
+            ...data.message,
+            plaintext: inputText
+          }]);
+          setInputText('');
+          scrollToBottom();
+        } else {
+        const err = await res.json();
+        if (err.error === 'ERR_LEVEL_TOO_LOW') {
+           throw new Error(dict.messages?.errLevelTooLow || '等级不足，无法发送私信 (Level < 2)');
+        } else if (err.error === 'ERR_FRIEND_REQUIRED_LIMIT_REACHED') {
+           throw new Error(dict.messages?.errFriendLimit || '非好友最多发送 3 条消息，请先添加好友。');
+        } else if (err.error === 'ERR_MESSAGE_RATE_LIMIT_EXCEEDED') {
+           throw new Error(dict.messages?.errRateLimit || '发送过于频繁，请稍后再试。');
+        }
+        throw new Error(err.error || 'Failed to send message');
+      }
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : '') || dict.messages.sendError);
+    } finally {
+      setSending(false);
+      setIsCoolingDown(true);
+      setTimeout(() => setIsCoolingDown(false), 2000);
+    }
+  };
+
+      const toggleTwoSidedDelete = async () => {
+    try {
+      const newValue = !allowTwoSidedDelete;
+      await fetchWithAuth(`/api/v1/messages/settings/${targetUserId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ allowTwoSidedDelete: newValue })
+      });
+      setAllowTwoSidedDelete(newValue);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+      const handleDeleteMessage = async (msgId: string) => {
+    try {
+      const res = await fetchWithAuth(`/api/v1/messages/${msgId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setMessages(prev => prev.filter(m => m.id !== msgId));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+      const handleAddFriend = async () => {
+    if (!targetUserId || isAddingFriend) return;
+    setIsAddingFriend(true);
+    try {
+      const res = await fetchWithAuth('/api/v1/friends/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ addresseeId: targetUserId })
+      });
+      if (res.ok) {
+        setFriendRequestSent(true);
+      } else {
+        const err = await res.json();
+        if (err.error === 'ERR_FRIENDSHIP_EXISTS') {
+           setFriendRequestSent(true);
+        } else {
+           toast(err.error || dict.messages?.failedToSendRequest || 'Failed to send request', 'error');
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsAddingFriend(false);
+    }
+  };
+
+      const handleClearChat = async () => {
+    if (!confirm(dict.messages?.confirmClearChat || 'Are you sure you want to clear this chat?')) return;
+    try {
+      const res = await fetchWithAuth(`/api/v1/messages/chat/${targetUserId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setMessages([]);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const renderSystemMessage = (plaintext: string | null | undefined) => {
+    if (!plaintext) return null;
+    try {
+      const data = JSON.parse(plaintext);
+      if (data.content === '{{username}} wants to be your friend.') {
+        return dict.messages?.friendRequestReceived?.replace('{username}', data.params.username) || `${data.params.username} wants to be your friend.`;
+      }
+      return data.content || "Friend request received.";
+    } catch {
+      return "Friend request received.";
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-8 h-[calc(100vh-4rem)] flex flex-col">
+      {previewImage && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setPreviewImage(null)}>
+          <Image src={previewImage} width={1600} height={900} unoptimized className="max-w-full max-h-full object-contain animate-in zoom-in-95 duration-200" alt="Preview" />
+          <button className="absolute top-4 right-4 text-white p-2" onClick={() => setPreviewImage(null)}>
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+            <div className="flex items-center justify-between mb-6 shrink-0"><div className="flex items-center gap-4">
+        <Link href="/messages" className="p-2 rounded-full hover:bg-accent/50 text-muted transition-colors">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <Avatar src={targetAvatarUrl} username={username === 'system' ? (dict.messages?.systemMessages || 'System') : username} size={40} />
+        <div className="flex-1">
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            {username === 'system' ? (dict.messages?.systemMessages || 'System Messages') : (dict.messages.conversationWith?.replace('{username}', username) || `Conversation with ${username}`)}
+          </h1>
+          {username !== 'system' && theirPublicKey && (
+            <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
+              <Lock className="h-3 w-3" /> {dict.messages?.e2eEncrypted || 'E2E Encrypted'}
+            </div>
+          )}
+          </div>
+        </div>
+
+        {unlocked && (
+          <div className="flex items-center gap-2 relative">
+            <button
+              onClick={handleClearChat}
+              className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+              title={dict.messages?.clearChat || "Clear Chat"}
+            >
+              <Trash className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="p-2 text-muted-foreground hover:bg-accent/50 rounded-full transition-colors"
+              title={dict.messages?.conversationSettings || "Settings"}
+            >
+              <Settings className="h-5 w-5" />
+            </button>
+
+            {showSettings && (
+              <div className="absolute top-full right-0 mt-2 w-64 bg-card border border-border rounded-xl shadow-lg p-4 z-50">
+                <h3 className="font-semibold mb-3 text-sm">{dict.messages?.conversationSettings || "Conversation Settings"}</h3>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm">{dict.messages?.allowTwoSidedDelete || "Allow Two-Sided Delete"}</span>
+                  <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input
+                      type="checkbox"
+                      checked={allowTwoSidedDelete}
+                      onChange={toggleTwoSidedDelete}
+                      className={`toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out ${allowTwoSidedDelete ? 'translate-x-full border-green-500' : 'translate-x-0 border-muted'}`}
+                    />
+                    <label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${allowTwoSidedDelete ? 'bg-green-500' : 'bg-muted'}`}></label>
+                  </div>
+                </label>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {dict.messages?.allowTwoSidedDeleteDesc?.replace("{username}", username) || `If enabled, when you delete a message, it will also be deleted for ${username}.`}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="mb-6 shrink-0 rounded-lg bg-destructive/10 p-4 text-sm text-destructive border border-destructive/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ease-out">
+          <span>{error}</span>
+          {(error === dict.messages?.errFriendLimit || error === '非好友最多发送 3 条消息，请先添加好友。') && (
+             <button
+                onClick={handleAddFriend}
+                disabled={isAddingFriend || friendRequestSent}
+                className="inline-flex items-center gap-2 whitespace-nowrap bg-destructive text-destructive-foreground px-4 py-2 rounded-md font-medium text-xs hover:bg-destructive/90 transition-colors disabled:opacity-50"
+             >
+                {isAddingFriend ? <Loader2 className="h-4 w-4 animate-spin" /> : (friendRequestSent ? <Check className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />)}
+                {friendRequestSent ? (dict.messages?.requestSent || "Request Sent") : (dict.messages?.addFriend || "Add Friend")}
+             </button>
+          )}
+        </div>
+      )}
+
+      {!unlocked && !error && targetUserId && (
+        <div className="flex-1 flex flex-col items-center justify-center rounded-xl border border-border bg-card p-8 text-center shadow-sm">
+          <Shield className="mx-auto h-12 w-12 text-primary mb-4" />
+          <h2 className="text-xl font-bold mb-2">{dict.messages.unlockMessages}</h2>
+          <p className="text-muted mb-6 max-w-md mx-auto">
+            {dict.messages.authRequired}
+          </p>
+          <button
+            onClick={handleUnlock}
+            disabled={unlocking}
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            {unlocking ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {dict.messages.decrypting}</>
+            ) : (
+              <><Lock className="mr-2 h-4 w-4" /> {dict.messages.unlockMessages}</>
+            )}
+          </button>
+        </div>
+      )}
+
+      {unlocked && (
+        <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4 relative">
+            <div className="pointer-events-none fixed inset-0 flex items-center justify-center opacity-10 select-none z-0">
+              <p className="text-2xl font-bold text-center transform -rotate-12 text-foreground whitespace-pre-wrap">
+                {dict.messages?.legalWarning || 'Safety Tip: Please abide by local laws.\nSending illegal content is strictly prohibited.'}
+              </p>
+            </div>
+            <div className="relative z-10 space-y-4">
+              {isLoadingOlder && <div className="text-center p-2"><Loader2 className="h-4 w-4 animate-spin inline text-muted-foreground" /></div>}
+              {messages.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-muted">
+                {dict.messages.noMessages}
+              </div>
+            ) : (
+              messages.map((msg) => {
+                const isMine = msg.senderId === myUserId;
+                return (
+                  <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                    <div className={`relative max-w-[75%] rounded-2xl px-4 py-2 ${
+                      isMine
+                        ? 'bg-primary text-primary-foreground rounded-br-sm'
+                        : msg.isSystem
+                          ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 rounded-bl-sm border-l-4 border-blue-400 dark:border-blue-500'
+                          : 'bg-muted text-foreground rounded-bl-sm'
+                    }`}>
+                      <div className="text-sm whitespace-pre-wrap break-words">
+                        {msg.plaintext?.startsWith('{') && msg.plaintext.includes('"type":"image"') ? (
+                          <EncryptedImage payload={msg.plaintext} onPreview={setPreviewImage} dict={dict} />
+                        ) : (
+                          msg.plaintext?.startsWith('{') && msg.plaintext.includes('"type":"FRIEND_REQUEST"') ? (
+                                <div className="flex flex-col gap-2">
+                                  <span className="font-bold text-primary">{dict.messages?.systemNotification || "System Notification"}</span>
+                                  <span>
+                                    {renderSystemMessage(msg.plaintext)}
+                                  </span>
+                                </div>
+                              ) : (
+                                  msg.plaintext || <span className="flex items-center gap-1 opacity-70"><Loader2 className="h-3 w-3 animate-spin" /> {dict.messages?.decrypting || "Decrypting..."}</span>
+                                )
+                          )}
+                      </div>
+                      <p className={`text-[10px] mt-1 ${isMine ? 'text-primary-foreground/70' : msg.isSystem ? 'text-blue-600/70 dark:text-blue-300/70' : 'text-muted-foreground'}`}>
+                        {new Date(msg.createdAt).toLocaleTimeString()} {new Date(msg.createdAt).toLocaleDateString()}
+                      </p>
+
+                      <button
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className={`absolute top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 ${
+                          isMine ? '-left-10' : '-right-10'
+                        }`}
+                        title={dict.messages?.deleteMessage || "Delete Message"}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={messagesEndRef} className="relative z-10" />
+            </div>
+          </div>
+
+          <div className="p-4 border-t border-border bg-background/50">
+            {username === 'system' ? (
+              <div className="text-center text-sm text-muted-foreground py-2">
+                {dict.messages?.cannotReplySystem || 'You cannot reply to system notifications.'}
+              </div>
+            ) : (
+            <>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <select
+                  value={expiresIn}
+                  onChange={(e) => setExpiresIn(Number(e.target.value))}
+                  className="text-xs bg-background border border-border rounded text-muted-foreground focus:ring-1 focus:ring-primary cursor-pointer outline-none px-2 py-1"
+                >
+                  <option value={0} className="bg-background text-foreground">{dict.messages?.noExpiration || "No Expiration"}</option>
+                  <option value={60000} className="bg-background text-foreground">{dict.messages?.oneMinute || "1 Minute"}</option>
+                  <option value={3600000} className="bg-background text-foreground">{dict.messages?.oneHour || "1 Hour"}</option>
+                  <option value={86400000} className="bg-background text-foreground">{dict.messages?.oneDay || "1 Day"}</option>
+                  <option value={604800000} className="bg-background text-foreground">{dict.messages?.oneWeek || "1 Week"}</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                <input
+                  type="checkbox"
+                  checked={timedMessageEnabled}
+                  onChange={(e) => setTimedMessageEnabled(e.target.checked)}
+                  className="rounded border-border text-primary focus:ring-primary"
+                />
+                <Flame className="h-3 w-3 text-orange-500" />
+                {dict.messages?.timedMessage || '限时消息 (Timed Message)'}
+              </label>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                <input
+                  type="checkbox"
+                  checked={autoDeleteForSelf}
+                  onChange={(e) => setAutoDeleteForSelf(e.target.checked)}
+                  className="rounded border-border text-primary focus:ring-primary"
+                />
+                <Trash2 className="h-3 w-3" />
+                {dict.messages?.autoDeleteForSelf || '发送后自动为自己删除'}
+              </label>
+            </div>
+            <form onSubmit={handleSend} className="flex gap-2">
+              <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-secondary-foreground transition-transform hover:scale-105 shrink-0"
+                disabled={sending}
+              >
+                <ImageIcon className="h-4 w-4" />
+              </button>
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={dict.messages.typeMessage}
+                className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                disabled={sending}
+              />
+              <button
+                type="submit"
+                disabled={!inputText.trim() || sending}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 shrink-0"
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 -ml-0.5" />}
+              </button>
+            </form>
+            </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {passwordPrompt?.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-card p-6 shadow-lg border border-border">
+            <h3 className="text-lg font-bold mb-2">{dict.messages.recoveryPasswordTitle || 'Secure Messaging Recovery Password'}</h3>
+            <p className="text-sm text-muted-foreground mb-4 whitespace-pre-wrap">{passwordPrompt.message}</p>
+            <input
+              type="password"
+              id="recovery-password-input"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder={dict.messages.enterPasswordPlaceholder || 'Enter password...'}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = e.currentTarget.value;
+                  passwordPrompt.resolve(val);
+                  setPasswordPrompt(null);
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  passwordPrompt.resolve(null);
+                  setPasswordPrompt(null);
+                }}
+                className="px-4 py-2 rounded-md hover:bg-accent text-sm font-medium transition-colors"
+              >
+                {dict.common?.cancel || 'Cancel'}
+              </button>
+              <button
+                onClick={() => {
+                  const val = (document.getElementById('recovery-password-input') as HTMLInputElement).value;
+                  passwordPrompt.resolve(val);
+                  setPasswordPrompt(null);
+                }}
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                {dict.common?.confirm || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

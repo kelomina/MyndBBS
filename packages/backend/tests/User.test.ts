@@ -1,0 +1,163 @@
+import { User } from '../src/domain/identity/User';
+import { UserStatus } from '@myndbbs/shared';
+
+describe('User Domain Entity', () => {
+  const defaultProps = {
+    id: 'user-123',
+    email: 'test@example.com',
+    username: 'testuser',
+    password: 'hashedpassword',
+    roleId: null,
+    status: UserStatus.ACTIVE,
+    level: 1,
+    isPasskeyMandatory: false,
+    totpSecret: null,
+    isTotpEnabled: false,
+    createdAt: new Date(),
+  };
+
+  it('should create a User with valid properties', () => {
+    const user = User.create(defaultProps);
+    expect(user.id).toBe(defaultProps.id);
+    expect(user.email).toBe(defaultProps.email);
+    expect(user.username).toBe(defaultProps.username);
+    expect(user.password).toBe(defaultProps.password);
+    expect(user.roleId).toBe(defaultProps.roleId);
+    expect(user.status).toBe(defaultProps.status);
+    expect(user.level).toBe(defaultProps.level);
+    expect(user.isPasskeyMandatory).toBe(defaultProps.isPasskeyMandatory);
+    expect(user.totpSecret).toBe(defaultProps.totpSecret);
+    expect(user.isTotpEnabled).toBe(defaultProps.isTotpEnabled);
+    expect(user.createdAt).toBe(defaultProps.createdAt);
+  });
+
+  describe('updateProfile', () => {
+    it('should update email, username, and password when provided', () => {
+      const user = User.create(defaultProps);
+      user.updateProfile('new@example.com', 'newuser', 'newhashedpassword');
+      expect(user.email).toBe('new@example.com');
+      expect(user.username).toBe('newuser');
+      expect(user.password).toBe('newhashedpassword');
+    });
+
+    it('should only update provided fields', () => {
+      const user = User.create(defaultProps);
+      user.updateProfile('new@example.com');
+      expect(user.email).toBe('new@example.com');
+      expect(user.username).toBe('testuser'); // Unchanged
+      expect(user.password).toBe('hashedpassword'); // Unchanged
+    });
+  });
+
+  describe('TOTP management', () => {
+    it('should enable TOTP with a secret', () => {
+      const user = User.create(defaultProps);
+      user.enableTotp('my-secret');
+      expect(user.totpSecret).toBe('my-secret');
+      expect(user.isTotpEnabled).toBe(true);
+    });
+
+    it('should throw an error when enabling TOTP without a secret', () => {
+      const user = User.create(defaultProps);
+      expect(() => user.enableTotp('')).toThrow('ERR_TOTP_SECRET_REQUIRED');
+    });
+
+    it('should disable TOTP', () => {
+      const user = User.create({ ...defaultProps, totpSecret: 'my-secret', isTotpEnabled: true });
+      user.disableTotp();
+      expect(user.totpSecret).toBeNull();
+      expect(user.isTotpEnabled).toBe(false);
+    });
+  });
+
+  describe('Role management', () => {
+    it('should change role', () => {
+      const user = User.create(defaultProps);
+      user.changeRole('role-123');
+      expect(user.roleId).toBe('role-123');
+      user.changeRole(null);
+      expect(user.roleId).toBeNull();
+    });
+  });
+
+  describe('Level management', () => {
+    it('should change level within valid bounds when hasPasskey is true', () => {
+      const user = User.create(defaultProps);
+      user.changeLevel(3, true);
+      expect(user.level).toBe(3);
+      user.changeLevel(6, true);
+      expect(user.level).toBe(6);
+    });
+
+    it('should throw an error when promoting above level 1 without a passkey', () => {
+      const user = User.create(defaultProps);
+      expect(() => user.changeLevel(2, false)).toThrow('ERR_CANNOT_PROMOTE_WITHOUT_PASSKEY');
+    });
+
+    it('should allow staying at level 1 without a passkey', () => {
+      const user = User.create(defaultProps);
+      user.changeLevel(1, false);
+      expect(user.level).toBe(1);
+    });
+
+    it('should throw an error when changing level out of bounds', () => {
+      const user = User.create(defaultProps);
+      expect(() => user.changeLevel(0, true)).toThrow('ERR_LEVEL_OUT_OF_BOUNDS');
+      expect(() => user.changeLevel(7, true)).toThrow('ERR_LEVEL_OUT_OF_BOUNDS');
+    });
+  });
+
+  describe('Status management', () => {
+    it('should change status', () => {
+      const user = User.create(defaultProps);
+      user.changeStatus(UserStatus.BANNED);
+      expect(user.status).toBe(UserStatus.BANNED);
+    });
+  });
+
+  describe('Cookie preferences', () => {
+    it('should update cookie preferences', () => {
+      const user = User.create(defaultProps);
+      const preferences = { analytics: true, marketing: false };
+
+      user.updateCookiePreferences(preferences);
+
+      expect(user.cookiePreferences).toEqual(preferences);
+    });
+
+    it('should update cookie preferences to null', () => {
+      const user = User.create({ ...defaultProps, cookiePreferences: { analytics: true } });
+
+      user.updateCookiePreferences(null);
+
+      expect(user.cookiePreferences).toBeNull();
+    });
+  });
+
+  describe('Avatar management', () => {
+    it('should update avatar with valid URL', () => {
+      const user = User.create(defaultProps);
+      const validUrl = '/uploads/avatars/12345678-1234-5678-1234-567812345678.png';
+
+      user.updateAvatar(validUrl);
+
+      expect(user.avatarUrl).toBe(validUrl);
+    });
+
+    it('should update avatar to null', () => {
+      const user = User.create({ ...defaultProps, avatarUrl: '/uploads/avatars/test.png' });
+
+      user.updateAvatar(null);
+
+      expect(user.avatarUrl).toBeNull();
+    });
+
+    it('should throw error for invalid avatar URL format', () => {
+      const user = User.create(defaultProps);
+
+      expect(() => user.updateAvatar('/invalid/path.png')).toThrow('ERR_INVALID_AVATAR_URL');
+      expect(() => user.updateAvatar('https://external.com/avatar.png')).toThrow('ERR_INVALID_AVATAR_URL');
+      expect(() => user.updateAvatar('/uploads/avatars/invalid-format.jpg')).toThrow('ERR_INVALID_AVATAR_URL');
+    });
+  });
+});

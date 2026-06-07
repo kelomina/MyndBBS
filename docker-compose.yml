@@ -1,0 +1,107 @@
+# ============================================================
+# MyndBBS - Docker Compose 部署配置
+# 使用方式:
+#   docker compose up -d
+#   docker compose logs -f
+# ============================================================
+
+services:
+  # ==================== PostgreSQL ====================
+  postgres:
+    image: postgres:16-alpine
+    container_name: myndbbs-postgres
+    restart: unless-stopped
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: myndbbs
+      POSTGRES_USER: myndbbs
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myndbbs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ==================== Redis ====================
+  redis:
+    image: redis:7-alpine
+    container_name: myndbbs-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ==================== Backend API ====================
+  backend:
+    image: myndbbs-backend:deploy
+    container_name: myndbbs-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://myndbbs:${DB_PASSWORD:?DB_PASSWORD is required}@postgres:5432/myndbbs?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY:?MEILISEARCH_KEY is required}
+      NODE_ENV: production
+      COOKIE_SECURE: "true"
+    volumes:
+      - uploads-data:/app/packages/backend/uploads
+      - ${BACKEND_ENV_FILE:-./.env}:/app/packages/backend/.env:ro
+    ports:
+      - "127.0.0.1:3001:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3001/api/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  # ==================== Frontend (Next.js) ====================
+  frontend:
+    image: myndbbs-frontend:deploy
+    container_name: myndbbs-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      API_URL: http://backend:3001
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+      NODE_ENV: production
+      COOKIE_SECURE: "true"
+    ports:
+      - "127.0.0.1:3100:3100"
+
+  # ==================== Meilisearch ====================
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: myndbbs-meilisearch
+    restart: unless-stopped
+    volumes:
+      - meilisearch-data:/meili_data
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:?MEILISEARCH_KEY is required}
+      MEILI_ENV: production
+    ports:
+      - "127.0.0.1:7700:7700"
+
+# ==================== Volumes ====================
+volumes:
+  redis-data:
+  uploads-data:
+  meilisearch-data:

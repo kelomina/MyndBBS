@@ -1,0 +1,316 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      rollback:
+        description: 'Rollback to previous deployment'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+  push:
+    branches: [staging]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+  SSH_PORT: ${{ vars.DEPLOY_SSH_PORT || '22' }}
+  SSH_USER: ${{ vars.DEPLOY_SSH_USER }}
+  DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+  DEPLOY_PUBLIC_URL: ${{ vars.DEPLOY_PUBLIC_URL }}
+  BACKEND_IMAGE: myndbbs-backend
+  FRONTEND_IMAGE: myndbbs-frontend
+  DEPLOY_TAG: deploy
+
+jobs:
+  backup:
+    name: Backup Current Deployment
+    if: ${{ github.event.inputs.rollback != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create backup on server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            BACKUP_DIR="${{ env.DEPLOY_DIR }}/backup/$(date +%Y%m%d_%H%M%S)"
+            mkdir -p "$BACKUP_DIR"
+            docker save ${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_TAG }} -o "$BACKUP_DIR/backend.tar" 2>/dev/null || echo "No backend image to backup"
+            docker save ${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_TAG }} -o "$BACKUP_DIR/frontend.tar" 2>/dev/null || echo "No frontend image to backup"
+            cp "${{ env.DEPLOY_DIR }}/docker-compose.yml" "$BACKUP_DIR/docker-compose.yml" 2>/dev/null || true
+            docker exec myndbbs-postgres pg_dump -U myndbbs myndbbs > "$BACKUP_DIR/db_dump.sql" 2>/dev/null || echo "DB dump skipped"
+            echo "Backup created at $BACKUP_DIR"
+
+  build:
+    name: Build Docker Images
+    if: ${{ github.event.inputs.rollback != 'true' }}
+    needs: backup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        run: |
+          docker build --no-cache \
+            -t ${{ env.BACKEND_IMAGE }}:latest \
+            -f packages/backend/Dockerfile .
+
+      - name: Build frontend image
+        run: |
+          docker build --no-cache \
+            -t ${{ env.FRONTEND_IMAGE }}:latest \
+            -f packages/frontend/Dockerfile .
+
+      - name: Save backend image
+        run: docker save ${{ env.BACKEND_IMAGE }}:latest -o myndbbs-backend.tar
+
+      - name: Save frontend image
+        run: docker save ${{ env.FRONTEND_IMAGE }}:latest -o myndbbs-frontend.tar
+
+      - name: Upload backend image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-image
+          path: myndbbs-backend.tar
+          retention-days: 1
+
+      - name: Upload frontend image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-image
+          path: myndbbs-frontend.tar
+          retention-days: 1
+
+  deploy:
+    name: Deploy to Production
+    needs: build
+    if: ${{ always() && (github.event.inputs.rollback == 'true' || needs.build.result == 'success') }}
+    runs-on: ubuntu-latest
+    env:
+      STAGING_DB_NAME: myndbbs_staging
+    steps:
+      - name: Download backend image
+        if: ${{ github.event.inputs.rollback != 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-image
+          path: ./images
+
+      - name: Download frontend image
+        if: ${{ github.event.inputs.rollback != 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-image
+          path: ./images
+
+      - name: Transfer images and deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+
+            if [ "${{ github.event.inputs.rollback }}" = "true" ]; then
+              echo "=== ROLLBACK MODE ==="
+              LATEST_BACKUP=$(ls -td ${{ env.DEPLOY_DIR }}/backup/*/ 2>/dev/null | head -1)
+              if [ -z "$LATEST_BACKUP" ]; then
+                echo "ERROR: No backup found for rollback"
+                exit 1
+              fi
+              echo "Rolling back to: $LATEST_BACKUP"
+              docker load -i "$LATEST_BACKUP/backend.tar"
+              docker load -i "$LATEST_BACKUP/frontend.tar"
+              docker tag ${{ env.BACKEND_IMAGE }}:latest ${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_TAG }}
+              docker tag ${{ env.FRONTEND_IMAGE }}:latest ${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_TAG }}
+              cd ${{ env.DEPLOY_DIR }} && docker compose up -d
+              echo "Rollback complete"
+              exit 0
+            fi
+
+            echo "=== DEPLOY MODE ==="
+
+      - name: SCP backend image
+        if: ${{ github.event.inputs.rollback != 'true' }}
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "./images/myndbbs-backend.tar"
+          target: ${{ env.DEPLOY_DIR }}
+
+      - name: SCP frontend image
+        if: ${{ github.event.inputs.rollback != 'true' }}
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "./images/myndbbs-frontend.tar"
+          target: ${{ env.DEPLOY_DIR }}
+
+      - name: Load images and restart services
+        if: ${{ github.event.inputs.rollback != 'true' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ env.DEPLOY_DIR }}
+
+            IS_STAGING="${{ github.ref == 'refs/heads/staging' && 'true' || 'false' }}"
+
+            echo "Loading backend image..."
+            docker load -i myndbbs-backend.tar
+            docker tag ${{ env.BACKEND_IMAGE }}:latest ${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_TAG }}
+
+            echo "Loading frontend image..."
+            docker load -i myndbbs-frontend.tar
+            docker tag ${{ env.FRONTEND_IMAGE }}:latest ${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_TAG }}
+
+            if [ "$IS_STAGING" = "true" ]; then
+              echo "=== STAGING DEPLOYMENT ==="
+              echo "Ensuring staging database exists..."
+              docker exec myndbbs-postgres psql -U myndbbs -tc "SELECT 1 FROM pg_database WHERE datname = '${{ env.STAGING_DB_NAME }}'" | grep -q 1 || \
+                docker exec myndbbs-postgres psql -U myndbbs -c "CREATE DATABASE ${{ env.STAGING_DB_NAME }}"
+              export DATABASE_URL="postgresql://myndbbs:${{ secrets.DB_PASSWORD }}@myndbbs-postgres:5432/${{ env.STAGING_DB_NAME }}?schema=public"
+            fi
+
+            echo "Restarting services..."
+            docker compose up -d
+
+            echo "Cleaning up tar files..."
+            rm -f myndbbs-backend.tar myndbbs-frontend.tar
+
+            echo "Deployment complete"
+
+  health-check:
+    name: Health Check
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for services to start
+        run: sleep 15
+
+      - name: Check backend health
+        run: |
+          HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" "${DEPLOY_PUBLIC_URL%/}/api/v1/public/health" || echo "000")
+          if [ "$HTTP_CODE" -ne 200 ] && [ "$HTTP_CODE" -ne 404 ]; then
+            echo "Backend health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          echo "Backend health check passed (HTTP $HTTP_CODE)"
+
+      - name: Check frontend health
+        run: |
+          HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" "${DEPLOY_PUBLIC_URL%/}/" || echo "000")
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "Frontend health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          echo "Frontend health check passed (HTTP $HTTP_CODE)"
+
+      - name: Check Docker containers
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ env.DEPLOY_DIR }}
+            FAILED=$(docker compose ps --format json | jq -s '[.[] | select(.Health == "unhealthy" or .State == "exited")] | length')
+            if [ "$FAILED" -gt 0 ]; then
+              echo "WARNING: $FAILED container(s) are unhealthy or exited"
+              docker compose ps
+              exit 1
+            fi
+            echo "All containers are healthy"
+            docker compose ps
+
+      - name: Notify deployment success
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            exit 0
+          fi
+          curl -X POST -H "Content-Type: application/json" \
+            -d '{"content": "✅ Production deployment succeeded!"}' \
+            "$DISCORD_WEBHOOK_URL" || true
+
+  tag-release:
+    name: Tag Release
+    needs: health-check
+    if: ${{ github.event.inputs.rollback != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create deployment tag
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          TAG="deploy-${TIMESTAMP}"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "$TAG" -m "Deployment at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push origin "$TAG"
+
+  rollback-on-failure:
+    name: Auto Rollback on Health Check Failure
+    needs: health-check
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rollback to latest backup
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            LATEST_BACKUP=$(ls -td "${{ env.DEPLOY_DIR }}"/backup/*/ 2>/dev/null | head -1)
+            if [ -z "$LATEST_BACKUP" ]; then
+              echo "ERROR: No backup found for rollback"
+              exit 1
+            fi
+            echo "Rolling back to: $LATEST_BACKUP"
+            docker load -i "$LATEST_BACKUP/backend.tar"
+            docker load -i "$LATEST_BACKUP/frontend.tar"
+            docker tag myndbbs-backend:latest myndbbs-backend:deploy
+            docker tag myndbbs-frontend:latest myndbbs-frontend:deploy
+            cd "${{ env.DEPLOY_DIR }}" && docker compose up -d
+
+      - name: Notify deployment failure
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            exit 0
+          fi
+          curl -X POST -H "Content-Type: application/json" \
+            -d '{"content": "❌ Production deployment FAILED and was rolled back. Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+            "$DISCORD_WEBHOOK_URL" || true

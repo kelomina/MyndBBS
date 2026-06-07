@@ -1,0 +1,396 @@
+import { CommunityApplicationService } from '../src/application/community/CommunityApplicationService';
+import { Category } from '../src/domain/community/Category';
+import { Post } from '../src/domain/community/Post';
+import { Comment } from '../src/domain/community/Comment';
+import { PostUpvote, PostBookmark } from '../src/domain/community/PostEngagement';
+import { CommentUpvote, CommentBookmark } from '../src/domain/community/CommentEngagement';
+import { CategoryModeratorAssignedEvent, CategoryModeratorRemovedEvent, PostRepliedEvent, CommentRepliedEvent } from '../src/domain/shared/events/DomainEvents';
+
+describe('CommunityApplicationService', () => {
+  let categoryRepository: any;
+  let postRepository: any;
+  let commentRepository: any;
+  let engagementRepository: any;
+  let identityIntegrationPort: any;
+  let moderationPolicy: any;
+  let captchaValidator: any;
+  let eventBus: any;
+  let auditApplicationService: any;
+  let unitOfWork: any;
+  let service: CommunityApplicationService;
+  const allowAbility = { can: jest.fn().mockReturnValue(true) };
+  const denyAbility = { can: jest.fn().mockReturnValue(false) };
+
+  beforeEach(() => {
+    categoryRepository = {
+      findById: jest.fn(),
+      save: jest.fn(),
+      delete: jest.fn(),
+    };
+    postRepository = {
+      findById: jest.fn(),
+      countByCategoryId: jest.fn().mockResolvedValue(0),
+      save: jest.fn(),
+      deleteManyByCategoryId: jest.fn(),
+    };
+    commentRepository = {
+      findById: jest.fn(),
+      save: jest.fn(),
+      softDeleteManyByPostId: jest.fn(),
+    };
+    engagementRepository = {
+      findPostUpvote: jest.fn(),
+      deletePostUpvote: jest.fn(),
+      savePostUpvote: jest.fn(),
+      findPostBookmark: jest.fn(),
+      deletePostBookmark: jest.fn(),
+      savePostBookmark: jest.fn(),
+      findCommentUpvote: jest.fn(),
+      deleteCommentUpvote: jest.fn(),
+      saveCommentUpvote: jest.fn(),
+      findCommentBookmark: jest.fn(),
+      deleteCommentBookmark: jest.fn(),
+      saveCommentBookmark: jest.fn(),
+    };
+    identityIntegrationPort = {
+      isModerator: jest.fn(),
+    };
+    moderationPolicy = {
+      containsModeratedWord: jest.fn().mockResolvedValue(false),
+    };
+    captchaValidator = {
+      consumeCaptcha: jest.fn().mockResolvedValue(true),
+    };
+    eventBus = {
+      publish: jest.fn().mockResolvedValue(undefined),
+    };
+    auditApplicationService = {
+      logAudit: jest.fn(),
+    };
+    unitOfWork = {
+      execute: jest.fn((work) => work()),
+    };
+
+    service = new CommunityApplicationService({
+      categoryRepository,
+      postRepository,
+      commentRepository,
+      engagementRepository,
+      identityIntegrationPort,
+      moderationPolicy,
+      captchaValidator,
+      eventBus,
+      auditApplicationService,
+      unitOfWork,
+    });
+  });
+
+  describe('Category Management', () => {
+    it('should create a category', async () => {
+      const category = await service.createCategory('Test Category', 'Description', 1, 0, 'user-123');
+      expect(category).toBeInstanceOf(Category);
+      expect(category.name).toBe('Test Category');
+      expect(categoryRepository.save).toHaveBeenCalledWith(category);
+      expect(eventBus.publish).toHaveBeenCalled();
+    });
+
+    it('should update a category', async () => {
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Old', description: 'Old desc', sortOrder: 0, minLevel: 0, moderatorIds: [], createdAt: new Date() });
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+
+      await service.updateCategory('cat-1', 'New Name', 'New Desc', 2, 1, 'user-123');
+      expect(mockCategory.name).toBe('New Name');
+      expect(categoryRepository.save).toHaveBeenCalledWith(mockCategory);
+      expect(eventBus.publish).toHaveBeenCalled();
+    });
+
+    it('should throw when updating non-existent category', async () => {
+      categoryRepository.findById.mockResolvedValue(null);
+      await expect(service.updateCategory('cat-unknown', 'Name', null, 1, 1, 'user-123')).rejects.toThrow('ERR_CATEGORY_NOT_FOUND');
+    });
+
+    it('should assign a category moderator', async () => {
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 0, moderatorIds: [], createdAt: new Date() });
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+      identityIntegrationPort.isModerator.mockResolvedValue(true);
+
+      const result = await service.assignCategoryModerator('cat-1', 'user-456', 'user-123');
+      expect(result).toEqual({ categoryId: 'cat-1', userId: 'user-456' });
+      expect(mockCategory.moderatorIds).toContain('user-456');
+      expect(categoryRepository.save).toHaveBeenCalledWith(mockCategory);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(CategoryModeratorAssignedEvent));
+    });
+
+    it('should throw when assigning non-moderator to category', async () => {
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 0, moderatorIds: [], createdAt: new Date() });
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+      identityIntegrationPort.isModerator.mockResolvedValue(false);
+
+      await expect(service.assignCategoryModerator('cat-1', 'user-456', 'user-123')).rejects.toThrow('ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR');
+    });
+
+    it('should remove a category moderator', async () => {
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 0, moderatorIds: ['user-456'], createdAt: new Date() });
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+
+      await service.removeCategoryModerator('cat-1', 'user-456', 'user-123');
+      expect(mockCategory.moderatorIds).not.toContain('user-456');
+      expect(categoryRepository.save).toHaveBeenCalledWith(mockCategory);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(CategoryModeratorRemovedEvent));
+    });
+
+    it('should delete an empty category without cascading through posts', async () => {
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 0, moderatorIds: [], createdAt: new Date() });
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+      postRepository.countByCategoryId.mockResolvedValue(0);
+
+      await service.deleteCategory('cat-1', 'user-123');
+      expect(postRepository.countByCategoryId).toHaveBeenCalledWith('cat-1');
+      expect(postRepository.deleteManyByCategoryId).not.toHaveBeenCalled();
+      expect(categoryRepository.delete).toHaveBeenCalledWith('cat-1');
+      expect(eventBus.publish).toHaveBeenCalled();
+    });
+
+    it('should reject deleting a category that still contains posts', async () => {
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 0, moderatorIds: [], createdAt: new Date() });
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+      postRepository.countByCategoryId.mockResolvedValue(3);
+
+      await expect(service.deleteCategory('cat-1', 'user-123')).rejects.toThrow('ERR_CATEGORY_NOT_EMPTY');
+      expect(categoryRepository.delete).not.toHaveBeenCalled();
+      expect(postRepository.deleteManyByCategoryId).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Post Management', () => {
+    it('should create a post', async () => {
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 1, moderatorIds: [], createdAt: new Date() });
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+
+      const result = await service.createPost('Title', 'Content', 'cat-1', 'user-123', 2, 'captcha-1');
+      expect(captchaValidator.consumeCaptcha).toHaveBeenCalledWith('captcha-1');
+      expect(moderationPolicy.containsModeratedWord).toHaveBeenCalledWith('Title Content', 'cat-1');
+      expect(postRepository.save).toHaveBeenCalled();
+      expect(result).toHaveProperty('postId');
+      expect(result).toHaveProperty('isModerated', false);
+    });
+
+    it('should create a post and return PENDING status if moderated', async () => {
+      moderationPolicy.containsModeratedWord.mockResolvedValue(true);
+      const mockCategory = { id: 'cat-1', isLevelSufficient: jest.fn().mockReturnValue(true) };
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+
+      const result = await service.createPost('Title', 'Content', 'cat-1', 'user-123', 2, 'captcha-1');
+      expect(result.postId).toBeDefined();
+      expect(result.isModerated).toBe(true);
+      expect(result.status).toBe('PENDING');
+      expect(result.message).toBe('ERR_PENDING_MODERATION');
+      expect(postRepository.save).toHaveBeenCalled();
+    });
+
+    it('should throw on invalid captcha when creating post', async () => {
+      captchaValidator.consumeCaptcha.mockResolvedValue(false);
+      await expect(service.createPost('Title', 'Content', 'cat-1', 'user-123', 2, 'captcha-bad')).rejects.toThrow('ERR_INVALID_OR_EXPIRED_CAPTCHA');
+    });
+
+    it('should throw on insufficient level when creating post', async () => {
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 3, moderatorIds: [], createdAt: new Date() });
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+
+      await expect(service.createPost('Title', 'Content', 'cat-1', 'user-123', 2, 'captcha-1')).rejects.toThrow('ERR_INSUFFICIENT_LEVEL_TO_POST_IN_THIS_CATEGORY');
+    });
+
+    it('should update a post', async () => {
+      const mockPost = Post.create({ id: 'post-1', title: 'Old Title', content: 'Old Content', categoryId: 'cat-1', authorId: 'user-123', createdAt: new Date() }, false);
+      postRepository.findById.mockResolvedValue(mockPost);
+
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.updatePost(mockAbility as any, 'post-1', 'New Title', 'New Content', 'cat-1');
+      expect(mockPost.title).toBe('New Title');
+      expect(mockPost.content).toBe('New Content');
+      expect(postRepository.save).toHaveBeenCalledWith(mockPost);
+      expect(result).toEqual({ postId: 'post-1' });
+    });
+
+    it('should delete a post', async () => {
+      const mockPost = Post.create({ id: 'post-1', title: 'Old Title', content: 'Old Content', categoryId: 'cat-1', authorId: 'user-123', createdAt: new Date() }, false);
+      postRepository.findById.mockResolvedValue(mockPost);
+
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      await service.deletePost(mockAbility as any, 'post-1');
+      expect(mockPost.status).toBe('DELETED'); // Verify status is DELETED
+      expect(postRepository.save).toHaveBeenCalledWith(mockPost);
+      expect(commentRepository.softDeleteManyByPostId).toHaveBeenCalledWith('post-1');
+    });
+  });
+
+  describe('Comment Management', () => {
+    it('should create a comment', async () => {
+      const mockPost = Post.create({ id: 'post-1', title: 'Title', content: 'Content', categoryId: 'cat-1', authorId: 'user-123', createdAt: new Date() }, false);
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 0, moderatorIds: [], createdAt: new Date() });
+      postRepository.findById.mockResolvedValue(mockPost);
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+
+      const result = await service.createComment(allowAbility as any, 'Comment Content', 'post-1', 'user-456', 'captcha-1');
+      expect(commentRepository.save).toHaveBeenCalled();
+      expect(result).toHaveProperty('commentId');
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(PostRepliedEvent));
+    });
+
+    it('should create a reply comment', async () => {
+      const mockPost = Post.create({ id: 'post-1', title: 'Title', content: 'Content', categoryId: 'cat-1', authorId: 'user-123', createdAt: new Date() }, false);
+      const mockParentComment = Comment.create({ id: 'comment-parent', content: 'Parent', postId: 'post-1', authorId: 'user-456', parentId: null, deletedAt: null, createdAt: new Date() }, false);
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 0, moderatorIds: [], createdAt: new Date() });
+      postRepository.findById.mockResolvedValue(mockPost);
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+      commentRepository.findById.mockResolvedValue(mockParentComment);
+
+      const result = await service.createComment(allowAbility as any, 'Reply Content', 'post-1', 'user-789', 'captcha-1', 'comment-parent');
+      expect(commentRepository.save).toHaveBeenCalled();
+      expect(result).toHaveProperty('commentId');
+      // Post author != comment author, Parent author != comment author
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(PostRepliedEvent));
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.any(CommentRepliedEvent));
+    });
+
+    it('should reject comment creation when target post is not readable', async () => {
+      const mockPost = Post.create({ id: 'post-1', title: 'Title', content: 'Content', categoryId: 'cat-1', authorId: 'user-123', createdAt: new Date() }, false);
+      const mockCategory = Category.create({ id: 'cat-1', name: 'Cat', description: null, sortOrder: 0, minLevel: 0, moderatorIds: [], createdAt: new Date() });
+      postRepository.findById.mockResolvedValue(mockPost);
+      categoryRepository.findById.mockResolvedValue(mockCategory);
+
+      await expect(
+        service.createComment(denyAbility as any, 'Comment Content', 'post-1', 'user-456', 'captcha-1')
+      ).rejects.toThrow('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS');
+      expect(commentRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should reject comment creation for non-public post statuses', async () => {
+      const mockPost = Post.create({ id: 'post-1', title: 'Title', content: 'Content', categoryId: 'cat-1', authorId: 'user-123', createdAt: new Date() }, false);
+      mockPost.delete();
+      postRepository.findById.mockResolvedValue(mockPost);
+
+      await expect(
+        service.createComment(allowAbility as any, 'Comment Content', 'post-1', 'user-456', 'captcha-1')
+      ).rejects.toThrow('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS');
+      expect(commentRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should update a comment', async () => {
+      const mockComment = Comment.create({ id: 'comment-1', content: 'Old Content', postId: 'post-1', authorId: 'user-123', parentId: null, deletedAt: null, createdAt: new Date() }, false);
+      commentRepository.findById.mockResolvedValue(mockComment);
+      postRepository.findById.mockResolvedValue({ categoryId: 'cat-1' } as any);
+
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.updateComment(mockAbility as any, 'comment-1', 'New Content');
+      expect(mockComment.content).toBe('New Content');
+      expect(commentRepository.save).toHaveBeenCalledWith(mockComment);
+      expect(result.commentId).toBe('comment-1');
+    });
+
+    it('should delete a comment', async () => {
+      const mockComment = Comment.create({ id: 'comment-1', content: 'Content', postId: 'post-1', authorId: 'user-123', parentId: null, deletedAt: null, createdAt: new Date() }, false);
+      commentRepository.findById.mockResolvedValue(mockComment);
+      postRepository.findById.mockResolvedValue({ categoryId: 'cat-1' } as any);
+
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      await service.deleteComment(mockAbility as any, 'comment-1');
+      expect(mockComment.deletedAt).not.toBeNull();
+      expect(commentRepository.save).toHaveBeenCalledWith(mockComment);
+    });
+  });
+
+  describe('Engagements', () => {
+    it('should toggle post upvote on', async () => {
+      postRepository.findById.mockResolvedValue(true); // Exists
+      engagementRepository.findPostUpvote.mockResolvedValue(null);
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.togglePostUpvote(mockAbility as any, 'post-1', 'user-123');
+      expect(result).toBe(true);
+      expect(engagementRepository.savePostUpvote).toHaveBeenCalled();
+    });
+
+    it('should toggle post upvote off', async () => {
+      postRepository.findById.mockResolvedValue(true);
+      engagementRepository.findPostUpvote.mockResolvedValue({}); // Exists
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.togglePostUpvote(mockAbility as any, 'post-1', 'user-123');
+      expect(result).toBe(false);
+      expect(engagementRepository.deletePostUpvote).toHaveBeenCalledWith('post-1', 'user-123');
+    });
+
+    it('should toggle post bookmark on', async () => {
+      postRepository.findById.mockResolvedValue(true);
+      engagementRepository.findPostBookmark.mockResolvedValue(null);
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.togglePostBookmark(mockAbility as any, 'post-1', 'user-123');
+      expect(result).toBe(true);
+      expect(engagementRepository.savePostBookmark).toHaveBeenCalled();
+    });
+
+    it('should toggle post bookmark off', async () => {
+      postRepository.findById.mockResolvedValue(true);
+      engagementRepository.findPostBookmark.mockResolvedValue({});
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.togglePostBookmark(mockAbility as any, 'post-1', 'user-123');
+      expect(result).toBe(false);
+      expect(engagementRepository.deletePostBookmark).toHaveBeenCalledWith('post-1', 'user-123');
+    });
+
+    it('should toggle comment upvote on', async () => {
+      commentRepository.findById.mockResolvedValue({ id: 'comment-1', postId: 'post-1' } as any);
+      postRepository.findById.mockResolvedValue({ id: 'post-1', categoryId: 'cat-1' } as any);
+      engagementRepository.findCommentUpvote.mockResolvedValue(null);
+
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.toggleCommentUpvote(mockAbility as any, 'comment-1', 'user-123');
+      expect(result).toBe(true);
+      expect(engagementRepository.saveCommentUpvote).toHaveBeenCalled();
+    });
+
+    it('should toggle comment upvote off', async () => {
+      commentRepository.findById.mockResolvedValue({ id: 'comment-1', postId: 'post-1' } as any);
+      postRepository.findById.mockResolvedValue({ id: 'post-1', categoryId: 'cat-1' } as any);
+      engagementRepository.findCommentUpvote.mockResolvedValue({ userId: 'user-123', commentId: 'comment-1' } as any);
+
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.toggleCommentUpvote(mockAbility as any, 'comment-1', 'user-123');
+      expect(result).toBe(false);
+      expect(engagementRepository.deleteCommentUpvote).toHaveBeenCalledWith('comment-1', 'user-123');
+    });
+
+    it('should toggle comment bookmark on', async () => {
+      commentRepository.findById.mockResolvedValue({ id: 'comment-1', postId: 'post-1' } as any);
+      postRepository.findById.mockResolvedValue({ id: 'post-1', categoryId: 'cat-1' } as any);
+      engagementRepository.findCommentBookmark.mockResolvedValue(null);
+
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.toggleCommentBookmark(mockAbility as any, 'comment-1', 'user-123');
+      expect(result).toBe(true);
+      expect(engagementRepository.saveCommentBookmark).toHaveBeenCalled();
+    });
+
+    it('should toggle comment bookmark off', async () => {
+      commentRepository.findById.mockResolvedValue({ id: 'comment-1', postId: 'post-1' } as any);
+      postRepository.findById.mockResolvedValue({ id: 'post-1', categoryId: 'cat-1' } as any);
+      engagementRepository.findCommentBookmark.mockResolvedValue({ userId: 'user-123', commentId: 'comment-1' } as any);
+
+      const mockAbility = { can: jest.fn().mockReturnValue(true) };
+
+      const result = await service.toggleCommentBookmark(mockAbility as any, 'comment-1', 'user-123');
+      expect(result).toBe(false);
+      expect(engagementRepository.deleteCommentBookmark).toHaveBeenCalledWith('comment-1', 'user-123');
+    });
+  });
+});

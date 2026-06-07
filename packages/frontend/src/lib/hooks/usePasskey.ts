@@ -1,0 +1,83 @@
+import { useState } from 'react';
+import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
+import type { Dictionary } from '../../types';
+
+export function usePasskey() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+      const executePasskeyFlow = async (
+    type: 'login' | 'register',
+    generateEndpoint: string,
+    verifyEndpoint: string,
+    dict: Dictionary,
+    onSuccess: () => void,
+    onError?: (err: Error) => void,
+    extraPayload?: Record<string, unknown>
+  ) => {
+    setError('');
+    setLoading(true);
+
+    try {
+      const optionsRes = await fetch(generateEndpoint, { credentials: 'include' });
+      const optionsData = await optionsRes.json();
+
+      if (!optionsRes.ok) {
+        throw new Error((dict.apiErrors?.[optionsData.error as keyof typeof dict.apiErrors] || optionsData.error) || dict.auth.passkeyError);
+      }
+
+      const { challengeId, ...options } = optionsData;
+
+      let authResponse;
+      try {
+        if (type === 'login') {
+          authResponse = await startAuthentication({ optionsJSON: options });
+        } else {
+          authResponse = await startRegistration({ optionsJSON: options });
+        }
+      } catch (err) {
+        const errorObj = err as Error;
+        const errorMessage = errorObj?.message || '';
+        if (errorObj?.name === 'NotAllowedError' || errorMessage.includes('timed out or was not allowed')) {
+          setError(dict.auth.passkeyCancelled);
+        } else if (errorMessage.includes('An unknown error occurred while talking to the credential manager') || errorMessage.includes('credential manager')) {
+          setError(dict.auth.passkeyCredentialManagerError || 'Credential Manager encountered an error. Please check your security key, try a different browser, or use password login instead.');
+        } else {
+          setError(errorMessage || dict.auth.passkeyFailed);
+        }
+        setLoading(false);
+        if (onError) onError(errorObj);
+        return;
+      }
+
+      const verifyRes = await fetch(verifyEndpoint, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ response: authResponse, challengeId, ...extraPayload })
+      });
+
+      const verifyData = await verifyRes.json();
+
+      if (verifyRes.ok) {
+        onSuccess();
+      } else {
+        throw new Error((dict.apiErrors?.[verifyData.error as keyof typeof dict.apiErrors] || verifyData.error) || dict.auth.passkeyVerificationFailed);
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message || dict.auth.passkeyError);
+      } else {
+        setError(dict.auth.passkeyError);
+      }
+      if (onError) onError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { executePasskeyFlow, passkeyLoading: loading, passkeyError: error, setPasskeyError: setError };
+}

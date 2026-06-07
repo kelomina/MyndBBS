@@ -1,0 +1,551 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  BLOCKED
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+  PENDING
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  HIDDEN
+  PINNED
+  DELETED
+  PENDING
+}
+
+model User {
+  id                 String     @id @default(uuid()) @db.Uuid
+  email              String     @unique
+  username           String     @unique
+  password           String? // Argon2 handles salt internally
+  roleId             String?    @db.Uuid
+  role               Role?      @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  status             UserStatus @default(ACTIVE)
+  level              Int        @default(1)
+  registeredIp       String?    @db.Inet
+  isPasskeyMandatory Boolean    @default(false)
+  totpSecret         String?
+  isTotpEnabled      Boolean    @default(false)
+  avatarUrl          String?
+  cookiePreferences  Json?      // e.g. { "essential": true, "analytics": false }
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  passkeys            Passkey[]
+  posts               Post[]
+  comments            Comment[]
+  sessions            Session[]
+  moderatedCategories CategoryModerator[]
+  upvotes             Upvote[]
+  bookmarks           Bookmark[]
+  commentUpvotes      CommentUpvote[]
+  commentBookmarks    CommentBookmark[]
+  notifications       Notification[]
+  userKey             UserKey?
+  sentMessages        PrivateMessage[] @relation("SentMessages")
+  receivedMessages    PrivateMessage[] @relation("ReceivedMessages")
+  conversationSettings ConversationSetting[] @relation("UserConversationSettings")
+  partnerSettings     ConversationSetting[] @relation("PartnerConversationSettings")
+  sentFriendRequests  Friendship[] @relation("SentFriendRequests")
+  receivedFriendRequests Friendship[] @relation("ReceivedFriendRequests")
+
+  // Wiki 关联
+  ownedWikis           Wiki[]               @relation("WikiOwner")
+  wikiCollaborations   WikiCollaborator[]
+  wikiPageAuthors      WikiPage[]           @relation("WikiPageAuthor")
+  wikiPageEditors      WikiPage[]           @relation("WikiPageEditor")
+  wikiPageHistoryEditors WikiPageHistory[]
+  wikiCreationLimit    WikiCreationLimit?
+
+  @@index([roleId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?  @db.Inet
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Passkey {
+  id             String   @id // CredentialID, usually base64url encoded string
+  publicKey      Bytes
+  userId         String   @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  webAuthnUserID String
+  counter        BigInt
+  deviceType     String
+  backedUp       Boolean
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([webAuthnUserID])
+}
+
+model CaptchaChallenge {
+  id             String   @id @default(uuid()) @db.Uuid
+  targetPosition Int
+  verified       Boolean  @default(false)
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model Category {
+  id          String              @id @default(uuid()) @db.Uuid
+  name        String              @unique
+  description String?
+  sortOrder   Int                 @default(0)
+  minLevel    Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  posts       Post[]
+  moderators  CategoryModerator[]
+  moderatedWords ModeratedWord[]
+
+  @@index([sortOrder])
+}
+
+model CategoryModerator {
+  categoryId String   @db.Uuid
+  userId     String   @db.Uuid
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, userId])
+  @@index([userId]) // categoryId 已被复合主键的最左前缀覆盖
+}
+
+model Post {
+  id         String     @id @default(uuid()) @db.Uuid
+  title      String
+  content    String
+  authorId   String     @db.Uuid
+  author     User       @relation(fields: [authorId], references: [id])
+  categoryId String     @db.Uuid
+  category   Category   @relation(fields: [categoryId], references: [id])
+  status     PostStatus @default(PUBLISHED)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  comments   Comment[]
+  upvotes    Upvote[]
+  bookmarks  Bookmark[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Comment {
+  id        String            @id @default(uuid()) @db.Uuid
+  content   String
+  postId    String            @db.Uuid
+  post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String            @db.Uuid
+  author    User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentId  String?           @db.Uuid
+  parent    Comment?          @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[]         @relation("CommentToComment")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  deletedAt DateTime?
+  isPending Boolean           @default(false)
+  upvotes   CommentUpvote[]
+  bookmarks CommentBookmark[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt])
+  @@index([isPending])
+}
+
+model CommentUpvote {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commentId String   @db.Uuid
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+}
+
+model CommentBookmark {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commentId String   @db.Uuid
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+}
+
+model Upvote {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String   @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([postId])
+}
+
+model Bookmark {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String   @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([postId])
+}
+
+model AuthChallenge {
+  id        String   @id @default(uuid()) @db.Uuid
+  challenge String
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  operatorId      String   @db.Uuid
+  permissionGroup String
+  operationType   String
+  requestPath     String
+  payload         Json
+  ip              String   @db.Inet
+  createdAt       DateTime @default(now())
+
+  @@index([operatorId])
+  @@index([operationType])
+  @@index([createdAt])
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  action      String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model ModeratedWord {
+  id         String    @id @default(uuid()) @db.Uuid
+  word       String
+  categoryId String?   @db.Uuid
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@unique([word, categoryId])
+  @@index([categoryId])
+}
+
+enum NotificationType {
+  POST_APPROVED
+  POST_REJECTED
+  POST_REPLIED
+  COMMENT_REPLIED
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  content   String           @db.Text
+  relatedId String?          @db.Uuid
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model UserKey {
+  id                       String   @id @default(uuid()) @db.Uuid
+  userId                   String   @unique @db.Uuid
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheme                   String   @default("P521_ONLY") // Or "X_WING_HYBRID"
+  publicKey                String   @db.Text
+  encryptedPrivateKey      String   @db.Text
+  mlKemPublicKey           String?  @db.Text
+  encryptedMlKemPrivateKey String?  @db.Text
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model PrivateMessage {
+  id                       String   @id @default(uuid()) @db.Uuid
+  senderId                 String   @db.Uuid
+  sender                   User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId               String   @db.Uuid
+  receiver                 User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  ephemeralPublicKey       String   @db.Text
+  ephemeralMlKemCiphertext String?  @db.Text
+  encryptedContent         String   @db.Text
+  senderEncryptedContent   String?  @db.Text
+  isRead                   Boolean  @default(false)
+  isSystem                 Boolean  @default(false)
+  expiresAt                DateTime?
+  expiresInMs              Int?
+  expiresStartedAt         DateTime?
+  autoDeleteForSenderAfterRead Boolean @default(false)
+  deletedBy                String[] @default([])
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+  @@index([expiresAt])
+}
+
+
+model ConversationSetting {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @db.Uuid
+  partnerId           String   @db.Uuid
+  allowTwoSidedDelete Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User     @relation("UserConversationSettings", fields: [userId], references: [id], onDelete: Cascade)
+  partner             User     @relation("PartnerConversationSettings", fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, partnerId])
+  @@index([userId])
+  @@index([partnerId])
+}
+
+
+model Friendship {
+  id          String           @id @default(uuid()) @db.Uuid
+  requesterId String           @db.Uuid
+  addresseeId String           @db.Uuid
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester   User             @relation("SentFriendRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("ReceivedFriendRequests", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
+}
+
+model RouteWhitelist {
+  id          String   @id @default(uuid()) @db.Uuid
+  path        String   @unique
+  isPrefix    Boolean  @default(false)
+  minRole     String?  // null means public, otherwise USER, MODERATOR, ADMIN, SUPER_ADMIN
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum EmailTemplateType {
+  REGISTRATION_VERIFICATION
+  PASSWORD_RESET
+  TEST
+}
+
+model EmailTemplate {
+  id        String            @id @default(uuid()) @db.Uuid
+  type      EmailTemplateType @unique
+  subject   String
+  textBody  String            @db.Text
+  htmlBody  String            @db.Text
+  updatedAt DateTime          @updatedAt
+}
+
+// Wiki 相关枚举和模型
+
+enum WikiStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum CollaboratorRole {
+  VIEW
+  EDIT
+  ADMIN
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  DELETED
+}
+
+// Wiki 主模型
+model Wiki {
+  id          String               @id @default(uuid()) @db.Uuid
+  title       String               @unique
+  description String
+  coverUrl    String?
+  // 创建者即 Wiki 管理员
+  ownerId     String               @db.Uuid
+  owner       User                 @relation("WikiOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  // Wiki 协作者
+  collaborators WikiCollaborator[]
+  // Wiki 页面
+  pages         WikiPage[]
+  // 访问权限设置
+  minReadLevel Int                  @default(0)
+  minEditLevel Int                  @default(1)
+  isPublic     Boolean              @default(true)
+  // 状态
+  status       WikiStatus           @default(ACTIVE)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+// Wiki 协作者模型
+model WikiCollaborator {
+  id      String           @id @default(uuid()) @db.Uuid
+  wikiId  String           @db.Uuid
+  wiki    Wiki             @relation(fields: [wikiId], references: [id], onDelete: Cascade)
+  userId  String           @db.Uuid
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 权限级别：VIEW, EDIT, ADMIN
+  role    CollaboratorRole @default(EDIT)
+  addedAt DateTime         @default(now())
+
+  @@index([wikiId])
+  @@index([userId])
+  @@unique([wikiId, userId])
+}
+
+// Wiki 页面模型
+model WikiPage {
+  id          String          @id @default(uuid()) @db.Uuid
+  wikiId      String          @db.Uuid
+  wiki        Wiki            @relation(fields: [wikiId], references: [id], onDelete: Cascade)
+  // 页面标题（用于 URL）
+  slug        String
+  // 页面标题（显示用）
+  title       String
+  // 页面内容
+  content     String
+  // 父页面（用于树形结构）
+  parentId    String?         @db.Uuid
+  parent      WikiPage?       @relation("WikiPageHierarchy", fields: [parentId], references: [id])
+  children    WikiPage[]      @relation("WikiPageHierarchy")
+  // 创建者
+  authorId    String          @db.Uuid
+  author      User            @relation("WikiPageAuthor", fields: [authorId], references: [id])
+  // 最后编辑者
+  lastEditorId String?        @db.Uuid
+  lastEditor   User?          @relation("WikiPageEditor", fields: [lastEditorId], references: [id])
+  // 历史版本
+  history     WikiPageHistory[]
+  // 排序
+  sortOrder    Int             @default(0)
+  // 状态
+  status       PageStatus      @default(PUBLISHED)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([wikiId])
+  @@unique([wikiId, slug])
+}
+
+// Wiki 页面历史版本
+model WikiPageHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  pageId    String   @db.Uuid
+  page      WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  content   String
+  editorId  String   @db.Uuid
+  editor    User     @relation(fields: [editorId], references: [id])
+  editNote  String?
+  createdAt DateTime @default(now())
+
+  @@index([pageId])
+}
+
+// 防恶意创建 Wiki 的限制记录
+model WikiCreationLimit {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @unique @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Wiki 创建记录，存储每次创建的时间戳
+  // 使用 JSON 数组存储，格式：[ "2024-05-20T10:30:00Z", "2024-05-22T14:20:00Z" ]
+  creationTimes Json     @default("[]")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+}

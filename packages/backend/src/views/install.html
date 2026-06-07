@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyndBBS 安装向导</title>
+  <script src="/install/tailwind.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #fbfbfb; color: #111; margin: 0; padding: 0;
+      width: 100vw; min-height: 100vh; overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    .layout { display: flex; width: 100vw; min-height: 100vh; }
+    @media (max-width: 1024px) { .layout { flex-direction: column; } }
+
+    /* Sidebar */
+    .side { width: 400px; flex-shrink: 0; background: #111; color: #fff;
+      display: flex; flex-direction: column; padding: 3rem;
+      border-right: 1px solid rgba(255,255,255,0.1); }
+    @media (max-width: 1024px) { .side { width: 100%; padding: 2rem; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); } }
+    .side-logo { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 4rem; }
+    .side-logo-mark { width: 2rem; height: 2rem; background: #fff; color: #111;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.25rem; border-radius: 2px; }
+    .side-logo-text { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.025em; }
+    .side-nav { margin-top: auto; }
+    .step-item { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; opacity: 0.4; transition: opacity 0.3s; }
+    .step-item.current, .step-item.completed { opacity: 1; }
+    .step-num { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; font-size: 0.875rem; font-weight: 600; }
+    .step-item.current .step-num { background: #fff; color: #111; border-color: #fff; }
+    .step-item.completed .step-num { background: rgba(255,255,255,0.1); color: #fff; border-color: transparent; }
+    .step-txt { font-size: 1rem; font-weight: 500; }
+
+    /* Main content */
+    .main { flex: 1; background: #fff; display: flex; align-items: center; justify-content: center; padding: 3rem; }
+    @media (max-width: 1024px) { .main { padding: 2rem; } }
+    .form-w { width: 100%; max-width: 480px; }
+
+    /* Steps */
+    .step { display: none; }
+    .step.active { display: block; animation: slideUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
+    @keyframes slideUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; }
+
+    /* Typography */
+    .h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.025em; margin: 0 0 1rem 0; }
+    .h2 { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.025em; margin: 0 0 0.5rem 0; }
+    .h3 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; margin: 0 0 0.5rem 0; }
+    .p-muted { color: #6b7280; margin: 0; }
+    .p-muted-lg { color: #6b7280; font-size: 1.125rem; margin: 0 0 3rem 0; line-height: 1.625; }
+    .p-muted-sm { color: #6b7280; font-size: 0.875rem; margin: 0; }
+    .tc { text-align: center; }
+
+    /* Forms */
+    .fw { margin-bottom: 1.5rem; }
+    .fl { display: block; font-size: 0.875rem; font-weight: 500; color: #444; margin-bottom: 0.5rem; }
+    .fi { width: 100%; background: transparent; border: none; border-bottom: 2px solid #eaeaea;
+      padding: 0.75rem 0; font-size: 1.125rem; color: #111; transition: border 0.3s; outline: none; border-radius: 0; }
+    .fi:focus { border-bottom-color: #111; }
+    .fi::placeholder { color: #aaa; }
+    .fi-sel { width: 100%; background: transparent; border: none; border-bottom: 2px solid #eaeaea;
+      padding: 0.75rem 0; font-size: 1.125rem; color: #111; outline: none; border-radius: 0; cursor: pointer; }
+    .fi-sel:focus { border-bottom-color: #111; }
+    .row { display: flex; gap: 1.5rem; }
+    .row-sm { display: flex; gap: 1rem; }
+    .col-rev { display: flex; flex-direction: column-reverse; gap: 1rem; }
+    @media (min-width: 640px) { .col-rev { flex-direction: row; } }
+    .flex-1 { flex: 1; }
+    .w-third { width: 33.333%; }
+    .w-32px { width: 8rem; }
+    .mt-1 { margin-top: 0.25rem; }
+    .mt-2 { margin-top: 0.5rem; }
+    .mt-4 { margin-top: 1rem; }
+    .mt-6 { margin-top: 1.5rem; }
+    .mt-8 { margin-top: 2rem; }
+    .mt-10 { margin-top: 2.5rem; }
+    .mb-10 { margin-bottom: 2.5rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .hidden { display: none; }
+
+    /* Buttons */
+    .btn-p { background: #111; color: #fff; padding: 1rem 2rem; font-size: 1rem; font-weight: 500;
+      border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      width: 100%; margin-top: 1rem; transition: transform 0.2s, background 0.2s; }
+    .btn-p:hover:not(:disabled) { background: #000; transform: translateY(-2px); }
+    .btn-p:disabled { background: #666; cursor: not-allowed; }
+    .btn-g { background: transparent; color: #666; padding: 1rem; font-size: 1rem; font-weight: 500;
+      border: none; cursor: pointer; width: 100%; transition: color 0.2s; }
+    .btn-g:hover { color: #111; }
+    @media (min-width: 640px) { .btn-w3 { width: 33.333%; } }
+    @media (min-width: 640px) { .btn-w2 { width: 66.666%; margin-top: 0; } }
+    .btn-link { background: #111; color: #fff; padding: 1rem 2rem; font-size: 1rem; font-weight: 500;
+      border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      width: 100%; text-decoration: none; transition: transform 0.2s, background 0.2s; }
+    .btn-link:hover { background: #000; transform: translateY(-2px); }
+
+    /* Checkbox */
+    .cb-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+    .cb-label { font-size: 0.875rem; color: #4b5563; }
+
+    /* Error box */
+    .err-box { margin-top: 1.5rem; padding: 1rem; background: #fef2f2; color: #dc2626;
+      font-size: 0.875rem; border-left: 4px solid #ef4444; }
+
+    /* Success icon */
+    .success-icon { width: 5rem; height: 5rem; background: #111; color: #fff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem auto; }
+    .success-icon svg { width: 2.5rem; height: 2.5rem; }
+    .success-text { color: #6b7280; margin: 0 0 3rem 0; font-size: 1.125rem; line-height: 1.75; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="side">
+    <div class="side-logo">
+      <div class="side-logo-mark">M</div>
+      <span class="side-logo-text">MyndBBS</span>
+    </div>
+    <div class="side-nav">
+      <div id="nav-1" class="step-item current">
+        <div class="step-num">1</div><div class="step-txt">欢迎</div>
+      </div>
+      <div id="nav-2" class="step-item">
+        <div class="step-num">2</div><div class="step-txt">数据库连接</div>
+      </div>
+      <div id="nav-3" class="step-item">
+        <div class="step-num">3</div><div class="step-txt">应用环境</div>
+      </div>
+      <div id="nav-4" class="step-item">
+        <div class="step-num">4</div><div class="step-txt">域名与 Passkey</div>
+      </div>
+      <div id="nav-5" class="step-item">
+        <div class="step-num">5</div><div class="step-txt">超级管理员</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+    <div class="form-w">
+
+      <!-- Step 1: Welcome -->
+      <div id="step-1" class="step active">
+        <h1 class="h1">初始化您的社区</h1>
+        <p class="p-muted-lg">仅需简单的几个步骤，我们即可为您搭建好 MyndBBS 的基础运行环境。在此之前，请确保您已准备好 PostgreSQL 数据库。</p>
+        <button onclick="goToStep(2)" class="btn-p">开始配置</button>
+      </div>
+
+      <!-- Step 2: Database -->
+      <div id="step-2" class="step">
+        <h2 class="h2">数据库连接</h2>
+        <p class="p-muted" style="margin-bottom:2.5rem">输入 PostgreSQL 数据库的详细凭据。</p>
+        <form id="dbForm" onsubmit="handleDbSubmit(event)">
+          <div class="row">
+            <div class="flex-1 fw">
+              <label class="fl">主机地址</label>
+              <input type="text" id="dbHost" value="postgres" required class="fi" placeholder="127.0.0.1">
+            </div>
+            <div class="w-32px fw">
+              <label class="fl">端口</label>
+              <input type="number" id="dbPort" value="5432" required class="fi" placeholder="5432">
+            </div>
+          </div>
+          <div class="fw">
+            <label class="fl">数据库名称</label>
+            <input type="text" id="dbName" value="myndbbs" required class="fi" placeholder="myndbbs">
+          </div>
+          <div class="row mt-4">
+            <div class="flex-1 fw">
+              <label class="fl">用户名</label>
+              <input type="text" id="dbUser" value="myndbbs" required class="fi" placeholder="postgres">
+            </div>
+            <div class="flex-1 fw">
+              <label class="fl">密码</label>
+              <input type="text" id="dbPass" value="myndbbs" required class="fi" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;">
+            </div>
+          </div>
+          <div class="col-rev mt-8">
+            <button type="button" onclick="goToStep(1)" class="btn-g btn-w3">上一步</button>
+            <button type="submit" class="btn-p btn-w2">继续</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Step 3: Application -->
+      <div id="step-3" class="step">
+        <h2 class="h2">应用环境</h2>
+        <p class="p-muted" style="margin-bottom:2.5rem">配置应用运行端口与前端跨域地址。</p>
+        <form id="appForm" onsubmit="handleAppSubmit(event)">
+          <div class="row">
+            <div class="w-third fw">
+              <label class="fl">后端端口</label>
+              <input type="number" id="appPort" value="3001" required class="fi">
+            </div>
+            <div class="flex-1 fw">
+              <label class="fl">前端 URL (跨域来源)</label>
+              <input type="url" id="frontendUrl" value="{{FRONTEND_URL}}" required class="fi" placeholder="https://bbs.example.com">
+            </div>
+          </div>
+          <div class="fw mt-4">
+            <label class="fl">上传存储目录</label>
+            <input type="text" id="uploadDir" value="./uploads" required class="fi">
+          </div>
+          <div class="fw mt-4">
+            <label class="fl">网站根目录路径</label>
+            <input type="text" id="webRoot" value="/" required class="fi">
+          </div>
+          <div id="initError" class="err-box hidden"></div>
+          <div class="col-rev mt-8">
+            <button type="button" onclick="goToStep(2)" class="btn-g btn-w3" id="btnBackApp">上一步</button>
+            <button type="submit" id="initBtn" class="btn-p btn-w2">
+              <span id="initBtnText">继续</span>
+              <svg id="initBtnSpinner" class="hidden spin" style="margin-left:0.75rem;width:1.25rem;height:1.25rem" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity:0.75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Step 4: Domain -->
+      <div id="step-4" class="step">
+        <h2 class="h2">域名与 Passkey</h2>
+        <p class="p-muted" style="margin-bottom:2.5rem">配置站点域名与 WebAuthn RP_ID（支持 localhost / IPv6）。</p>
+        <form id="domainForm" onsubmit="handleDomainSubmit(event)">
+          <div class="row">
+            <div class="w-third fw">
+              <label class="fl">协议</label>
+              <select id="protocol" required class="fi-sel">
+                <option value="https" selected>https</option>
+                <option value="http">http</option>
+              </select>
+            </div>
+            <div class="flex-1 fw">
+              <label class="fl">站点域名 (hostname)</label>
+              <input type="text" id="hostname" value="localhost" required class="fi" placeholder="localhost / ::1 / bbs.example.com">
+            </div>
+          </div>
+          <div class="fw mt-4">
+            <label class="fl">RP_ID (WebAuthn)</label>
+            <input type="text" id="rpId" value="localhost" required class="fi" placeholder="localhost / example.com / ::1">
+          </div>
+          <div class="fw mt-6">
+            <label class="fl">使用反代模式</label>
+            <div class="cb-row">
+              <input type="checkbox" id="reverseProxyMode">
+              <span class="cb-label">开启后写入 TRUST_PROXY=true（反代需转发 X-Forwarded-Proto / X-Forwarded-Host）</span>
+            </div>
+          </div>
+          <div id="domainInitError" class="err-box hidden"></div>
+          <div class="col-rev mt-8">
+            <button type="button" onclick="goToStep(3)" class="btn-g btn-w3" id="btnBackDomain">上一步</button>
+            <button type="submit" id="domainInitBtn" class="btn-p btn-w2">
+              <span id="domainInitBtnText">写入配置并初始化</span>
+              <svg id="domainInitBtnSpinner" class="hidden spin" style="margin-left:0.75rem;width:1.25rem;height:1.25rem" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity:0.75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Step 5: Admin -->
+      <div id="step-5" class="step">
+        <h2 class="h2">超级管理员</h2>
+        <p class="p-muted" style="margin-bottom:2.5rem">数据库已准备就绪，请创建您的最高权限账户。</p>
+        <form id="adminForm" onsubmit="handleAdminSubmit(event)">
+          <div class="fw">
+            <label class="fl">管理员用户名</label>
+            <input type="text" id="adminUser" required class="fi" placeholder="admin">
+          </div>
+          <div class="fw mt-4">
+            <label class="fl">邮箱地址</label>
+            <input type="email" id="adminEmail" required class="fi" placeholder="admin@example.com">
+          </div>
+          <div class="fw mt-4">
+            <label class="fl">登录密码</label>
+            <input type="password" id="adminPass" required minlength="8" class="fi" placeholder="至少 8 位安全密码">
+          </div>
+          <div id="adminError" class="err-box hidden"></div>
+          <div class="mt-10">
+            <button type="submit" id="adminBtn" class="btn-p">
+              <span id="adminBtnText">完成安装</span>
+              <svg id="adminBtnSpinner" class="hidden spin" style="margin-left:0.75rem;width:1.25rem;height:1.25rem" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity:0.75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Step 6: Success -->
+      <div id="step-6" class="step tc">
+        <div class="success-icon">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+        </div>
+        <h2 class="h3" style="margin-bottom:1rem">部署成功</h2>
+        <p class="success-text">您的 MyndBBS 后端服务已配置完毕并正在重启。<br/>现在，您可以直接前往前端论坛进行体验。</p>
+        <a href="http://localhost:3000" id="goFrontend" class="btn-link">进入论坛</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>
