@@ -51,7 +51,7 @@ export async function getWhitelist(): Promise<WhitelistRoute[]> {
     return cachedWhitelist;
   }
   try {
-    const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+    const apiUrl = process.env.API_URL || 'http://127.0.0.1:3001';
     const res = await fetch(`${apiUrl}/api/public/routing-whitelist`, {
       next: { revalidate: 30 },
     });

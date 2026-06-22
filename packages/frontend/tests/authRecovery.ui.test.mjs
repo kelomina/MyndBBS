@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import test from 'node:test';
+import test from 'node:test'
+import { URL } from 'node:url';
 
 const registerClientPath = new URL('../src/app/(auth)/register/RegisterClient.tsx', import.meta.url);
 const loginClientPath = new URL('../src/app/(auth)/login/LoginClient.tsx', import.meta.url);
@@ -46,4 +47,25 @@ test('new auth recovery pages do not keep inline English fallback copy', async (
   assert.doesNotMatch(registerSource, /\|\|\s*['"]/);
   assert.doesNotMatch(forgotPasswordSource, /\|\|\s*['"]/);
   assert.doesNotMatch(resetPasswordSource, /\|\|\s*['"]/);
+});
+
+test('login page has SSO button linking to OIDC start endpoint', async () => {
+  const source = await fs.readFile(loginClientPath, 'utf8');
+
+  assert.match(source, /signInWithKoloSso/);
+  assert.match(source, /api\/v1\/auth\/oidc\/start/);
+});
+
+test('login page keeps old forgot-password link alongside SSO button', async () => {
+  const source = await fs.readFile(loginClientPath, 'utf8');
+
+  assert.match(source, /href="\/forgot-password"|href='\/forgot-password'|href=\/forgot-password/);
+});
+
+test('login page handles oidc=failed query parameter', async () => {
+  const source = await fs.readFile(loginClientPath, 'utf8');
+
+  assert.match(source, /useSearchParams/);
+  assert.match(source, /ssoLoginFailed/);
+  assert.match(source, /oidc.*failed/);
 });

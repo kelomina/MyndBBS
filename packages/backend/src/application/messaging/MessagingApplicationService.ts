@@ -183,14 +183,16 @@ export class MessagingApplicationService {
     isSystem: boolean = false,
     isTimedMessage: boolean = false,
     expiresInMs?: number,
-    autoDeleteForSelf: boolean = false
+    autoDeleteForSelf: boolean = false,
+    senderEffectiveLevel?: number,
   ): Promise<string> {
     const sender = await this.opts.identityIntegrationPort.getUserProfile(senderId);
     if (!sender) throw new Error('ERR_USER_NOT_FOUND');
+    const senderLevel = typeof senderEffectiveLevel === 'number' ? senderEffectiveLevel : sender.level;
 
     return this.sendMessage(
       senderId, 
-      sender.level, 
+      senderLevel,
       receiverId, 
       content,
       ephemeralPublicKey,
@@ -364,14 +366,16 @@ export class MessagingApplicationService {
     publicKey: string, 
     encryptedPrivateKey: string, 
     mlKemPublicKey?: string, 
-    encryptedMlKemPrivateKey?: string
+    encryptedMlKemPrivateKey?: string,
+    userEffectiveLevel?: number,
   ): Promise<void> {
     const user = await this.opts.identityIntegrationPort.getUserProfile(userId);
     if (!user) throw new Error('ERR_USER_NOT_FOUND');
+    const userLevel = typeof userEffectiveLevel === 'number' ? userEffectiveLevel : user.level;
 
     await this.uploadKeys(
       userId, 
-      user.level, 
+      userLevel,
       scheme, 
       publicKey, 
       encryptedPrivateKey, 

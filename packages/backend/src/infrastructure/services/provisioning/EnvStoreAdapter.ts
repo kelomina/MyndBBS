@@ -220,7 +220,6 @@ export class EnvStoreAdapter implements IEnvStore {
   async setupEnvironment(
     config: EnvironmentConfigInput,
     jwtSecret: string,
-    jwtRefreshSecret: string,
     tempTokenSecret: string,
   ): Promise<void> {
     if (!validateHostname(config.hostname) || !validateRpId(config.rpId)) {
@@ -236,7 +235,6 @@ export class EnvStoreAdapter implements IEnvStore {
     envContent = upsertSerializedKey(envContent, 'UPLOAD_DIR', config.uploadDir || './uploads');
     envContent = upsertSerializedKey(envContent, 'WEB_ROOT', config.webRoot || '/');
     envContent = upsertSerializedKey(envContent, 'JWT_SECRET', jwtSecret);
-    envContent = upsertSerializedKey(envContent, 'JWT_REFRESH_SECRET', jwtRefreshSecret);
     envContent = upsertSerializedKey(envContent, 'TEMP_TOKEN_SECRET', tempTokenSecret);
 
     envContent = applyDomainConfigToEnv(envContent, {
@@ -250,7 +248,6 @@ export class EnvStoreAdapter implements IEnvStore {
 
     // Update process.env
     process.env.JWT_SECRET = jwtSecret;
-    process.env.JWT_REFRESH_SECRET = jwtRefreshSecret;
     process.env.TEMP_TOKEN_SECRET = tempTokenSecret;
     process.env.ORIGIN = origin;
     process.env.RP_ID = config.rpId;

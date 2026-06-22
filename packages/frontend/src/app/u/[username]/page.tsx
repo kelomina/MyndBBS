@@ -6,10 +6,10 @@ import { getDictionary } from '../../../i18n/get-dictionary';
 import { ProfileTabs } from './ProfileTabs';
 import { OwnerSettingsButton } from './OwnerSettingsButton';
 import { Avatar } from '../../../components/Avatar';
+import { serverApiUrl } from '../../../lib/bff/serverApi';
 
 async function getProfile(username: string) {
-  const apiBaseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-  const res = await fetch(`${apiBaseUrl}/api/v1/user/public/${username}`, {
+  const res = await fetch(serverApiUrl(`/api/v1/user/public/${username}`), {
     cache: 'no-store'
   });
   if (!res.ok) {

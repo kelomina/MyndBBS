@@ -1,11 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { Response, NextFunction } from 'express';
 import { requireAuth, optionalAuth, requireSudo, requireAbility, AuthRequest } from '../../src/middleware/auth';
 import { defineAbilityForContext } from '../../src/lib/casl';
 import { accessControlQueryService } from '../../src/queries/identity/AccessControlQueryService';
 import { authApplicationService, authCache, sudoApplicationService } from '../../src/registry';
 
-jest.mock('jsonwebtoken');
 jest.mock('../../src/queries/identity/AccessControlQueryService');
 jest.mock('../../src/registry');
 
@@ -31,17 +29,17 @@ describe('Auth Middleware', () => {
 
     (authCache.getSessionValidity as jest.Mock).mockResolvedValue(null);
     (authCache.setSessionValidity as jest.Mock).mockResolvedValue(undefined);
-    (authCache.checkRequiresRefresh as jest.Mock).mockResolvedValue(false);
-    (authCache.extendRefreshGracePeriod as jest.Mock).mockResolvedValue(undefined);
+    (authCache.hasTrustedExternalAuth as jest.Mock).mockResolvedValue(false);
     (authApplicationService.validateSession as jest.Mock).mockResolvedValue({
       isValid: true,
+      user: { id: 'user-1' },
       roleName: 'USER',
     });
     (accessControlQueryService.getAbilityRulesForUser as jest.Mock).mockResolvedValue(undefined);
   });
 
   describe('requireAuth', () => {
-    it('should return 401 when no token is provided', async () => {
+    it('should return 401 when no session cookie is provided', async () => {
       await requireAuth(
         mockReq as AuthRequest,
         mockRes as Response,
@@ -49,14 +47,12 @@ describe('Auth Middleware', () => {
       );
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'ERR_UNAUTHORIZED_MISSING_TOKEN' });
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'ERR_UNAUTHORIZED_MISSING_SESSION' });
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('should extract token from Authorization header when cookie is missing', async () => {
-      mockReq.headers = { authorization: 'Bearer test-token' };
-      (jwt.verify as jest.Mock).mockReturnValue({ type: 'access', userId: 'user-1', role: 'USER', sessionId: 'session-1' });
-      (authCache.getSessionValidity as jest.Mock).mockResolvedValue('valid');
+    it('should authenticate with a sessionId cookie', async () => {
+      mockReq.cookies = { sessionId: 'session-1' };
       (accessControlQueryService.getAbilityRulesForUser as jest.Mock).mockResolvedValue({
         context: { userId: 'user-1', roleName: 'USER', level: 1, moderatedCategoryIds: [] },
         rules: [],
@@ -68,13 +64,60 @@ describe('Auth Middleware', () => {
         mockNext as NextFunction
       );
 
-      expect(jwt.verify).toHaveBeenCalledWith('test-token', expect.any(String), { algorithms: ['HS256'] });
+      expect(authApplicationService.validateSession).toHaveBeenCalledWith('session-1');
+      expect(mockReq.user).toEqual({
+        userId: 'user-1',
+        role: 'USER',
+        sessionId: 'session-1',
+        trustedExternalAuth: false,
+        effectiveLevel: 1,
+      });
       expect(mockNext).toHaveBeenCalled();
     });
 
+    it('should apply session-level trusted external auth as effective level 2', async () => {
+      mockReq.cookies = { sessionId: 'session-1' };
+      (authCache.hasTrustedExternalAuth as jest.Mock).mockResolvedValue(true);
+      (accessControlQueryService.getAbilityRulesForUser as jest.Mock).mockResolvedValue({
+        context: { userId: 'user-1', roleName: 'USER', level: 1, moderatedCategoryIds: [] },
+        rules: [],
+      });
+
+      await requireAuth(
+        mockReq as AuthRequest,
+        mockRes as Response,
+        mockNext as NextFunction
+      );
+
+      expect(authCache.hasTrustedExternalAuth).toHaveBeenCalledWith('session-1');
+      expect(mockReq.user).toEqual({
+        userId: 'user-1',
+        role: 'USER',
+        sessionId: 'session-1',
+        trustedExternalAuth: true,
+        effectiveLevel: 2,
+      });
+      expect(mockReq.ability?.can('create', 'Wiki')).toBe(true);
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('should not accept browser-supplied internal session headers', async () => {
+      mockReq.headers = { 'x-myndbbs-session-id': 'session-1' };
+
+      await requireAuth(
+        mockReq as AuthRequest,
+        mockRes as Response,
+        mockNext as NextFunction
+      );
+
+      expect(authApplicationService.validateSession).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'ERR_UNAUTHORIZED_MISSING_SESSION' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
     it('should return 401 when session is invalid', async () => {
-      mockReq.cookies = { accessToken: 'valid-token' };
-      (jwt.verify as jest.Mock).mockReturnValue({ type: 'access', userId: 'user-1', role: 'USER', sessionId: 'session-1' });
+      mockReq.cookies = { sessionId: 'session-1' };
       (authCache.getSessionValidity as jest.Mock).mockResolvedValue('invalid');
 
       await requireAuth(
@@ -83,20 +126,15 @@ describe('Auth Middleware', () => {
         mockNext as NextFunction
       );
 
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('accessToken');
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('refreshToken');
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('sessionId', expect.any(Object));
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('accessToken', expect.any(Object));
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('refreshToken', expect.any(Object));
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({ error: 'ERR_SESSION_REVOKED_OR_INVALID' });
     });
 
-    it('should not refresh a revoked session even when a refresh token exists', async () => {
-      mockReq.cookies = { accessToken: 'valid-token', refreshToken: 'refresh-token' };
-      (jwt.verify as jest.Mock).mockReturnValue({
-        type: 'access',
-        userId: 'user-1',
-        role: 'USER',
-        sessionId: 'session-1',
-      });
+    it('should not fall back to legacy refresh tokens for revoked sessions', async () => {
+      mockReq.cookies = { sessionId: 'session-1', refreshToken: 'legacy-refresh-token' };
       (authCache.getSessionValidity as jest.Mock).mockResolvedValue('invalid');
 
       await requireAuth(
@@ -105,22 +143,14 @@ describe('Auth Middleware', () => {
         mockNext as NextFunction
       );
 
-      expect(authApplicationService.refreshAccessToken).not.toHaveBeenCalled();
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('accessToken');
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('refreshToken');
+      expect(authApplicationService.validateSession).not.toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({ error: 'ERR_SESSION_REVOKED_OR_INVALID' });
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('should not refresh when the user has been banned', async () => {
-      mockReq.cookies = { accessToken: 'valid-token', refreshToken: 'refresh-token' };
-      (jwt.verify as jest.Mock).mockReturnValue({
-        type: 'access',
-        userId: 'user-1',
-        role: 'USER',
-        sessionId: 'session-1',
-      });
+    it('should reject banned users without attempting token refresh', async () => {
+      mockReq.cookies = { sessionId: 'session-1' };
       (authApplicationService.validateSession as jest.Mock).mockResolvedValue({
         isValid: false,
         reason: 'USER_BANNED',
@@ -132,19 +162,15 @@ describe('Auth Middleware', () => {
         mockNext as NextFunction
       );
 
-      expect(authApplicationService.refreshAccessToken).not.toHaveBeenCalled();
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('accessToken');
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('refreshToken');
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('sessionId', expect.any(Object));
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({ error: 'ERR_USER_BANNED' });
       expect(mockNext).not.toHaveBeenCalled();
     });
 
     it('should validate session from database when cache is empty', async () => {
-      mockReq.cookies = { accessToken: 'valid-token' };
-      (jwt.verify as jest.Mock).mockReturnValue({ type: 'access', userId: 'user-1', role: 'USER', sessionId: 'session-1' });
+      mockReq.cookies = { sessionId: 'session-1' };
       (authCache.getSessionValidity as jest.Mock).mockResolvedValue(null);
-      (authApplicationService.validateSession as jest.Mock).mockResolvedValue({ isValid: true });
 
       await requireAuth(
         mockReq as AuthRequest,
@@ -152,13 +178,13 @@ describe('Auth Middleware', () => {
         mockNext as NextFunction
       );
 
-      expect(authApplicationService.validateSession).toHaveBeenCalledWith('session-1', 'user-1');
-      expect(authCache.setSessionValidity).toHaveBeenCalled();
+      expect(authApplicationService.validateSession).toHaveBeenCalledWith('session-1');
+      expect(authCache.setSessionValidity).toHaveBeenCalledWith('session-1', 'valid', 3600);
     });
   });
 
   describe('optionalAuth', () => {
-    it('should set guest ability when no token is provided', async () => {
+    it('should set guest ability when no session cookie is provided', async () => {
       await optionalAuth(
         mockReq as AuthRequest,
         mockRes as Response,
@@ -170,9 +196,8 @@ describe('Auth Middleware', () => {
       expect(mockNext).toHaveBeenCalled();
     });
 
-    it('should parse valid token and set user/ability', async () => {
-      mockReq.cookies = { accessToken: 'valid-token' };
-      (jwt.verify as jest.Mock).mockReturnValue({ type: 'access', userId: 'user-1', role: 'USER', sessionId: 'session-1' });
+    it('should parse valid session and set user/ability', async () => {
+      mockReq.cookies = { sessionId: 'session-1' };
       (accessControlQueryService.getAbilityRulesForUser as jest.Mock).mockResolvedValue({
         context: { userId: 'user-1', roleName: 'USER', level: 1, moderatedCategoryIds: [] },
         rules: [],
@@ -184,15 +209,22 @@ describe('Auth Middleware', () => {
         mockNext as NextFunction
       );
 
-      expect(mockReq.user).toEqual({ userId: 'user-1', role: 'USER', sessionId: 'session-1' });
+      expect(mockReq.user).toEqual({
+        userId: 'user-1',
+        role: 'USER',
+        sessionId: 'session-1',
+        trustedExternalAuth: false,
+        effectiveLevel: 1,
+      });
       expect(mockReq.ability).toBeDefined();
       expect(mockNext).toHaveBeenCalled();
     });
 
-    it('should set guest ability when token is invalid', async () => {
-      mockReq.cookies = { accessToken: 'invalid-token' };
-      (jwt.verify as jest.Mock).mockImplementation(() => {
-        throw new Error('Invalid token');
+    it('should set guest ability when session is invalid', async () => {
+      mockReq.cookies = { sessionId: 'session-1' };
+      (authApplicationService.validateSession as jest.Mock).mockResolvedValue({
+        isValid: false,
+        reason: 'SESSION_NOT_FOUND',
       });
 
       await optionalAuth(
@@ -222,7 +254,13 @@ describe('Auth Middleware', () => {
     });
 
     it('should return 403 when sudo mode is not active', async () => {
-      mockReq.user = { userId: 'user-1', role: 'ADMIN', sessionId: 'session-1' };
+      mockReq.user = {
+        userId: 'user-1',
+        role: 'ADMIN',
+        sessionId: 'session-1',
+        trustedExternalAuth: false,
+        effectiveLevel: 3,
+      };
       (sudoApplicationService.check as jest.Mock).mockResolvedValue(false);
 
       await requireSudo(
@@ -239,7 +277,13 @@ describe('Auth Middleware', () => {
     });
 
     it('should call next when sudo mode is active', async () => {
-      mockReq.user = { userId: 'user-1', role: 'ADMIN', sessionId: 'session-1' };
+      mockReq.user = {
+        userId: 'user-1',
+        role: 'ADMIN',
+        sessionId: 'session-1',
+        trustedExternalAuth: false,
+        effectiveLevel: 3,
+      };
       (sudoApplicationService.check as jest.Mock).mockResolvedValue(true);
 
       await requireSudo(
@@ -268,8 +312,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should return 403 when user lacks required ability', () => {
-      const ability = defineAbilityForContext();
-      mockReq.ability = ability;
+      mockReq.ability = defineAbilityForContext();
       const middleware = requireAbility('create', 'Post');
 
       middleware(
@@ -283,9 +326,13 @@ describe('Auth Middleware', () => {
     });
 
     it('should call next when user has required ability', () => {
-      const ability = defineAbilityForContext();
-      mockReq.ability = ability;
-      const middleware = requireAbility('read', 'Post');
+      mockReq.ability = defineAbilityForContext({
+        userId: 'user-1',
+        roleName: 'ADMIN',
+        level: 3,
+        moderatedCategoryIds: [],
+      });
+      const middleware = requireAbility('manage', 'all');
 
       middleware(
         mockReq as AuthRequest,

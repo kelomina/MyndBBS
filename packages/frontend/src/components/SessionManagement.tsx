@@ -11,22 +11,24 @@ export function SessionManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
 
-      const fetchSessions = useCallback(async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       const res = await fetchWithAuth('/api/v1/user/sessions');
       if (res.ok) {
         const data = await res.json();
         setSessions(data.sessions);
       } else {
-        throw new Error('Failed to fetch sessions');
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        throw new Error(apiErrors[data.error || ''] || data.error || dict.settings.failedFetchSessions);
       }
-    } catch {
-      setError(dict.settings.failedFetchSessions);
+    } catch (fetchError: unknown) {
+      setError(fetchError instanceof Error ? fetchError.message : dict.settings.failedFetchSessions);
     } finally {
       setLoading(false);
     }
-  }, [dict]);
+  }, [apiErrors, dict.settings.failedFetchSessions]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -49,7 +51,8 @@ export function SessionManagement() {
         setSessions((currentSessions) => currentSessions.filter((session) => session.id !== id));
         setMessage(dict.settings.sessionRevoked);
       } else {
-        throw new Error(dict.settings.failedRevokeSession);
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        throw new Error(apiErrors[data.error || ''] || data.error || dict.settings.failedRevokeSession);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : dict.settings.failedRevokeSession);

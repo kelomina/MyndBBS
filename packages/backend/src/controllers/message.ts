@@ -50,7 +50,15 @@ export const uploadKeys = async (req: AuthRequest, res: Response): Promise<void>
   if (!publicKey || !encryptedPrivateKey) { res.status(400).json({ error: 'ERR_MISSING_KEYS' }); return; }
 
   try {
-    await messagingApplicationService.uploadKeysWithValidation(userId, scheme, publicKey, encryptedPrivateKey, mlKemPublicKey, encryptedMlKemPrivateKey);
+    await messagingApplicationService.uploadKeysWithValidation(
+      userId,
+      scheme,
+      publicKey,
+      encryptedPrivateKey,
+      mlKemPublicKey,
+      encryptedMlKemPrivateKey,
+      req.user?.effectiveLevel,
+    );
     res.json({ success: true });
   } catch (error: any) {
     const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
@@ -197,7 +205,8 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
       false, // isSystem
       !!isTimedMessage,
       expiresIn ? Number(expiresIn) : undefined,
-      !!autoDeleteForSelf
+      !!autoDeleteForSelf,
+      req.user?.effectiveLevel,
     );
     res.json({ success: true, messageId: msgId });
   } catch (error: any) {

@@ -7,7 +7,6 @@ import {
 
 describe('securityConfig', () => {
   const strongA = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-  const strongB = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
   const strongC = '89abcdef012345678989abcdef012345678989abcdef012345678989abcdef01';
 
   it('rejects production startup when TEMP_TOKEN_SECRET is missing', () => {
@@ -16,7 +15,6 @@ describe('securityConfig', () => {
         NODE_ENV: 'production',
         INSTALL_LOCKED: 'true',
         JWT_SECRET: strongA,
-        JWT_REFRESH_SECRET: strongB,
       }),
     ).toThrow('ERR_TEMP_TOKEN_SECRET_REQUIRED');
   });
@@ -28,7 +26,6 @@ describe('securityConfig', () => {
         INSTALL_LOCKED: 'false',
         ALLOW_INSTALL_MODE: 'true',
         JWT_SECRET: 'change-me',
-        JWT_REFRESH_SECRET: strongB,
         TEMP_TOKEN_SECRET: strongC,
       }),
     ).toThrow('ERR_WEAK_JWT_SECRET');
@@ -40,7 +37,6 @@ describe('securityConfig', () => {
         NODE_ENV: 'production',
         INSTALL_LOCKED: 'false',
         JWT_SECRET: strongA,
-        JWT_REFRESH_SECRET: strongB,
         TEMP_TOKEN_SECRET: strongC,
       }),
     ).toThrow('ERR_INSTALL_MODE_EXPLICIT_ENABLE_REQUIRED');
@@ -53,7 +49,17 @@ describe('securityConfig', () => {
         INSTALL_LOCKED: 'false',
         ALLOW_INSTALL_MODE: 'true',
         JWT_SECRET: strongA,
-        JWT_REFRESH_SECRET: strongB,
+        TEMP_TOKEN_SECRET: strongC,
+      }),
+    ).not.toThrow();
+  });
+
+  it('does not require JWT_REFRESH_SECRET for installed BFF session runtime', () => {
+    expect(() =>
+      validateRuntimeSecurityConfig({
+        NODE_ENV: 'production',
+        INSTALL_LOCKED: 'true',
+        JWT_SECRET: strongA,
         TEMP_TOKEN_SECRET: strongC,
       }),
     ).not.toThrow();

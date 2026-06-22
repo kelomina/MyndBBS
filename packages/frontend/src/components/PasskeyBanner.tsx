@@ -26,7 +26,7 @@ export function PasskeyBanner() {
       .then(data => {
         if (cancelled) return;
         if (data?.user) {
-          if (data.user._count?.passkeys === 0) {
+          if (data.user._count?.passkeys === 0 && !data.user.trustedExternalAuth) {
             setShow(true);
           } else {
             setShow(false);

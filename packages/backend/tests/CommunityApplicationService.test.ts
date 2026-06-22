@@ -300,6 +300,7 @@ describe('CommunityApplicationService', () => {
 
       await service.deleteComment(mockAbility as any, 'comment-1');
       expect(mockComment.deletedAt).not.toBeNull();
+      expect(mockComment.content).toBe('Content');
       expect(commentRepository.save).toHaveBeenCalledWith(mockComment);
     });
   });

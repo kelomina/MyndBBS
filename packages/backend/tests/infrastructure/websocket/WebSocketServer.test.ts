@@ -1,33 +1,25 @@
-import jwt from 'jsonwebtoken';
 import {
-  extractWebSocketAccessToken,
+  extractWebSocketSessionId,
   isWebSocketOriginAllowed,
-  verifyWebSocketToken,
 } from '../../../src/infrastructure/websocket/WebSocketServer';
 
 describe('WebSocket security helpers', () => {
-  it('rejects tokens signed with an unexpected algorithm', () => {
-    const token = jwt.sign({ userId: 'user-1' }, 'test-secret', { algorithm: 'HS384', expiresIn: '1h' });
-
-    expect(verifyWebSocketToken(token, 'test-secret')).toBeNull();
-  });
-
-  it('extracts accessToken from cookie header instead of URL query string', () => {
+  it('extracts sessionId from cookie header instead of URL query string', () => {
     const req = {
-      headers: { cookie: 'theme=dark; accessToken=cookie-token; other=value' },
+      headers: { cookie: 'theme=dark; sessionId=session-1; other=value' },
       url: '/ws?token=query-token',
     } as any;
 
-    expect(extractWebSocketAccessToken(req)).toBe('cookie-token');
+    expect(extractWebSocketSessionId(req)).toBe('session-1');
   });
 
-  it('does not accept URL query string tokens', () => {
+  it('does not accept URL query string session values', () => {
     const req = {
       headers: {},
-      url: '/ws?token=query-token',
+      url: '/ws?sessionId=query-session',
     } as any;
 
-    expect(extractWebSocketAccessToken(req)).toBeNull();
+    expect(extractWebSocketSessionId(req)).toBeNull();
   });
 
   it('allows WebSocket handshakes from configured origins', () => {

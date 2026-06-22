@@ -50,7 +50,6 @@ export interface IEnvStore {
   setupEnvironment(
     config: EnvironmentConfigInput,
     jwtSecret: string,
-    jwtRefreshSecret: string,
     tempTokenSecret: string,
   ): Promise<void>;
   updateDomainConfig(config: DomainConfigInput): Promise<void>;

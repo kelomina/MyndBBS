@@ -14,7 +14,7 @@ export interface JwtPayload {
  * Not used in actual code. Refer to real API response structure instead.
  */
 export interface AuthResponse {
-  accessToken: string;
+  sessionId?: string;
   user: {
     id: string;
     username: string;

@@ -3,6 +3,7 @@ import { AuthChallenge } from '../../src/domain/identity/AuthChallenge';
 import { CaptchaChallenge } from '../../src/domain/identity/CaptchaChallenge';
 import { Passkey } from '../../src/domain/identity/Passkey';
 import { Session } from '../../src/domain/identity/Session';
+import { User } from '../../src/domain/identity/User';
 import { UserStatus } from '@myndbbs/shared';
 
 describe('AuthApplicationService', () => {
@@ -62,6 +63,8 @@ describe('AuthApplicationService', () => {
       },
       authCache: {
         revokeSession: jest.fn(),
+        markTrustedExternalAuth: jest.fn(),
+        hasTrustedExternalAuth: jest.fn(),
         storeTotpSecret: jest.fn(),
         getTotpSecret: jest.fn(),
         removeTotpSecret: jest.fn(),
@@ -111,6 +114,65 @@ describe('AuthApplicationService', () => {
     });
 
     jest.clearAllMocks();
+  });
+
+  const makeUser = (overrides: Partial<Parameters<typeof User.create>[0]> = {}) => User.create({
+    id: 'user-1',
+    email: 'user@example.com',
+    username: 'demo-user',
+    password: 'old-hash',
+    roleId: null,
+    status: UserStatus.ACTIVE,
+    level: 1,
+    isPasskeyMandatory: false,
+    totpSecret: 'totp-secret',
+    isTotpEnabled: true,
+    avatarUrl: null,
+    createdAt: new Date('2026-06-23T00:00:00.000Z'),
+    ...overrides,
+  });
+
+  describe('changePasswordWithVerification', () => {
+    it('allows a sensitive profile update after sudo verification has already succeeded', async () => {
+      const user = makeUser();
+      mocks.userRepository.findById.mockResolvedValue(user);
+
+      const result = await service.changePasswordWithVerification(
+        'user-1',
+        undefined,
+        undefined,
+        'Aa!12345',
+        undefined,
+        undefined,
+        true,
+      );
+
+      expect(mocks.passwordHasher.verify).not.toHaveBeenCalled();
+      expect(mocks.totpPort.verify).not.toHaveBeenCalled();
+      expect(mocks.passwordHasher.hash).toHaveBeenCalledWith('Aa!12345');
+      expect(mocks.userRepository.save).toHaveBeenCalledWith(user);
+      expect(result).toMatchObject({
+        id: 'user-1',
+        email: 'user@example.com',
+        username: 'demo-user',
+      });
+    });
+
+    it('rejects password verification when the account has no password credential', async () => {
+      mocks.userRepository.findById.mockResolvedValue(makeUser({ password: null }));
+
+      await expect(
+        service.changePasswordWithVerification(
+          'user-1',
+          'current-password',
+          undefined,
+          'Aa!12345',
+        ),
+      ).rejects.toThrow('ERR_INVALID_CURRENT_PASSWORD');
+
+      expect(mocks.passwordHasher.verify).not.toHaveBeenCalled();
+      expect(mocks.userRepository.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('generateCaptcha', () => {
@@ -213,38 +275,58 @@ describe('AuthApplicationService', () => {
   describe('createSession', () => {
     it('should create a new session', async () => {
       mocks.sessionRepository.deleteExpiredByUserId.mockResolvedValue();
-      mocks.sessionRepository.findActiveByUserAndFingerprint.mockResolvedValue(null);
       mocks.sessionRepository.save.mockResolvedValue();
 
       const result = await service.createSession('user-1', '192.168.1.1', 'user-agent');
 
       expect(result).toBeInstanceOf(Session);
       expect(result.userId).toBe('user-1');
+      expect(mocks.sessionRepository.findActiveByUserAndFingerprint).not.toHaveBeenCalled();
       expect(mocks.sessionRepository.save).toHaveBeenCalled();
     });
 
-    it('should extend existing session when same fingerprint', async () => {
-      const existingSession = Session.load({
-        id: 'session-1',
-        userId: 'user-1',
-        ipAddress: '192.168.1.1',
-        userAgent: 'user-agent',
-        expiresAt: new Date(Date.now() - 1000),
-        createdAt: new Date(),
-      });
+    it('should rotate session id instead of reusing a same-fingerprint session', async () => {
       mocks.sessionRepository.deleteExpiredByUserId.mockResolvedValue();
-      mocks.sessionRepository.findActiveByUserAndFingerprint.mockResolvedValue(existingSession);
       mocks.sessionRepository.save.mockResolvedValue();
 
       const result = await service.createSession('user-1', '192.168.1.1', 'user-agent');
 
-      expect(result.id).toBe('session-1');
+      expect(result.id).not.toBe('session-1');
       expect(result.expiresAt.getTime()).toBeGreaterThan(Date.now());
+      expect(mocks.sessionRepository.findActiveByUserAndFingerprint).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('finalizeAuth', () => {
+    it('marks the new session when trusted external auth is used', async () => {
+      mocks.sessionRepository.deleteExpiredByUserId.mockResolvedValue();
+      mocks.sessionRepository.save.mockResolvedValue();
+
+      const result = await service.finalizeAuth(
+        { id: 'user-1' },
+        '192.168.1.1',
+        'user-agent',
+        { trustedExternalAuth: true },
+      );
+
+      expect(result.sessionId).toEqual(expect.any(String));
+      expect(mocks.authCache.markTrustedExternalAuth).toHaveBeenCalledWith(result.sessionId, 7 * 24 * 60 * 60);
     });
   });
 
   describe('revokeSession', () => {
     it('should revoke session without user check', async () => {
+      await service.revokeSession('session-1');
+
+      expect(mocks.sessionRepository.delete).toHaveBeenCalledWith('session-1');
+      expect(mocks.authCache.revokeSession).toHaveBeenCalledWith('session-1');
+    });
+
+    it('should ignore missing session when revoking without user check', async () => {
+      const error = new Error('Record not found') as Error & { code?: string };
+      error.code = 'P2025';
+      mocks.sessionRepository.delete.mockRejectedValue(error);
+
       await service.revokeSession('session-1');
 
       expect(mocks.sessionRepository.delete).toHaveBeenCalledWith('session-1');
@@ -265,6 +347,15 @@ describe('AuthApplicationService', () => {
       await service.revokeSession('session-1', 'user-1');
 
       expect(mocks.sessionRepository.delete).toHaveBeenCalledWith('session-1');
+    });
+
+    it('should allow revoking a missing session for the same user idempotently', async () => {
+      mocks.sessionRepository.findById.mockResolvedValue(null);
+
+      await service.revokeSession('session-1', 'user-1');
+
+      expect(mocks.sessionRepository.delete).toHaveBeenCalledWith('session-1');
+      expect(mocks.authCache.revokeSession).toHaveBeenCalledWith('session-1');
     });
 
     it('should throw when session does not belong to user', async () => {
@@ -492,7 +583,7 @@ describe('AuthApplicationService', () => {
       expect(mocks.totpPort.verify).not.toHaveBeenCalled();
     });
 
-    it('should reject inactive users when refreshing access tokens', async () => {
+    it('should reject inactive users when validating a session by sessionId only', async () => {
       const user = {
         id: 'user-1',
         email: 'inactive@example.com',
@@ -500,11 +591,6 @@ describe('AuthApplicationService', () => {
         status: UserStatus.INACTIVE,
         roleId: null,
       };
-      mocks.tokenPort.verify.mockReturnValue({
-        type: 'refresh',
-        userId: 'user-1',
-        sessionId: 'session-1',
-      });
       mocks.sessionRepository.findById.mockResolvedValue(Session.load({
         id: 'session-1',
         userId: 'user-1',
@@ -515,7 +601,9 @@ describe('AuthApplicationService', () => {
       }));
       mocks.userRepository.findById.mockResolvedValue(user);
 
-      await expect(service.refreshAccessToken('refresh-token')).rejects.toThrow('ERR_ACCOUNT_NOT_ACTIVE');
+      const result = await service.validateSession('session-1');
+      expect(result).toMatchObject({ isValid: false, reason: 'USER_NOT_ACTIVE' });
+      expect(mocks.userRepository.findById).toHaveBeenCalledWith('user-1');
       expect(mocks.tokenPort.sign).not.toHaveBeenCalled();
     });
   });

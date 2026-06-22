@@ -3,6 +3,8 @@ export interface ISessionCache {
   markSessionRequiresRefresh(sessionId: string, ttlSeconds: number): Promise<void>;
   getSessionValidity(sessionId: string): Promise<'valid' | 'invalid' | null>;
   setSessionValidity(sessionId: string, validity: 'valid' | 'invalid', ttlSeconds: number): Promise<void>;
+  markTrustedExternalAuth(sessionId: string, ttlSeconds: number): Promise<void>;
+  hasTrustedExternalAuth(sessionId: string): Promise<boolean>;
   checkRequiresRefresh(sessionId: string): Promise<boolean>;
   extendRefreshGracePeriod(sessionId: string, ttlSeconds: number): Promise<void>;
   

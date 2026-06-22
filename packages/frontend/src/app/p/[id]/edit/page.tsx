@@ -3,6 +3,7 @@ import { Locale, defaultLocale } from '../../../../i18n/config';
 import { getDictionary } from '../../../../i18n/get-dictionary';
 import { EditPostForm } from './EditPostForm';
 import { notFound } from 'next/navigation';
+import { serverApiUrl } from '../../../../lib/bff/serverApi';
 
 export default async function EditPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,7 +13,7 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
 
   let post = null;
   try {
-    const res = await fetch(`${process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${id}`, {
+    const res = await fetch(serverApiUrl(`/api/posts/${id}`), {
       cache: 'no-store'
     });
     if (res.ok) {

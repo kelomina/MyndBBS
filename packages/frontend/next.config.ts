@@ -5,7 +5,7 @@ const allowedDevOrigins = (process.env.ALLOWED_DEV_ORIGINS || '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
-const apiBaseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const apiBaseUrl = process.env.API_URL || 'http://localhost:3001';
 const proxyOwnsDuplicateSecurityHeaders = process.env.SECURITY_HEADERS_OWNER === 'proxy';
 
 const nextConfig: NextConfig = {
@@ -40,14 +40,6 @@ const nextConfig: NextConfig = {
      */
     async rewrites() {
     return [
-      {
-        source: '/api/:path*',
-        destination: `${apiBaseUrl}/api/:path*`,
-      },
-      {
-        source: '/uploads/:path*',
-        destination: `${apiBaseUrl}/uploads/:path*`,
-      },
       {
         source: '/install',
         destination: `${apiBaseUrl}/install`,

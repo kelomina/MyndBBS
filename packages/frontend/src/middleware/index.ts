@@ -5,7 +5,6 @@ import { filterMaliciousPaths } from './maliciousPathFilter';
 import { detectLocale } from './i18nDetector';
 import { guardInstallStatus } from './installGuard';
 import { guardRouteAccess } from './authGuard';
-import { handleTokenRefresh } from './tokenRefresh';
 
 type MiddlewareStep = (request: NextRequest, ctx: ReturnType<typeof initMiddlewareContext>) => Promise<MiddlewareResult> | MiddlewareResult;
 
@@ -15,7 +14,6 @@ const pipeline: MiddlewareStep[] = [
   detectLocale,
   guardInstallStatus,
   guardRouteAccess,
-  handleTokenRefresh,
 ];
 
 export async function proxy(request: NextRequest) {

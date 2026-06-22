@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Fingerprint } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Fingerprint, Loader2 } from 'lucide-react';
 import { usePasskey } from '../../../lib/hooks/usePasskey';
 import { TwoFactorLogin } from '../../../components/TwoFactorLogin';
 import type { Dictionary } from '../../../types';
@@ -12,12 +13,15 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const searchParams = useSearchParams();
+  const oidcError = searchParams.get('oidc') === 'failed' ? dict.auth.ssoLoginFailed : null;
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorMethods, setTwoFactorMethods] = useState<string[]>([]);
   const { executePasskeyFlow, passkeyLoading, passkeyError } = usePasskey();
   const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
   const [uiMode, setUiMode] = useState<'passkey' | 'password'>('password');
+  const [ssoChecking, setSsoChecking] = useState(false);
 
   useEffect(() => {
     const checkPasskeySupport = async () => {
@@ -33,6 +37,57 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
     };
     checkPasskeySupport();
   }, []);
+
+  /**
+   * 处理 KoloStudio SSO 登录按钮点击。
+   * 先用隐藏 iframe 尝试静默登录（prompt=none），
+   * 如果用户已在 SSO 登录，直接拿到 code 完成认证；
+   * 如果未登录，跳转到交互式登录页。
+   */
+  const handleKoloSsoLogin = () => {
+    setSsoChecking(true);
+
+    // 创建隐藏的 iframe 加载静默检查页面
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = '/api/v1/auth/oidc/silent-check';
+    document.body.appendChild(iframe);
+
+    // 监听 postMessage 结果
+    const messageHandler = (event: MessageEvent) => {
+      // 只接受来自我们 iframe 的消息
+      if (event.source !== iframe.contentWindow) return;
+
+      const data = event.data;
+      if (data?.type === 'oidc:silent:success' && data.code) {
+        // 静默登录成功，拿到 code，直接走 callback
+        window.removeEventListener('message', messageHandler);
+        document.body.removeChild(iframe);
+        // 跳转到 callback 接口，用 code 换 token
+        window.location.href = '/api/v1/auth/oidc/callback?code=' + encodeURIComponent(data.code);
+      } else if (data?.type === 'oidc:silent:error') {
+        // 静默登录失败（未登录或超时），跳转到交互式登录
+        window.removeEventListener('message', messageHandler);
+        if (iframe.parentNode) {
+          document.body.removeChild(iframe);
+        }
+        setSsoChecking(false);
+        window.location.href = '/api/v1/auth/oidc/start';
+      }
+    };
+
+    window.addEventListener('message', messageHandler);
+
+    // 超时保护：6秒后如果还没收到消息，直接跳转交互式登录
+    setTimeout(() => {
+      window.removeEventListener('message', messageHandler);
+      if (iframe.parentNode) {
+        document.body.removeChild(iframe);
+      }
+      setSsoChecking(false);
+      window.location.href = '/api/v1/auth/oidc/start';
+    }, 6500);
+  };
 
       const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,14 +143,9 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
         <p className="mt-2 text-sm text-muted">{dict.auth.signInToAccount}</p>
       </div>
 
-      {(error || passkeyError) && (
+      {(error || passkeyError || oidcError) && (
         <div className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
-          {error || passkeyError}
-        </div>
-      )}
-      {false && (
-        <div className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
-          {error}
+          {error || passkeyError || oidcError}
         </div>
       )}
 
@@ -173,6 +223,47 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
           </button>
         </div>
       )}
+
+      {/* KoloStudio SSO 登录按钮 */}
+      <div className="mt-6">
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted">{dict.auth.orContinueWith}</span>
+          </div>
+        </div>
+
+        {/* SSO 加载状态提示 */}
+        {ssoChecking && (
+          <div className="mb-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300 animate-pulse">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>正在连接 KoloStudio 统一认证服务...</span>
+            </div>
+            <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+              如果已登录 KoloStudio，将自动完成认证；否则将跳转到登录页面
+            </p>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={handleKoloSsoLogin}
+          disabled={loading || ssoChecking}
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors disabled:opacity-50"
+        >
+          {ssoChecking ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>正在检查登录状态...</span>
+            </>
+          ) : (
+            dict.auth.signInWithKoloSso
+          )}
+        </button>
+      </div>
 
       <p className="mt-8 text-center text-sm text-muted">
         {dict.auth.dontHaveAccount}{' '}

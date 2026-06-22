@@ -203,7 +203,7 @@ export class CommunityQueryService {
 
     const mapComment = (c: any): CommentListItemDTO => ({
       id: c.id,
-      content: c.content,
+      content: c.deletedAt === null ? c.content : '',
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
       deletedAt: c.deletedAt,

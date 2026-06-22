@@ -33,7 +33,11 @@ export class RedisSessionCache implements ISessionCache {
    *   Deletes a session record from Redis, making it immediately invalid.
    */
   public async revokeSession(sessionId: string): Promise<void> {
-    await redis.del(`session:${sessionId}`);
+    await redis.del(
+      `session:${sessionId}`,
+      `session:${sessionId}:requires_refresh`,
+      `session:${sessionId}:trusted_external_auth`,
+    );
   }
 
   /**
@@ -71,6 +75,33 @@ export class RedisSessionCache implements ISessionCache {
    */
   public async setSessionValidity(sessionId: string, validity: 'valid' | 'invalid', ttlSeconds: number): Promise<void> {
     await redis.set(`session:${sessionId}`, validity, 'EX', ttlSeconds);
+  }
+
+  /**
+   * 函数名称：markTrustedExternalAuth
+   *
+   * 函数作用：
+   *   标记某个会话是通过可信外部认证平台创建的。这个标记只跟随当前会话，
+   *   不会写入用户账号资料。
+   * Purpose:
+   *   Marks a session as created by a trusted external identity provider. This flag follows only
+   *   the current session and does not persist to the user account.
+   */
+  public async markTrustedExternalAuth(sessionId: string, ttlSeconds: number): Promise<void> {
+    await redis.set(`session:${sessionId}:trusted_external_auth`, 'true', 'EX', ttlSeconds);
+  }
+
+  /**
+   * 函数名称：hasTrustedExternalAuth
+   *
+   * 函数作用：
+   *   检查当前会话是否带有可信外部认证标记。
+   * Purpose:
+   *   Checks whether the current session carries the trusted external authentication flag.
+   */
+  public async hasTrustedExternalAuth(sessionId: string): Promise<boolean> {
+    const val = await redis.get(`session:${sessionId}:trusted_external_auth`);
+    return val === 'true';
   }
 
   /**

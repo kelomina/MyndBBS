@@ -7,6 +7,7 @@ import { PostList } from '../../components/PostList';
 
 import { AutoRefresh } from "../../components/AutoRefresh";
 import { getPostListEmptyMessage } from "../../lib/utils";
+import { serverApiUrl } from "../../lib/bff/serverApi";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export default async function RecentPage() {
 
   let posts = [];
   try {
-    const res = await fetch(`${process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts?sortBy=latest`, {
+    const res = await fetch(serverApiUrl('/api/posts?sortBy=latest'), {
       cache: 'no-store'
     });
     if (res.ok) {

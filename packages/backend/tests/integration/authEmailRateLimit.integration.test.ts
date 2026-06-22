@@ -64,7 +64,7 @@ jest.mock('../../src/controllers/register', () => ({
   loginUser: (_req: Request, res: Response): void => {
     res.status(200).json({ ok: true });
   },
-  refreshToken: (_req: Request, res: Response): void => {
+  checkSession: (_req: Request, res: Response): void => {
     res.status(200).json({ ok: true });
   },
   logoutUser: (_req: Request, res: Response): void => {

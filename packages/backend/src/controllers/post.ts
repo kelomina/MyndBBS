@@ -122,7 +122,7 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const userLevel = await communityQueryService.getUserLevel(req.user!.userId);
+    const userLevel = req.user!.effectiveLevel ?? (await communityQueryService.getUserLevel(req.user!.userId));
     
     try {
       const result = await communityApplicationService.createPost(

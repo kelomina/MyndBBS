@@ -81,7 +81,6 @@ services:
       - backend
     environment:
       API_URL: http://backend:3001
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
       NODE_ENV: production
       COOKIE_SECURE: "true"
     ports:

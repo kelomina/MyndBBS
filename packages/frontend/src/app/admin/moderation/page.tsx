@@ -2,6 +2,7 @@ import { getDictionary } from '../../../i18n/get-dictionary';
 import { defaultLocale, Locale } from '../../../i18n/config';
 import { headers, cookies } from 'next/headers';
 import ModerationClient from './ModerationClient';
+import { serverApiUrl } from '../../../lib/bff/serverApi';
 
 export default async function ModerationPage() {
   const headersList = await headers();
@@ -11,10 +12,9 @@ export default async function ModerationPage() {
   const cookieStore = await cookies();
   const allCookies = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join('; ');
 
-  const apiOrigin = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
   let canManageWords = false;
   try {
-    const res = await fetch(`${apiOrigin}/api/v1/user/profile`, {
+    const res = await fetch(serverApiUrl('/api/v1/user/profile'), {
       headers: { Cookie: allCookies },
       cache: 'no-store',
     });

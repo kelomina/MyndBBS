@@ -56,4 +56,28 @@ describe('CommunityQueryService security filters', () => {
     ]));
     expect(prisma.comment.findMany).not.toHaveBeenCalled();
   });
+
+  it('redacts deleted comment content from public comment lists', async () => {
+    const deletedAt = new Date('2026-06-23T00:00:00.000Z');
+    (prisma.post.findFirst as jest.Mock).mockResolvedValue({ id: 'post-1' });
+    (prisma.comment.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: 'comment-1',
+        content: 'deleted body should stay out of public DTOs',
+        createdAt: new Date('2026-06-22T00:00:00.000Z'),
+        updatedAt: null,
+        deletedAt,
+        isPending: false,
+        parentId: null,
+        author: { id: 'user-1', username: 'saika', avatarUrl: null },
+        _count: { upvotes: 0, bookmarks: 0, replies: 0 },
+      },
+    ]);
+    (prisma.comment.count as jest.Mock).mockResolvedValue(1);
+
+    const result = await service.listPostComments({ ability, postId: 'post-1' });
+
+    expect(result?.data[0]?.content).toBe('');
+    expect(result?.data[0]?.deletedAt).toBe(deletedAt);
+  });
 });

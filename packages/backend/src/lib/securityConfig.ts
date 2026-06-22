@@ -82,12 +82,8 @@ export function validateRuntimeSecurityConfig(env: RuntimeEnv = process.env): vo
 
   if (isProduction) {
     const jwtSecret = assertConfiguredSecret('JWT_SECRET', env.JWT_SECRET)
-    const jwtRefreshSecret = assertConfiguredSecret('JWT_REFRESH_SECRET', env.JWT_REFRESH_SECRET)
     const tempTokenSecret = assertConfiguredSecret('TEMP_TOKEN_SECRET', env.TEMP_TOKEN_SECRET)
-    if (jwtSecret === jwtRefreshSecret) {
-      throw new Error('ERR_JWT_SECRETS_MUST_DIFFER')
-    }
-    if (tempTokenSecret === jwtSecret || tempTokenSecret === jwtRefreshSecret) {
+    if (tempTokenSecret === jwtSecret) {
       throw new Error('ERR_TEMP_TOKEN_SECRET_MUST_DIFFER')
     }
   }
@@ -100,9 +96,4 @@ export function validateRuntimeSecurityConfig(env: RuntimeEnv = process.env): vo
   }
 
   const jwtSecret = assertConfiguredSecret('JWT_SECRET', env.JWT_SECRET)
-  const jwtRefreshSecret = assertConfiguredSecret('JWT_REFRESH_SECRET', env.JWT_REFRESH_SECRET)
-
-  if (jwtSecret === jwtRefreshSecret) {
-    throw new Error('ERR_JWT_SECRETS_MUST_DIFFER')
-  }
 }

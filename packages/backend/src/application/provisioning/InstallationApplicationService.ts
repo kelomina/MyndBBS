@@ -60,10 +60,9 @@ export class InstallationApplicationService {
 
   public async setupEnvironment(config: EnvironmentConfigInput): Promise<string> {
     const jwtSecret = crypto.randomBytes(32).toString('hex')
-    const jwtRefreshSecret = crypto.randomBytes(32).toString('hex')
     const tempTokenSecret = crypto.randomBytes(32).toString('hex')
 
-    await this.opts.envStore.setupEnvironment(config, jwtSecret, jwtRefreshSecret, tempTokenSecret)
+    await this.opts.envStore.setupEnvironment(config, jwtSecret, tempTokenSecret)
 
     const sessionId = await this.startInstallation()
     await this.configureDatabase(sessionId, config.databaseUrl)

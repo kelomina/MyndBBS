@@ -12,6 +12,7 @@ import type { Dictionary, PostComment } from '../../../types'
 
 const MAX_DEPTH = 2
 const PREVIEW_COUNT = 2
+const PREVIEW_FETCH_COUNT = PREVIEW_COUNT * 3
 const PAGE_SIZE = 10
 
 type ChildState = {
@@ -28,6 +29,27 @@ type CommentWithCounts = PostComment & {
     replies?: number
   }
 }
+
+const toVisiblePreviewComments = (comments: PostComment[]) =>
+  comments.filter(comment => comment.deletedAt == null).slice(0, PREVIEW_COUNT)
+
+const markDeletedComment = (comment: PostComment, commentId: string, deletedAt: string): PostComment => {
+  const nestedPreviewReplies = comment.previewReplies
+    ? toVisiblePreviewComments(comment.previewReplies.map(child => markDeletedComment(child, commentId, deletedAt)))
+    : undefined
+
+  return {
+    ...comment,
+    ...(comment.id === commentId ? { deletedAt } : {}),
+    ...(nestedPreviewReplies !== undefined ? { previewReplies: nestedPreviewReplies } : {}),
+  }
+}
+
+const markDeletedComments = (comments: PostComment[], commentId: string, deletedAt: string) =>
+  comments.map(comment => markDeletedComment(comment, commentId, deletedAt))
+
+const markDeletedPreviewComments = (comments: PostComment[] | undefined, commentId: string, deletedAt: string) =>
+  comments ? toVisiblePreviewComments(markDeletedComments(comments, commentId, deletedAt)) : comments
 
 export function CommentsSection({ postId, dict, initialCount }: { postId: string; dict: Dictionary; initialCount: number }) {
   const { toast } = useToast()
@@ -53,7 +75,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       commentsWithReplies.map(async comment => {
         try {
           const result = (await fetcher(
-            `/api/posts/${postId}/comments?parentId=${comment.id}&skip=0&take=${PREVIEW_COUNT}`,
+            `/api/posts/${postId}/comments?parentId=${comment.id}&skip=0&take=${PREVIEW_FETCH_COUNT}`,
           )) as { data: PostComment[]; total: number }
           return [comment.id, result.data] as const
         } catch {
@@ -65,7 +87,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     const previewsById = new Map(previewPairs)
     return comments.map(comment => ({
       ...comment,
-      previewReplies: previewsById.get(comment.id) ?? comment.previewReplies,
+      previewReplies: toVisiblePreviewComments(previewsById.get(comment.id) ?? comment.previewReplies ?? []),
     }))
   }, [postId])
 
@@ -388,14 +410,18 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       setRootPages(prev => {
         const next = new Map(prev)
         for (const [page, data] of next) {
-          next.set(page, { ...data, comments: data.comments.map(c => (c.id === commentId ? { ...c, deletedAt } : c)) })
+          next.set(page, { ...data, comments: markDeletedComments(data.comments, commentId, deletedAt) })
         }
         return next
       })
       setChildStates(prev => {
         const next = new Map(prev)
         for (const [parentId, state] of next) {
-          next.set(parentId, { ...state, comments: state.comments.map(c => (c.id === commentId ? { ...c, deletedAt } : c)) })
+          next.set(parentId, {
+            ...state,
+            comments: markDeletedComments(state.comments, commentId, deletedAt),
+            previewComments: markDeletedPreviewComments(state.previewComments, commentId, deletedAt),
+          })
         }
         return next
       })
@@ -470,8 +496,8 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       const pageComments = flatComments.slice(pageStart, pageStart + PAGE_SIZE)
       const storedPreviewComments = childState?.previewComments
       const previewComments = isLoaded
-        ? flatComments.slice(0, PREVIEW_COUNT)
-        : (storedPreviewComments ?? node.previewReplies ?? [])
+        ? toVisiblePreviewComments(flatComments)
+        : toVisiblePreviewComments(storedPreviewComments ?? node.previewReplies ?? [])
 
       return (
         <div key={node.id} className="mt-3">
@@ -567,8 +593,8 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     const directChildren = childState?.comments ?? []
     const storedPreviewChildren = childState?.previewComments
     const previewChildren = isLoaded
-      ? directChildren.slice(0, PREVIEW_COUNT)
-      : (storedPreviewChildren ?? node.previewReplies ?? [])
+      ? toVisiblePreviewComments(directChildren)
+      : toVisiblePreviewComments(storedPreviewChildren ?? node.previewReplies ?? [])
 
     return (
       <div key={node.id} className="mt-4">

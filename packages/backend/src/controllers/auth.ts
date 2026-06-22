@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { authApplicationService } from '../registry';
-import { getAuthCookieOptions } from '../lib/securityConfig';
+import { setSessionCookie, clearAuthCookies } from '../lib/authCookies';
 
 /**
  * 函数名称：getUserFromTempToken
@@ -46,9 +46,9 @@ const getUserFromTempToken = async (req: Request, expectedType: 'registration' |
  * 函数名称：finalizeAuth
  *
  * 函数作用：
- *   完成认证流程——创建会话、签发 access/refresh token，设置 Cookie 并返回用户信息。
+ *   完成认证流程——创建服务器端会话，设置 sessionId Cookie 并返回用户信息。
  * Purpose:
- *   Completes the authentication flow — creates a session, issues access/refresh tokens, sets cookies, and returns user info.
+ *   Completes the authentication flow — creates a server-side session, sets the sessionId cookie, and returns user info.
  *
  * 调用方 / Called by:
  *   - verifyTotpRegistration（本文件）
@@ -71,19 +71,19 @@ const getUserFromTempToken = async (req: Request, expectedType: 'registration' |
  *
  * 副作用 / Side effects:
  *   - 创建数据库会话记录
- *   - 设置 accessToken / refreshToken Cookie（httpOnly）
+ *   - 设置 sessionId Cookie（httpOnly）
  *   - 清除 tempToken Cookie
  *
  * 事务边界 / Transaction:
  *   由 authApplicationService.finalizeAuth 内部管理
  *
  * 中文关键词：
- *   认证完成，会话创建，Token 签发，Cookie 设置
+ *   认证完成，会话创建，Session Cookie 设置
  * English keywords:
- *   finalize auth, session creation, token issuance, cookie setting
+ *   finalize auth, session creation, session cookie setting
  */
 export const finalizeAuth = async (user: any, req: Request, res: Response) => {
-  const { accessToken, refreshToken } = await authApplicationService.finalizeAuth(
+  const { sessionId } = await authApplicationService.finalizeAuth(
     user,
     req.ip || null,
     req.headers['user-agent'] || null
@@ -91,11 +91,9 @@ export const finalizeAuth = async (user: any, req: Request, res: Response) => {
 
   const roleName = user.role?.name || user.role || null;
 
+  clearAuthCookies(res);
   res.clearCookie('tempToken');
-
-  res.cookie('accessToken', accessToken, getAuthCookieOptions(15 * 60 * 1000));
-
-  res.cookie('refreshToken', refreshToken, getAuthCookieOptions(7 * 24 * 60 * 60 * 1000));
+  setSessionCookie(res, sessionId);
 
   res.json({ message: 'Login successful', user: { id: user.id, username: user.username, role: roleName } });
 };

@@ -41,6 +41,7 @@ validateRuntimeSecurityConfig();
 const app = express();
 app.disable('x-powered-by');
 const port = process.env.PORT || 3001;
+const listenPort = typeof port === 'string' ? Number.parseInt(port, 10) : port;
 
 // ── 全局中间件 ──
 app.use(express.json({ limit: '100kb' }));
@@ -69,7 +70,7 @@ if (!isInstalled) {
   });
 
   /** 启动安装服务器 */
-  app.listen(port, () => {
+  app.listen(listenPort, '0.0.0.0', () => {
     console.log(`Setup server running. Please visit http://localhost:${port}/install to configure the system.`);
   });
 } else {
@@ -128,8 +129,9 @@ if (!isInstalled) {
     res.json({ status: 'ok', app: APP_NAME });
   });
 
-  const authRoutes = require('./routes/auth').default;
-  const publicRoutes = require('./routes/public').default;
+const authRoutes = require('./routes/auth').default;
+const oidcAuthRoutes = require('./routes/oidcAuth').default;
+const publicRoutes = require('./routes/public').default;
   const userRoutes = require('./routes/user').default;
   const adminRoutes = require('./routes/admin').default;
   const postRoutes = require('./routes/post').default;
@@ -169,6 +171,10 @@ if (!isInstalled) {
   });
 
   app.use('/api/v1/auth', authRoutes);
+  // OIDC routes: /api/v1/auth/oidc/start (from frontend button),
+  // /api/auth/oidc/callback (from SSO redirect, exact match for registered redirect_uri)
+  app.use('/api/v1/auth/oidc', oidcAuthRoutes);
+  app.use('/api/auth/oidc', oidcAuthRoutes);
   app.use('/api/public', publicRoutes);
   app.use('/api/v1/user', userRoutes);
   app.use('/api/admin', adminRoutes);
@@ -218,7 +224,7 @@ if (!isInstalled) {
   });
 
   /** 启动主服务器 */
-  const server = app.listen(port, () => {
+  const server = app.listen(listenPort, '0.0.0.0', () => {
     console.log(`Server running on port ${port}`);
   });
 

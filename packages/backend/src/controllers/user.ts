@@ -15,7 +15,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { identityQueryService } from '../queries/identity/IdentityQueryService';
-import { authApplicationService, userApplicationService } from '../registry';
+import { authApplicationService, sudoApplicationService, userApplicationService } from '../registry';
 /**
  * 函数名称：getProfile
  *
@@ -62,7 +62,16 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    res.json({ user: { ...user, role: user.role?.name || null } });
+    const effectiveLevel = req.user?.effectiveLevel ?? user.level;
+    res.json({
+      user: {
+        ...user,
+        accountLevel: user.level,
+        level: effectiveLevel,
+        trustedExternalAuth: Boolean(req.user?.trustedExternalAuth),
+        role: user.role?.name || null,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -254,11 +263,12 @@ export const disableTotp = async (req: AuthRequest, res: Response): Promise<void
  */
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
-    if (!userId) {
+    const authUser = req.user;
+    if (!authUser?.userId) {
       res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
       return;
     }
+    const userId = authUser.userId;
 
     const { email, username, password, currentPassword, totpCode } = req.body;
     
@@ -268,19 +278,36 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     try {
+      const isSensitiveProfileChange = Boolean(email || password);
+      const hasInlineVerification = Boolean(currentPassword || totpCode);
+      let hasSudoVerification = false;
+
+      if (isSensitiveProfileChange && !hasInlineVerification) {
+        hasSudoVerification = await sudoApplicationService.check(authUser.sessionId);
+        if (!hasSudoVerification) {
+          res.status(403).json({ error: 'ERR_SUDO_REQUIRED' });
+          return;
+        }
+      }
+
       const updatedUser = await authApplicationService.changePasswordWithVerification(
         userId,
         currentPassword,
         totpCode,
         password,
         email,
-        username
+        username,
+        hasSudoVerification
       );
       
       // We need to return role name, let's fetch it via Prisma CQRS read
       const userRole = await identityQueryService.getUserWithRoleById(userId);
 
-      res.json({ message: 'Profile updated successfully', user: { ...updatedUser, role: userRole?.role?.name || null } });
+      res.json({
+        message: 'Profile updated successfully',
+        user: { ...updatedUser, role: userRole?.role?.name || null },
+        passwordChanged: Boolean(password),
+      });
     } catch (error: any) {
       if (error.message.startsWith('ERR_')) {
         res.status(400).json({ error: error.message });

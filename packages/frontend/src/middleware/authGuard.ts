@@ -55,15 +55,8 @@ export async function guardRouteAccess(request: NextRequest, ctx: MiddlewareCont
     return null;
   }
 
-  const hasToken = !!request.cookies.get('accessToken')?.value || !!ctx.refreshedAccessToken;
-  if (!hasToken) {
-    const lastRefreshCookie = request.cookies.get('last_refresh');
-    if (lastRefreshCookie) {
-      const lastRefresh = parseInt(lastRefreshCookie.value, 10);
-      if (!isNaN(lastRefresh) && Date.now() - lastRefresh < 10 * 60 * 1000) {
-        return null;
-      }
-    }
+  const hasSession = !!request.cookies.get('sessionId')?.value || !!ctx.sessionId;
+  if (!hasSession) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     const redirectResponse = NextResponse.redirect(url);

@@ -45,7 +45,7 @@ import {
   requestPasswordReset,
   resetPasswordWithToken,
   loginUser,
-  refreshToken,
+  checkSession,
   logoutUser
 } from '../controllers/register';
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
@@ -138,7 +138,7 @@ router.post('/password/reset', strict2FALimiter, validate(resetPasswordSchema), 
 // ── 登录/注销 ──
 router.post('/login', loginLimiter, validate(loginSchema), loginUser);
 router.post('/logout', logoutUser);
-router.post('/refresh', refreshLimiter, refreshToken);
+router.post('/refresh', refreshLimiter, checkSession);
 
 // ── TOTP ──
 router.post('/totp/generate', generateTotp);

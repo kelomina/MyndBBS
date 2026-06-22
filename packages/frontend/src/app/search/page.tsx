@@ -4,6 +4,7 @@ import { Locale, defaultLocale } from "../../i18n/config";
 import { getDictionary } from "../../i18n/get-dictionary";
 import { PostList } from '../../components/PostList';
 import Link from 'next/link';
+import { serverApiUrl } from '../../lib/bff/serverApi';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   if (q) {
     try {
-      const res = await fetch(`${process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/search?q=${encodeURIComponent(q)}`, {
+      const res = await fetch(serverApiUrl(`/api/search?q=${encodeURIComponent(q)}`), {
         cache: 'no-store'
       });
       if (res.ok) {

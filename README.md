@@ -47,7 +47,7 @@ MyndBBS/
 
 认证系统以“可落地、安全优先、可扩展”为原则，关键点包括：
 
-- 会话：JWT + HttpOnly Secure Cookie（Refresh Token）为主，配合 Redis 进行会话状态管理，支持多设备管理及主动踢除，降低 XSS 风险
+- 会话：BFF + HttpOnly Secure Session Cookie。浏览器只保存 `sessionId`，后端通过 Session 表和 Redis 校验会话，支持多设备管理及主动踢除，降低 XSS 风险
 - Passkey：使用 `@simplewebauthn` 支持无密码登录与 2FA 绑定
 - 强密码：至少 8 位，包含大小写字母、数字、特殊符号（见 `@myndbbs/shared` 的校验工具）
 - 2FA：注册后引导绑定 TOTP，使用 `otplib` 和 `qrcode` 生成验证
@@ -90,7 +90,7 @@ pnpm install
   - `TRUST_PROXY`：如果后端在反向代理/LB 后面，需设为 `true`
   - `RP_ID` / `ORIGIN`：PassKey(WebAuthn) 依赖，生产必须设置为真实域名与 HTTPS origin
 - 前端
-  - `API_URL` / `NEXT_PUBLIC_API_URL`：用于 Next.js rewrites 的后端地址（默认本地 `http://localhost:3001`）
+  - `API_URL`：Next.js BFF 访问内部后端的地址（默认本地 `http://localhost:3001`）
   - `ALLOWED_DEV_ORIGINS`：开发环境下允许访问 Next.js dev resources 的额外域名（逗号分隔）
 
 ### 2) 启动后端
@@ -192,7 +192,7 @@ MyndBBS/
 
 The authentication system follows a “practical, security-first, extensible” approach:
 
-- Session: JWT + HttpOnly Secure Cookie (Refresh Token) combined with Redis for active session management, remote revocation, and XSS risk reduction
+- Session: BFF + HttpOnly Secure Session Cookie. The browser stores only `sessionId`; the backend validates sessions through the Session table and Redis, supporting multi-device management and remote revocation.
 - Passkeys: fully integrated via `@simplewebauthn` for both passwordless login and 2FA
 - Strong password policy: minimum 8 chars with upper/lowercase, number, and special char (implemented in `@myndbbs/shared`)
 - 2FA: user onboarding includes a TOTP (Authenticator App) setup flow using `otplib` and `qrcode`
@@ -235,7 +235,7 @@ Key production variables:
   - `TRUST_PROXY`: set to `true` behind a reverse proxy / load balancer
   - `RP_ID` / `ORIGIN`: required for Passkeys (WebAuthn) and must match your real HTTPS domain
 - Frontend
-  - `API_URL` / `NEXT_PUBLIC_API_URL`: backend base URL for Next.js rewrites (defaults to `http://localhost:3001`)
+  - `API_URL`: internal backend URL used by the Next.js BFF (defaults to `http://localhost:3001`)
   - `ALLOWED_DEV_ORIGINS`: extra dev origins allowed to access Next.js dev resources (comma-separated)
 
 ### 2) Start backend

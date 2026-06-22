@@ -1,28 +1,27 @@
 import { Router, Request, Response, type Router as RouterType } from 'express';
 import { sseConnectionManager } from '../infrastructure/sse/SSEConnectionManager';
-import { verifyAccessTokenSession } from '../middleware/auth';
+import { verifySessionCookie } from '../middleware/auth';
+import { AUTH_SESSION_COOKIE_NAME } from '../lib/authCookies';
 
-function extractAccessToken(req: Request): string | null {
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) return authHeader.slice(7);
-  return req.cookies?.accessToken ?? null;
+function extractSessionId(req: Request): string | null {
+  return req.cookies?.[AUTH_SESSION_COOKIE_NAME] ?? null;
 }
 
 const router: RouterType = Router();
 
 router.get('/stream', async (req: Request, res: Response) => {
-  const token = extractAccessToken(req);
+  const sessionId = extractSessionId(req);
 
-  if (!token) {
+  if (!sessionId) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
   let verified;
   try {
-    verified = await verifyAccessTokenSession(token);
+    verified = await verifySessionCookie(sessionId);
   } catch {
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: 'Invalid session' });
     return;
   }
 

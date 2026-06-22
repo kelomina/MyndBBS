@@ -2,94 +2,52 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react'
 
-type WSMessageType =
+type RealtimeMessageType =
   | 'notification'
   | 'new_message'
   | 'post_updated'
   | 'message_removed'
   | 'message_expired'
-  | 'ping'
-  | 'pong'
+  | 'post_approved'
+  | 'post_rejected'
+  | 'friend_request'
   | 'server_shutdown'
 
-interface WSMessage {
-  type: WSMessageType
+interface RealtimeMessage {
+  type: RealtimeMessageType
   data?: unknown
 }
 
 interface UseWebSocketOptions {
-  onMessage?: (message: WSMessage) => void
+  onMessage?: (message: RealtimeMessage) => void
   enabled?: boolean
 }
 
+interface SSEEvent {
+  id: string
+  type: RealtimeMessageType
+  payload: unknown
+  timestamp: number
+}
+
+// 兼容旧调用名。BFF 架构下浏览器不再直连后端 WebSocket，
+// 实时通知统一走同源的 Server-Sent Events 通道。
 export function useWebSocket(options: UseWebSocketOptions = {}) {
   const { onMessage, enabled = true } = options
   const [connected, setConnected] = useState(false)
-  const wsRef = useRef<WebSocket | null>(null)
-  const onMessageRef = useRef(onMessage)
+  const eventSourceRef = useRef<EventSource | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onMessageRef = useRef(onMessage)
+  const connectRef = useRef<() => void>(() => {})
 
   useEffect(() => {
     onMessageRef.current = onMessage
   }, [onMessage])
 
-  const scheduleReconnectRef = useRef<() => void>(() => {})
-
-  const connect = useCallback(() => {
-    if (!enabled) return
-
-    try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//${window.location.host}/ws`
-      const ws = new WebSocket(wsUrl)
-      wsRef.current = ws
-
-      ws.onopen = () => {
-        setConnected(true)
-      }
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data) as WSMessage
-          if (message.type === 'ping') {
-            ws.send(JSON.stringify({ type: 'pong' }))
-            return
-          }
-          onMessageRef.current?.(message)
-        } catch {
-          // ignore parse errors
-        }
-      }
-
-      ws.onclose = () => {
-        setConnected(false)
-        wsRef.current = null
-        scheduleReconnectRef.current()
-      }
-
-      ws.onerror = () => {
-        ws.close()
-      }
-    } catch {
-      scheduleReconnectRef.current()
-    }
-  }, [enabled])
-
-  useEffect(() => {
-    scheduleReconnectRef.current = () => {
-      if (reconnectTimeoutRef.current) return
-      const delay = 3000 + Math.random() * 2000
-      reconnectTimeoutRef.current = setTimeout(() => {
-        reconnectTimeoutRef.current = null
-        if (enabled) connect()
-      }, delay)
-    }
-  }, [connect, enabled])
-
   const disconnect = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
     }
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
@@ -98,18 +56,61 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     setConnected(false)
   }, [])
 
-  const sendMessage = useCallback((message: WSMessage) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message))
+  const connect = useCallback(() => {
+    if (!enabled || eventSourceRef.current) return
+
+    try {
+      const source = new EventSource('/api/v1/events/stream')
+      eventSourceRef.current = source
+
+      source.onopen = () => {
+        setConnected(true)
+      }
+
+      source.onmessage = (event) => {
+        try {
+          const parsed = JSON.parse(event.data) as SSEEvent
+          onMessageRef.current?.({ type: parsed.type, data: parsed.payload })
+        } catch {
+          // 忽略无法解析的实时消息，避免单条坏消息拖垮页面。
+        }
+      }
+
+      source.onerror = () => {
+        source.close()
+        eventSourceRef.current = null
+        setConnected(false)
+
+        if (!reconnectTimeoutRef.current) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectTimeoutRef.current = null
+            connectRef.current()
+          }, 3000 + Math.random() * 2000)
+        }
+      }
+    } catch {
+      setConnected(false)
     }
+  }, [enabled])
+
+  useEffect(() => {
+    connectRef.current = connect
+  }, [connect])
+
+  const sendMessage = useCallback((message: RealtimeMessage) => {
+    void message
+    // SSE 是服务器单向推送；前端发送消息继续使用已有 HTTP API。
   }, [])
 
   useEffect(() => {
-    connect()
+    const timer = setTimeout(() => {
+      connectRef.current()
+    }, 0)
     return () => {
+      clearTimeout(timer)
       disconnect()
     }
-  }, [connect, disconnect])
+  }, [disconnect])
 
   return { connected, sendMessage, reconnect: connect, disconnect }
 }

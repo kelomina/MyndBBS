@@ -51,6 +51,7 @@ import type { IModeratorReadModel } from './application/notification/ports/IMode
 
 import { UserApplicationService } from './application/identity/UserApplicationService';
 import { AuthApplicationService } from './application/identity/AuthApplicationService';
+import { OidcLoginService } from './application/identity/OidcLoginService';
 import { SystemApplicationService } from './application/system/SystemApplicationService';
 import { IdentityBootstrapApplicationService } from './application/identity/IdentityBootstrapApplicationService';
 import { InstallationApplicationService } from './application/provisioning/InstallationApplicationService';
@@ -322,6 +323,11 @@ export const authApplicationService = new AuthApplicationService({
   emailSender: container.resolve(T.IEmailSender),
   emailTemplateRepository: container.resolve(T.IEmailTemplateRepository),
   unitOfWork: container.resolve(T.IUnitOfWork),
+});
+
+export const oidcLoginService = new OidcLoginService({
+  userRepository: container.resolve(T.IUserRepository),
+  roleRepository: container.resolve(T.IRoleRepository),
 });
 
 export const sudoApplicationService = new SudoApplicationService({

@@ -6,8 +6,7 @@ export interface MiddlewareContext {
   nonce: string | null;
   locale: string;
   pathname: string;
-  accessToken: string | null;
-  refreshedAccessToken: string | null;
+  sessionId: string | null;
   userRole: string | null;
   matchedRoute: WhitelistRoute | null;
   response: NextResponse;
@@ -50,8 +49,7 @@ export function initMiddlewareContext(request: NextRequest): MiddlewareContext {
     nonce,
     locale,
     pathname,
-    accessToken: request.cookies.get('accessToken')?.value ?? null,
-    refreshedAccessToken: null,
+    sessionId: request.cookies.get('sessionId')?.value ?? null,
     userRole: null,
     matchedRoute: null,
     response,

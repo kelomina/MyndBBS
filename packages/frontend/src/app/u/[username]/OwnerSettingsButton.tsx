@@ -7,6 +7,7 @@ import { Settings, LogOut, UserPlus, UserCheck, Clock } from 'lucide-react';
 import { useTranslation } from '../../../components/TranslationProvider';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
 import { useToast } from '../../../components/ui/Toast';
+import { fetchWithAuth } from '../../../lib/api/fetcher';
 
 import { Mail } from 'lucide-react';
 export function OwnerSettingsButton({ username, userId }: { username: string; userId: string }) {
@@ -134,15 +135,18 @@ export function OwnerSettingsButton({ username, userId }: { username: string; us
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await fetch(`/api/v1/auth/logout`, {
+      const res = await fetchWithAuth('/api/v1/auth/logout', {
         method: 'POST',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'include'
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+        throw new Error(apiErrors[data.error || ''] || data.error || dict.messages?.failedToSendRequest || 'Logout failed');
+      }
       window.location.href = '/';
     } catch (err) {
+      const message = err instanceof Error ? err.message : dict.messages?.failedToSendRequest || 'Logout failed';
+      toast(message, 'error');
       console.error('Logout failed', err);
     } finally {
       setIsLoggingOut(false);

@@ -4,7 +4,7 @@ import type { MiddlewareContext, MiddlewareResult } from './types';
 
 export async function guardInstallStatus(request: NextRequest, ctx: MiddlewareContext): Promise<MiddlewareResult> {
   try {
-    const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+    const apiUrl = process.env.API_URL || 'http://127.0.0.1:3001';
     const statusRes = await fetch(`${apiUrl}/api/public/install-status`, {
       signal: AbortSignal.timeout(3000),
     });

@@ -7,6 +7,7 @@ import { getDictionary } from "../../../i18n/get-dictionary";
 import { PostList } from '../../../components/PostList';
 import { AutoRefresh } from "../../../components/AutoRefresh";
 import { getCategoryTranslation, getPostListEmptyMessage } from '../../../lib/utils';
+import { serverApiUrl } from '../../../lib/bff/serverApi';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +21,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
 
   let posts = [];
   try {
-    const apiBaseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const res = await fetch(`${apiBaseUrl}/api/posts?category=${encodeURIComponent(decodedCategory)}`, {
+    const res = await fetch(serverApiUrl(`/api/posts?category=${encodeURIComponent(decodedCategory)}`), {
       cache: 'no-store'
     });
     if (res.ok) {

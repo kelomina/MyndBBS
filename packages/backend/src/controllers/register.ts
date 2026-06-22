@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { finalizeAuth } from './auth';
 import { authApplicationService } from '../registry';
 import { getAuthCookieOptions } from '../lib/securityConfig';
+import { AUTH_SESSION_COOKIE_NAME, clearAuthCookies } from '../lib/authCookies';
 
 const EMAIL_SERVICE_ERROR_CODES = new Set([
   'ERR_EMAIL_DELIVERY_NOT_CONFIGURED',
@@ -391,7 +392,7 @@ export const resetPasswordWithToken = async (req: Request, res: Response): Promi
  *
  * 返回值说明 / Returns:
  *   需要 2FA: { requires2FA: true, methods: string[] } + 设置 tempToken Cookie
- *   不需要 2FA: 调用 finalizeAuth 设置 accessToken/refreshToken Cookie
+ *   不需要 2FA: 调用 finalizeAuth 设置 sessionId Cookie
  *   401: { error: errorCode }
  *
  * 错误处理 / Error handling:
@@ -401,7 +402,7 @@ export const resetPasswordWithToken = async (req: Request, res: Response): Promi
  *
  * 副作用 / Side effects:
  *   - 可选：设置 tempToken Cookie（2FA 场景）
- *   - 或：创建会话 + 设置 accessToken/refreshToken Cookie
+ *   - 或：创建会话 + 设置 sessionId Cookie
  *
  * 中文关键词：
  *   登录，认证，双因素，凭证校验
@@ -457,8 +458,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
  *   - authApplicationService.logout
  *
  * 参数说明 / Parameters:
- *   - req.cookies.accessToken: string | undefined, access token（从 Cookie 读取）
- *   - req.cookies.refreshToken: string | undefined, refresh token（从 Cookie 读取）
+ *   - req.cookies.sessionId: string | undefined, 登录会话 ID（从 Cookie 读取）
  *
  * 返回值说明 / Returns:
  *   200: { message }
@@ -469,7 +469,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
  *
  * 副作用 / Side effects:
  *   - 撤销数据库会话记录
- *   - 清除 accessToken/refreshToken/tempToken Cookie
+ *   - 清除 sessionId/tempToken Cookie 和旧版 JWT Cookie
  *
  * 中文关键词：
  *   注销，会话撤销，Cookie 清除
@@ -478,12 +478,11 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
  */
 export const logoutUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { accessToken, refreshToken: tokenFromCookie } = req.cookies;
+    const sessionId = req.cookies?.[AUTH_SESSION_COOKIE_NAME];
 
-    await authApplicationService.logout(accessToken, tokenFromCookie);
+    await authApplicationService.logout(sessionId);
 
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    clearAuthCookies(res);
     res.clearCookie('tempToken');
     // @ts-ignore - t is injected by i18next middleware
     const message = req.t ? req.t('LOGGED_OUT_SUCCESSFULLY', 'Logged out successfully') : 'Logged out successfully';
@@ -495,60 +494,62 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
 };
 
 /**
- * 函数名称：refreshToken
+ * 函数名称：checkSession
  *
  * 函数作用：
- *   使用有效的 refresh token 刷新 access token。
+ *   检查当前 sessionId Cookie 是否仍然有效。
  * Purpose:
- *   Refreshes the access token using a valid refresh token.
+ *   Checks whether the current sessionId cookie is still valid.
  *
  * 调用方 / Called by:
  *   POST /api/v1/auth/refresh
  *
  * 被调用方 / Calls:
- *   - authApplicationService.refreshAccessToken
+ *   - authApplicationService.validateSession
  *
  * 参数说明 / Parameters:
- *   - req.cookies.refreshToken: string, refresh token（从 Cookie 读取）
+ *   - req.cookies.sessionId: string, 登录会话 ID（从 Cookie 读取）
  *
  * 返回值说明 / Returns:
- *   200: { message } + 设置新的 accessToken Cookie
+ *   200: { message }
  *   401: { error: errorCode }
  *   403: { error: ERR_ACCOUNT_IS_BANNED }
  *
  * 错误处理 / Error handling:
- *   - 401: ERR_REFRESH_TOKEN_REQUIRED / ERR_INVALID_OR_EXPIRED_REFRESH_TOKEN / ERR_SESSION_REVOKED_OR_INVALID
+ *   - 401: ERR_UNAUTHORIZED_MISSING_SESSION / ERR_SESSION_REVOKED_OR_INVALID
  *   - 403: ERR_ACCOUNT_IS_BANNED（账户被封禁）
- *   - 失败时清除 accessToken/refreshToken Cookie
+ *   - 失败时清除认证 Cookie
  *
  * 副作用 / Side effects:
- *   设置新的 accessToken Cookie；refresh token 无效时清除 Cookie
+ *   无新 token 签发；session 无效时清除 Cookie
  *
  * 中文关键词：
- *   令牌刷新，Access Token，Refresh Token，会话续期
+ *   会话检查，Session Cookie，BFF
  * English keywords:
- *   token refresh, access token, refresh token, session renewal
+ *   session check, session cookie, BFF
  */
-export const refreshToken = async (req: Request, res: Response): Promise<void> => {
+export const checkSession = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { refreshToken } = req.cookies;
+    const sessionId = req.cookies?.[AUTH_SESSION_COOKIE_NAME];
 
-    if (!refreshToken) {
-      res.status(401).json({ error: 'ERR_REFRESH_TOKEN_REQUIRED' });
+    if (!sessionId) {
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED_MISSING_SESSION' });
       return;
     }
 
     try {
-      const { accessToken } = await authApplicationService.refreshAccessToken(refreshToken);
-
-      res.cookie('accessToken', accessToken, getAuthCookieOptions(15 * 60 * 1000));
+      const session = await authApplicationService.validateSession(sessionId);
+      if (!session.isValid) {
+        clearAuthCookies(res);
+        res.status(401).json({ error: 'ERR_SESSION_REVOKED_OR_INVALID' });
+        return;
+      }
 
       // @ts-ignore - t is injected by i18next middleware
-      const message = req.t ? req.t('TOKEN_REFRESHED_SUCCESSFULLY', 'Token refreshed successfully') : 'Token refreshed successfully';
+      const message = req.t ? req.t('SESSION_ACTIVE', 'Session active') : 'Session active';
       res.json({ message });
     } catch (error: any) {
-      res.clearCookie('accessToken');
-      res.clearCookie('refreshToken');
+      clearAuthCookies(res);
       
       if (error.message === 'ERR_ACCOUNT_IS_BANNED') {
         res.status(403).json({ error: 'ERR_ACCOUNT_IS_BANNED' });
@@ -559,8 +560,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     }
   } catch (error) {
     console.error(error);
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    clearAuthCookies(res);
     res.status(401).json({ error: 'ERR_INVALID_OR_EXPIRED_REFRESH_TOKEN' });
   }
 };

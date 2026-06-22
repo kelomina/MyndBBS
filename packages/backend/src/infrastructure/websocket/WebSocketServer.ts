@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage, Server } from 'http';
-import { verify } from 'jsonwebtoken';
 import Redis from 'ioredis';
+import { AUTH_SESSION_COOKIE_NAME } from '../../lib/authCookies';
 
 const MAX_CONNECTIONS_PER_USER = 5;
 const MAX_GLOBAL_CONNECTIONS = 10000;
@@ -31,29 +31,13 @@ interface ConnectionMeta {
   remoteIp: string;
 }
 
-export function getWebSocketJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || ['dev-secret', 'change-me', 'change-me-too'].includes(secret)) {
-    throw new Error('ERR_JWT_SECRET_NOT_CONFIGURED');
-  }
-  return secret;
-}
-
-export function verifyWebSocketToken(token: string, secret = getWebSocketJwtSecret()): Record<string, unknown> | null {
-  try {
-    return verify(token, secret, { algorithms: ['HS256'] }) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-export function extractWebSocketAccessToken(req: IncomingMessage): string | null {
+export function extractWebSocketSessionId(req: IncomingMessage): string | null {
   const cookieHeader = req.headers.cookie;
   if (!cookieHeader) return null;
   const cookies = cookieHeader.split(';');
   for (const cookie of cookies) {
     const [rawName, ...rawValueParts] = cookie.trim().split('=');
-    if (rawName === 'accessToken') {
+    if (rawName === AUTH_SESSION_COOKIE_NAME) {
       const value = rawValueParts.join('=');
       return value ? decodeURIComponent(value) : null;
     }
@@ -106,17 +90,17 @@ export class WebSocketConnectionManager {
         return;
       }
 
-      const token = extractWebSocketAccessToken(req);
+      const sessionId = extractWebSocketSessionId(req);
 
-      if (!token) {
+      if (!sessionId) {
         ws.close(4001, 'Unauthorized');
         return;
       }
 
       let verified;
       try {
-        const { verifyAccessTokenSession } = await import('../../middleware/auth');
-        verified = await verifyAccessTokenSession(token);
+        const { verifySessionCookie } = await import('../../middleware/auth');
+        verified = await verifySessionCookie(sessionId);
       } catch {
         ws.close(4001, 'Invalid token');
         return;
@@ -246,10 +230,6 @@ export class WebSocketConnectionManager {
         this.pushToUser(userId, msg);
       } catch { /* ignore */ }
     });
-  }
-
-  private verifyToken(token: string): Record<string, unknown> | null {
-    return verifyWebSocketToken(token);
   }
 }
 

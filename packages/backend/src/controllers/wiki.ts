@@ -29,15 +29,11 @@ import { prisma } from '../db';
 const wikiQueryService = new WikiQueryService();
 
 /**
- * 获取用户等级
- * Helper to fetch user level from database since AuthRequest does not include it.
+ * 获取当前会话的有效等级。
+ * 账号真实等级仍在数据库里；这里使用认证中间件按当前 session 计算出的临时等级。
  */
-async function getUserLevel(userId: string): Promise<number> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { level: true },
-  });
-  return user?.level ?? 1;
+function getSessionUserLevel(req: AuthRequest): number {
+  return req.user?.effectiveLevel ?? 0;
 }
 
 /**
@@ -47,7 +43,7 @@ export const getWikiList = async (req: AuthRequest, res: Response): Promise<void
   try {
     let wikis;
     if (req.user) {
-      const userLevel = await getUserLevel(req.user.userId);
+      const userLevel = getSessionUserLevel(req);
       wikis = await wikiQueryService.listWikisForUser(req.user.userId, userLevel);
     } else {
       wikis = await wikiQueryService.listPublicWikis();
@@ -65,7 +61,7 @@ export const getWikiList = async (req: AuthRequest, res: Response): Promise<void
 export const createWiki = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { title, description, coverUrl } = req.body;
-    const userLevel = await getUserLevel(req.user!.userId);
+    const userLevel = getSessionUserLevel(req);
     const wiki = await wikiApplicationService.createWiki(
       title,
       description,
@@ -91,7 +87,7 @@ export const getWikiDetails = async (req: AuthRequest, res: Response): Promise<v
   try {
     const wikiId = req.params.wikiId as string;
     const userId = req.user?.userId;
-    const userLevel = userId ? await getUserLevel(userId) : 0;
+    const userLevel = userId ? getSessionUserLevel(req) : 0;
     const wiki = await wikiQueryService.getWikiDetails(wikiId, userId, userLevel);
     if (!wiki) {
       res.status(404).json({ error: 'ERR_WIKI_NOT_FOUND' });
@@ -179,7 +175,7 @@ export const getWikiCollaborators = async (req: AuthRequest, res: Response): Pro
   try {
     const wikiId = req.params.wikiId as string;
     const userId = req.user?.userId;
-    const userLevel = userId ? await getUserLevel(userId) : 0;
+    const userLevel = userId ? getSessionUserLevel(req) : 0;
     const collaborators = await wikiQueryService.getWikiCollaborators(wikiId, userId, userLevel);
     res.json(collaborators);
   } catch (error) {
@@ -253,7 +249,7 @@ export const getWikiPages = async (req: AuthRequest, res: Response): Promise<voi
   try {
     const wikiId = req.params.wikiId as string;
     const userId = req.user?.userId;
-    const userLevel = userId ? await getUserLevel(userId) : 0;
+    const userLevel = userId ? getSessionUserLevel(req) : 0;
     const pages = await wikiQueryService.getWikiPages(wikiId, userId, userLevel);
     res.json(pages);
   } catch (error) {
@@ -269,7 +265,7 @@ export const createWikiPage = async (req: AuthRequest, res: Response): Promise<v
   try {
     const wikiId = req.params.wikiId as string;
     const { title, slug, content, parentId } = req.body;
-    const userLevel = await getUserLevel(req.user!.userId);
+    const userLevel = getSessionUserLevel(req);
     const page = await wikiPageApplicationService.createPage(
       req.ability!,
       wikiId,
@@ -299,7 +295,7 @@ export const getWikiPage = async (req: AuthRequest, res: Response): Promise<void
     const wikiId = req.params.wikiId as string;
     const slug = req.params.slug as string;
     const userId = req.user?.userId;
-    const userLevel = userId ? await getUserLevel(userId) : 0;
+    const userLevel = userId ? getSessionUserLevel(req) : 0;
     const page = await wikiQueryService.getWikiPage(wikiId, slug, userId, userLevel);
     if (!page) {
       res.status(404).json({ error: 'ERR_WIKI_PAGE_NOT_FOUND' });
@@ -320,7 +316,7 @@ export const getWikiPageById = async (req: AuthRequest, res: Response): Promise<
     const wikiId = req.params.wikiId as string;
     const pageId = req.params.pageId as string;
     const userId = req.user?.userId;
-    const userLevel = userId ? await getUserLevel(userId) : 0;
+    const userLevel = userId ? getSessionUserLevel(req) : 0;
     const page = await wikiQueryService.getWikiPageById(wikiId, pageId, userId, userLevel);
     if (!page) {
       res.status(404).json({ error: 'ERR_WIKI_PAGE_NOT_FOUND' });
@@ -340,7 +336,7 @@ export const updateWikiPage = async (req: AuthRequest, res: Response): Promise<v
   try {
     const pageId = req.params.pageId as string;
     const { title, content, slug, editNote } = req.body;
-    const userLevel = await getUserLevel(req.user!.userId);
+    const userLevel = getSessionUserLevel(req);
     await wikiPageApplicationService.updatePage(
       req.ability!,
       pageId,
@@ -368,7 +364,7 @@ export const updateWikiPage = async (req: AuthRequest, res: Response): Promise<v
 export const deleteWikiPage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const pageId = req.params.pageId as string;
-    const userLevel = await getUserLevel(req.user!.userId);
+    const userLevel = getSessionUserLevel(req);
     await wikiPageApplicationService.deletePage(
       req.ability!,
       pageId,
@@ -393,7 +389,7 @@ export const getPageHistory = async (req: AuthRequest, res: Response): Promise<v
   try {
     const wikiId = req.params.wikiId as string;
     const pageId = req.params.pageId as string;
-    const userLevel = await getUserLevel(req.user!.userId);
+    const userLevel = getSessionUserLevel(req);
     const history = await wikiPageApplicationService.getPageHistory(
       req.ability!,
       wikiId,
@@ -418,7 +414,7 @@ export const getPageHistory = async (req: AuthRequest, res: Response): Promise<v
 export const getCreationLimit = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.userId;
-    const userLevel = await getUserLevel(userId);
+    const userLevel = getSessionUserLevel(req);
 
     const limitRecord = await prisma.wikiCreationLimit.findUnique({
       where: { userId }
@@ -475,7 +471,7 @@ export const getMyWikis = async (req: AuthRequest, res: Response): Promise<void>
 export const restorePageHistory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const historyId = req.params.historyId as string;
-    const userLevel = await getUserLevel(req.user!.userId);
+    const userLevel = getSessionUserLevel(req);
     await wikiPageApplicationService.restorePageHistory(
       req.ability!,
       historyId,

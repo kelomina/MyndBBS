@@ -636,6 +636,7 @@ export class AuthApplicationService {
     newPassword?: string,
     newEmail?: string,
     newUsername?: string,
+    sensitiveVerificationAlreadySatisfied = false,
   ): Promise<any> {
     return this.opts.unitOfWork.execute(async () => {
       const user = await this.opts.userRepository.findById(userId)
@@ -646,16 +647,28 @@ export class AuthApplicationService {
       }
 
       if (newEmail || newPassword) {
-        if (!currentPassword && !totpCode) {
+        if (!sensitiveVerificationAlreadySatisfied && !currentPassword && !totpCode) {
           throw new Error('ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES')
         }
-        if (currentPassword && user.password) {
-          const isValid = await this.opts.passwordHasher.verify(user.password, currentPassword)
-          if (!isValid) throw new Error('ERR_INVALID_CURRENT_PASSWORD')
-        }
-        if (totpCode && user.totpSecret) {
-          const isValid = this.opts.totpPort.verify(user.totpSecret, totpCode)
-          if (!isValid) throw new Error('ERR_INVALID_TOTP_CODE')
+        if (!sensitiveVerificationAlreadySatisfied) {
+          let isVerified = false
+
+          if (currentPassword) {
+            if (user.password) {
+              isVerified = await this.opts.passwordHasher.verify(user.password, currentPassword)
+            }
+            if (!isVerified && !totpCode) throw new Error('ERR_INVALID_CURRENT_PASSWORD')
+          }
+
+          if (!isVerified && totpCode) {
+            if (!user.totpSecret) throw new Error('ERR_INVALID_TOTP_CODE')
+            isVerified = this.opts.totpPort.verify(user.totpSecret, totpCode)
+            if (!isVerified) throw new Error('ERR_INVALID_TOTP_CODE')
+          }
+
+          if (!isVerified) {
+            throw new Error('ERR_CURRENT_PASSWORD_OR_TOTP_CODE_REQUIRED_FOR_SENSITIVE_CHANGES')
+          }
         }
       }
 
@@ -1013,22 +1026,6 @@ export class AuthApplicationService {
   ): Promise<Session> {
     await this.opts.sessionRepository.deleteExpiredByUserId(userId)
 
-    if (ipAddress && userAgent) {
-      const existing = await this.opts.sessionRepository.findActiveByUserAndFingerprint(userId, ipAddress, userAgent)
-      if (existing) {
-        const extended = Session.load({
-          id: existing.id,
-          userId: existing.userId,
-          ipAddress: existing.ipAddress,
-          userAgent: existing.userAgent,
-          expiresAt: new Date(Date.now() + expiresInMs),
-          createdAt: existing.createdAt,
-        })
-        await this.opts.sessionRepository.save(extended)
-        return extended
-      }
-    }
-
     const session = Session.create({
       id: uuidv4(),
       userId,
@@ -1083,11 +1080,19 @@ export class AuthApplicationService {
   public async revokeSession(sessionId: string, expectedUserId?: string): Promise<void> {
     if (expectedUserId) {
       const session = await this.opts.sessionRepository.findById(sessionId)
-      if (!session || session.userId !== expectedUserId) {
+      if (session && session.userId !== expectedUserId) {
         throw new Error('ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED')
       }
     }
-    await this.opts.sessionRepository.delete(sessionId)
+
+    try {
+      await this.opts.sessionRepository.delete(sessionId)
+    } catch (error: any) {
+      if (error?.code !== 'P2025') {
+        throw error
+      }
+    }
+
     await this.opts.authCache.revokeSession(sessionId)
   }
 
@@ -1419,7 +1424,7 @@ export class AuthApplicationService {
    */
   public async validateSession(
     sessionId: string,
-    userId: string,
+    expectedUserId?: string,
   ): Promise<{
     isValid: boolean
     reason?: 'SESSION_NOT_FOUND' | 'USER_NOT_FOUND' | 'USER_BANNED' | 'USER_NOT_ACTIVE'
@@ -1437,7 +1442,11 @@ export class AuthApplicationService {
       return { isValid: false, reason: 'SESSION_NOT_FOUND' }
     }
 
-    const user = await this.opts.userRepository.findById(userId)
+    if (expectedUserId && session.userId !== expectedUserId) {
+      return { isValid: false, reason: 'SESSION_NOT_FOUND' }
+    }
+
+    const user = await this.opts.userRepository.findById(session.userId)
     if (!user) {
       return { isValid: false, reason: 'USER_NOT_FOUND' }
     }
@@ -2056,186 +2065,26 @@ export class AuthApplicationService {
   }
 
   /**
-   * Function: verifyRefreshToken
-   * -----------------------------
-   * 验证刷新令牌（JWT）的有效性。使用 JWT_REFRESH_SECRET 解密令牌并返回载荷。
-   *
-   * Verifies a refresh token (JWT). Decrypts the token using JWT_REFRESH_SECRET and returns the payload.
-   *
-   * Callers: [AuthApplicationService.refreshAccessToken]
-   * Called by: [AuthApplicationService.refreshAccessToken]
-   *
-   * Callees: [ITokenPort.verify]
-   * Calls: [ITokenPort.verify]
-   *
-   * Parameters:
-   * - token: string, JWT 格式的刷新令牌 / the refresh token in JWT format
-   *
-   * Returns:
-   * - any, 解密后的令牌载荷（包含 userId, sessionId 等）/ the decoded token payload (contains userId, sessionId, etc.)
-   *
-   * Error Handling / 错误处理:
-   * - 令牌无效或过期时抛出异常，由调用方 refreshAccessToken 处理
-   *   Throws on invalid or expired token; handled by the caller refreshAccessToken
-   *
-   * Side Effects / 副作用:
-   * - 无副作用 / no side effects
-   *
-   * Transaction / 事务:
-   * - 无事务边界 / no transaction boundary
-   *
-   * 中文关键词: 刷新令牌, JWT验证, 令牌刷新, 会话续期, 令牌解密, 长期令牌
-   * English keywords: refresh token, JWT verification, token refresh, session renewal, token decode, long-lived token
-   */
-  public verifyRefreshToken(token: string): any {
-    const decoded = this.opts.tokenPort.verify(token, process.env.JWT_REFRESH_SECRET as string)
-    if (decoded.type !== 'refresh') {
-      throw new Error('ERR_INVALID_REFRESH_TOKEN')
-    }
-    return decoded
-  }
-
-  /**
-   * Function: generateAccessToken
-   * ------------------------------
-   * 生成短期访问令牌（JWT），有效期 15 分钟。包含用户 ID、角色名和会话 ID，用于 API 请求的鉴权。
-   *
-   * Generates a short-lived access token (JWT), valid for 15 minutes. Contains the user ID, role name,
-   * and session ID, used for API request authorization.
-   *
-   * Callers: [AuthApplicationService.refreshAccessToken, AuthController]
-   * Called by: [AuthApplicationService.refreshAccessToken, AuthController]
-   *
-   * Callees: [ITokenPort.sign]
-   * Calls: [ITokenPort.sign]
-   *
-   * Parameters:
-   * - userId: string, 用户 ID / the user's ID
-   * - roleName: string | null, 用户角色名（可为空）/ the user's role name (may be null)
-   * - sessionId: string, 会话 ID / the session ID
-   *
-   * Returns:
-   * - string, JWT 格式的访问令牌 / the access token in JWT format
-   *
-   * Error Handling / 错误处理:
-   * - 签名失败时抛出异常 / throws on signing failure
-   *
-   * Side Effects / 副作用:
-   * - 无副作用 / no side effects
-   *
-   * Transaction / 事务:
-   * - 无事务边界 / no transaction boundary
-   *
-   * 中文关键词: 访问令牌, JWT, 短期令牌, 签名, 会话绑定, 角色鉴权, API安全
-   * English keywords: access token, JWT, short-lived token, sign, session binding, role auth, API security
-   */
-  public generateAccessToken(userId: string, roleName: string | null, sessionId: string): string {
-    return this.opts.tokenPort.sign(
-      { type: 'access', userId, role: roleName, sessionId },
-      process.env.JWT_SECRET as string,
-      '15m',
-    )
-  }
-
-  /**
-   * Function: refreshAccessToken
-   * -----------------------------
-   * 使用刷新令牌获取新的访问令牌。验证刷新令牌的有效性，检查对应会话是否仍然存在，验证用户状态，
-   * 然后生成新的 15 分钟访问令牌。被封禁用户的刷新请求会被拒绝。
-   *
-   * Uses a refresh token to obtain a new access token. Verifies the refresh token's validity, checks
-   * that the corresponding session still exists, validates the user's status, then generates a new
-   * 15-minute access token. Refresh requests from banned users are rejected.
-   *
-   * Callers: [AuthController]
-   * Called by: [AuthController]
-   *
-   * Callees: [AuthApplicationService.verifyRefreshToken, ISessionRepository.findById,
-   *           IUserRepository.findById, IRoleRepository.findById, AuthApplicationService.generateAccessToken]
-   * Calls: [AuthApplicationService.verifyRefreshToken, ISessionRepository.findById,
-   *         IUserRepository.findById, IRoleRepository.findById, AuthApplicationService.generateAccessToken]
-   *
-   * Parameters:
-   * - refreshTokenStr: string, JWT 格式的刷新令牌 / the refresh token in JWT format
-   *
-   * Returns:
-   * - Promise<{ accessToken: string }>, 包含新访问令牌的对象 / an object containing the new access token
-   *
-   * Error Handling / 错误处理:
-   * - ERR_SESSION_REVOKED_OR_INVALID: 会话已被撤销或不存在 / session was revoked or does not exist
-   * - ERR_INVALID_REFRESH_TOKEN: 刷新令牌无效或用户不存在 / refresh token is invalid or user not found
-   * - ERR_ACCOUNT_IS_BANNED: 账号已被封禁 / the account is banned
-   *
-   * Side Effects / 副作用:
-   * - 无副作用，纯读取操作 / no side effects, pure read operations
-   *
-   * Transaction / 事务:
-   * - 无事务边界 / no transaction boundary
-   *
-   * 中文关键词: 令牌刷新, 访问令牌, 刷新令牌, 会话检查, 用户状态验证, 角色解析, JWT, 令牌续期, 安全鉴权, 账号状态
-   * English keywords: token refresh, access token, refresh token, session check, user status validation, role resolution, JWT, token renewal, secure auth, account status
-   */
-  public async refreshAccessToken(refreshTokenStr: string): Promise<{ accessToken: string }> {
-    const decoded = this.verifyRefreshToken(refreshTokenStr)
-
-    if (decoded.sessionId) {
-      const session = await this.opts.sessionRepository.findById(decoded.sessionId)
-      if (!session) {
-        throw new Error('ERR_SESSION_REVOKED_OR_INVALID')
-      }
-      if (session.isExpired()) {
-        await this.opts.sessionRepository.delete(session.id)
-        await this.opts.authCache.revokeSession(session.id)
-        throw new Error('ERR_SESSION_REVOKED_OR_INVALID')
-      }
-    }
-
-    const user = await this.opts.userRepository.findById(decoded.userId)
-    if (!user) {
-      throw new Error('ERR_INVALID_REFRESH_TOKEN')
-    }
-
-    if (user.status === UserStatus.BANNED) {
-      throw new Error('ERR_ACCOUNT_IS_BANNED')
-    }
-    if (user.status !== UserStatus.ACTIVE) {
-      throw new Error('ERR_ACCOUNT_NOT_ACTIVE')
-    }
-
-    let roleName = null
-    if (user.roleId) {
-      const role = await this.opts.roleRepository.findById(user.roleId)
-      if (role) roleName = role.name
-    }
-
-    const accessToken = this.generateAccessToken(user.id, roleName, decoded.sessionId)
-    return { accessToken }
-  }
-
-  /**
    * Function: logout
    * -----------------
-   * 处理用户登出。从访问令牌或刷新令牌中提取会话 ID，然后撤销该会话。令牌可能已过期但允许使用 ignoreExpiration 解析。
+   * 处理用户登出。根据 sessionId 撤销服务器端会话。
    *
-   * Handles user logout. Extracts the session ID from either the access token or the refresh token,
-   * then revokes that session. Expired tokens are still parsed using ignoreExpiration.
+   * Handles user logout. Revokes the server-side session by sessionId.
    *
    * Callers: [AuthController, RegisterController]
    * Called by: [AuthController, RegisterController]
    *
-   * Callees: [ITokenPort.verify, AuthApplicationService.revokeSession]
-   * Calls: [ITokenPort.verify, AuthApplicationService.revokeSession]
+   * Callees: [AuthApplicationService.revokeSession]
+   * Calls: [AuthApplicationService.revokeSession]
    *
    * Parameters:
-   * - accessToken: string | undefined, 可选，JWT 访问令牌 / optional JWT access token
-   * - refreshToken: string | undefined, 可选，JWT 刷新令牌 / optional JWT refresh token
+   * - sessionId: string | undefined, 登录会话 ID / login session ID
    *
    * Returns:
    * - Promise<void>, 无返回值 / no return value
    *
    * Error Handling / 错误处理:
-   * - 令牌解析异常被静默忽略（catch 空处理），确保登出不会因无效令牌而失败
-   *   Token parsing exceptions are silently ignored to ensure logout does not fail due to invalid tokens
+   * - 未携带 sessionId 时保持幂等成功 / missing sessionId is treated as an idempotent logout
    *
    * Side Effects / 副作用:
    * - 撤销会话（通过 revokeSession）/ revokes a session (via revokeSession)
@@ -2244,36 +2093,10 @@ export class AuthApplicationService {
    * Transaction / 事务:
    * - 无事务边界 / no transaction boundary
    *
-   * 中文关键词: 登出, 会话撤销, 令牌解析, 访问令牌, 刷新令牌, 幂等操作, 安全退出, 会话清理
-   * English keywords: logout, session revocation, token parsing, access token, refresh token, idempotent, secure exit, session cleanup
+   * 中文关键词: 登出, 会话撤销, Session Cookie, 幂等操作, 安全退出, 会话清理
+   * English keywords: logout, session revocation, session cookie, idempotent, secure exit, session cleanup
    */
-  public async logout(accessToken?: string, refreshToken?: string): Promise<void> {
-    let sessionId = null
-
-    if (accessToken) {
-      try {
-        const decoded = this.opts.tokenPort.verify(accessToken, process.env.JWT_SECRET as string, {
-          ignoreExpiration: true,
-        })
-        if (decoded.sessionId) sessionId = decoded.sessionId
-      } catch (e) {
-        // ignore invalid token errors
-      }
-    }
-
-    if (!sessionId && refreshToken) {
-      try {
-        const decoded = this.opts.tokenPort.verify(
-          refreshToken,
-          process.env.JWT_REFRESH_SECRET as string,
-          { ignoreExpiration: true },
-        )
-        if (decoded.sessionId) sessionId = decoded.sessionId
-      } catch (e) {
-        // ignore
-      }
-    }
-
+  public async logout(sessionId?: string): Promise<void> {
     if (sessionId) {
       await this.revokeSession(sessionId)
     }
@@ -2282,18 +2105,18 @@ export class AuthApplicationService {
   /**
    * Function: finalizeAuth
    * -----------------------
-   * 完成认证流程。创建用户会话（7 天有效期），然后生成访问令牌（15 分钟）和刷新令牌（7 天），返回给客户端。
+   * 完成认证流程。创建用户会话（7 天有效期），返回 sessionId 给控制器写入 httpOnly Cookie。
    * 在登录/注册 2FA 验证成功后调用。
    *
-   * Finalizes the authentication flow. Creates a user session (7-day validity), then generates both
-   * an access token (15 minutes) and a refresh token (7 days), returning them to the client.
+   * Finalizes the authentication flow. Creates a user session (7-day validity), then returns the
+   * sessionId for the controller to store in an httpOnly cookie.
    * Called after successful login/registration 2FA verification.
    *
    * Callers: [AuthController, RegisterController]
    * Called by: [AuthController, RegisterController]
    *
-   * Callees: [AuthApplicationService.createSession, ITokenPort.sign]
-   * Calls: [AuthApplicationService.createSession, ITokenPort.sign]
+   * Callees: [AuthApplicationService.createSession]
+   * Calls: [AuthApplicationService.createSession]
    *
    * Parameters:
    * - user: any, 用户对象（含 id, role 信息）/ the user object (contains id, role info)
@@ -2301,27 +2124,28 @@ export class AuthApplicationService {
    * - userAgent: string | null, 客户端 User-Agent / the client's User-Agent string
    *
    * Returns:
-   * - Promise<{ accessToken: string, refreshToken: string }>, 包含访问令牌和刷新令牌的对象
-   *   an object containing the access token and the refresh token
+   * - Promise<{ sessionId: string, expiresAt: Date }>, 服务器端会话信息
+   *   server-side session information
    *
    * Error Handling / 错误处理:
    * - 会话创建失败时抛出异常，由调用方处理 / throws on session creation failure; handled by the caller
    *
    * Side Effects / 副作用:
    * - 创建数据库会话记录 / creates a database session record
-   * - 生成两个 JWT 令牌 / generates two JWT tokens
+   * - 不再生成登录 JWT / does not generate login JWTs
    *
    * Transaction / 事务:
-   * - 无显式事务边界（createSession 和 tokenPort.sign 是独立的）/ no explicit transaction boundary (createSession and tokenPort.sign are independent)
+   * - 无显式事务边界 / no explicit transaction boundary
    *
-   * 中文关键词: 认证完成, 会话创建, 访问令牌, 刷新令牌, 令牌签发, 认证收尾, 客户端信息, 安全会话
-   * English keywords: auth finalization, session creation, access token, refresh token, token issuance, auth completion, client info, secure session
+   * 中文关键词: 认证完成, 会话创建, Session Cookie, 认证收尾, 客户端信息, 安全会话
+   * English keywords: auth finalization, session creation, session cookie, auth completion, client info, secure session
    */
   public async finalizeAuth(
     user: any,
     ip: string | null,
     userAgent: string | null,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+    options: { trustedExternalAuth?: boolean } = {},
+  ): Promise<{ sessionId: string; expiresAt: Date }> {
     const session = await this.createSession(
       user.id,
       ip,
@@ -2329,17 +2153,11 @@ export class AuthApplicationService {
       7 * 24 * 60 * 60 * 1000, // 7 days
     )
 
-    const roleName = user.role?.name || user.role || null
+    if (options.trustedExternalAuth) {
+      await this.opts.authCache.markTrustedExternalAuth(session.id, 7 * 24 * 60 * 60)
+    }
 
-    const accessToken = this.generateAccessToken(user.id, roleName, session.id)
-
-    const refreshToken = this.opts.tokenPort.sign(
-      { type: 'refresh', userId: user.id, role: roleName, sessionId: session.id },
-      process.env.JWT_REFRESH_SECRET as string,
-      '7d',
-    )
-
-    return { accessToken, refreshToken }
+    return { sessionId: session.id, expiresAt: session.expiresAt }
   }
 
   /**

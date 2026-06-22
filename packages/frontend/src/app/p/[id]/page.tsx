@@ -11,6 +11,7 @@ import { getCategoryTranslation } from '../../../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
+import { serverApiUrl } from '../../../lib/bff/serverApi';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
 
   let post = null;
   try {
-    const res = await fetch(`${process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/posts/${id}`, {
+    const res = await fetch(serverApiUrl(`/api/posts/${id}`), {
       cache: 'no-store'
     });
     if (res.ok) {
