@@ -46,6 +46,8 @@ type MeiliSearchClient = {
   };
 };
 
+type MeiliSearchConstructor = new (opts: { host: string; apiKey: string }) => MeiliSearchClient;
+
 let client: MeiliSearchClient | null = null;
 
 function getClient(): MeiliSearchClient | null {
@@ -54,7 +56,15 @@ function getClient(): MeiliSearchClient | null {
   }
   if (!client) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { MeiliSearch } = require('meilisearch') as { MeiliSearch: new (opts: { host: string; apiKey: string }) => MeiliSearchClient };
+    const meilisearchModule = require('meilisearch') as {
+      MeiliSearch?: MeiliSearchConstructor;
+      Meilisearch?: MeiliSearchConstructor;
+      default?: MeiliSearchConstructor;
+    };
+    const MeiliSearch = meilisearchModule.MeiliSearch ?? meilisearchModule.Meilisearch ?? meilisearchModule.default;
+    if (!MeiliSearch) {
+      throw new Error('ERR_MEILISEARCH_CLIENT_UNAVAILABLE');
+    }
     client = new MeiliSearch({ host: MEILISEARCH_HOST, apiKey: MEILISEARCH_KEY });
   }
   return client;
