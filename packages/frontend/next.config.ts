@@ -38,8 +38,12 @@ const nextConfig: NextConfig = {
      * Description: Handles the rewrites logic for the application.
      * Keywords: rewrites, auto-annotated
      */
-    async rewrites() {
+  async rewrites() {
     return [
+      {
+        source: '/uploads/:path*',
+        destination: `${apiBaseUrl}/uploads/:path*`,
+      },
       {
         source: '/install',
         destination: `${apiBaseUrl}/install`,
