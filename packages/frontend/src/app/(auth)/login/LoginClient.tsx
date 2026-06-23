@@ -1,42 +1,44 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { Fingerprint, Loader2 } from 'lucide-react';
-import { usePasskey } from '../../../lib/hooks/usePasskey';
-import { TwoFactorLogin } from '../../../components/TwoFactorLogin';
-import type { Dictionary } from '../../../types';
-import { fetchWithAuth } from '../../../lib/api/fetcher';
+import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { Fingerprint, Loader2 } from 'lucide-react'
+import { usePasskey } from '../../../lib/hooks/usePasskey'
+import { TranslationProvider } from '../../../components/TranslationProvider'
+import { TwoFactorLogin } from '../../../components/TwoFactorLogin'
+import type { Dictionary } from '../../../types'
+import { fetchWithAuth } from '../../../lib/api/fetcher'
 
 export function LoginClient({ dict }: { dict: Dictionary }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const searchParams = useSearchParams();
-  const oidcError = searchParams.get('oidc') === 'failed' ? dict.auth.ssoLoginFailed : null;
-  const [loading, setLoading] = useState(false);
-  const [requires2FA, setRequires2FA] = useState(false);
-  const [twoFactorMethods, setTwoFactorMethods] = useState<string[]>([]);
-  const { executePasskeyFlow, passkeyLoading, passkeyError } = usePasskey();
-  const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
-  const [uiMode, setUiMode] = useState<'passkey' | 'password'>('password');
-  const [ssoChecking, setSsoChecking] = useState(false);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const searchParams = useSearchParams()
+  const oidcError = searchParams.get('oidc') === 'failed' ? dict.auth.ssoLoginFailed : null
+  const [loading, setLoading] = useState(false)
+  const [requires2FA, setRequires2FA] = useState(false)
+  const [twoFactorMethods, setTwoFactorMethods] = useState<string[]>([])
+  const { executePasskeyFlow, passkeyLoading, passkeyError } = usePasskey()
+  const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null)
+  const [uiMode, setUiMode] = useState<'passkey' | 'password'>('password')
+  const [ssoChecking, setSsoChecking] = useState(false)
 
   useEffect(() => {
     const checkPasskeySupport = async () => {
-      const supported = typeof window !== 'undefined' && 'PublicKeyCredential' in window;
+      const supported = typeof window !== 'undefined' && 'PublicKeyCredential' in window
       if (supported && window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
-        const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        setPasskeySupported(available);
-        setUiMode(available ? 'passkey' : 'password');
+        const available =
+          await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        setPasskeySupported(available)
+        setUiMode(available ? 'passkey' : 'password')
       } else {
-        setPasskeySupported(supported);
-        setUiMode(supported ? 'passkey' : 'password');
+        setPasskeySupported(supported)
+        setUiMode(supported ? 'passkey' : 'password')
       }
-    };
-    checkPasskeySupport();
-  }, []);
+    }
+    checkPasskeySupport()
+  }, [])
 
   /**
    * 处理 KoloStudio SSO 登录按钮点击。
@@ -45,101 +47,113 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
    * 如果未登录，跳转到交互式登录页。
    */
   const handleKoloSsoLogin = () => {
-    setSsoChecking(true);
+    setSsoChecking(true)
 
     // 创建隐藏的 iframe 加载静默检查页面
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = '/api/v1/auth/oidc/silent-check';
-    document.body.appendChild(iframe);
+    const iframe = document.createElement('iframe')
+    iframe.style.display = 'none'
+    iframe.src = '/api/v1/auth/oidc/silent-check'
+    document.body.appendChild(iframe)
 
     // 监听 postMessage 结果
     const messageHandler = (event: MessageEvent) => {
       // 只接受来自我们 iframe 的消息
-      if (event.source !== iframe.contentWindow) return;
+      if (event.source !== iframe.contentWindow) return
 
-      const data = event.data;
+      const data = event.data
       if (data?.type === 'oidc:silent:success' && data.code) {
         // 静默登录成功，拿到 code，直接走 callback
-        window.removeEventListener('message', messageHandler);
-        document.body.removeChild(iframe);
+        window.removeEventListener('message', messageHandler)
+        document.body.removeChild(iframe)
         // 跳转到 callback 接口，用 code 换 token
-        window.location.href = '/api/v1/auth/oidc/callback?code=' + encodeURIComponent(data.code);
+        window.location.href = '/api/v1/auth/oidc/callback?code=' + encodeURIComponent(data.code)
       } else if (data?.type === 'oidc:silent:error') {
         // 静默登录失败（未登录或超时），跳转到交互式登录
-        window.removeEventListener('message', messageHandler);
+        window.removeEventListener('message', messageHandler)
         if (iframe.parentNode) {
-          document.body.removeChild(iframe);
+          document.body.removeChild(iframe)
         }
-        setSsoChecking(false);
-        window.location.href = '/api/v1/auth/oidc/start';
+        setSsoChecking(false)
+        window.location.href = '/api/v1/auth/oidc/start'
       }
-    };
+    }
 
-    window.addEventListener('message', messageHandler);
+    window.addEventListener('message', messageHandler)
 
     // 超时保护：6秒后如果还没收到消息，直接跳转交互式登录
     setTimeout(() => {
-      window.removeEventListener('message', messageHandler);
+      window.removeEventListener('message', messageHandler)
       if (iframe.parentNode) {
-        document.body.removeChild(iframe);
+        document.body.removeChild(iframe)
       }
-      setSsoChecking(false);
-      window.location.href = '/api/v1/auth/oidc/start';
-    }, 6500);
-  };
+      setSsoChecking(false)
+      window.location.href = '/api/v1/auth/oidc/start'
+    }, 6500)
+  }
 
-      const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
 
     try {
       const res = await fetchWithAuth('/api/v1/auth/login', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password })
-      });
-      
-      const data = await res.json();
-      
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await res.json()
+
       if (res.ok) {
         if (data.requires2FA) {
-          setRequires2FA(true);
-          setTwoFactorMethods(data.methods || []);
+          setRequires2FA(true)
+          setTwoFactorMethods(data.methods || [])
         } else {
-          window.location.href = '/';
+          window.location.href = '/'
         }
       } else {
-        setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.auth.loginFailed);
+        setError(
+          dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] ||
+            data.error ||
+            dict.auth.loginFailed,
+        )
       }
     } catch {
-      setError(dict.auth.networkError);
+      setError(dict.auth.networkError)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-    const handlePasskeyLogin = async () => {
+  const handlePasskeyLogin = async () => {
     executePasskeyFlow(
       'login',
       '/api/v1/auth/passkey/generate-authentication-options',
       '/api/v1/auth/passkey/verify-authentication',
       dict,
-      () => { window.location.href = '/'; }
-    );
-  };
+      () => {
+        window.location.href = '/'
+      },
+    )
+  }
 
   if (requires2FA) {
-    return <TwoFactorLogin methods={twoFactorMethods} />;
+    return (
+      <TranslationProvider dict={dict}>
+        <TwoFactorLogin methods={twoFactorMethods} />
+      </TranslationProvider>
+    )
   }
 
   return (
     <div className="rounded-2xl bg-card px-8 py-10 shadow-sm border border-border/50">
       <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground">{dict.auth.welcomeBack}</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-foreground">
+          {dict.auth.welcomeBack}
+        </h2>
         <p className="mt-2 text-sm text-muted">{dict.auth.signInToAccount}</p>
       </div>
 
@@ -205,7 +219,9 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
           )}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground">{dict.auth.emailAddress}</label>
+              <label className="block text-sm font-medium text-foreground">
+                {dict.auth.emailAddress}
+              </label>
               <input
                 type="text"
                 required
@@ -216,7 +232,9 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-foreground">{dict.auth.password}</label>
+              <label className="block text-sm font-medium text-foreground">
+                {dict.auth.password}
+              </label>
               <input
                 type="password"
                 required
@@ -229,11 +247,17 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <input type="checkbox" className="h-4 w-4 rounded border-border text-primary focus:ring-primary" />
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
               <label className="ml-2 block text-sm text-muted">{dict.auth.rememberMe}</label>
             </div>
             <div className="text-sm">
-              <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80">
+              <Link
+                href="/forgot-password"
+                className="font-medium text-primary hover:text-primary/80"
+              >
                 {dict.auth.forgotPassword}
               </Link>
             </div>
@@ -265,5 +289,5 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
         </button>
       )}
     </div>
-  );
+  )
 }

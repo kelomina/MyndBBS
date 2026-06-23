@@ -1,14 +1,14 @@
-import Link from 'next/link';
-import { getDictionary } from '../../i18n/get-dictionary';
-import { Locale } from '../../i18n/config';
-import { LanguageSwitcher } from '../LanguageSwitcher';
-import { ThemeToggle } from '../ThemeToggle';
-import { UserNav } from './UserNav';
+import Link from 'next/link'
+import { getPublicDictionary } from '../../i18n/public-dictionary'
+import { Locale } from '../../i18n/config'
+import { LanguageSwitcher } from '../LanguageSwitcher'
+import { ThemeToggle } from '../ThemeToggle'
+import { UserNav } from './UserNav'
 
-import { SearchInput } from '../SearchInput';
+import { SearchInput } from '../SearchInput'
 
 export async function Header({ locale }: { locale: Locale }) {
-  const dict = await getDictionary(locale);
+  const dict = await getPublicDictionary(locale)
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
@@ -18,7 +18,7 @@ export async function Header({ locale }: { locale: Locale }) {
             MyndBBS
           </Link>
         </div>
-        
+
         <div className="flex flex-1 items-center justify-center px-8">
           <SearchInput placeholder={dict.common.searchPlaceholder} />
         </div>
@@ -26,9 +26,13 @@ export async function Header({ locale }: { locale: Locale }) {
         <div className="flex items-center space-x-3">
           <ThemeToggle />
           <LanguageSwitcher currentLocale={locale} />
-          <UserNav title={dict.common.account} newPostText={dict.common.newPost} messagesText={dict.messages.title} />
+          <UserNav
+            title={dict.common.account}
+            newPostText={dict.common.newPost}
+            messagesText={dict.messages.title}
+          />
         </div>
       </div>
     </header>
-  );
+  )
 }
