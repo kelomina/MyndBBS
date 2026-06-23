@@ -149,8 +149,55 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
         </div>
       )}
 
+      {/* KoloStudio SSO 登录按钮 */}
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={handleKoloSsoLogin}
+          disabled={loading || ssoChecking}
+          className="flex w-full items-center justify-center gap-3 rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
+        >
+          {ssoChecking ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>正在检查登录状态...</span>
+            </>
+          ) : (
+            <>
+              <svg className="h-5 w-5" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+                <rect width="28" height="28" rx="8" fill="#0EA5E9" />
+                <text
+                  x="14"
+                  y="19.8"
+                  textAnchor="middle"
+                  fontFamily="Arial, Helvetica, sans-serif"
+                  fontSize="16"
+                  fontWeight="800"
+                  fill="white"
+                >
+                  K
+                </text>
+              </svg>
+              <span>{dict.auth.signInWithKoloSso}</span>
+            </>
+          )}
+        </button>
+
+        {uiMode === 'passkey' && passkeySupported !== false && (
+          <button
+            type="button"
+            onClick={handlePasskeyLogin}
+            disabled={loading || passkeyLoading}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm hover:bg-background transition-colors disabled:opacity-50"
+          >
+            <Fingerprint className="h-5 w-5 text-primary" />
+            {passkeyLoading ? dict.auth.signingIn : dict.auth.signInWithPasskey}
+          </button>
+        )}
+      </div>
+
       {uiMode === 'password' && (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="mt-6 space-y-6">
           {dict.auth.passwordLoginNotRecommended && (
             <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300">
               {dict.auth.passwordLoginNotRecommended}
@@ -202,75 +249,21 @@ export function LoginClient({ dict }: { dict: Dictionary }) {
         </form>
       )}
 
-      {uiMode === 'passkey' && passkeySupported !== false && (
-        <div className="mt-6 space-y-4">
-          <button 
-            type="button"
-            onClick={handlePasskeyLogin}
-            disabled={loading || passkeyLoading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
-          >
-            <Fingerprint className="h-5 w-5 text-primary" />
-            {passkeyLoading ? dict.auth.signingIn : dict.auth.signInWithPasskey}
-          </button>
-          
-          <button 
-            type="button"
-            onClick={() => setUiMode('password')}
-            className="flex w-full items-center justify-center rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors"
-          >
-            {dict.auth.cannotUsePasskey}
-          </button>
-        </div>
-      )}
-
-      {/* KoloStudio SSO 登录按钮 */}
-      <div className="mt-6">
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted">{dict.auth.orContinueWith}</span>
-          </div>
-        </div>
-
-        {/* SSO 加载状态提示 */}
-        {ssoChecking && (
-          <div className="mb-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300 animate-pulse">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>正在连接 KoloStudio 统一认证服务...</span>
-            </div>
-            <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-              如果已登录 KoloStudio，将自动完成认证；否则将跳转到登录页面
-            </p>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={handleKoloSsoLogin}
-          disabled={loading || ssoChecking}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm hover:bg-background transition-colors disabled:opacity-50"
-        >
-          {ssoChecking ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>正在检查登录状态...</span>
-            </>
-          ) : (
-            dict.auth.signInWithKoloSso
-          )}
-        </button>
-      </div>
-
       <p className="mt-8 text-center text-sm text-muted">
         {dict.auth.dontHaveAccount}{' '}
         <Link href="/register" className="font-medium text-primary hover:text-primary/80">
           {dict.auth.signUpNow}
         </Link>
       </p>
+      {uiMode === 'passkey' && passkeySupported !== false && (
+        <button
+          type="button"
+          onClick={() => setUiMode('password')}
+          className="mt-1 block w-full text-center text-[11px] font-medium leading-4 text-muted/70 hover:text-foreground hover:underline hover:underline-offset-2"
+        >
+          {dict.auth.cannotUsePasskey}
+        </button>
+      )}
     </div>
   );
 }
