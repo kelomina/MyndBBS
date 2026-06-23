@@ -1,7 +1,8 @@
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { initMiddlewareContext, type MiddlewareResult } from './types';
 import { applyCspHeaders } from './csp';
-import { filterMaliciousPaths } from './maliciousPathFilter';
+import { filterMaliciousPaths, hasInvalidPathEncoding } from './maliciousPathFilter';
 import { detectLocale } from './i18nDetector';
 import { guardInstallStatus } from './installGuard';
 import { guardRouteAccess } from './authGuard';
@@ -17,6 +18,10 @@ const pipeline: MiddlewareStep[] = [
 ];
 
 export async function proxy(request: NextRequest) {
+  if (hasInvalidPathEncoding(request)) {
+    return new NextResponse('Not Found', { status: 404 });
+  }
+
   const ctx = initMiddlewareContext(request);
 
   for (const step of pipeline) {
@@ -29,6 +34,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

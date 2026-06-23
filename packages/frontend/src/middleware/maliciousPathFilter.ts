@@ -67,7 +67,20 @@ const MALICIOUS_PATH_PATTERNS = [
   /\/MicroStrategy/i,
 ] as RegExp[];
 
-export function filterMaliciousPaths(_request: NextRequest, ctx: MiddlewareContext): MiddlewareResult {
+export function hasInvalidPathEncoding(request: NextRequest): boolean {
+  try {
+    decodeURI(new URL(request.url).pathname);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+export function filterMaliciousPaths(request: NextRequest, ctx: MiddlewareContext): MiddlewareResult {
+  if (hasInvalidPathEncoding(request)) {
+    return new NextResponse('Not Found', { status: 404 });
+  }
+
   if (MALICIOUS_PATH_PATTERNS.some((pattern) => pattern.test(ctx.pathname))) {
     return new NextResponse('Not Found', { status: 404 });
   }

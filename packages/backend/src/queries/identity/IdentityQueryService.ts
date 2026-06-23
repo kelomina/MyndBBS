@@ -266,7 +266,6 @@ export class IdentityQueryService {
         id: true,
         username: true,
         avatarUrl: true,
-        role: { select: { name: true } },
         createdAt: true,
         posts: {
           where: {
@@ -297,7 +296,6 @@ export class IdentityQueryService {
       id: user.id,
       username: user.username,
       avatarUrl: user.avatarUrl,
-      role: user.role ? { name: user.role.name } : null,
       createdAt: user.createdAt,
       posts: user.posts.map(p => ({
         id: p.id,

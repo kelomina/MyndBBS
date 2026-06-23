@@ -2,16 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Settings, LogOut, UserPlus, UserCheck, Clock } from 'lucide-react';
+import { Settings, LogOut, UserPlus, UserCheck, Clock, Mail } from 'lucide-react';
 
 import { useTranslation } from '../../../components/TranslationProvider';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
 import { useToast } from '../../../components/ui/Toast';
 import { fetchWithAuth } from '../../../lib/api/fetcher';
 
-import { Mail } from 'lucide-react';
-export function OwnerSettingsButton({ username, userId }: { username: string; userId: string }) {
-  const [currentUser, setCurrentUser] = useState<{ username: string; level?: number; id: string } | null>(null);
+export function OwnerSettingsButton({ username }: { username: string }) {
+  const [currentUser, setCurrentUser] = useState<{ username: string; level?: number } | null>(null);
   const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted' | 'self'>('none');
   const [friendLoading, setFriendLoading] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
@@ -30,7 +29,7 @@ export function OwnerSettingsButton({ username, userId }: { username: string; us
         if (res.ok) {
           const data = await res.json();
           setCurrentUser(data.user);
-          if (data.user.id === userId) {
+          if (data.user.username === username) {
             setFriendStatus('self');
           } else {
             const friendsRes = await fetch(`/api/v1/friends/`, {
@@ -40,8 +39,8 @@ export function OwnerSettingsButton({ username, userId }: { username: string; us
             if (friendsRes.ok) {
               const friendsData = await friendsRes.json();
               const friendship = friendsData.friendships?.find(
-                (f: { requesterId: string; addresseeId: string; status: string }) =>
-                  (f.requesterId === userId || f.addresseeId === userId)
+                (f: { requester?: { username?: string }; addressee?: { username?: string }; status: string }) =>
+                  f.requester?.username === username || f.addressee?.username === username
               );
               if (friendship) {
                 const status = friendship.status?.toUpperCase();
@@ -62,7 +61,7 @@ export function OwnerSettingsButton({ username, userId }: { username: string; us
       }
     };
     checkOwner();
-  }, [username, userId]);
+  }, [username]);
 
   useEffect(() => {
     const handleFriendshipChanged = () => {
@@ -75,8 +74,8 @@ export function OwnerSettingsButton({ username, userId }: { username: string; us
           if (friendsRes.ok) {
             const friendsData = await friendsRes.json();
             const friendship = friendsData.friendships?.find(
-              (f: { requesterId: string; addresseeId: string; status: string }) =>
-                (f.requesterId === userId || f.addresseeId === userId)
+              (f: { requester?: { username?: string }; addressee?: { username?: string }; status: string }) =>
+                f.requester?.username === username || f.addressee?.username === username
             );
             if (friendship) {
               const status = friendship.status?.toUpperCase();
@@ -97,7 +96,7 @@ export function OwnerSettingsButton({ username, userId }: { username: string; us
     };
     window.addEventListener('friendship-changed', handleFriendshipChanged);
     return () => window.removeEventListener('friendship-changed', handleFriendshipChanged);
-  }, [userId]);
+  }, [username]);
 
   const handleAddFriend = () => {
     setShowCaptcha(true);
@@ -114,11 +113,11 @@ export function OwnerSettingsButton({ username, userId }: { username: string; us
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify({ addresseeId: userId, captchaId })
+        body: JSON.stringify({ addresseeUsername: username, captchaId })
       });
       if (res.ok) {
         setFriendStatus('pending');
-        window.dispatchEvent(new CustomEvent('friendship-changed', { detail: { userId, status: 'pending' } }));
+        window.dispatchEvent(new CustomEvent('friendship-changed', { detail: { username, status: 'pending' } }));
         toast(dict.messages?.requestSent || 'Friend request sent!', 'success');
       } else {
         const data = await res.json();

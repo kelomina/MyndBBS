@@ -519,7 +519,8 @@ export const getPublicProfile = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    res.json({ user: { ...user, role: user.role?.name || null } });
+    const { id, ...publicUser } = user;
+    res.json({ user: req.user?.userId ? { id, ...publicUser } : publicUser });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });

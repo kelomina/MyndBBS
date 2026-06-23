@@ -5,12 +5,15 @@ describe('community dto types', () => {
     const x: PostListItemDTO = {
       id: 'p1',
       title: 't',
+      content: 'body',
       createdAt: new Date(),
+      updatedAt: new Date(),
       status: 'PUBLISHED' as any,
-      author: { id: 'u1', username: 'u' },
+      author: { username: 'u', avatarUrl: null },
       category: { id: 'c1', name: 'c', description: null },
       _count: { comments: 0, upvotes: 0 },
     };
     expect(x.author.username).toBe('u');
+    expect(x.author).not.toHaveProperty('id');
   });
 });

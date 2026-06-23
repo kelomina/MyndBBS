@@ -24,7 +24,7 @@ function isEssentialPublicPath(pathname: string): boolean {
     ESSENTIAL_PUBLIC_PATHS.has(pathname) ||
     pathname.startsWith('/install') ||
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/public') ||
+    pathname.startsWith('/api') ||
     pathname.startsWith('/uploads/avatars') ||
     isPublicUploadedImage ||
     pathname === '/favicon.ico'

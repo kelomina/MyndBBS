@@ -15,7 +15,7 @@ export type PostListItemDTO = {
   createdAt: Date;
   updatedAt: Date;
   status: PostStatus;
-  author: { id: string; username: string; avatarUrl: string | null };
+  author: { username: string; avatarUrl: string | null };
   category: { id: string; name: string; description: string | null };
   _count: { comments: number; upvotes: number };
   highlight?: { title?: string; content?: string };
@@ -28,7 +28,7 @@ export type PostDetailDTO = {
   createdAt: Date;
   updatedAt: Date;
   status: PostStatus;
-  author: { id: string; username: string; avatarUrl: string | null };
+  author: { username: string; avatarUrl: string | null };
   category: { id: string; name: string; description: string | null };
   _count: { comments: number; upvotes: number; bookmarks: number };
 };
@@ -43,7 +43,7 @@ export type CommentListItemDTO = {
   deletedAt: Date | null;
   isPending: boolean;
   parentId: string | null;
-  author: { id: string; username: string; avatarUrl: string | null };
+  author: { username: string; avatarUrl: string | null };
   _count: { upvotes: number; bookmarks: number; replies: number };
   hasUpvoted?: boolean;
   hasBookmarked?: boolean;

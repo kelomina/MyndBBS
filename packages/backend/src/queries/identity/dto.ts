@@ -44,7 +44,6 @@ export type PublicProfileDTO = {
   id: string;
   username: string;
   avatarUrl: string | null;
-  role: { name: string } | null;
   createdAt: Date;
   posts: {
     id: string;

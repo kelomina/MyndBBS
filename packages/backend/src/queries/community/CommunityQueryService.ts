@@ -64,7 +64,7 @@ export class CommunityQueryService {
       where: whereClause,
       orderBy: { createdAt: 'desc' }, // default to fetching latest first before sorting if popular
       include: {
-        author: { select: { id: true, username: true, avatarUrl: true } },
+        author: { select: { username: true, avatarUrl: true } },
         category: { select: { id: true, name: true, description: true } },
         _count: { select: { comments: true, upvotes: true } },
       },
@@ -92,7 +92,7 @@ export class CommunityQueryService {
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       status: p.status as unknown as import('@myndbbs/shared').PostStatus,
-      author: p.author,
+      author: { username: p.author.username, avatarUrl: p.author.avatarUrl },
       category: p.category,
       _count: p._count,
     }));
@@ -114,7 +114,7 @@ export class CommunityQueryService {
         ],
       },
       include: {
-        author: { select: { id: true, username: true, avatarUrl: true } },
+        author: { select: { username: true, avatarUrl: true } },
         category: { select: { id: true, name: true, description: true } },
         _count: { select: { comments: true, upvotes: true, bookmarks: true } },
       },
@@ -129,7 +129,7 @@ export class CommunityQueryService {
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       status: post.status as unknown as import('@myndbbs/shared').PostStatus,
-      author: post.author,
+      author: { username: post.author.username, avatarUrl: post.author.avatarUrl },
       category: post.category,
       _count: post._count,
     };
@@ -194,7 +194,7 @@ export class CommunityQueryService {
         where,
         orderBy: { createdAt: 'asc' },
         include: {
-          author: { select: { id: true, username: true, avatarUrl: true } },
+          author: { select: { username: true, avatarUrl: true } },
           _count: { select: { upvotes: true, bookmarks: true, replies: true } },
         },
       }),
@@ -209,7 +209,7 @@ export class CommunityQueryService {
       deletedAt: c.deletedAt,
       isPending: c.isPending,
       parentId: c.parentId,
-      author: c.author,
+      author: { username: c.author.username, avatarUrl: c.author.avatarUrl },
       _count: c._count,
       ...(c.hasUpvoted !== undefined ? { hasUpvoted: c.hasUpvoted } : {}),
       ...(c.hasBookmarked !== undefined ? { hasBookmarked: c.hasBookmarked } : {}),

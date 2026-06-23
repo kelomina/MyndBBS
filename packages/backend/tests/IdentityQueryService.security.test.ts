@@ -83,4 +83,22 @@ describe('IdentityQueryService security filters', () => {
       { status: { in: ['PUBLISHED', 'PINNED'] } },
     ]));
   });
+
+  it('does not select or return role details in public profiles', async () => {
+    const ability = defineAbilityForContext();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'user-1',
+      username: 'author',
+      avatarUrl: null,
+      createdAt: new Date('2026-06-23T00:00:00.000Z'),
+      posts: [],
+      _count: { posts: 0 },
+    });
+
+    const result = await service.getPublicProfile('author', ability);
+
+    const select = (prisma.user.findUnique as jest.Mock).mock.calls[0][0].select;
+    expect(select.role).toBeUndefined();
+    expect(result).not.toHaveProperty('role');
+  });
 });

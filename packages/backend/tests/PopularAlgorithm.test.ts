@@ -33,7 +33,7 @@ describe('CommunityQueryService - Popular Algorithm', () => {
         content: 'Content',
         createdAt: tenHoursAgo,
         status: 'PUBLISHED',
-        author: { id: 'u1', username: 'user1' },
+        author: { id: 'u1', username: 'user1', avatarUrl: null },
         category: { id: 'c1', name: 'tech', description: '' },
         _count: { comments: 50, upvotes: 100 },
       },
@@ -43,7 +43,7 @@ describe('CommunityQueryService - Popular Algorithm', () => {
         content: 'Content',
         createdAt: oneHourAgo,
         status: 'PUBLISHED',
-        author: { id: 'u2', username: 'user2' },
+        author: { id: 'u2', username: 'user2', avatarUrl: null },
         category: { id: 'c1', name: 'tech', description: '' },
         _count: { comments: 2, upvotes: 5 },
       },
@@ -53,7 +53,7 @@ describe('CommunityQueryService - Popular Algorithm', () => {
         content: 'Content',
         createdAt: oneHourAgo,
         status: 'PUBLISHED',
-        author: { id: 'u3', username: 'user3' },
+        author: { id: 'u3', username: 'user3', avatarUrl: null },
         category: { id: 'c1', name: 'tech', description: '' },
         _count: { comments: 40, upvotes: 80 },
       }
@@ -78,6 +78,8 @@ describe('CommunityQueryService - Popular Algorithm', () => {
       'post-old-high-engagement',
       'post-new-low-engagement'
     ]);
+    expect(result[0].author).toEqual({ username: 'user3', avatarUrl: null });
+    expect(result[0].author).not.toHaveProperty('id');
     expect((prisma.post.findMany as jest.Mock).mock.calls[0][0].where.AND).toEqual(expect.arrayContaining([
       { status: { in: ['PUBLISHED', 'PINNED'] } },
     ]));

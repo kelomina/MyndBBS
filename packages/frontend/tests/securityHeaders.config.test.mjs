@@ -37,3 +37,29 @@ test('install guard consumes setupRequired instead of installed fingerprint', as
     assert.doesNotMatch(source, /status\.installed/);
   }
 });
+
+test('proxy matcher includes API paths so malformed API URLs are filtered before BFF routing', async () => {
+  const proxyConfig = await fs.readFile(new URL('../src/proxy.ts', import.meta.url), 'utf-8');
+  const middlewareIndex = await fs.readFile(new URL('../src/middleware/index.ts', import.meta.url), 'utf-8');
+  const proxyMiddleware = await fs.readFile(new URL('../src/proxy/middleware.ts', import.meta.url), 'utf-8');
+
+  assert.doesNotMatch(proxyConfig, /\(\?!api\|/);
+
+  for (const source of [middlewareIndex, proxyMiddleware]) {
+    assert.match(source, /hasInvalidPathEncoding\(request\)/);
+    assert.match(source, /initMiddlewareContext\(request\)/);
+    assert.ok(
+      source.indexOf('hasInvalidPathEncoding(request)') < source.indexOf('initMiddlewareContext(request)'),
+      'invalid path encoding must be rejected before pathname normalization',
+    );
+  }
+});
+
+test('install guard does not redirect API requests while proxy filtering is enabled for APIs', async () => {
+  const proxyGuard = await fs.readFile(new URL('../src/proxy/installGuard.ts', import.meta.url), 'utf-8');
+  const middlewareGuard = await fs.readFile(new URL('../src/middleware/installGuard.ts', import.meta.url), 'utf-8');
+
+  for (const source of [proxyGuard, middlewareGuard]) {
+    assert.match(source, /ctx\.pathname\.startsWith\('\/api'\)/);
+  }
+});

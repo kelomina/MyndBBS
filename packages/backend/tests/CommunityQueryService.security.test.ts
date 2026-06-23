@@ -79,5 +79,7 @@ describe('CommunityQueryService security filters', () => {
 
     expect(result?.data[0]?.content).toBe('');
     expect(result?.data[0]?.deletedAt).toBe(deletedAt);
+    expect(result?.data[0]?.author).toEqual({ username: 'saika', avatarUrl: null });
+    expect(result?.data[0]?.author).not.toHaveProperty('id');
   });
 });

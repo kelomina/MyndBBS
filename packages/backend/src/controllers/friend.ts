@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { messagingQueryService } from '../queries/messaging/MessagingQueryService';
+import { identityQueryService } from '../queries/identity/IdentityQueryService';
 import { AuthRequest } from '../middleware/auth';
 import { messagingApplicationService } from '../registry';
 
@@ -11,10 +12,17 @@ import { messagingApplicationService } from '../registry';
  */
 export const requestFriend = async (req: AuthRequest, res: Response): Promise<void> => {
   const requesterId = req.user?.userId;
-  const { addresseeId } = req.body;
-  if (!requesterId || !addresseeId) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
+  let { addresseeId } = req.body;
+  const { addresseeUsername } = req.body;
+  if (!requesterId || (!addresseeId && !addresseeUsername)) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
   try {
+    if (!addresseeId && addresseeUsername) {
+      const addressee = await identityQueryService.getUserByUsername(String(addresseeUsername));
+      if (!addressee) { res.status(404).json({ error: 'ERR_USER_NOT_FOUND' }); return; }
+      addresseeId = addressee.id;
+    }
+
     await messagingApplicationService.sendFriendRequestWithValidation(
       requesterId,
       addresseeId

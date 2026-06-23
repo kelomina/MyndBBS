@@ -70,6 +70,15 @@ function isMaliciousPath(pathname) {
   return MALICIOUS_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
 }
 
+function hasInvalidPathEncoding(url) {
+  try {
+    decodeURI(new URL(url, 'https://example.test').pathname);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 const ESSENTIAL_PUBLIC_PATHS = new Set([
   '/install',
   '/login',
@@ -168,6 +177,18 @@ test('isMaliciousPath allows normal application paths', () => {
   assert.equal(isMaliciousPath('/admin/users'), false);
   assert.equal(isMaliciousPath('/api/posts'), false);
   assert.equal(isMaliciousPath('/uploads/avatar.png'), false);
+});
+
+test('hasInvalidPathEncoding blocks overlong UTF-8 encoded slash attempts', () => {
+  assert.equal(hasInvalidPathEncoding('/api/..%c0%afadmin'), true);
+  assert.equal(hasInvalidPathEncoding('/api/..%e0%80%afadmin'), true);
+  assert.equal(hasInvalidPathEncoding('/api/..%f0%80%80%afadmin'), true);
+});
+
+test('hasInvalidPathEncoding allows normal encoded API paths', () => {
+  assert.equal(hasInvalidPathEncoding('/api/posts'), false);
+  assert.equal(hasInvalidPathEncoding('/api/posts?search=%E4%B8%AD%E6%96%87'), false);
+  assert.equal(hasInvalidPathEncoding('/uploads/avatar%20name.png'), false);
 });
 
 test('isMaliciousPath is case insensitive', () => {

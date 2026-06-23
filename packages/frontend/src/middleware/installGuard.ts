@@ -3,6 +3,10 @@ import { NextResponse } from 'next/server';
 import type { MiddlewareContext, MiddlewareResult } from './types';
 
 export async function guardInstallStatus(request: NextRequest, ctx: MiddlewareContext): Promise<MiddlewareResult> {
+  if (ctx.pathname.startsWith('/api')) {
+    return null;
+  }
+
   try {
     const apiUrl = process.env.API_URL || 'http://127.0.0.1:3001';
     const statusRes = await fetch(`${apiUrl}/api/public/install-status`, {
