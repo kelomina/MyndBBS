@@ -101,4 +101,51 @@ describe('IdentityQueryService security filters', () => {
     expect(select.role).toBeUndefined();
     expect(result).not.toHaveProperty('role');
   });
+
+  it('keeps public profiles free of internal author identifiers', async () => {
+    const ability = defineAbilityForContext({
+      userId: 'viewer-1',
+      roleName: 'USER',
+      level: 1,
+      moderatedCategoryIds: [],
+    });
+
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'user-1',
+      username: 'author',
+      avatarUrl: null,
+      createdAt: new Date('2026-06-23T00:00:00.000Z'),
+      posts: [
+        {
+          id: 'post-1',
+          title: 'hello',
+          content: 'world',
+          createdAt: new Date('2026-06-23T00:00:00.000Z'),
+          category: { name: 'General' },
+        },
+      ],
+      _count: { posts: 1 },
+    });
+
+    const result = await service.getPublicProfile('author', ability);
+
+    expect(result).toEqual({
+      id: 'user-1',
+      username: 'author',
+      avatarUrl: null,
+      createdAt: new Date('2026-06-23T00:00:00.000Z'),
+      posts: [
+        {
+          id: 'post-1',
+          title: 'hello',
+          content: 'world',
+          createdAt: new Date('2026-06-23T00:00:00.000Z'),
+          category: { name: 'General' },
+        },
+      ],
+      _count: { posts: 1 },
+    });
+    expect(result).not.toHaveProperty('role');
+    expect(result?.posts[0]).not.toHaveProperty('authorId');
+  });
 });

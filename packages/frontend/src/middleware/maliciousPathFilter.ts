@@ -69,7 +69,9 @@ const MALICIOUS_PATH_PATTERNS = [
 
 export function hasInvalidPathEncoding(request: NextRequest): boolean {
   try {
-    decodeURI(new URL(request.url).pathname);
+    const pathname = new URL(request.url).pathname;
+    decodeURI(pathname);
+    decodeURIComponent(pathname);
     return false;
   } catch {
     return true;

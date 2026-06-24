@@ -5,6 +5,7 @@ import { prisma } from '../src/db';
 jest.mock('../src/db', () => ({
   prisma: {
     post: {
+      findMany: jest.fn(),
       findFirst: jest.fn(),
     },
     comment: {
@@ -55,6 +56,52 @@ describe('CommunityQueryService security filters', () => {
       { status: { in: ['PUBLISHED', 'PINNED'] } },
     ]));
     expect(prisma.comment.findMany).not.toHaveBeenCalled();
+  });
+
+  it('does not expose author ids in public post and comment lists', async () => {
+    const publicAbility = defineAbilityForContext({
+      userId: 'viewer-1',
+      roleName: 'USER',
+      level: 1,
+      moderatedCategoryIds: [],
+    });
+
+    (prisma.post.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: 'post-1',
+        title: 'hello',
+        content: 'world',
+        createdAt: new Date('2026-06-23T00:00:00.000Z'),
+        updatedAt: new Date('2026-06-23T00:00:00.000Z'),
+        status: 'PUBLISHED',
+        author: { id: 'author-1', username: 'author', avatarUrl: null },
+        category: { id: 'cat-1', name: 'General', description: null },
+        _count: { comments: 0, upvotes: 0 },
+      },
+    ]);
+    (prisma.post.findFirst as jest.Mock).mockResolvedValue({ id: 'post-1' });
+    (prisma.comment.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: 'comment-1',
+        content: 'public comment',
+        createdAt: new Date('2026-06-23T00:00:00.000Z'),
+        updatedAt: new Date('2026-06-23T00:00:00.000Z'),
+        deletedAt: null,
+        isPending: false,
+        parentId: null,
+        author: { id: 'author-2', username: 'commenter', avatarUrl: null },
+        _count: { upvotes: 0, bookmarks: 0, replies: 0 },
+      },
+    ]);
+    (prisma.comment.count as jest.Mock).mockResolvedValue(1);
+
+    const postsResult = await service.listPosts({ ability: publicAbility, take: 10 });
+    const commentsResult = await service.listPostComments({ ability: publicAbility, postId: 'post-1' });
+
+    expect(postsResult[0]?.author).toEqual({ username: 'author', avatarUrl: null });
+    expect(postsResult[0]).not.toHaveProperty('author.id');
+    expect(commentsResult?.data[0]?.author).toEqual({ username: 'commenter', avatarUrl: null });
+    expect(commentsResult?.data[0]).not.toHaveProperty('author.id');
   });
 
   it('redacts deleted comment content from public comment lists', async () => {

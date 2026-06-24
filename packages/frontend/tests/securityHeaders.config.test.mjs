@@ -42,6 +42,7 @@ test('proxy matcher includes API paths so malformed API URLs are filtered before
   const proxyConfig = await fs.readFile(new URL('../src/proxy.ts', import.meta.url), 'utf-8');
   const middlewareIndex = await fs.readFile(new URL('../src/middleware/index.ts', import.meta.url), 'utf-8');
   const proxyMiddleware = await fs.readFile(new URL('../src/proxy/middleware.ts', import.meta.url), 'utf-8');
+  const middlewareFilter = await fs.readFile(new URL('../src/middleware/maliciousPathFilter.ts', import.meta.url), 'utf-8');
 
   assert.doesNotMatch(proxyConfig, /\(\?!api\|/);
 
@@ -53,6 +54,9 @@ test('proxy matcher includes API paths so malformed API URLs are filtered before
       'invalid path encoding must be rejected before pathname normalization',
     );
   }
+
+  assert.match(middlewareFilter, /decodeURI\(pathname\)/);
+  assert.match(middlewareFilter, /decodeURIComponent\(pathname\)/);
 });
 
 test('install guard does not redirect API requests while proxy filtering is enabled for APIs', async () => {
