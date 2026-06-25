@@ -12,7 +12,6 @@ const ESSENTIAL_PUBLIC_PATHS = new Set([
   '/forgot-password',
   '/reset-password',
   '/403',
-  '/admin-setup',
   '/terms',
   '/privacy',
 ]);
@@ -32,6 +31,24 @@ function isEssentialPublicPath(pathname: string): boolean {
 }
 
 export async function guardRouteAccess(request: NextRequest, ctx: MiddlewareContext): Promise<MiddlewareResult> {
+  if (ctx.pathname === '/admin-setup') {
+    const hasSetupToken = !!request.cookies.get('tempToken')?.value;
+    const hasSession = !!request.cookies.get('sessionId')?.value || !!ctx.sessionId;
+
+    // 管理员安全设置页只服务于安装/注册后续流程，不能作为公开介绍页裸露。
+    if (hasSetupToken || hasSession) {
+      return null;
+    }
+
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    const redirectResponse = NextResponse.redirect(url);
+    if (request.cookies.get('NEXT_LOCALE')?.value !== ctx.locale) {
+      redirectResponse.cookies.set('NEXT_LOCALE', ctx.locale, { path: '/' });
+    }
+    return redirectResponse;
+  }
+
   const isEssentialPublic = isEssentialPublicPath(ctx.pathname);
   if (isEssentialPublic) {
     return null;

@@ -56,6 +56,20 @@ test('auth middleware does not trust unverified JWT role claims', async () => {
   assert.equal(content.includes('ROLE_LEVELS'), false);
 });
 
+test('auth middleware keeps admin security setup out of anonymous public paths', async () => {
+  const authGuardPath = path.join(process.cwd(), 'src', 'middleware', 'authGuard.ts');
+  const content = await fs.readFile(authGuardPath, 'utf-8');
+  const publicPathsBlock = content.slice(
+    content.indexOf('const ESSENTIAL_PUBLIC_PATHS'),
+    content.indexOf('function isEssentialPublicPath'),
+  );
+
+  assert.equal(publicPathsBlock.includes("'/admin-setup'"), false);
+  assert.match(content, /ctx\.pathname === '\/admin-setup'/);
+  assert.match(content, /request\.cookies\.get\('tempToken'\)/);
+  assert.match(content, /url\.pathname = '\/login'/);
+});
+
 test('route whitelist keeps /admin as a built-in protected fallback', async () => {
   const routeWhitelistPath = path.join(process.cwd(), 'src', 'middleware', 'routeWhitelist.ts');
   const content = await fs.readFile(routeWhitelistPath, 'utf-8');

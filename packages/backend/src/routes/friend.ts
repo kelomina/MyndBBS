@@ -13,7 +13,7 @@
  *   /api/v1/friends
  *
  * 中间件 / Middleware:
- *   - requireAuth（全部路由）
+ *   - requireAuthHidden（全部路由，未认证时统一 404）
  *   - friendRequestLimiter（好友请求频率限制）
  *
  * 中文关键词：
@@ -22,16 +22,16 @@
  *   friend, friend request, block, list
  */
 import express from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuthHidden } from '../middleware/auth';
 import { friendRequestLimiter } from '../lib/rateLimit';
 import { requestFriend, respondFriend, getFriends, removeFriend, blockUser } from '../controllers/friend';
 
 const router: express.Router = express.Router();
 
-router.post('/request', requireAuth, friendRequestLimiter, requestFriend);
-router.put('/respond', requireAuth, respondFriend);
-router.get('/', requireAuth, getFriends);
-router.delete('/remove', requireAuth, removeFriend);
-router.post('/block', requireAuth, blockUser);
+router.post('/request', requireAuthHidden, friendRequestLimiter, requestFriend);
+router.put('/respond', requireAuthHidden, respondFriend);
+router.get('/', requireAuthHidden, getFriends);
+router.delete('/remove', requireAuthHidden, removeFriend);
+router.post('/block', requireAuthHidden, blockUser);
 
 export default router;

@@ -22,6 +22,22 @@ type LocalPostOrderByInput = {
 };
 
 const NORMAL_READABLE_POST_STATUSES = ['PUBLISHED', 'PINNED'];
+const DEFAULT_READ_PAGE_SIZE = 20;
+const MAX_READ_PAGE_SIZE = 100;
+
+function clampReadTake(take: number | undefined): number {
+  if (!Number.isFinite(take)) {
+    return DEFAULT_READ_PAGE_SIZE;
+  }
+  return Math.min(Math.max(Math.floor(take!), 1), MAX_READ_PAGE_SIZE);
+}
+
+function clampReadSkip(skip: number | undefined): number {
+  if (!Number.isFinite(skip)) {
+    return 0;
+  }
+  return Math.max(Math.floor(skip!), 0);
+}
 
 /**
  * Callers: [categoryRouter, postRouter]
@@ -47,7 +63,8 @@ export class CommunityQueryService {
    * Keywords: list, posts, filter, category, popular, findMany
    */
   public async listPosts(params: ListPostsParams): Promise<PostListItemDTO[]> {
-    const { ability, category, sortBy, take = 1000 } = params;
+    const { ability, category, sortBy, take } = params;
+    const boundedTake = clampReadTake(take);
 
     const whereClause: LocalPostWhereInput = {
       AND: [
@@ -60,7 +77,7 @@ export class CommunityQueryService {
     }
 
     let rows = await prisma.post.findMany({
-      take,
+      take: boundedTake,
       where: whereClause,
       orderBy: { createdAt: 'desc' }, // default to fetching latest first before sorting if popular
       include: {
@@ -168,7 +185,9 @@ export class CommunityQueryService {
    * Keywords: post, comments, interactions, list, findMany
    */
   public async listPostComments(params: ListPostCommentsParams): Promise<PaginatedCommentsDTO | null> {
-    const { ability, postId, currentUserId, parentId, skip = 0, take = 1000 } = params;
+    const { ability, postId, currentUserId, parentId, skip, take } = params;
+    const boundedSkip = clampReadSkip(skip);
+    const boundedTake = clampReadTake(take);
 
     const post = await prisma.post.findFirst({
       where: {
@@ -189,8 +208,8 @@ export class CommunityQueryService {
 
     const [comments, total] = await Promise.all([
       prisma.comment.findMany({
-        skip,
-        take,
+        skip: boundedSkip,
+        take: boundedTake,
         where,
         orderBy: { createdAt: 'asc' },
         include: {

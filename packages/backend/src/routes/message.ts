@@ -13,7 +13,7 @@
  *   /api/v1/messages
  *
  * 中间件 / Middleware:
- *   - requireAuth（全部路由）
+ *   - requireAuthHidden（全部路由，未认证时统一 404）
  *   - messageLimiter（消息发送频率限制）
  *
  * 中文关键词：
@@ -22,7 +22,7 @@
  *   private message, key, inbox, conversation settings, encryption
  */
 import express from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuthHidden } from '../middleware/auth';
 import { uploadKeys, getMyKey, getUserPublicKey, sendMessage, getInbox, getUnreadCount, markAsRead, deleteMessage, clearChat, getConversationSettings, updateConversationSettings } from '../controllers/message';
 import { rateLimit } from 'express-rate-limit';
 import { getClientIp } from '../lib/rateLimit';
@@ -48,24 +48,24 @@ const messageLimiter = rateLimit({
 const router: express.Router = express.Router();
 
 // ── 密钥管理 ──
-router.post('/keys', requireAuth, validate(uploadMessageKeysSchema), uploadKeys);
-router.get('/keys/me', requireAuth, getMyKey);
-router.get('/keys/:username', requireAuth, getUserPublicKey);
+router.post('/keys', requireAuthHidden, validate(uploadMessageKeysSchema), uploadKeys);
+router.get('/keys/me', requireAuthHidden, getMyKey);
+router.get('/keys/:username', requireAuthHidden, getUserPublicKey);
 
 // ── 消息收发 ──
-router.post('/', requireAuth, messageLimiter, validate(sendMessageSchema), sendMessage);
-router.get('/inbox', requireAuth, getInbox);
+router.post('/', requireAuthHidden, messageLimiter, validate(sendMessageSchema), sendMessage);
+router.get('/inbox', requireAuthHidden, getInbox);
 
 // ── 未读/已读 ──
-router.get('/unread', requireAuth, getUnreadCount);
-router.put('/read', requireAuth, validate(markMessageReadSchema), markAsRead);
+router.get('/unread', requireAuthHidden, getUnreadCount);
+router.put('/read', requireAuthHidden, validate(markMessageReadSchema), markAsRead);
 
 // ── 会话设置 ──
-router.get('/settings/:partnerId', requireAuth, getConversationSettings);
-router.put('/settings/:partnerId', requireAuth, validate(conversationSettingsSchema), updateConversationSettings);
+router.get('/settings/:partnerId', requireAuthHidden, getConversationSettings);
+router.put('/settings/:partnerId', requireAuthHidden, validate(conversationSettingsSchema), updateConversationSettings);
 
 // ── 删除 ──
-router.delete('/chat/:withUserId', requireAuth, clearChat);
-router.delete('/:id', requireAuth, deleteMessage);
+router.delete('/chat/:withUserId', requireAuthHidden, clearChat);
+router.delete('/:id', requireAuthHidden, deleteMessage);
 
 export default router;

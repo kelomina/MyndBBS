@@ -8,6 +8,41 @@ import { AuthRequest } from '../middleware/auth';
 import { communityApplicationService } from '../registry';
 import { communityQueryService } from '../queries/community/CommunityQueryService';
 
+const PUBLIC_READ_PAGE_SIZE = 20;
+const AUTHENTICATED_READ_PAGE_SIZE = 100;
+const PUBLIC_READ_MAX_SKIP = 500;
+const AUTHENTICATED_READ_MAX_SKIP = 5000;
+
+function isAuthenticatedRead(req: AuthRequest): boolean {
+  return !!(req.user && req.user.userId);
+}
+
+function parseBoundedQueryInteger(value: unknown, fallback: number, min: number, max: number): number {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const parsedValue =
+    typeof rawValue === 'string' && rawValue.trim() !== ''
+      ? Number.parseInt(rawValue, 10)
+      : typeof rawValue === 'number'
+        ? rawValue
+        : Number.NaN;
+
+  if (!Number.isFinite(parsedValue)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(Math.floor(parsedValue), min), max);
+}
+
+function getReadTake(req: AuthRequest): number {
+  const maxTake = isAuthenticatedRead(req) ? AUTHENTICATED_READ_PAGE_SIZE : PUBLIC_READ_PAGE_SIZE;
+  return parseBoundedQueryInteger(req.query.take, maxTake, 1, maxTake);
+}
+
+function getReadSkip(req: AuthRequest): number {
+  const maxSkip = isAuthenticatedRead(req) ? AUTHENTICATED_READ_MAX_SKIP : PUBLIC_READ_MAX_SKIP;
+  return parseBoundedQueryInteger(req.query.skip, 0, 0, maxSkip);
+}
+
 /**
  * 函数名称：getPostsList
  *
@@ -43,13 +78,14 @@ import { communityQueryService } from '../queries/community/CommunityQueryServic
  */
 export const getPostsList = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const isAuthenticated = isAuthenticatedRead(req);
     const posts = await communityQueryService.listPosts({
       ability: req.ability!,
       category: req.query.category as string,
       sortBy: req.query.sortBy as string,
+      take: getReadTake(req),
     });
 
-    const isAuthenticated = !!(req.user && req.user.userId);
     if (!isAuthenticated && Array.isArray(posts)) {
       const MAX_PREVIEW_LENGTH = 200;
       const sanitizedPosts = posts.map((post: any) => {
@@ -398,16 +434,16 @@ export const getComments = async (req: AuthRequest, res: Response): Promise<void
     const parentIdParam = req.query.parentId as string | undefined;
     const parentId: string | null | undefined =
       parentIdParam === undefined ? undefined : parentIdParam === '' || parentIdParam === 'null' ? null : parentIdParam;
-    const skip = req.query.skip ? parseInt(req.query.skip as string, 10) : undefined;
-    const take = req.query.take ? parseInt(req.query.take as string, 10) : undefined;
+    const skip = getReadSkip(req);
+    const take = getReadTake(req);
 
     const dto = await communityQueryService.listPostComments({
       ability: req.ability!,
       postId: req.params.id as string,
       ...(req.user?.userId ? { currentUserId: req.user.userId } : {}),
       ...(parentId !== undefined ? { parentId } : {}),
-      ...(skip !== undefined && !isNaN(skip) ? { skip } : {}),
-      ...(take !== undefined && !isNaN(take) ? { take } : {}),
+      skip,
+      take,
     });
     if (!dto) {
       res.status(403).json({ error: 'ERR_POST_NOT_FOUND_OR_ACCESS_DENIED' });

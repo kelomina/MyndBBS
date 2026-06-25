@@ -23,7 +23,7 @@
  * English keywords:
  *   post, comment, upvote, bookmark, CRUD
  */
-import { Router } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
 import { requireAuth, requireAbility, optionalAuth } from '../middleware/auth';
 import { postLimiter, publicReadLimiter } from '../lib/rateLimit';
 import { validate } from '../middleware/validation';
@@ -52,28 +52,41 @@ import {
 } from '../controllers/post';
 
 const router: Router = Router();
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function requireUuidParam(paramName: string) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const value = req.params[paramName];
+    if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+      // UUID 形状不对时直接返回统一不存在，避免数据库暴露底层类型错误。
+      res.status(404).json({ error: 'ERR_NOT_FOUND' });
+      return;
+    }
+    next();
+  };
+}
 
 // ── 帖子 ──
 router.get('/', publicReadLimiter, optionalAuth, getPostsList);
 router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), validate(createPostSchema), createPost);
 
-router.get('/:id', publicReadLimiter, optionalAuth, getPostDetails);
-router.get('/:id/interactions', requireAuth, getPostInteractions);
-router.post('/:id/upvote', requireAuth, toggleUpvote);
-router.post('/:id/bookmark', requireAuth, toggleBookmark);
+router.get('/:id', publicReadLimiter, requireUuidParam('id'), optionalAuth, getPostDetails);
+router.get('/:id/interactions', requireUuidParam('id'), requireAuth, getPostInteractions);
+router.post('/:id/upvote', requireUuidParam('id'), requireAuth, toggleUpvote);
+router.post('/:id/bookmark', requireUuidParam('id'), requireAuth, toggleBookmark);
 
 // ── 评论 ──
-router.get('/:id/comments', publicReadLimiter, optionalAuth, getComments);
-router.post('/:id/comments', requireAuth, postLimiter, validate(createCommentSchema), createComment);
+router.get('/:id/comments', publicReadLimiter, requireUuidParam('id'), optionalAuth, getComments);
+router.post('/:id/comments', requireUuidParam('id'), requireAuth, postLimiter, validate(createCommentSchema), createComment);
 
 // ── 帖子修改/删除 ──
-router.put('/:id', requireAuth, requireAbility('update', 'Post'), validate(updatePostSchema), updatePost);
-router.delete('/:id', requireAuth, requireAbility('delete', 'Post'), deletePost);
+router.put('/:id', requireUuidParam('id'), requireAuth, requireAbility('update', 'Post'), validate(updatePostSchema), updatePost);
+router.delete('/:id', requireUuidParam('id'), requireAuth, requireAbility('delete', 'Post'), deletePost);
 
 // ── 评论修改/删除 ──
-router.put('/comments/:commentId', requireAuth, requireAbility('update', 'Comment'), validate(updateCommentSchema), updateComment);
-router.delete('/comments/:commentId', requireAuth, requireAbility('delete', 'Comment'), deleteComment);
-router.post('/comments/:commentId/upvote', requireAuth, toggleCommentUpvote);
-router.post('/comments/:commentId/bookmark', requireAuth, toggleCommentBookmark);
+router.put('/comments/:commentId', requireUuidParam('commentId'), requireAuth, requireAbility('update', 'Comment'), validate(updateCommentSchema), updateComment);
+router.delete('/comments/:commentId', requireUuidParam('commentId'), requireAuth, requireAbility('delete', 'Comment'), deleteComment);
+router.post('/comments/:commentId/upvote', requireUuidParam('commentId'), requireAuth, toggleCommentUpvote);
+router.post('/comments/:commentId/bookmark', requireUuidParam('commentId'), requireAuth, toggleCommentBookmark);
 
 export default router;

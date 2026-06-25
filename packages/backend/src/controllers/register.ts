@@ -8,6 +8,7 @@ const EMAIL_SERVICE_ERROR_CODES = new Set([
   'ERR_EMAIL_DELIVERY_NOT_CONFIGURED',
   'ERR_EMAIL_DELIVERY_FAILED',
 ]);
+const PUBLIC_REGISTRATION_ERROR_CODE = 'ERR_REGISTRATION_REQUEST_INVALID';
 
 /**
  * Callers: [registerUser, resendEmailRegistration, requestPasswordReset]
@@ -80,7 +81,10 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     } catch (error: unknown) {
       if (error instanceof Error && error.message.startsWith('ERR_')) {
         const statusCode = getEmailFlowErrorStatusCode(error.message);
-        res.status(statusCode).json({ error: error.message });
+        console.warn('[Register] Registration request failed', { errorCode: error.message });
+        res.status(statusCode).json({
+          error: statusCode === 503 ? error.message : PUBLIC_REGISTRATION_ERROR_CODE,
+        });
         return;
       }
       throw error;

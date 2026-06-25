@@ -86,7 +86,6 @@ const ESSENTIAL_PUBLIC_PATHS = new Set([
   '/forgot-password',
   '/reset-password',
   '/403',
-  '/admin-setup',
   '/terms',
   '/privacy',
 ]);
@@ -203,9 +202,12 @@ test('isEssentialPublicPath allows explicit essential public paths', () => {
   assert.equal(isEssentialPublicPath('/forgot-password'), true);
   assert.equal(isEssentialPublicPath('/reset-password'), true);
   assert.equal(isEssentialPublicPath('/403'), true);
-  assert.equal(isEssentialPublicPath('/admin-setup'), true);
   assert.equal(isEssentialPublicPath('/terms'), true);
   assert.equal(isEssentialPublicPath('/privacy'), true);
+});
+
+test('isEssentialPublicPath does not expose admin security setup as a public path', () => {
+  assert.equal(isEssentialPublicPath('/admin-setup'), false);
 });
 
 test('isEssentialPublicPath allows /install and subpaths', () => {

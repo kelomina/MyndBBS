@@ -3,7 +3,7 @@
  *
  * 函数作用：
  *   管理后台 API 路由，包括用户管理、分类管理、内容审核、系统配置等。
- *   所有路由要求认证（requireAuth），并通过 CASL ability 进行细粒度权限控制。
+ *   所有路由要求认证（requireAuthHidden），并通过 CASL ability 进行细粒度权限控制。
  *
  * Purpose:
  *   Admin panel API routes including user management, category management,
@@ -14,7 +14,7 @@
  *   /api/admin（在 index.ts 中挂载）
  *
  * 中间件 / Middleware:
- *   - requireAuth（全部路由）
+ *   - requireAuthHidden（全部路由，未认证时统一 404）
  *   - adminLimiter（请求频率限制）
  *   - requireAbility（按端点分别控制）
  *
@@ -24,7 +24,7 @@
  *   admin panel, user management, category management, moderation, system config, routes
  */
 import { Router } from 'express';
-import { requireAuth, requireAbility, requireSudo } from '../middleware/auth';
+import { requireAuthHidden, requireAbility, requireSudo } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import {
   changeUserRoleSchema,
@@ -73,7 +73,7 @@ const adminLimiter = rateLimit({
   message: { error: 'Too many admin requests from this IP, please try again later.' },
 });
 
-router.use(requireAuth);
+router.use(requireAuthHidden);
 router.use(adminLimiter);
 
 // Audit logs (SUPER_ADMIN only, handled in controller)

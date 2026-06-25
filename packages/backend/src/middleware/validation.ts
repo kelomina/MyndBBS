@@ -14,6 +14,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
 
+export type ValidationOptions = {
+  exposeDetails?: boolean;
+  publicErrorCode?: string;
+};
+
 /**
  * Callers: [routes]
  * Callees: [ZodSchema.safeParse]
@@ -29,7 +34,7 @@ import { ZodSchema, ZodError } from 'zod';
  * 副作用：用 safeParse 校验并转换后的输出替换 `req.body`。
  * Keywords: validation, zod, middleware, request body, schema, 校验, 中间件, 请求体, 模式
  */
-export function validate(schema: ZodSchema) {
+export function validate(schema: ZodSchema, options: ValidationOptions = {}) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.body);
 
@@ -45,10 +50,20 @@ export function validate(schema: ZodSchema) {
         fieldErrors[path]!.push(issue.message);
       }
 
-      res.status(400).json({
-        error: 'ERR_VALIDATION_FAILED',
-        details: fieldErrors,
-      });
+      const responseBody: { error: string; details?: Record<string, string[]> } = {
+        error: options.publicErrorCode ?? 'ERR_VALIDATION_FAILED',
+      };
+
+      if (options.exposeDetails ?? true) {
+        responseBody.details = fieldErrors;
+      } else {
+        console.warn('[Validation] Request body validation failed', {
+          path: req.originalUrl,
+          errors: fieldErrors,
+        });
+      }
+
+      res.status(400).json(responseBody);
       return;
     }
 

@@ -20,4 +20,23 @@ describe('auth route rate-limit ordering', () => {
     assert.ok(captchaVerifyIndex < authLimiterIndex);
     assert.ok(loginIndex > authLimiterIndex);
   });
+
+  it('uses generic validation responses on public auth entry points', async () => {
+    const routePath = path.join(process.cwd(), 'src', 'routes', 'auth.ts');
+    const source = await fs.readFile(routePath, 'utf-8');
+
+    assert.match(
+      source,
+      /const publicRegistrationValidation:[\s\S]*?exposeDetails:\s*false,[\s\S]*?ERR_REGISTRATION_REQUEST_INVALID/,
+    );
+    assert.match(
+      source,
+      /const publicAuthValidation:[\s\S]*?exposeDetails:\s*false,[\s\S]*?ERR_AUTH_REQUEST_INVALID/,
+    );
+    assert.match(source, /validate\(registerSchema,\s*publicRegistrationValidation\)/);
+    assert.match(source, /validate\(loginSchema,\s*publicAuthValidation\)/);
+    assert.match(source, /validate\(forgotPasswordSchema,\s*publicAuthValidation\)/);
+    assert.match(source, /validate\(resetPasswordSchema,\s*publicAuthValidation\)/);
+    assert.match(source, /validate\(verifyEmailSchema,\s*publicAuthValidation\)/);
+  });
 });

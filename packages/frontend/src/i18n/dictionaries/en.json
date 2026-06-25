@@ -535,6 +535,8 @@
     "ERR_CHALLENGE_ID_IS_REQUIRED": "Challenge ID is required",
     "ERR_CHALLENGE_EXPIRED_OR_NOT_FOUND": "Challenge expired or not found",
     "ERR_VERIFICATION_FAILED": "Verification failed",
+    "ERR_AUTH_REQUEST_INVALID": "Authentication request invalid",
+    "ERR_REGISTRATION_REQUEST_INVALID": "Registration request invalid. Please check your information and try again",
     "ERR_UNAUTHORIZED_OR_TOTP_NOT_ENABLED": "Unauthorized or TOTP not enabled",
     "ERR_CHALLENGE_ID_IS_REQUIRED_FOR_PASSWORDLESS_LOGIN": "Challenge ID is required for passwordless login",
     "ERR_PASSKEY_NOT_FOUND": "Passkey not found",

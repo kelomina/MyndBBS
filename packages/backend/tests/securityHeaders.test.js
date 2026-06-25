@@ -17,6 +17,17 @@ test('backend leaves proxy-owned duplicate headers to OpenResty', async () => {
   );
 });
 
+test('backend sets explicit high-value security headers', async () => {
+  const indexSource = await fs.readFile(path.join(process.cwd(), 'src', 'index.ts'), 'utf-8');
+
+  assert.match(indexSource, /contentSecurityPolicy:\s*\{/);
+  assert.match(indexSource, /defaultSrc:\s*\[\s*"'none'"\s*\]/);
+  assert.match(indexSource, /frameAncestors:\s*\[\s*"'none'"\s*\]/);
+  assert.match(indexSource, /crossOriginEmbedderPolicy:\s*\{\s*policy:\s*'credentialless'\s*\}/);
+  assert.match(indexSource, /crossOriginResourcePolicy:\s*\{\s*policy:\s*'same-site'\s*\}/);
+  assert.match(indexSource, /xXssProtection:\s*true/);
+});
+
 test('public install status exposes setupRequired instead of installed fingerprint', async () => {
   const indexSource = await fs.readFile(path.join(process.cwd(), 'src', 'index.ts'), 'utf-8');
 

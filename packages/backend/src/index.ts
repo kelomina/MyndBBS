@@ -94,6 +94,18 @@ if (!isInstalled) {
   }));
   const proxyOwnsDuplicateSecurityHeaders = process.env.TRUST_PROXY === 'true';
   app.use(helmet({
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
+        defaultSrc: ["'none'"],
+        baseUri: ["'none'"],
+        formAction: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: { policy: 'credentialless' },
+    crossOriginResourcePolicy: { policy: 'same-site' },
+    xXssProtection: true,
     xContentTypeOptions: !proxyOwnsDuplicateSecurityHeaders,
     xFrameOptions: proxyOwnsDuplicateSecurityHeaders ? false : { action: 'sameorigin' },
   }));
@@ -186,6 +198,11 @@ const publicRoutes = require('./routes/public').default;
   app.use('/api/search', searchRoutes);
   app.use('/api/wikis', wikiRoutes);
   app.use('/api/v1/events', eventsRoutes);
+
+  // 所有没有匹配到具体路由的 API 请求，都返回统一 JSON，避免 Express 默认 HTML 暴露路径细节。
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'ERR_NOT_FOUND' });
+  });
 
   // Serve static files from uploads directory safely
   app.use('/uploads', (req, res, next) => {

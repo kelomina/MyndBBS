@@ -13,7 +13,7 @@ router.get('/stream', async (req: Request, res: Response) => {
   const sessionId = extractSessionId(req);
 
   if (!sessionId) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(404).json({ error: 'ERR_NOT_FOUND' });
     return;
   }
 
@@ -21,7 +21,7 @@ router.get('/stream', async (req: Request, res: Response) => {
   try {
     verified = await verifySessionCookie(sessionId);
   } catch {
-    res.status(401).json({ error: 'Invalid session' });
+    res.status(404).json({ error: 'ERR_NOT_FOUND' });
     return;
   }
 

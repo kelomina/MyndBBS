@@ -58,6 +58,32 @@ describe('CommunityQueryService security filters', () => {
     expect(prisma.comment.findMany).not.toHaveBeenCalled();
   });
 
+
+  it('bounds default post list size to reduce public scraping blast radius', async () => {
+    (prisma.post.findMany as jest.Mock).mockResolvedValue([]);
+
+    await service.listPosts({ ability });
+
+    expect((prisma.post.findMany as jest.Mock).mock.calls[0][0].take).toBe(20);
+  });
+
+  it('caps oversized post and comment page sizes at the query boundary', async () => {
+    (prisma.post.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.post.findFirst as jest.Mock).mockResolvedValue({ id: 'post-1' });
+    (prisma.comment.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.comment.count as jest.Mock).mockResolvedValue(0);
+
+    await service.listPosts({ ability, take: 9999 });
+    await service.listPostComments({ ability, postId: 'post-1', skip: -10, take: 9999 });
+
+    expect((prisma.post.findMany as jest.Mock).mock.calls[0][0].take).toBe(100);
+    expect((prisma.comment.findMany as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        skip: 0,
+        take: 100,
+      }),
+    );
+  });
   it('does not expose author ids in public post and comment lists', async () => {
     const publicAbility = defineAbilityForContext({
       userId: 'viewer-1',

@@ -25,6 +25,9 @@ test('production CSP does not allow inline style attributes', async () => {
   for (const source of [proxyCsp, middlewareCsp]) {
     assert.match(source, /style-src-attr 'none'/);
     assert.match(source, /style-src 'self' 'nonce-\$\{nonce\}'/);
+    assert.match(source, /Cross-Origin-Embedder-Policy', 'credentialless'/);
+    assert.match(source, /Cross-Origin-Resource-Policy', 'same-site'/);
+    assert.match(source, /X-XSS-Protection', '0'/);
   }
 });
 

@@ -58,6 +58,39 @@ describe('Validation Middleware', () => {
       expect(mockNext).not.toHaveBeenCalled();
     });
 
+    it('should hide field errors when validation details are disabled', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const req = mockRequest({ email: 'invalid-email', password: 'short' });
+      req.originalUrl = '/api/v1/auth/register';
+      const res = mockResponse();
+
+      try {
+        validate(schema, {
+          exposeDetails: false,
+          publicErrorCode: 'ERR_REGISTRATION_REQUEST_INVALID',
+        })(req, res, mockNext);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+          error: 'ERR_REGISTRATION_REQUEST_INVALID',
+        });
+        expect(res.json.mock.calls[0][0]).not.toHaveProperty('details');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          '[Validation] Request body validation failed',
+          expect.objectContaining({
+            path: '/api/v1/auth/register',
+            errors: expect.objectContaining({
+              email: expect.arrayContaining(['ERR_INVALID_EMAIL']),
+              password: expect.arrayContaining(['ERR_PASSWORD_TOO_SHORT']),
+            }),
+          }),
+        );
+        expect(mockNext).not.toHaveBeenCalled();
+      } finally {
+        consoleWarnSpy.mockRestore();
+      }
+    });
+
     it('should handle nested field errors', () => {
       const nestedSchema = z.object({
         user: z.object({

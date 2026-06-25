@@ -1,6 +1,20 @@
 import { Request, Response } from 'express';
 import { authApplicationService } from '../registry';
 
+const CAPTCHA_VERIFICATION_FAILED_ERROR = 'ERR_VERIFICATION_FAILED';
+
+function respondWithPublicCaptchaFailure(
+  req: Request,
+  res: Response,
+  internalErrorCode: string,
+): void {
+  console.warn('[Captcha] Verification failed', {
+    internalErrorCode,
+    captchaId: typeof req.body?.captchaId === 'string' ? req.body.captchaId : undefined,
+  });
+  res.status(400).json({ success: false, error: CAPTCHA_VERIFICATION_FAILED_ERROR });
+}
+
 /**
  * 函数名称：generateCaptcha
  *
@@ -68,12 +82,11 @@ export const generateCaptcha = async (req: Request, res: Response) => {
  *
  * 返回值说明 / Returns:
  *   200: { success: true, message: string }
- *   400: { success: false, error: errorCode }
+ *   400: { success: false, error: ERR_VERIFICATION_FAILED }
  *   500: { success: false, error: errorCode }
  *
  * 错误处理 / Error handling:
- *   - 400: ERR_ 前缀错误码（验证码无效、已过期、轨迹异常等）
- *   - 400: ERR_MISSING_PARAMETERS
+ *   - 400: ERR_VERIFICATION_FAILED（对外统一返回，内部日志记录真实原因）
  *   - 500: ERR_SERVER_ERROR_DURING_VERIFICATION
  *
  * 副作用 / Side effects:
@@ -88,8 +101,14 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
   try {
     const { captchaId, dragPath, totalDragTime, finalPosition } = req.body;
 
-    if (!captchaId || !dragPath || !totalDragTime || finalPosition === undefined) {
-      res.status(400).json({ success: false, error: 'ERR_MISSING_PARAMETERS' });
+    if (
+      typeof captchaId !== 'string' ||
+      captchaId.length === 0 ||
+      !Array.isArray(dragPath) ||
+      typeof totalDragTime !== 'number' ||
+      typeof finalPosition !== 'number'
+    ) {
+      respondWithPublicCaptchaFailure(req, res, 'ERR_INVALID_CAPTCHA_VERIFICATION_REQUEST');
       return;
     }
 
@@ -99,11 +118,12 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
     await authApplicationService.verifyCaptcha(captchaId, formattedDragPath, totalDragTime, finalPosition);
 
     res.json({ success: true, message: 'Verification passed' });
-  } catch (error: any) {
-    if (error.message.startsWith('ERR_')) {
-      res.status(400).json({ success: false, error: error.message });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.startsWith('ERR_')) {
+      respondWithPublicCaptchaFailure(req, res, error.message);
       return;
     }
+    console.error('[Captcha] Unexpected verification error:', error);
     res.status(500).json({ success: false, error: 'ERR_SERVER_ERROR_DURING_VERIFICATION' });
   }
 };

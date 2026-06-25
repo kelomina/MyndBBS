@@ -122,6 +122,24 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
   }
 }
 
+export const requireAuthHidden = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  const sessionId = getSessionId(req)
+
+  if (!sessionId) {
+    res.status(404).json({ error: 'ERR_NOT_FOUND' })
+    return
+  }
+
+  try {
+    const verified = await verifySessionCookie(sessionId)
+    await attachAuthenticatedContext(req, verified)
+    next()
+  } catch {
+    clearAuthCookies(res)
+    res.status(404).json({ error: 'ERR_NOT_FOUND' })
+  }
+}
+
 export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   const sessionId = getSessionId(req)
 

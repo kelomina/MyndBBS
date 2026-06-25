@@ -23,7 +23,7 @@
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import { requireAuth } from '../middleware/auth';
+import { requireAuthHidden } from '../middleware/auth';
 import { uploadLimiter } from '../lib/rateLimit';
 import { handleFileUpload } from '../controllers/upload';
 
@@ -124,6 +124,6 @@ const uploadMiddleware = multer({
   fileFilter,
 });
 
-router.post('/', requireAuth, uploadLimiter, uploadMiddleware.single('file'), validateMagicBytes, handleFileUpload);
+router.post('/', requireAuthHidden, uploadLimiter, uploadMiddleware.single('file'), validateMagicBytes, handleFileUpload);
 
 export default router;

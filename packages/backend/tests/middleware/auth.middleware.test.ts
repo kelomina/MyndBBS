@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { requireAuth, optionalAuth, requireSudo, requireAbility, AuthRequest } from '../../src/middleware/auth';
+import { requireAuth, requireAuthHidden, optionalAuth, requireSudo, requireAbility, AuthRequest } from '../../src/middleware/auth';
 import { defineAbilityForContext } from '../../src/lib/casl';
 import { accessControlQueryService } from '../../src/queries/identity/AccessControlQueryService';
 import { authApplicationService, authCache, sudoApplicationService } from '../../src/registry';
@@ -180,6 +180,54 @@ describe('Auth Middleware', () => {
 
       expect(authApplicationService.validateSession).toHaveBeenCalledWith('session-1');
       expect(authCache.setSessionValidity).toHaveBeenCalledWith('session-1', 'valid', 3600);
+    });
+  });
+
+  describe('requireAuthHidden', () => {
+    it('should return 404 when no session cookie is provided', async () => {
+      await requireAuthHidden(
+        mockReq as AuthRequest,
+        mockRes as Response,
+        mockNext as NextFunction
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'ERR_NOT_FOUND' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('should return 404 when session is invalid', async () => {
+      mockReq.cookies = { sessionId: 'session-1' };
+      (authCache.getSessionValidity as jest.Mock).mockResolvedValue('invalid');
+
+      await requireAuthHidden(
+        mockReq as AuthRequest,
+        mockRes as Response,
+        mockNext as NextFunction
+      );
+
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('sessionId', expect.any(Object));
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'ERR_NOT_FOUND' });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('should authenticate valid sessions like requireAuth', async () => {
+      mockReq.cookies = { sessionId: 'session-1' };
+      (accessControlQueryService.getAbilityRulesForUser as jest.Mock).mockResolvedValue({
+        context: { userId: 'user-1', roleName: 'USER', level: 1, moderatedCategoryIds: [] },
+        rules: [],
+      });
+
+      await requireAuthHidden(
+        mockReq as AuthRequest,
+        mockRes as Response,
+        mockNext as NextFunction
+      );
+
+      expect(mockReq.user?.userId).toBe('user-1');
+      expect(mockReq.ability).toBeDefined();
+      expect(mockNext).toHaveBeenCalled();
     });
   });
 

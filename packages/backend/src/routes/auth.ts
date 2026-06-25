@@ -50,7 +50,7 @@ import {
 } from '../controllers/register';
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
 import { optionalAuth } from '../middleware/auth';
-import { validate } from '../middleware/validation';
+import { validate, type ValidationOptions } from '../middleware/validation';
 import {
   registerSchema,
   loginSchema,
@@ -60,6 +60,16 @@ import {
 } from '../lib/validation/schemas';
 
 const router: Router = Router();
+
+const publicAuthValidation: ValidationOptions = {
+  exposeDetails: false,
+  publicErrorCode: 'ERR_AUTH_REQUEST_INVALID',
+};
+
+const publicRegistrationValidation: ValidationOptions = {
+  exposeDetails: false,
+  publicErrorCode: 'ERR_REGISTRATION_REQUEST_INVALID',
+};
 
 // ── 频率限制器定义 ──
 
@@ -127,16 +137,36 @@ router.post('/captcha/verify', captchaLimiter, verifyCaptcha);
 router.use(authLimiter);
 
 // ── 注册 ──
-router.post('/register', registerLimiter, validate(registerSchema), registerUser);
+router.post(
+  '/register',
+  registerLimiter,
+  validate(registerSchema, publicRegistrationValidation),
+  registerUser
+);
 router.post('/register/resend-email', registerLimiter, resendEmailRegistration);
-router.post('/register/verify-email', strict2FALimiter, validate(verifyEmailSchema), verifyEmailRegistration);
+router.post(
+  '/register/verify-email',
+  strict2FALimiter,
+  validate(verifyEmailSchema, publicAuthValidation),
+  verifyEmailRegistration
+);
 
 // ── 密码重置 ──
-router.post('/password/forgot', registerLimiter, validate(forgotPasswordSchema), requestPasswordReset);
-router.post('/password/reset', strict2FALimiter, validate(resetPasswordSchema), resetPasswordWithToken);
+router.post(
+  '/password/forgot',
+  registerLimiter,
+  validate(forgotPasswordSchema, publicAuthValidation),
+  requestPasswordReset
+);
+router.post(
+  '/password/reset',
+  strict2FALimiter,
+  validate(resetPasswordSchema, publicAuthValidation),
+  resetPasswordWithToken
+);
 
 // ── 登录/注销 ──
-router.post('/login', loginLimiter, validate(loginSchema), loginUser);
+router.post('/login', loginLimiter, validate(loginSchema, publicAuthValidation), loginUser);
 router.post('/logout', logoutUser);
 router.post('/refresh', refreshLimiter, checkSession);
 

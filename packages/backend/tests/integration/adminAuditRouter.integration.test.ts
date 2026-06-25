@@ -11,7 +11,7 @@ jest.mock('../../src/registry', () => ({
 }));
 
 jest.mock('../../src/middleware/auth', () => ({
-  requireAuth: (req: any, _res: any, next: any) => {
+  requireAuthHidden: (req: any, _res: any, next: any) => {
     req.user = { userId: 'admin1', role: 'ADMIN', sessionId: 'session-1' };
     req.ability = { can: () => true, rules: [] };
     next();

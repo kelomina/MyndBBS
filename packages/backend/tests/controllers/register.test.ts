@@ -60,6 +60,36 @@ describe('Register Controller', () => {
     });
   });
 
+
+  it('returns a generic registration error for public business validation failures', async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    req.body = {
+      email: 'user@example.com',
+      username: 'demo-user',
+      password: 'Aa!12345',
+      captchaId: 'captcha-1',
+    };
+    (authApplicationService.registerUser as jest.Mock)
+      .mockRejectedValue(new Error('ERR_EMAIL_ALREADY_EXISTS'));
+
+    try {
+      await registerUser(req as Request, res as Response);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'ERR_REGISTRATION_REQUEST_INVALID',
+      });
+      expect(JSON.stringify((res.json as jest.Mock).mock.calls[0][0])).not.toContain(
+        'ERR_EMAIL_ALREADY_EXISTS',
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[Register] Registration request failed',
+        { errorCode: 'ERR_EMAIL_ALREADY_EXISTS' },
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
+  });
   it('returns 503 when registration email delivery is not configured', async () => {
     req.body = {
       email: 'user@example.com',

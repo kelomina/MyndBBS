@@ -34,6 +34,9 @@ function buildCsp(nonce: string | null): string {
 export function applyCspHeaders(_request: NextRequest, ctx: MiddlewareContext): MiddlewareResult {
   if (!ctx.pathname.startsWith('/install')) {
     ctx.response.headers.set('Content-Security-Policy', buildCsp(ctx.nonce));
+    ctx.response.headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
+    ctx.response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
+    ctx.response.headers.set('X-XSS-Protection', '0');
   }
   return null;
 }

@@ -535,6 +535,8 @@
     "ERR_CHALLENGE_ID_IS_REQUIRED": "需要挑战ID",
     "ERR_CHALLENGE_EXPIRED_OR_NOT_FOUND": "挑战已过期 or not found",
     "ERR_VERIFICATION_FAILED": "验证失败",
+    "ERR_AUTH_REQUEST_INVALID": "认证请求无效，请检查填写内容后重试",
+    "ERR_REGISTRATION_REQUEST_INVALID": "注册请求无效，请检查填写内容后重试",
     "ERR_UNAUTHORIZED_OR_TOTP_NOT_ENABLED": "未授权或 TOTP 未启用",
     "ERR_CHALLENGE_ID_IS_REQUIRED_FOR_PASSWORDLESS_LOGIN": "无密码登录需要挑战 ID",
     "ERR_PASSKEY_NOT_FOUND": "未找到通行密钥",
