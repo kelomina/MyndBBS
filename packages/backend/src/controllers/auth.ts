@@ -2,6 +2,39 @@ import { Request, Response } from 'express';
 import { authApplicationService } from '../registry';
 import { setSessionCookie, clearAuthCookies } from '../lib/authCookies';
 
+const PUBLIC_AUTH_FAILURE_ERROR = 'ERR_AUTH_REQUEST_INVALID';
+
+function getPublicAuthFailureStatus(errorCode: string): number {
+  return [
+    'ERR_UNAUTHORIZED',
+    'ERR_UNAUTHORIZED_OR_TOKEN_EXPIRED',
+    'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED',
+    'ERR_UNAUTHORIZED_OR_TOTP_NOT_ENABLED',
+  ].includes(errorCode)
+    ? 401
+    : 400;
+}
+
+function getInternalErrorCode(error: unknown, fallback = 'ERR_INTERNAL_SERVER_ERROR'): string {
+  if (error instanceof Error && error.message.startsWith('ERR_')) {
+    return error.message;
+  }
+  return fallback;
+}
+
+function respondWithPublicAuthFailure(
+  req: Request,
+  res: Response,
+  internalErrorCode: string,
+  statusCode = getPublicAuthFailureStatus(internalErrorCode),
+): void {
+  console.warn('[Auth] Public authentication flow failed', {
+    path: req.originalUrl,
+    internalErrorCode,
+  });
+  res.status(statusCode).json({ error: PUBLIC_AUTH_FAILURE_ERROR });
+}
+
 /**
  * 函数名称：getUserFromTempToken
  *
@@ -133,7 +166,7 @@ export const finalizeAuth = async (user: any, req: Request, res: Response) => {
 export const generateTotp = async (req: Request, res: Response): Promise<void> => {
   const user = await getUserFromTempToken(req);
   if (!user) {
-    res.status(401).json({ error: 'ERR_UNAUTHORIZED_OR_TOKEN_EXPIRED' });
+    respondWithPublicAuthFailure(req, res, 'ERR_UNAUTHORIZED_OR_TOKEN_EXPIRED');
     return;
   }
 
@@ -188,7 +221,7 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
   const { code } = req.body;
   const user = await getUserFromTempToken(req);
   if (!user) {
-    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+    respondWithPublicAuthFailure(req, res, 'ERR_UNAUTHORIZED');
     return;
   }
 
@@ -196,12 +229,9 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
     await authApplicationService.verifyTotpRegistration(user.id, code);
     await finalizeAuth(user, req, res);
   } catch (error: any) {
-    if (error.message === 'ERR_UNAUTHORIZED_OR_SETUP_NOT_INITIATED_EXPIRED') {
-      res.status(401).json({ error: error.message });
-      return;
-    }
-    if (error.message.startsWith('ERR_')) {
-      res.status(400).json({ error: error.message });
+    const errorCode = getInternalErrorCode(error);
+    if (errorCode !== 'ERR_INTERNAL_SERVER_ERROR') {
+      respondWithPublicAuthFailure(req, res, errorCode);
       return;
     }
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -244,7 +274,7 @@ export const verifyTotpRegistration = async (req: Request, res: Response): Promi
 export const generatePasskeyRegistrationOptions = async (req: Request, res: Response): Promise<void> => {
   const user = await getUserFromTempToken(req);
   if (!user) {
-    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+    respondWithPublicAuthFailure(req, res, 'ERR_UNAUTHORIZED');
     return;
   }
 
@@ -252,10 +282,12 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
     const options = await authApplicationService.generatePasskeyRegistrationOptions(user.id);
     res.json(options);
   } catch (error: any) {
-    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
-      ? error.message
-      : 'ERR_INTERNAL_SERVER_ERROR';
-    res.status(errorCode === 'ERR_INTERNAL_SERVER_ERROR' ? 500 : 400).json({ error: errorCode });
+    const errorCode = getInternalErrorCode(error);
+    if (errorCode !== 'ERR_INTERNAL_SERVER_ERROR') {
+      respondWithPublicAuthFailure(req, res, errorCode);
+      return;
+    }
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -269,7 +301,7 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
   const { response, challengeId } = req.body;
   const user = await getUserFromTempToken(req);
   if (!user) {
-    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+    respondWithPublicAuthFailure(req, res, 'ERR_UNAUTHORIZED');
     return;
   }
 
@@ -287,10 +319,12 @@ export const verifyPasskeyRegistrationResponse = async (req: Request, res: Respo
       await finalizeAuth(updatedUser, req, res);
     }
   } catch (error: any) {
-    const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
-      ? error.message
-      : 'ERR_INTERNAL_SERVER_ERROR';
-    res.status(errorCode === 'ERR_INTERNAL_SERVER_ERROR' ? 500 : 400).json({ error: errorCode });
+    const errorCode = getInternalErrorCode(error);
+    if (errorCode !== 'ERR_INTERNAL_SERVER_ERROR') {
+      respondWithPublicAuthFailure(req, res, errorCode);
+      return;
+    }
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
   }
 };
 
@@ -365,7 +399,7 @@ export const verifyTotpLogin = async (req: Request, res: Response): Promise<void
   const user = await getUserFromTempToken(req, 'login');
   
   if (!user) {
-    res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+    respondWithPublicAuthFailure(req, res, 'ERR_UNAUTHORIZED');
     return;
   }
 
@@ -373,12 +407,9 @@ export const verifyTotpLogin = async (req: Request, res: Response): Promise<void
     const verifiedUser = await authApplicationService.verifyTotpLogin(user.id, code);
     await finalizeAuth(verifiedUser, req, res);
   } catch (error: any) {
-    if (error.message === 'ERR_UNAUTHORIZED_OR_TOTP_NOT_ENABLED') {
-      res.status(401).json({ error: error.message });
-      return;
-    }
-    if (error.message.startsWith('ERR_')) {
-      res.status(400).json({ error: error.message });
+    const errorCode = getInternalErrorCode(error);
+    if (errorCode !== 'ERR_INTERNAL_SERVER_ERROR') {
+      respondWithPublicAuthFailure(req, res, errorCode);
       return;
     }
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -426,9 +457,9 @@ export const generatePasskeyAuthenticationOptions = async (req: Request, res: Re
     const options = await authApplicationService.processGeneratePasskeyAuthenticationOptions(tempToken);
     res.json(options);
   } catch (error: any) {
-    if (error.message.startsWith('ERR_')) {
-      const statusCode = error.message === 'ERR_UNAUTHORIZED' ? 401 : 400;
-      res.status(statusCode).json({ error: error.message });
+    const errorCode = getInternalErrorCode(error);
+    if (errorCode !== 'ERR_INTERNAL_SERVER_ERROR') {
+      respondWithPublicAuthFailure(req, res, errorCode);
       return;
     }
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
@@ -450,12 +481,12 @@ export const verifyPasskeyAuthenticationResponse = async (req: Request, res: Res
     if (verification.verified && verification.user) {
       await finalizeAuth(verification.user, req, res);
     } else {
-      res.status(400).json({ error: 'ERR_VERIFICATION_FAILED' });
+      respondWithPublicAuthFailure(req, res, 'ERR_VERIFICATION_FAILED');
     }
   } catch (error: any) {
-    if (error.message.startsWith('ERR_')) {
-      const statusCode = error.message === 'ERR_UNAUTHORIZED' ? 401 : 400;
-      res.status(statusCode).json({ error: error.message });
+    const errorCode = getInternalErrorCode(error);
+    if (errorCode !== 'ERR_INTERNAL_SERVER_ERROR') {
+      respondWithPublicAuthFailure(req, res, errorCode);
       return;
     }
     res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
