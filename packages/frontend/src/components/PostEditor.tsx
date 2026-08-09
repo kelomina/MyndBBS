@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Image as ImageIcon, Link as LinkIcon, List, Bold, Italic } from 'lucide-react';
+import { Image as ImageIcon, Link as LinkIcon, List, Bold, Italic, Sigma } from 'lucide-react';
 import type { Dictionary } from '../types';
 import { fetchWithAuth } from '../lib/api/fetcher';
 
@@ -81,6 +81,19 @@ export function PostEditor({
       return selectedText
         ? { text: listText }
         : { text: listText, selectionStart: 2, selectionEnd: listText.length };
+    });
+  };
+
+  const insertFormula = () => {
+    replaceSelection(selectedText => {
+      // Insert a display-math block (`$$…$$` on its own lines). The renderer
+      // treats single-line `$$…$$` as display math too, so the placeholder is
+      // wrapped the same way whether or not the user selected text.
+      const text = selectedText || postDict.formulaPlaceholder || 'formula';
+      const formulaText = `$$\n${text}\n$$`;
+      return selectedText
+        ? { text: formulaText }
+        : { text: formulaText, selectionStart: 3, selectionEnd: 3 + text.length };
     });
   };
 
@@ -193,6 +206,15 @@ export function PostEditor({
             aria-label={postDict.italic || 'Italic'}
           >
             <Italic className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={insertFormula}
+            className="p-2 text-muted hover:text-foreground hover:bg-background rounded"
+            title={postDict.math || 'Formula'}
+            aria-label={postDict.math || 'Formula'}
+          >
+            <Sigma className="h-4 w-4" />
           </button>
           <div className="w-px h-4 bg-border mx-2"></div>
           <button

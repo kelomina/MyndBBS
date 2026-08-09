@@ -8,18 +8,16 @@ import { PostActions } from "./PostActions";
 import Link from "next/link";
 import { Avatar } from "../../../components/Avatar";
 import { getCategoryTranslation } from '../../../lib/utils';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
+import { MarkdownContent } from '../../../components/MarkdownContent';
 import { serverApiUrl } from '../../../lib/bff/serverApi';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Callers: []
- * Callees: [headers, get, getDictionary, fetch, json, notFound, error, toUpperCase, toLocaleString, getTime, getCategoryTranslation, ReactMarkdown, replace]
- * Description: Handles the post detail page logic for the application. Renders markdown content using ReactMarkdown with normalized newlines.
- * Keywords: postdetailpage, post, detail, page, markdown, react-markdown
+ * Callees: [headers, get, getDictionary, fetch, json, notFound, error, toUpperCase, toLocaleString, getTime, getCategoryTranslation, MarkdownContent, replace]
+ * Description: Handles the post detail page logic for the application. Renders markdown content using MarkdownContent (GFM + KaTeX math) with normalized newlines.
+ * Keywords: postdetailpage, post, detail, page, markdown, react-markdown, math
  */
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -86,9 +84,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
             </h1>
             
             <div className="prose dark:prose-invert max-w-none text-foreground">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                {post.content?.replace(/\\n/g, '\n')}
-              </ReactMarkdown>
+              <MarkdownContent content={post.content?.replace(/\\n/g, '\n') || ''} />
             </div>
             
             <PostActions 

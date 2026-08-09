@@ -3,7 +3,13 @@ import type { MiddlewareContext, MiddlewareResult } from './middlewareContext';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-function buildCsp(nonce: string | null): string {
+// Post detail pages render KaTeX math, which relies on inline `style`
+// attributes (strut heights, spacing, script sizing). Only those routes relax
+// `style-src-attr`; everywhere else inline style attributes stay blocked.
+// Keep this in sync with src/middleware/csp.ts (the currently-active pipeline).
+const MATH_RENDERING_ROUTE_PREFIX = '/p/';
+
+function buildCsp(nonce: string | null, allowInlineStyleAttrs: boolean): string {
   const scriptSrc = nonce
     ? `script-src 'self' 'nonce-${nonce}'`
     : `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`;
@@ -14,7 +20,10 @@ function buildCsp(nonce: string | null): string {
     : nonce
       ? `style-src 'self' 'nonce-${nonce}'`
       : `style-src 'self'`;
-  const styleSrcAttr = isDev ? `style-src-attr 'self' 'unsafe-inline'` : `style-src-attr 'none'`;
+  const styleSrcAttr =
+    isDev || allowInlineStyleAttrs
+      ? `style-src-attr 'unsafe-inline'`
+      : `style-src-attr 'none'`;
 
   return [
     `default-src 'self'`,
@@ -33,7 +42,8 @@ function buildCsp(nonce: string | null): string {
 
 export function applyCspHeaders(_request: NextRequest, ctx: MiddlewareContext): MiddlewareResult {
   if (!ctx.pathname.startsWith('/install')) {
-    ctx.response.headers.set('Content-Security-Policy', buildCsp(ctx.nonce));
+    const allowInlineStyleAttrs = ctx.pathname.startsWith(MATH_RENDERING_ROUTE_PREFIX);
+    ctx.response.headers.set('Content-Security-Policy', buildCsp(ctx.nonce, allowInlineStyleAttrs));
     ctx.response.headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
     ctx.response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
     ctx.response.headers.set('X-XSS-Protection', '0');

@@ -31,6 +31,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* KaTeX math renders in the current text color so it stays readable in both
+   light and dark themes (KaTeX otherwise inherits from the surrounding prose). */
+.katex {
+  color: inherit;
+}
+
+/* Wide display equations (e.g. long O(…) bounds) scroll horizontally on small
+   screens instead of overflowing the card. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25em 0;
+}
+
 /* 嵌套评论缩进线 - 方案 B */
 .thread-line {
   position: absolute;

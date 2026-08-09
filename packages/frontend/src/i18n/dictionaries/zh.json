@@ -268,7 +268,9 @@
     "deletePost": "删除帖子",
     "confirmDeletePost": "您确定要删除这篇帖子吗？",
     "confirmDeleteComment": "您确定要删除这条评论吗？",
-    "postDeletedSuccessfully": "帖子删除成功"
+    "postDeletedSuccessfully": "帖子删除成功",
+    "math": "公式",
+    "formulaPlaceholder": "公式"
   },
   "profile": {
     "joined": "加入于",
