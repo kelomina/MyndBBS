@@ -1,4 +1,5 @@
 import { fetcher } from './fetcher';
+import type { BadgeDto, BadgeHolder } from '../../types/badges';
 
 export interface AuditLogEntry {
   id: string;
@@ -206,3 +207,61 @@ export const sendTestEmail = (targetEmail: string, smtpConfig?: {
     method: 'POST',
     body: JSON.stringify({ targetEmail, smtpConfig }),
   });
+
+// ── Badge Management ──
+
+export interface CreateBadgePayload {
+  code: string;
+  name: string;
+  description?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  grantType: 'AUTO' | 'MANUAL';
+  condition?: {
+    kind:
+      | 'manual'
+      | 'user_level'
+      | 'post_count'
+      | 'comment_count'
+      | 'content_count'
+      | 'night_activity';
+    threshold?: number;
+    startHour?: number;
+    endHour?: number;
+    utcOffsetHours?: number;
+  };
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export type UpdateBadgePayload = Partial<Omit<CreateBadgePayload, 'code'>>;
+
+export const getBadges = (): Promise<BadgeDto[]> => fetcher('/api/admin/badges');
+
+export const createBadge = (data: CreateBadgePayload) =>
+  fetcher('/api/admin/badges', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateBadge = (id: string, data: UpdateBadgePayload) =>
+  fetcher(`/api/admin/badges/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteBadge = (id: string) =>
+  fetcher(`/api/admin/badges/${id}`, { method: 'DELETE' });
+
+export const grantBadgeToUser = (badgeId: string, userId: string, reason?: string) =>
+  fetcher(`/api/admin/badges/${badgeId}/grants`, {
+    method: 'POST',
+    body: JSON.stringify({ userId, reason }),
+  });
+
+export const revokeBadgeFromUser = (badgeId: string, userId: string) =>
+  fetcher(`/api/admin/badges/${badgeId}/grants/${userId}`, { method: 'DELETE' });
+
+export const getBadgeHolders = (badgeId: string, query?: string): Promise<BadgeHolder[]> => {
+  const url = query
+    ? `/api/admin/badges/${badgeId}/grants?q=${encodeURIComponent(query)}`
+    : `/api/admin/badges/${badgeId}/grants`;
+  return fetcher(url);
+};
+
+export const runBadgeEvaluation = (): Promise<{ message: string; grantedCount: number }> =>
+  fetcher('/api/admin/badges/evaluate', { method: 'POST' });

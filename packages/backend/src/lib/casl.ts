@@ -18,7 +18,15 @@ import { AbilityBuilder, PureAbility, createMongoAbility, MongoQuery } from '@ca
 import { UserStatus, PostStatus } from '@myndbbs/shared';
 import { AccessContextDTO, RuleDescriptorDTO } from '../application/identity/contracts/AbilityContracts';
 
-export type Action = 'manage' | 'create' | 'read' | 'update' | 'delete' | 'update_status';
+export type Action =
+  | 'manage'
+  | 'create'
+  | 'read'
+  | 'update'
+  | 'delete'
+  | 'update_status'
+  | 'grant'
+  | 'revoke';
 
 export type AppSubjects =
   | 'all'
@@ -31,7 +39,8 @@ export type AppSubjects =
   | 'Comment'
   | 'ModeratedWord'
   | 'Wiki'
-  | 'WikiPage';
+  | 'WikiPage'
+  | 'Badge';
 
 export type AppAbility = PureAbility<[Action, AppSubjects]>;
 
@@ -123,6 +132,9 @@ export function defineAbilityForContext(context?: AccessContextDTO, extraRules?:
     can('manage', 'all');
   } else if (context.roleName === 'MODERATOR') {
     can('read', 'AdminPanel');
+    // 全局版主可授予/撤销手动徽章（定义管理仍仅限 ADMIN+）
+    can('grant', 'Badge');
+    can('revoke', 'Badge');
   }
 
   // Category Moderator logic

@@ -165,6 +165,14 @@ const publicRoutes = require('./routes/public').default;
   const { bootstrapMessageCleanup } = require('./startup/bootstrapMessageCleanup');
   bootstrapMessageCleanup();
 
+  // Seed built-in badges and start the badge auto-grant evaluation job
+  const { bootstrapBadgeSeed } = require('./startup/bootstrapBadgeSeed');
+  bootstrapBadgeSeed().catch((err: unknown) => {
+    console.error('[Startup] Badge seed failed:', err);
+  });
+  const { bootstrapBadgeEvaluation } = require('./startup/bootstrapBadgeEvaluation');
+  bootstrapBadgeEvaluation();
+
   // Initialize search indexer
   const { bootstrapSearchIndexer } = require('./infrastructure/search/SearchIndexer');
   bootstrapSearchIndexer().catch((err: unknown) => {

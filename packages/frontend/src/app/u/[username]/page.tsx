@@ -6,6 +6,8 @@ import { getDictionary } from '../../../i18n/get-dictionary';
 import { ProfileTabs } from './ProfileTabs';
 import { OwnerSettingsButton } from './OwnerSettingsButton';
 import { Avatar } from '../../../components/Avatar';
+import { BadgeChip } from '../../../components/BadgeChip';
+import type { ProfileBadge } from '../../../types/badges';
 import { serverApiUrl } from '../../../lib/bff/serverApi';
 
 async function getProfile(username: string) {
@@ -57,6 +59,16 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
               <div className="space-y-2 text-sm text-muted">
                 <div className="flex items-center gap-2"><Calendar className="h-4 w-4" /> {dict.profile.joined} {joinDate}</div>
               </div>
+              {user.badges && user.badges.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <h3 className="text-sm font-semibold text-foreground">{dict.profile.badges || 'Badges'}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {(user.badges as ProfileBadge[]).map((badge) => (
+                      <BadgeChip key={badge.id} badge={badge} dict={dict} />
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex gap-4 pt-4 border-t border-border">
                 <div><span className="font-bold text-foreground">{user._count.posts}</span> <span className="text-muted text-sm">{dict.profile.posts}</span></div>
               </div>

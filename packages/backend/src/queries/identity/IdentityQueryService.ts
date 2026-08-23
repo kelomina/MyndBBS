@@ -289,6 +289,15 @@ export class IdentityQueryService {
             },
           },
         },
+        badges: {
+          where: { badge: { isActive: true } },
+          orderBy: [{ badge: { sortOrder: 'asc' } }, { createdAt: 'asc' }],
+          select: {
+            badge: {
+              select: { id: true, code: true, name: true, icon: true, color: true, type: true },
+            },
+          },
+        },
       },
     });
     if (!user) return null;
@@ -304,7 +313,15 @@ export class IdentityQueryService {
         createdAt: p.createdAt,
         category: { name: p.category.name }
       })),
-      _count: { posts: user._count.posts }
+      _count: { posts: user._count.posts },
+      badges: (user.badges ?? []).map(entry => ({
+        id: entry.badge.id,
+        code: entry.badge.code,
+        name: entry.badge.name,
+        icon: entry.badge.icon,
+        color: entry.badge.color,
+        type: entry.badge.type,
+      })),
     };
   }
 

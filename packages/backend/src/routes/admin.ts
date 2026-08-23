@@ -38,6 +38,9 @@ import {
   emailConfigSchema,
   emailTemplateSchema,
   testEmailSchema,
+  createBadgeSchema,
+  updateBadgeSchema,
+  grantBadgeSchema,
 } from '../lib/validation/schemas';
 import { getAuditLogs } from '../controllers/auditLog';
 import {
@@ -56,6 +59,10 @@ import {
   getRouteWhitelist, addRouteWhitelist, updateRouteWhitelist, deleteRouteWhitelist,
   getEmailConfig, updateEmailConfig, updateEmailTemplate, sendTestEmail
 } from '../controllers/admin';
+import {
+  getBadges, createBadge, updateBadge, deleteBadge,
+  grantBadge, revokeBadge, listBadgeHolders, runBadgeEvaluation
+} from '../controllers/badge';
 import { rateLimit } from 'express-rate-limit';
 import { getClientIp } from '../lib/rateLimit';
 
@@ -107,6 +114,18 @@ router.post('/recycle/posts/:id/restore', requireAbility('manage', 'AdminPanel')
 router.delete('/recycle/posts/:id', requireAbility('manage', 'AdminPanel'), requireSudo, hardDeletePost);
 router.post('/recycle/comments/:id/restore', requireAbility('manage', 'AdminPanel'), requireSudo, restoreComment);
 router.delete('/recycle/comments/:id', requireAbility('manage', 'AdminPanel'), requireSudo, hardDeleteComment);
+
+// ── 徽章管理 ──
+// 定义查看：所有管理面板可见角色；定义增删改：仅 ADMIN+（manage Badge 未授予版主）
+// 授予/撤销：ADMIN+ 与全局 MODERATOR（casl.ts 中授予 grant/revoke Badge 能力）
+router.get('/badges', requireAbility('read', 'AdminPanel'), getBadges);
+router.post('/badges', requireAbility('manage', 'Badge'), validate(createBadgeSchema), createBadge);
+router.put('/badges/:id', requireAbility('manage', 'Badge'), validate(updateBadgeSchema), updateBadge);
+router.delete('/badges/:id', requireAbility('manage', 'Badge'), deleteBadge);
+router.get('/badges/:id/grants', requireAbility('read', 'AdminPanel'), listBadgeHolders);
+router.post('/badges/:id/grants', requireAbility('grant', 'Badge'), validate(grantBadgeSchema), grantBadge);
+router.delete('/badges/:id/grants/:userId', requireAbility('revoke', 'Badge'), revokeBadge);
+router.post('/badges/evaluate', requireAbility('manage', 'Badge'), runBadgeEvaluation);
 
 // ── 数据库配置（仅 SUPER_ADMIN） ──
 router.get('/db-config', requireAbility('manage', 'all'), getDbConfig);

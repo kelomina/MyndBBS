@@ -112,6 +112,48 @@ export const createTestAccountSchema = z.object({
     .regex(STRICT_PASSWORD_REGEX, 'ERR_PASSWORD_WEAK'),
 });
 
+// ── 管理-徽章管理 ──
+
+/** 徽章自动授予条件结构校验（字段间约束由领域层 BadgeCondition 复核） */
+export const badgeConditionSchema = z.object({
+  kind: z.enum(['manual', 'user_level', 'post_count', 'comment_count', 'content_count', 'night_activity']),
+  threshold: z.number().int().min(1).max(1_000_000).optional(),
+  startHour: z.number().int().min(0).max(23).optional(),
+  endHour: z.number().int().min(0).max(23).optional(),
+  utcOffsetHours: z.number().int().min(-12).max(14).optional(),
+});
+
+/** 创建自定义徽章校验 */
+export const createBadgeSchema = z.object({
+  code: z.string().regex(/^[a-z0-9_]{2,64}$/, 'ERR_BADGE_INVALID_CONDITION'),
+  name: nonEmptyString('ERR_NAME_REQUIRED', 64),
+  description: optionalNullableString(500),
+  icon: optionalNullableString(8),
+  color: optionalNullableString(32),
+  grantType: z.enum(['AUTO', 'MANUAL']),
+  condition: badgeConditionSchema.optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+});
+
+/** 更新徽章校验（code/type 不可变更；SYSTEM 徽章仅允许启停/排序） */
+export const updateBadgeSchema = z.object({
+  name: nonEmptyString('ERR_NAME_REQUIRED', 64).optional(),
+  description: optionalNullableString(500),
+  icon: optionalNullableString(8),
+  color: optionalNullableString(32),
+  grantType: z.enum(['AUTO', 'MANUAL']).optional(),
+  condition: badgeConditionSchema.optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+});
+
+/** 手动授予徽章校验 */
+export const grantBadgeSchema = z.object({
+  userId: nonEmptyString('ERR_USER_NOT_FOUND', 64),
+  reason: optionalString(200),
+});
+
 // ── 帖子 ──
 
 /** 创建帖子请求校验 */

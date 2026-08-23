@@ -14,6 +14,51 @@ enum FriendshipStatus {
   BLOCKED
 }
 
+enum BadgeGrantType {
+  AUTO
+  MANUAL
+}
+
+enum BadgeType {
+  SYSTEM
+  CUSTOM
+}
+
+// ── 用户徽章 ──
+
+model Badge {
+  id          String         @id @default(uuid()) @db.Uuid
+  code        String         @unique // 稳定标识：内置徽章固定（如 level_3），自定义徽章由管理员命名
+  name        String
+  description String?
+  icon        String? // emoji 或短文本图标（最多 8 字符）
+  color       String? // BADGE_COLORS 调色板颜色名
+  type        BadgeType      @default(CUSTOM)
+  grantType   BadgeGrantType @default(MANUAL) // AUTO=条件达成自动授予，MANUAL=管理员/版主手动授予
+  condition   Json? // AUTO 徽章的条件配置 { kind, threshold, ... }
+  isActive    Boolean        @default(true)
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  userBadges  UserBadge[]
+
+  @@index([isActive])
+}
+
+model UserBadge {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  badgeId   String   @db.Uuid
+  grantedBy String?  @db.Uuid // null = 自动授予；否则为授予操作者 ID
+  reason    String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([badgeId])
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -67,6 +112,9 @@ model User {
   partnerSettings     ConversationSetting[] @relation("PartnerConversationSettings")
   sentFriendRequests  Friendship[] @relation("SentFriendRequests")
   receivedFriendRequests Friendship[] @relation("ReceivedFriendRequests")
+
+  // 用户徽章
+  badges              UserBadge[]
 
   // Wiki 关联
   ownedWikis           Wiki[]               @relation("WikiOwner")

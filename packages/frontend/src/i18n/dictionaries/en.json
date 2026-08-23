@@ -275,6 +275,7 @@
   "profile": {
     "joined": "Joined",
     "posts": "Posts",
+    "badges": "Badges",
     "noPostsYet": "No posts yet.",
     "uncategorized": "Uncategorized",
     "accountSettings": "Account Settings",
@@ -516,7 +517,81 @@
     "emailPreviewVariables": "Preview Variables",
     "emailPreviewSubject": "Rendered Subject",
     "emailPreviewTextBody": "Rendered Text Body",
-    "emailPreviewHtmlBody": "Rendered HTML Body"
+    "emailPreviewHtmlBody": "Rendered HTML Body",
+    "badgeManagement": "Badge Management",
+    "badgeDesc": "Manage user badges: built-in and custom, with auto-grant conditions or manual grants.",
+    "createBadge": "Create Badge",
+    "editBadge": "Edit Badge",
+    "deleteBadge": "Delete Badge",
+    "confirmDeleteBadge": "Delete badge \"{name}\"? It will be removed from all holders.",
+    "badgeCode": "Code",
+    "badgeName": "Name",
+    "badgeDescription": "Description",
+    "badgeIcon": "Icon (emoji)",
+    "badgeColor": "Color",
+    "badgeType": "Type",
+    "typeSystem": "Built-in",
+    "typeCustom": "Custom",
+    "systemBadgeHint": "Built-in badges cannot be edited or deleted, only toggled.",
+    "moderatorBadgeHint": "You can grant or revoke badges but cannot manage definitions.",
+    "grantTypeLabel": "How to obtain",
+    "grantTypeAuto": "Auto (condition met)",
+    "grantTypeManual": "Manual (staff granted)",
+    "conditionKind": "Condition",
+    "condManual": "None (manual grant only)",
+    "condUserLevel": "User level reaches threshold",
+    "condPostCount": "Post count reaches threshold",
+    "condCommentCount": "Comment count reaches threshold",
+    "condContentCount": "Total posts + comments reach threshold",
+    "condNightActivity": "Night-time contents reach threshold",
+    "threshold": "Threshold",
+    "holderCount": "Holders",
+    "viewHolders": "Holders",
+    "holders": "Holders",
+    "grantAction": "Grant",
+    "revokeBadge": "Revoke",
+    "reasonOptional": "Reason (optional)",
+    "activeBadge": "Active",
+    "inactiveBadge": "Inactive",
+    "runEvaluation": "Run evaluation",
+    "evaluationDone": "Evaluation finished",
+    "badgeCreated": "Badge created",
+    "badgeUpdated": "Badge updated",
+    "badgeDeleted": "Badge deleted",
+    "badgeGranted": "Badge granted",
+    "badgeRevoked": "Badge revoked",
+    "failedToLoadBadges": "Failed to load badges",
+    "failedToCreateBadge": "Failed to create badge",
+    "failedToUpdateBadge": "Failed to update badge",
+    "failedToDeleteBadge": "Failed to delete badge",
+    "failedToGrantBadge": "Failed to grant badge",
+    "failedToRevokeBadge": "Failed to revoke badge"
+  },
+  "badges": {
+    "builtin": {
+      "kolostudio_official": {
+        "name": "KoloStudio Official",
+        "desc": "Official badge granted by the KoloStudio team."
+      },
+      "level_1": { "name": "Level 1", "desc": "Account security level reached 1." },
+      "level_2": { "name": "Level 2", "desc": "Account security level reached 2." },
+      "level_3": { "name": "Level 3", "desc": "Account security level reached 3." },
+      "level_4": { "name": "Level 4", "desc": "Account security level reached 4." },
+      "level_5": { "name": "Level 5", "desc": "Account security level reached 5." },
+      "level_6": { "name": "Level 6", "desc": "Account security level reached 6." },
+      "anti_drug_guardian": {
+        "name": "Anti-Drug Guardian",
+        "desc": "Awarded to guardians who help keep the community clean."
+      },
+      "night_owl": {
+        "name": "Night Owl",
+        "desc": "Published at least 10 posts or comments between 00:00 and 06:00."
+      },
+      "chatterbox": {
+        "name": "Chatterbox",
+        "desc": "Published at least 100 posts and comments in total."
+      }
+    }
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "User not found",
@@ -656,7 +731,18 @@
     "ERR_INVALID_CAPTCHA": "Invalid captcha",
     "ERR_TOTP_ALREADY_ENABLED": "TOTP is already enabled",
     "ERR_USERNAME_ALREADY_EXISTS": "Username already exists",
-    "ERR_FAILED_TO_FETCH_AUDIT_LOGS": "Failed to fetch audit logs"
+    "ERR_FAILED_TO_FETCH_AUDIT_LOGS": "Failed to fetch audit logs",
+    "ERR_BADGE_NOT_FOUND": "Badge not found",
+    "ERR_BADGE_CODE_ALREADY_EXISTS": "Badge code already exists",
+    "ERR_BADGE_SYSTEM_IMMUTABLE": "Built-in badge fields cannot be modified",
+    "ERR_BADGE_CANNOT_DELETE_SYSTEM": "Built-in badges cannot be deleted",
+    "ERR_BADGE_ALREADY_OWNED": "User already owns this badge",
+    "ERR_BADGE_NOT_OWNED": "User does not own this badge",
+    "ERR_BADGE_INVALID_CONDITION": "Invalid badge condition configuration",
+    "ERR_BADGE_INACTIVE": "Badge is currently inactive",
+    "ERR_BADGE_NAME_TOO_LONG": "Badge name must be at most 64 characters",
+    "ERR_BADGE_DESCRIPTION_TOO_LONG": "Badge description must be at most 500 characters",
+    "ERR_BADGE_ICON_TOO_LONG": "Badge icon must be at most 8 characters"
   },
   "category": {
     "postsTitle": "Posts",

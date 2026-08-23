@@ -7,6 +7,8 @@ import { CommentsSection } from "./CommentsSection";
 import { PostActions } from "./PostActions";
 import Link from "next/link";
 import { Avatar } from "../../../components/Avatar";
+import { BadgeChip } from "../../../components/BadgeChip";
+import type { ProfileBadge } from "../../../types/badges";
 import { getCategoryTranslation } from '../../../lib/utils';
 import { MarkdownContent } from '../../../components/MarkdownContent';
 import { serverApiUrl } from '../../../lib/bff/serverApi';
@@ -65,6 +67,13 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
                   <Avatar src={post.author?.avatarUrl} username={post.author?.username || '?'} size={40} />
                   <div>
                     <div className="font-medium text-foreground">{post.author?.username || 'Unknown'}</div>
+                    {Array.isArray(post.author?.badges) && post.author.badges.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {(post.author.badges as ProfileBadge[]).map((badge) => (
+                          <BadgeChip key={badge.id} badge={badge} dict={dict} />
+                        ))}
+                      </div>
+                    )}
                     <div className="text-xs">
                       {new Date(post.createdAt).toLocaleString()}
                       {post.updatedAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 1000 && (

@@ -28,6 +28,8 @@ import type { IModerationPolicy } from './domain/community/IModerationPolicy';
 import type { IModeratedWordsCache } from './domain/community/IModeratedWordsCache';
 import type { ICaptchaValidator } from './domain/community/ICaptchaValidator';
 import type { IIdentityIntegrationPort as CommunityIdentityIntegrationPort } from './domain/community/IIdentityIntegrationPort';
+import type { IBadgeRepository } from './domain/badge/IBadgeRepository';
+import type { IUserBadgeRepository } from './domain/badge/IUserBadgeRepository';
 import type { IFriendshipRepository } from './domain/messaging/IFriendshipRepository';
 import type { IPrivateMessageRepository } from './domain/messaging/IPrivateMessageRepository';
 import type { IUserKeyRepository } from './domain/messaging/IUserKeyRepository';
@@ -57,6 +59,7 @@ import { IdentityBootstrapApplicationService } from './application/identity/Iden
 import { InstallationApplicationService } from './application/provisioning/InstallationApplicationService';
 import { CommunityApplicationService } from './application/community/CommunityApplicationService';
 import { MessagingApplicationService } from './application/messaging/MessagingApplicationService';
+import { BadgeApplicationService } from './application/badge/BadgeApplicationService';
 import { RoleApplicationService } from './application/identity/RoleApplicationService';
 import { ModerationApplicationService } from './application/community/ModerationApplicationService';
 import { AdminUserManagementApplicationService } from './application/identity/AdminUserManagementApplicationService';
@@ -80,6 +83,10 @@ import { PrismaCategoryRepository } from './infrastructure/repositories/PrismaCa
 import { PrismaPostRepository } from './infrastructure/repositories/PrismaPostRepository';
 import { PrismaCommentRepository } from './infrastructure/repositories/PrismaCommentRepository';
 import { PrismaEngagementRepository } from './infrastructure/repositories/PrismaEngagementRepository';
+import { PrismaBadgeRepository } from './infrastructure/repositories/PrismaBadgeRepository';
+import { PrismaUserBadgeRepository } from './infrastructure/repositories/PrismaUserBadgeRepository';
+import { PrismaBadgeStatsAdapter } from './infrastructure/services/PrismaBadgeStatsAdapter';
+import { PrismaNotificationRepository } from './infrastructure/repositories/PrismaNotificationRepository';
 import { PrismaFriendshipRepository } from './infrastructure/repositories/PrismaFriendshipRepository';
 import { PrismaPrivateMessageRepository } from './infrastructure/repositories/PrismaPrivateMessageRepository';
 import { PrismaUserKeyRepository } from './infrastructure/repositories/PrismaUserKeyRepository';
@@ -153,6 +160,8 @@ const T = {
   IModeratedWordsCache: token<IModeratedWordsCache>('IModeratedWordsCache'),
   ICaptchaValidator: token<ICaptchaValidator>('ICaptchaValidator'),
   CommunityIdentityIntegrationPort: token<CommunityIdentityIntegrationPort>('CommunityIdentityIntegrationPort'),
+  IBadgeRepository: token<IBadgeRepository>('IBadgeRepository'),
+  IUserBadgeRepository: token<IUserBadgeRepository>('IUserBadgeRepository'),
   IFriendshipRepository: token<IFriendshipRepository>('IFriendshipRepository'),
   IPrivateMessageRepository: token<IPrivateMessageRepository>('IPrivateMessageRepository'),
   IUserKeyRepository: token<IUserKeyRepository>('IUserKeyRepository'),
@@ -209,6 +218,9 @@ function registerServices(): void {
   container.register(T.IModerationPolicy, () => new ModerationPolicy(container.resolve(T.IModeratedWordsCache)));
   container.register(T.CommunityIdentityIntegrationPort, () => new IdentityIntegrationPort(identityQueryService));
 
+  container.register(T.IBadgeRepository, () => new PrismaBadgeRepository());
+  container.register(T.IUserBadgeRepository, () => new PrismaUserBadgeRepository());
+
   container.register(T.IFriendshipRepository, () => new PrismaFriendshipRepository());
   container.register(T.IPrivateMessageRepository, () => new PrismaPrivateMessageRepository());
   container.register(T.IUserKeyRepository, () => new PrismaUserKeyRepository());
@@ -241,6 +253,7 @@ function validateRegistrations(): void {
     T.ITokenPort, T.ISessionCache, T.ISudoStore, T.IUserSecurityReadModel,
     T.ICategoryRepository, T.IPostRepository, T.ICommentRepository,
     T.IEngagementRepository, T.IModerationPolicy, T.IModeratedWordsCache,
+    T.IBadgeRepository, T.IUserBadgeRepository,
     T.IFriendshipRepository, T.IPrivateMessageRepository, T.IUserKeyRepository,
     T.IConversationSettingRepository, T.IAuditLogRepository, T.IStoragePort,
     T.IWikiRepository, T.IWikiPageRepository, T.IWikiCollaboratorRepository,
@@ -419,6 +432,14 @@ export const moderationApplicationService = new ModerationApplicationService({
   eventBus: container.resolve(T.IEventBus),
   auditApplicationService: auditApplicationService,
   unitOfWork: container.resolve(T.IUnitOfWork),
+});
+
+export const badgeApplicationService = new BadgeApplicationService({
+  badgeRepository: container.resolve(T.IBadgeRepository),
+  userBadgeRepository: container.resolve(T.IUserBadgeRepository),
+  statsPort: new PrismaBadgeStatsAdapter(),
+  notificationRepository: new PrismaNotificationRepository(),
+  unitOfWork,
 });
 
 export const wikiApplicationService = new WikiApplicationService({

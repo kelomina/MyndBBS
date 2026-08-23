@@ -2,6 +2,7 @@ import { prisma } from '../../db';
 import { rulesToPrisma } from '../../lib/rulesToPrisma';
 import type { AppAbility } from '../../lib/casl';
 import {
+  AuthorBadgeDTO,
   CategoryListItemDTO,
   CommentListItemDTO,
   ListPostCommentsParams,
@@ -24,6 +25,46 @@ type LocalPostOrderByInput = {
 const NORMAL_READABLE_POST_STATUSES = ['PUBLISHED', 'PINNED'];
 const DEFAULT_READ_PAGE_SIZE = 20;
 const MAX_READ_PAGE_SIZE = 100;
+
+/** 作者摘要的 Prisma select：基本信息 + 全部启用中的徽章（按徽章 sortOrder 排序） */
+const AUTHOR_SUMMARY_SELECT = {
+  username: true,
+  avatarUrl: true,
+  badges: {
+    where: { badge: { isActive: true } },
+    orderBy: [{ badge: { sortOrder: 'asc' as const } }, { createdAt: 'asc' as const }],
+    select: {
+      badge: { select: { id: true, code: true, name: true, icon: true, color: true, type: true } },
+    },
+  },
+};
+
+type RawAuthorSummary = {
+  username: string;
+  avatarUrl: string | null;
+  badges?: Array<{
+    badge: {
+      id: string;
+      code: string;
+      name: string;
+      icon: string | null;
+      color: string | null;
+      type: string;
+    };
+  }>;
+};
+
+function toAuthorSummary(raw: RawAuthorSummary): {
+  username: string;
+  avatarUrl: string | null;
+  badges: AuthorBadgeDTO[];
+} {
+  return {
+    username: raw.username,
+    avatarUrl: raw.avatarUrl,
+    badges: (raw.badges ?? []).map((entry) => ({ ...entry.badge, type: entry.badge.type as AuthorBadgeDTO['type'] })),
+  };
+}
 
 function clampReadTake(take: number | undefined): number {
   if (!Number.isFinite(take)) {
@@ -131,7 +172,7 @@ export class CommunityQueryService {
         ],
       },
       include: {
-        author: { select: { username: true, avatarUrl: true } },
+        author: { select: AUTHOR_SUMMARY_SELECT },
         category: { select: { id: true, name: true, description: true } },
         _count: { select: { comments: true, upvotes: true, bookmarks: true } },
       },
@@ -146,7 +187,7 @@ export class CommunityQueryService {
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       status: post.status as unknown as import('@myndbbs/shared').PostStatus,
-      author: { username: post.author.username, avatarUrl: post.author.avatarUrl },
+      author: toAuthorSummary(post.author as unknown as RawAuthorSummary),
       category: post.category,
       _count: post._count,
     };
@@ -213,7 +254,7 @@ export class CommunityQueryService {
         where,
         orderBy: { createdAt: 'asc' },
         include: {
-          author: { select: { username: true, avatarUrl: true } },
+          author: { select: AUTHOR_SUMMARY_SELECT },
           _count: { select: { upvotes: true, bookmarks: true, replies: true } },
         },
       }),
@@ -228,7 +269,7 @@ export class CommunityQueryService {
       deletedAt: c.deletedAt,
       isPending: c.isPending,
       parentId: c.parentId,
-      author: { username: c.author.username, avatarUrl: c.author.avatarUrl },
+      author: toAuthorSummary(c.author as unknown as RawAuthorSummary),
       _count: c._count,
       ...(c.hasUpvoted !== undefined ? { hasUpvoted: c.hasUpvoted } : {}),
       ...(c.hasBookmarked !== undefined ? { hasBookmarked: c.hasBookmarked } : {}),

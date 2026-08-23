@@ -32,6 +32,7 @@ export function createWorker(name: string, processor: Processor, opts?: { concur
 export const EMAIL_QUEUE_NAME = 'myndbbs-email';
 export const SEARCH_INDEX_QUEUE_NAME = 'myndbbs-search-index';
 export const CLEANUP_QUEUE_NAME = 'myndbbs-scheduler';
+export const BADGE_QUEUE_NAME = 'myndbbs-badge-evaluator';
 
 function getQueue(name: string): Queue {
   let queue = queues.get(name);
@@ -45,6 +46,7 @@ function getQueue(name: string): Queue {
 export const getEmailQueue = (): Queue => getQueue(EMAIL_QUEUE_NAME);
 export const getIndexQueue = (): Queue => getQueue(SEARCH_INDEX_QUEUE_NAME);
 export const getCleanupQueue = (): Queue => getQueue(CLEANUP_QUEUE_NAME);
+export const getBadgeQueue = (): Queue => getQueue(BADGE_QUEUE_NAME);
 
 export async function shutdownQueues(): Promise<void> {
   const closeWorkers = [...workers].map(async (worker) => {

@@ -151,5 +151,16 @@
   "ERR_VERIFICATION_FAILED": "Verification failed",
   "ERR_WORD_NOT_FOUND": "Word not found",
   "ERR_ACCOUNT_NOT_ACTIVE": "Account has been deleted or is not active",
-  "ERR_FORBIDDEN_CANNOT_DELETE_SELF": "You cannot delete the account you are currently using"
+  "ERR_FORBIDDEN_CANNOT_DELETE_SELF": "You cannot delete the account you are currently using",
+  "ERR_BADGE_NOT_FOUND": "Badge not found",
+  "ERR_BADGE_CODE_ALREADY_EXISTS": "Badge code already exists",
+  "ERR_BADGE_SYSTEM_IMMUTABLE": "Built-in badge fields cannot be modified",
+  "ERR_BADGE_CANNOT_DELETE_SYSTEM": "Built-in badges cannot be deleted",
+  "ERR_BADGE_ALREADY_OWNED": "User already owns this badge",
+  "ERR_BADGE_NOT_OWNED": "User does not own this badge",
+  "ERR_BADGE_INVALID_CONDITION": "Invalid badge condition configuration",
+  "ERR_BADGE_INACTIVE": "Badge is currently inactive",
+  "ERR_BADGE_NAME_TOO_LONG": "Badge name must be at most 64 characters",
+  "ERR_BADGE_DESCRIPTION_TOO_LONG": "Badge description must be at most 500 characters",
+  "ERR_BADGE_ICON_TOO_LONG": "Badge icon must be at most 8 characters"
 }

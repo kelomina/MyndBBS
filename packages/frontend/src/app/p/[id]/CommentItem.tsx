@@ -2,9 +2,11 @@
 import { useToast } from '../../../components/ui/Toast';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { fetcher } from '../../../lib/api/fetcher';
 import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2, Edit2, X, Check } from 'lucide-react';
 import { Avatar } from '../../../components/Avatar';
+import { BadgeChip } from '../../../components/BadgeChip';
 import type { Dictionary, PostComment, CurrentUser } from '../../../types';
 
 export function CommentItem({ 
@@ -136,8 +138,24 @@ export function CommentItem({
       <div className="flex space-x-3">
         <Avatar src={comment.author?.avatarUrl} username={comment.author?.username || '?'} size={32} />
         <div className="flex-1">
-          <div className="flex items-baseline space-x-2">
-            <span className="font-medium text-foreground text-sm">{comment.author?.username || 'Unknown'}</span>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            {comment.author?.username ? (
+              <Link
+                href={`/u/${encodeURIComponent(comment.author.username)}`}
+                className="font-medium text-foreground text-sm hover:underline"
+              >
+                {comment.author.username}
+              </Link>
+            ) : (
+              <span className="font-medium text-foreground text-sm">Unknown</span>
+            )}
+            {Array.isArray(comment.author?.badges) && comment.author.badges.length > 0 && (
+              <span className="inline-flex items-center gap-0.5">
+                {comment.author.badges.map((badge) => (
+                  <BadgeChip key={badge.id} badge={badge} dict={dict} compact />
+                ))}
+              </span>
+            )}
             {replyToUsername && (
               <span className="text-xs font-semibold text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded cursor-pointer hover:bg-blue-400/20 transition-colors">
                 @{replyToUsername}

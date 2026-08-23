@@ -1,4 +1,11 @@
 export type { Dictionary } from './i18n';
+export type {
+  BadgeColorName,
+  BadgeDto,
+  BadgeConditionJson,
+  ProfileBadge,
+  BadgeHolder,
+} from './badges';
 export type { ModerationPost, ModerationComment, ModerationWord, RecyclePost, RecycleComment } from './admin';
 export type { MessageThread, InboxMessage, ChatMessage } from './messages';
 export type {

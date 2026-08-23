@@ -14,6 +14,7 @@ import {
   Globe,
   ScrollText,
   Mail,
+  Award,
 } from 'lucide-react'
 import { serverApiUrl } from '../../lib/bff/serverApi'
 import { TranslationProvider } from '../../components/TranslationProvider'
@@ -93,6 +94,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 <span>{dict.admin?.categories || 'Categories'}</span>
               </Link>
             )}
+            <Link
+              href="/admin/badges"
+              className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <Award className="h-5 w-5" />
+              <span>{dict.admin?.badgeManagement || 'Badges'}</span>
+            </Link>
             <Link
               href="/admin/moderation"
               className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"

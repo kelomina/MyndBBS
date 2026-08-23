@@ -275,6 +275,7 @@
   "profile": {
     "joined": "加入于",
     "posts": "帖子",
+    "badges": "徽章",
     "noPostsYet": "暂无帖子。",
     "uncategorized": "未分类",
     "accountSettings": "账号设置",
@@ -516,7 +517,81 @@
     "emailPreviewVariables": "预览变量",
     "emailPreviewSubject": "渲染后的主题",
     "emailPreviewTextBody": "渲染后的纯文本正文",
-    "emailPreviewHtmlBody": "渲染后的 HTML 正文"
+    "emailPreviewHtmlBody": "渲染后的 HTML 正文",
+    "badgeManagement": "徽章管理",
+    "badgeDesc": "管理用户徽章：内置徽章与自定义徽章，支持条件自动授予或手动授予。",
+    "createBadge": "创建徽章",
+    "editBadge": "编辑徽章",
+    "deleteBadge": "删除徽章",
+    "confirmDeleteBadge": "确定要删除徽章「{name}」吗？该徽章将从所有持有人处移除。",
+    "badgeCode": "代码",
+    "badgeName": "名称",
+    "badgeDescription": "描述",
+    "badgeIcon": "图标 (emoji)",
+    "badgeColor": "颜色",
+    "badgeType": "类型",
+    "typeSystem": "内置",
+    "typeCustom": "自定义",
+    "systemBadgeHint": "内置徽章不可编辑或删除，仅可启停。",
+    "moderatorBadgeHint": "您可以授予或撤销徽章，但不能管理徽章定义。",
+    "grantTypeLabel": "获取方式",
+    "grantTypeAuto": "自动授予（达成条件）",
+    "grantTypeManual": "手动授予（管理员/版主）",
+    "conditionKind": "条件类型",
+    "condManual": "无（仅手动授予）",
+    "condUserLevel": "用户等级达到阈值",
+    "condPostCount": "发帖数达到阈值",
+    "condCommentCount": "评论数达到阈值",
+    "condContentCount": "内容总数（帖子+评论）达到阈值",
+    "condNightActivity": "夜间发布内容数达到阈值",
+    "threshold": "数量阈值",
+    "holderCount": "持有人数",
+    "viewHolders": "持有人",
+    "holders": "持有人列表",
+    "grantAction": "授予",
+    "revokeBadge": "撤销",
+    "reasonOptional": "授予原因（可选）",
+    "activeBadge": "启用",
+    "inactiveBadge": "停用",
+    "runEvaluation": "立即评估",
+    "evaluationDone": "评估完成",
+    "badgeCreated": "徽章已创建",
+    "badgeUpdated": "徽章已更新",
+    "badgeDeleted": "徽章已删除",
+    "badgeGranted": "徽章已授予",
+    "badgeRevoked": "徽章已撤销",
+    "failedToLoadBadges": "加载徽章失败",
+    "failedToCreateBadge": "创建徽章失败",
+    "failedToUpdateBadge": "更新徽章失败",
+    "failedToDeleteBadge": "删除徽章失败",
+    "failedToGrantBadge": "授予徽章失败",
+    "failedToRevokeBadge": "撤销徽章失败"
+  },
+  "badges": {
+    "builtin": {
+      "kolostudio_official": {
+        "name": "KoloStudio 官方",
+        "desc": "由 KoloStudio 团队授予的官方认证徽章。"
+      },
+      "level_1": { "name": "Level 1", "desc": "账号安全等级达到 1 级。" },
+      "level_2": { "name": "Level 2", "desc": "账号安全等级达到 2 级。" },
+      "level_3": { "name": "Level 3", "desc": "账号安全等级达到 3 级。" },
+      "level_4": { "name": "Level 4", "desc": "账号安全等级达到 4 级。" },
+      "level_5": { "name": "Level 5", "desc": "账号安全等级达到 5 级。" },
+      "level_6": { "name": "Level 6", "desc": "账号安全等级达到 6 级。" },
+      "anti_drug_guardian": {
+        "name": "缉毒卫士",
+        "desc": "授予协助维护社区纯净环境的守护者。"
+      },
+      "night_owl": {
+        "name": "夜猫子",
+        "desc": "在深夜 0 点至 6 点间发布了至少 10 条帖子或评论。"
+      },
+      "chatterbox": {
+        "name": "话痨",
+        "desc": "累计发布帖子与评论不少于 100 条。"
+      }
+    }
   },
   "apiErrors": {
     "ERR_USER_NOT_FOUND": "用户未找到",
@@ -656,7 +731,18 @@
     "ERR_INVALID_CAPTCHA": "验证码无效",
     "ERR_TOTP_ALREADY_ENABLED": "已启用 TOTP",
     "ERR_USERNAME_ALREADY_EXISTS": "用户名已存在",
-    "ERR_FAILED_TO_FETCH_AUDIT_LOGS": "获取审计日志失败"
+    "ERR_FAILED_TO_FETCH_AUDIT_LOGS": "获取审计日志失败",
+    "ERR_BADGE_NOT_FOUND": "徽章不存在",
+    "ERR_BADGE_CODE_ALREADY_EXISTS": "徽章代码已存在",
+    "ERR_BADGE_SYSTEM_IMMUTABLE": "内置徽章字段不可修改",
+    "ERR_BADGE_CANNOT_DELETE_SYSTEM": "内置徽章不可删除",
+    "ERR_BADGE_ALREADY_OWNED": "用户已拥有该徽章",
+    "ERR_BADGE_NOT_OWNED": "用户未拥有该徽章",
+    "ERR_BADGE_INVALID_CONDITION": "无效的徽章条件配置",
+    "ERR_BADGE_INACTIVE": "该徽章已停用",
+    "ERR_BADGE_NAME_TOO_LONG": "徽章名称最多 64 个字符",
+    "ERR_BADGE_DESCRIPTION_TOO_LONG": "徽章描述最多 500 个字符",
+    "ERR_BADGE_ICON_TOO_LONG": "徽章图标最多 8 个字符"
   },
   "category": {
     "postsTitle": "帖子",

@@ -125,6 +125,18 @@ describe('IdentityQueryService security filters', () => {
         },
       ],
       _count: { posts: 1 },
+      badges: [
+        {
+          badge: {
+            id: 'badge-1',
+            code: 'level_1',
+            name: 'Level 1',
+            icon: 'I',
+            color: 'gray',
+            type: 'SYSTEM',
+          },
+        },
+      ],
     });
 
     const result = await service.getPublicProfile('author', ability);
@@ -144,6 +156,16 @@ describe('IdentityQueryService security filters', () => {
         },
       ],
       _count: { posts: 1 },
+      badges: [
+        {
+          id: 'badge-1',
+          code: 'level_1',
+          name: 'Level 1',
+          icon: 'I',
+          color: 'gray',
+          type: 'SYSTEM',
+        },
+      ],
     });
     expect(result).not.toHaveProperty('role');
     expect(result?.posts[0]).not.toHaveProperty('authorId');

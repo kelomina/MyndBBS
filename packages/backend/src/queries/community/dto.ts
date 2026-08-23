@@ -1,5 +1,21 @@
 import { PostStatus } from '@myndbbs/shared';
 
+/** 作者徽章的公开展示字段（与 PublicProfileBadgeDTO 同构） */
+export type AuthorBadgeDTO = {
+  id: string;
+  code: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  type: 'SYSTEM' | 'CUSTOM';
+};
+
+export type AuthorSummaryDTO = {
+  username: string;
+  avatarUrl: string | null;
+  badges: AuthorBadgeDTO[];
+};
+
 export type CategoryListItemDTO = {
   id: string;
   name: string;
@@ -28,7 +44,7 @@ export type PostDetailDTO = {
   createdAt: Date;
   updatedAt: Date;
   status: PostStatus;
-  author: { username: string; avatarUrl: string | null };
+  author: AuthorSummaryDTO;
   category: { id: string; name: string; description: string | null };
   _count: { comments: number; upvotes: number; bookmarks: number };
 };
@@ -43,7 +59,7 @@ export type CommentListItemDTO = {
   deletedAt: Date | null;
   isPending: boolean;
   parentId: string | null;
-  author: { username: string; avatarUrl: string | null };
+  author: AuthorSummaryDTO;
   _count: { upvotes: number; bookmarks: number; replies: number };
   hasUpvoted?: boolean;
   hasBookmarked?: boolean;

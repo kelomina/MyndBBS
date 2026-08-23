@@ -40,6 +40,15 @@ export type SessionDTO = {
   createdAt: Date;
 };
 
+export type PublicProfileBadgeDTO = {
+  id: string;
+  code: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  type: 'SYSTEM' | 'CUSTOM';
+};
+
 export type PublicProfileDTO = {
   id: string;
   username: string;
@@ -53,6 +62,7 @@ export type PublicProfileDTO = {
     category: { name: string };
   }[];
   _count: { posts: number };
+  badges: PublicProfileBadgeDTO[];
 };
 
 export type PasskeyOptionDTO = {

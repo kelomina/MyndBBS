@@ -1,4 +1,5 @@
 import type { Dictionary } from './i18n';
+import type { ProfileBadge } from './badges';
 
 export type CurrentUserRole = 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN';
 
@@ -8,7 +9,7 @@ export type CurrentUser = {
   avatarUrl?: string | null;
 };
 
-export type CommentAuthor = { username?: string | null; avatarUrl?: string | null };
+export type CommentAuthor = { username?: string | null; avatarUrl?: string | null; badges?: ProfileBadge[] };
 
 export type PostComment = {
   id: string;
@@ -40,7 +41,7 @@ export type PostListPost = {
 };
 
 export type ProfilePost = { id: string; title: string; content: string; createdAt: string; category?: { name?: string } | null };
-export type ProfileUser = { username: string; avatarUrl?: string | null; _count: { posts: number }; posts?: ProfilePost[] | null };
+export type ProfileUser = { username: string; avatarUrl?: string | null; _count: { posts: number }; posts?: ProfilePost[] | null; badges?: ProfileBadge[] };
 
 export type CommentBookmark = {
   type: 'comment';

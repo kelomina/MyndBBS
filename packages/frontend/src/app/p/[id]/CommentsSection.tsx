@@ -7,6 +7,7 @@ import { CommentItem } from './CommentItem'
 import { SliderCaptcha } from '../../../components/SliderCaptcha'
 import { useToast } from '../../../components/ui/Toast'
 import { Avatar } from '../../../components/Avatar'
+import { BadgeChip } from '../../../components/BadgeChip'
 import { fetcher } from '../../../lib/api/fetcher'
 import type { Dictionary, PostComment } from '../../../types'
 
@@ -514,6 +515,13 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
                     >
                       <Avatar src={child.author?.avatarUrl} username={child.author?.username || '?'} size={20} />
                       <span className="font-medium text-foreground text-xs">{child.author?.username}</span>
+                      {Array.isArray(child.author?.badges) && child.author.badges.length > 0 && (
+                        <span className="inline-flex items-center gap-0.5">
+                          {child.author.badges.map(b => (
+                            <BadgeChip key={b.id} badge={b} dict={dict} compact />
+                          ))}
+                        </span>
+                      )}
                       {child.parentId && (
                         <span className="text-xs font-semibold text-blue-400">@{authorMap.get(child.parentId) || ''}</span>
                       )}
@@ -560,6 +568,13 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
                     >
                       <Avatar src={child.author?.avatarUrl} username={child.author?.username || '?'} size={20} />
                       <span className="font-medium text-foreground text-xs">{child.author?.username}</span>
+                      {Array.isArray(child.author?.badges) && child.author.badges.length > 0 && (
+                        <span className="inline-flex items-center gap-0.5">
+                          {child.author.badges.map(b => (
+                            <BadgeChip key={b.id} badge={b} dict={dict} compact />
+                          ))}
+                        </span>
+                      )}
                       {child.parentId && (
                         <span className="text-xs font-semibold text-blue-400">@{authorMap.get(child.parentId) || ''}</span>
                       )}
@@ -611,6 +626,13 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
                   >
                     <Avatar src={child.author?.avatarUrl} username={child.author?.username || '?'} size={20} />
                     <span className="font-medium text-foreground text-xs">{child.author?.username}</span>
+                    {Array.isArray(child.author?.badges) && child.author.badges.length > 0 && (
+                      <span className="inline-flex items-center gap-0.5">
+                        {child.author.badges.map(b => (
+                          <BadgeChip key={b.id} badge={b} dict={dict} compact />
+                        ))}
+                      </span>
+                    )}
                     <span className="text-xs text-muted truncate flex-1">{child.content}</span>
                   </div>
                 ))}
@@ -656,6 +678,13 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
                   >
                     <Avatar src={child.author?.avatarUrl} username={child.author?.username || '?'} size={20} />
                     <span className="font-medium text-foreground text-xs">{child.author?.username}</span>
+                    {Array.isArray(child.author?.badges) && child.author.badges.length > 0 && (
+                      <span className="inline-flex items-center gap-0.5">
+                        {child.author.badges.map(b => (
+                          <BadgeChip key={b.id} badge={b} dict={dict} compact />
+                        ))}
+                      </span>
+                    )}
                     <span className="text-xs text-muted truncate flex-1">{child.content}</span>
                   </div>
                 ))}
