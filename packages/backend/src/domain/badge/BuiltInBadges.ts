@@ -65,11 +65,11 @@ export const BUILT_IN_BADGES: BuiltInBadgeDefinition[] = [
   {
     code: 'anti_drug_guardian',
     name: 'Anti-Drug Guardian',
-    description: 'Awarded to guardians who help keep the community clean.',
+    description: 'Awarded to guardians whose reports were confirmed 3 times.',
     icon: '🛡️',
     color: 'emerald',
-    grantType: 'MANUAL',
-    condition: BadgeCondition.manual(),
+    grantType: 'AUTO',
+    condition: BadgeCondition.fromJson({ kind: 'upheld_reports', threshold: 3 }),
     sortOrder: 100,
   },
   {

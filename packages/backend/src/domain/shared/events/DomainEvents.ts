@@ -313,3 +313,23 @@ export class DbConfigUpdatedEvent implements IDomainEvent {
     this.occurredOn = new Date();
   }
 }
+
+export class ReportResolvedEvent implements IDomainEvent {
+  public readonly eventName = 'ReportResolvedEvent';
+  public readonly occurredOn: Date;
+
+  /**
+   * Callers: [ReportApplicationService]
+   * Callees: [BadgeEventListener]
+   * Description: Emitted when a content report is marked RESOLVED; drives
+   *              immediate badge re-evaluation for the reporter.
+   * Keywords: event, report, resolved, badge, reporter
+   */
+  constructor(
+    public readonly reportId: string,
+    public readonly reporterId: string,
+    public readonly handlerId: string
+  ) {
+    this.occurredOn = new Date();
+  }
+}

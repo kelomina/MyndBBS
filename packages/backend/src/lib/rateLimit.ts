@@ -119,6 +119,19 @@ export const friendRequestLimiter = rateLimit({
   message: { error: 'Too many friend requests from this IP, please try again later.' }
 });
 
+/**
+ * 举报提交限流：reportLimiter
+ * 每 IP 每 15 分钟最多 10 次举报。
+ * Called by: routes/report.ts
+ */
+export const reportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: getClientIp,
+  validate: { ip: false, xForwardedForHeader: false },
+  message: { error: 'Too many reports from this IP, please try again later.' }
+});
+
 export const publicReadLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,

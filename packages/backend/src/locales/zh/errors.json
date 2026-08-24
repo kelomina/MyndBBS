@@ -162,5 +162,11 @@
   "ERR_BADGE_INACTIVE": "该徽章已停用",
   "ERR_BADGE_NAME_TOO_LONG": "徽章名称最多 64 个字符",
   "ERR_BADGE_DESCRIPTION_TOO_LONG": "徽章描述最多 500 个字符",
-  "ERR_BADGE_ICON_TOO_LONG": "徽章图标最多 8 个字符"
+  "ERR_BADGE_ICON_TOO_LONG": "徽章图标最多 8 个字符",
+  "ERR_REPORT_TARGET_NOT_FOUND": "被举报内容不存在",
+  "ERR_REPORT_ALREADY_SUBMITTED": "你已举报过该内容",
+  "ERR_REPORT_SELF_TARGET": "不能举报自己的内容",
+  "ERR_REPORT_REASON_DETAIL_REQUIRED": "选择其他理由时必须填写说明",
+  "ERR_REPORT_NOT_FOUND": "举报记录不存在",
+  "ERR_REPORT_ALREADY_HANDLED": "该举报已被处理"
 }

@@ -269,6 +269,7 @@ export class CommunityQueryService {
       deletedAt: c.deletedAt,
       isPending: c.isPending,
       parentId: c.parentId,
+      postId: c.postId,
       author: toAuthorSummary(c.author as unknown as RawAuthorSummary),
       _count: c._count,
       ...(c.hasUpvoted !== undefined ? { hasUpvoted: c.hasUpvoted } : {}),

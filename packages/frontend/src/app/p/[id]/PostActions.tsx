@@ -3,8 +3,9 @@ import { useToast } from '../../../components/ui/Toast';
 import { useTranslation } from '../../../components/TranslationProvider';
 
 import { useState, useEffect } from 'react';
-import { ArrowBigUp, Bookmark, Share, Trash2, Edit2 } from 'lucide-react';
+import { ArrowBigUp, Bookmark, Share, Trash2, Edit2, Flag } from 'lucide-react';
 import { useCurrentUser } from '../../../lib/hooks';
+import { ReportDialog } from '../../../components/ReportDialog';
 import { useRouter } from 'next/navigation';
 import { fetchWithAuth } from '../../../lib/api/fetcher';
 
@@ -28,6 +29,8 @@ export function PostActions({
   const [loading, setLoading] = useState(false);
   const { user: currentUser } = useCurrentUser();
   const router = useRouter();
+  const [reportOpen, setReportOpen] = useState(false);
+  const isOwnPost = currentUser && currentUser.username === authorUsername;
 
   useEffect(() => {
     
@@ -152,15 +155,24 @@ export function PostActions({
           <Bookmark className="h-5 w-5" />
           <span className="text-sm font-medium">{bookmarks}</span>
         </button>
-        <button 
+        <button
           onClick={handleShare}
           className="transition-colors hover:text-foreground"
         >
           <Share className="h-5 w-5" />
         </button>
+        {currentUser && !isOwnPost && (
+          <button
+            onClick={() => setReportOpen(true)}
+            className="transition-colors hover:text-red-500"
+            title={dict.report?.postTitle || 'Report this post'}
+          >
+            <Flag className="h-5 w-5" />
+          </button>
+        )}
         {canDelete && (
           <>
-            <button 
+            <button
               onClick={() => router.push(`/p/${postId}/edit`)}
               disabled={loading}
               className="transition-colors hover:text-primary"
@@ -168,7 +180,7 @@ export function PostActions({
             >
               <Edit2 className="h-5 w-5" />
             </button>
-            <button 
+            <button
               onClick={handleDelete}
               disabled={loading}
               className="transition-colors hover:text-red-500"
@@ -179,6 +191,15 @@ export function PostActions({
           </>
         )}
       </div>
+
+      {reportOpen && (
+        <ReportDialog
+          isOpen
+          onClose={() => setReportOpen(false)}
+          targetType="POST"
+          postId={postId}
+        />
+      )}
     </div>
   );
 }

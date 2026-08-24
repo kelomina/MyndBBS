@@ -565,7 +565,34 @@
     "failedToUpdateBadge": "更新徽章失败",
     "failedToDeleteBadge": "删除徽章失败",
     "failedToGrantBadge": "授予徽章失败",
-    "failedToRevokeBadge": "撤销徽章失败"
+    "failedToRevokeBadge": "撤销徽章失败",
+    "userReports": "用户举报",
+    "report_PENDING": "待处理",
+    "report_RESOLVED": "已成立",
+    "report_DISMISSED": "已驳回",
+    "report_resolve": "成立",
+    "report_dismiss": "驳回",
+    "reportReporter": "举报人",
+    "reportResolved": "举报已标记成立",
+    "reportDismissed": "举报已驳回"
+  },
+  "report": {
+    "postTitle": "举报这篇帖子",
+    "commentTitle": "举报这条评论",
+    "action": "举报",
+    "submit": "提交举报",
+    "submitted": "举报已提交，感谢你的反馈",
+    "failed": "提交举报失败，请稍后重试",
+    "notice": "滥用举报功能可能导致账号被处置。",
+    "detailPlaceholder": "请描述具体问题（必填）",
+    "reasons": {
+      "SPAM": "垃圾广告",
+      "PORNOGRAPHY": "色情低俗",
+      "ILLEGAL": "违法违规",
+      "ABUSE": "人身攻击",
+      "COPYRIGHT": "侵犯版权",
+      "OTHER": "其他"
+    }
   },
   "badges": {
     "builtin": {
@@ -742,7 +769,13 @@
     "ERR_BADGE_INACTIVE": "该徽章已停用",
     "ERR_BADGE_NAME_TOO_LONG": "徽章名称最多 64 个字符",
     "ERR_BADGE_DESCRIPTION_TOO_LONG": "徽章描述最多 500 个字符",
-    "ERR_BADGE_ICON_TOO_LONG": "徽章图标最多 8 个字符"
+    "ERR_BADGE_ICON_TOO_LONG": "徽章图标最多 8 个字符",
+    "ERR_REPORT_TARGET_NOT_FOUND": "被举报内容不存在",
+    "ERR_REPORT_ALREADY_SUBMITTED": "你已举报过该内容",
+    "ERR_REPORT_SELF_TARGET": "不能举报自己的内容",
+    "ERR_REPORT_REASON_DETAIL_REQUIRED": "选择其他理由时必须填写说明",
+    "ERR_REPORT_NOT_FOUND": "举报记录不存在",
+    "ERR_REPORT_ALREADY_HANDLED": "该举报已被处理"
   },
   "category": {
     "postsTitle": "帖子",

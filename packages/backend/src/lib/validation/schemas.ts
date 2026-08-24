@@ -154,6 +154,33 @@ export const grantBadgeSchema = z.object({
   reason: optionalString(200),
 });
 
+// ── 用户举报 ──
+
+const reportReasonSchema = z.enum(['SPAM', 'PORNOGRAPHY', 'ILLEGAL', 'ABUSE', 'COPYRIGHT', 'OTHER']);
+
+/** 提交举报校验（OTHER 必须携带 detail；领域层复核目标结构） */
+export const createReportSchema = z
+  .object({
+    targetType: z.enum(['POST', 'COMMENT']),
+    postId: nonEmptyString('ERR_BAD_REQUEST', 64),
+    commentId: optionalString(64),
+    reason: reportReasonSchema,
+    detail: optionalString(500),
+  })
+  .superRefine((val, ctx) => {
+    if (val.targetType === 'COMMENT' && !val.commentId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['commentId'], message: 'ERR_BAD_REQUEST' });
+    }
+    if (val.reason === 'OTHER' && !val.detail?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['detail'], message: 'ERR_REPORT_REASON_DETAIL_REQUIRED' });
+    }
+  });
+
+/** 处理举报（成立/驳回）校验 */
+export const handleReportSchema = z.object({
+  note: optionalString(200),
+});
+
 // ── 帖子 ──
 
 /** 创建帖子请求校验 */

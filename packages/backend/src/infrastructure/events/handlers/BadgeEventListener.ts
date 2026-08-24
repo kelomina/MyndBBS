@@ -11,7 +11,7 @@
  *   for the affected user immediately.
  */
 import { IEventBus } from '../../../domain/shared/events/IEventBus';
-import { UserPromotedEvent } from '../../../domain/shared/events/DomainEvents';
+import { UserPromotedEvent, ReportResolvedEvent } from '../../../domain/shared/events/DomainEvents';
 import { BadgeApplicationService } from '../../../application/badge/BadgeApplicationService';
 
 export class BadgeEventListener {
@@ -28,6 +28,15 @@ export class BadgeEventListener {
         await this.badgeApplicationService.evaluateUser(event.targetUserId);
       } catch (err) {
         console.error('[BadgeEventListener] Failed to evaluate badges after level change:', err);
+      }
+    });
+
+    // 举报成立 → 举报人徽章即时评估（缉毒卫士等 upheld_reports 条件）
+    this.eventBus.subscribe<ReportResolvedEvent>('ReportResolvedEvent', async (event) => {
+      try {
+        await this.badgeApplicationService.evaluateUser(event.reporterId);
+      } catch (err) {
+        console.error('[BadgeEventListener] Failed to evaluate reporter badges after report resolution:', err);
       }
     });
   }

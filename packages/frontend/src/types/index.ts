@@ -6,6 +6,7 @@ export type {
   ProfileBadge,
   BadgeHolder,
 } from './badges';
+export type { ReportTargetType, ReportReason, SubmitReportPayload, AdminReportItem } from './reports';
 export type { ModerationPost, ModerationComment, ModerationWord, RecyclePost, RecycleComment } from './admin';
 export type { MessageThread, InboxMessage, ChatMessage } from './messages';
 export type {

@@ -26,7 +26,8 @@ export type Action =
   | 'delete'
   | 'update_status'
   | 'grant'
-  | 'revoke';
+  | 'revoke'
+  | 'handle';
 
 export type AppSubjects =
   | 'all'
@@ -40,7 +41,8 @@ export type AppSubjects =
   | 'ModeratedWord'
   | 'Wiki'
   | 'WikiPage'
-  | 'Badge';
+  | 'Badge'
+  | 'Report';
 
 export type AppAbility = PureAbility<[Action, AppSubjects]>;
 
@@ -135,6 +137,9 @@ export function defineAbilityForContext(context?: AccessContextDTO, extraRules?:
     // 全局版主可授予/撤销手动徽章（定义管理仍仅限 ADMIN+）
     can('grant', 'Badge');
     can('revoke', 'Badge');
+    // 版主可查看并处理用户举报队列
+    can('read', 'Report');
+    can('handle', 'Report');
   }
 
   // Category Moderator logic

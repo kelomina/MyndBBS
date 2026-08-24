@@ -6,20 +6,23 @@ import { useCategories } from '../../../lib/hooks';
 import { fetcher } from '../../../lib/api/fetcher';
 import { Trash2, Check, X, ShieldAlert } from 'lucide-react';
 import type { Dictionary, ModerationPost, ModerationComment, ModerationWord } from '../../../types';
+import type { AdminReportItem } from '../../../types/reports';
 
-type Tab = 'posts' | 'comments' | 'words';
+type Tab = 'posts' | 'comments' | 'words' | 'reports';
 
 export default function ModerationClient({ dict, canManageWords }: { dict: Dictionary; canManageWords: boolean }) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('posts');
-  const availableTabs: Tab[] = canManageWords ? ['posts', 'comments', 'words'] : ['posts', 'comments'];
+  const availableTabs: Tab[] = canManageWords ? ['posts', 'comments', 'words', 'reports'] : ['posts', 'comments', 'reports'];
   const [posts, setPosts] = useState<ModerationPost[]>([]);
   const [comments, setComments] = useState<ModerationComment[]>([]);
   const [words, setWords] = useState<ModerationWord[]>([]);
+  const [reports, setReports] = useState<AdminReportItem[]>([]);
+  const [reportStatusFilter, setReportStatusFilter] = useState<'PENDING' | 'RESOLVED' | 'DISMISSED'>('PENDING');
   const [loading, setLoading] = useState(true);
   const [newWord, setNewWord] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  
+
   const { categories } = useCategories();
 
       const fetchQueue = useCallback(async () => {
@@ -34,6 +37,9 @@ export default function ModerationClient({ dict, canManageWords }: { dict: Dicti
       } else if (activeTab === 'words') {
         const data = await fetcher('/api/admin/moderation/words');
         setWords(data.words);
+      } else if (activeTab === 'reports') {
+        const data = await fetcher(`/api/admin/reports?status=${reportStatusFilter}`);
+        setReports(data.items ?? []);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load';
@@ -41,7 +47,7 @@ export default function ModerationClient({ dict, canManageWords }: { dict: Dicti
       toast(apiErrors?.[msg] || msg, 'error');
     }
     setLoading(false);
-  }, [activeTab, dict, toast]);
+  }, [activeTab, dict, toast, reportStatusFilter]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -67,6 +73,33 @@ export default function ModerationClient({ dict, canManageWords }: { dict: Dicti
       fetchQueue();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to reject';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg, 'error');
+    }
+  };
+
+  const reasonLabel = (reason: string): string =>
+    dict.report?.reasons?.[reason as keyof NonNullable<Dictionary['report']>['reasons']] || reason;
+
+  const handleResolveReport = async (id: string) => {
+    try {
+      await fetcher(`/api/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({}) });
+      toast(dict.admin?.reportResolved || 'Report resolved', 'success');
+      fetchQueue();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed';
+      const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
+      toast(apiErrors?.[msg] || msg, 'error');
+    }
+  };
+
+  const handleDismissReport = async (id: string) => {
+    try {
+      await fetcher(`/api/admin/reports/${id}/dismiss`, { method: 'POST', body: JSON.stringify({}) });
+      toast(dict.admin?.reportDismissed || 'Report dismissed', 'success');
+      fetchQueue();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed';
       const apiErrors = dict.apiErrors as unknown as Record<string, string | undefined>;
       toast(apiErrors?.[msg] || msg, 'error');
     }
@@ -139,8 +172,9 @@ export default function ModerationClient({ dict, canManageWords }: { dict: Dicti
                 }
               `}
             >
-              {tab === 'posts' ? dict.admin?.pendingPosts || "Pending Posts" : 
-               tab === 'comments' ? dict.admin?.pendingComments || "Pending Comments" : 
+              {tab === 'posts' ? dict.admin?.pendingPosts || "Pending Posts" :
+               tab === 'comments' ? dict.admin?.pendingComments || "Pending Comments" :
+               tab === 'reports' ? dict.admin?.userReports || "User Reports" :
                dict.admin?.moderatedWords || "Moderated Words"}
             </button>
           ))}
@@ -151,6 +185,90 @@ export default function ModerationClient({ dict, canManageWords }: { dict: Dicti
         <div className="text-center py-10 text-muted">{dict.common?.loading || "Loading..."}</div>
       ) : (
         <div className="rounded-xl border border-border bg-card">
+          {activeTab === 'reports' && (
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                {(['PENDING', 'RESOLVED', 'DISMISSED'] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setReportStatusFilter(s)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      reportStatusFilter === s
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted hover:text-foreground'
+                    }`}
+                  >
+                    {dict.admin?.[`report_${s}` as keyof typeof dict.admin] as string || s}
+                  </button>
+                ))}
+              </div>
+
+              {reports.length === 0 ? (
+                <p className="py-8 text-center text-muted">{dict.common?.noData || 'No data'}</p>
+              ) : (
+                <ul className="space-y-3">
+                  {reports.map((report) => (
+                    <li key={report.id} className="rounded-lg border border-border p-4 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span
+                          className={`rounded px-1.5 py-0.5 font-medium ${
+                            report.targetType === 'POST'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                              : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                          }`}
+                        >
+                          {report.targetType === 'POST' ? dict.admin?.post || 'Post' : dict.post?.comments || 'Comment'}
+                        </span>
+                        <span className="font-medium">{reasonLabel(report.reason)}</span>
+                        <span
+                          className={`ml-auto rounded-full px-2 py-0.5 font-medium ${
+                            report.status === 'PENDING'
+                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                              : report.status === 'RESOLVED'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                          }`}
+                        >
+                          {dict.admin?.[`report_${report.status}` as keyof typeof dict.admin] as string || report.status}
+                        </span>
+                      </div>
+
+                      <p className="text-sm text-muted whitespace-pre-wrap break-words line-clamp-2">{report.targetPreview}</p>
+                      {report.detail && (
+                        <p className="text-sm rounded-md bg-muted/30 px-2 py-1 break-words">「{report.detail}」</p>
+                      )}
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                        <span>
+                          {dict.admin?.reportReporter || 'Reporter'}: {report.reporterUsername}
+                          {report.targetAuthorUsername && <> · {dict.admin?.author || 'Author'}: {report.targetAuthorUsername}</>}
+                        </span>
+                        <span>{new Date(report.createdAt).toLocaleString()}</span>
+                      </div>
+
+                      {report.status === 'PENDING' && (
+                        <div className="flex items-center gap-3 pt-1">
+                          <button
+                            onClick={() => void handleResolveReport(report.id)}
+                            className="inline-flex items-center gap-1 text-sm font-medium text-green-600 hover:text-green-500 dark:text-green-400"
+                          >
+                            <Check className="h-4 w-4" /> {dict.admin?.report_resolve || 'Uphold'}
+                          </button>
+                          <button
+                            onClick={() => void handleDismissReport(report.id)}
+                            className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-500 dark:text-red-400"
+                          >
+                            <X className="h-4 w-4" /> {dict.admin?.report_dismiss || 'Dismiss'}
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {activeTab === 'words' && (
             <div className="p-6 space-y-6">
               <form onSubmit={handleAddWord} className="flex gap-4 items-end">

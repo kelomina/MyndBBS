@@ -13,6 +13,7 @@ export type CommentAuthor = { username?: string | null; avatarUrl?: string | nul
 
 export type PostComment = {
   id: string;
+  postId?: string;
   content: string;
   createdAt: string;
   updatedAt?: string | null;

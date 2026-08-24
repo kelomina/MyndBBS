@@ -162,5 +162,11 @@
   "ERR_BADGE_INACTIVE": "Badge is currently inactive",
   "ERR_BADGE_NAME_TOO_LONG": "Badge name must be at most 64 characters",
   "ERR_BADGE_DESCRIPTION_TOO_LONG": "Badge description must be at most 500 characters",
-  "ERR_BADGE_ICON_TOO_LONG": "Badge icon must be at most 8 characters"
+  "ERR_BADGE_ICON_TOO_LONG": "Badge icon must be at most 8 characters",
+  "ERR_REPORT_TARGET_NOT_FOUND": "Reported content not found",
+  "ERR_REPORT_ALREADY_SUBMITTED": "You have already reported this content",
+  "ERR_REPORT_SELF_TARGET": "You cannot report your own content",
+  "ERR_REPORT_REASON_DETAIL_REQUIRED": "Please provide details when selecting Other",
+  "ERR_REPORT_NOT_FOUND": "Report not found",
+  "ERR_REPORT_ALREADY_HANDLED": "This report has already been handled"
 }

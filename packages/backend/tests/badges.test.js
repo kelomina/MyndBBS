@@ -159,7 +159,9 @@ test('built-in badges cover the required set with unique codes', () => {
   assert.equal(chatterbox.condition.kind, 'content_count')
 
   const guardian = BUILT_IN_BADGES.find((b) => b.code === 'anti_drug_guardian')
-  assert.equal(guardian.grantType, 'MANUAL')
+  assert.equal(guardian.grantType, 'AUTO')
+  assert.equal(guardian.condition.kind, 'upheld_reports')
+  assert.equal(guardian.condition.threshold, 3)
 })
 
 test('Badge.createSystem produces a SYSTEM-type badge', () => {

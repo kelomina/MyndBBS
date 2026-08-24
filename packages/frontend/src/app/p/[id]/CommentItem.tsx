@@ -4,9 +4,10 @@ import { useToast } from '../../../components/ui/Toast';
 import { useState } from 'react';
 import Link from 'next/link';
 import { fetcher } from '../../../lib/api/fetcher';
-import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2, Edit2, X, Check } from 'lucide-react';
+import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2, Edit2, X, Check, Flag } from 'lucide-react';
 import { Avatar } from '../../../components/Avatar';
 import { BadgeChip } from '../../../components/BadgeChip';
+import { ReportDialog } from '../../../components/ReportDialog';
 import type { Dictionary, PostComment, CurrentUser } from '../../../types';
 
 export function CommentItem({ 
@@ -35,6 +36,7 @@ export function CommentItem({
   const [content, setContent] = useState(comment.content);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updatedAt, setUpdatedAt] = useState(comment.updatedAt);
+  const [reportOpen, setReportOpen] = useState(false);
 
       const handleUpvote = async () => {
     if (loadingUpvote) return;
@@ -231,27 +233,46 @@ export function CommentItem({
             >
               <Share className="h-4 w-4" /> {dict.post?.share || 'Share'}
             </button>
-            {canDelete && (
-              <>
-                <button 
-                  onClick={() => setIsEditing(!isEditing)}
-                  className="flex items-center gap-1 transition-colors hover:text-primary"
-                  title={dict.post?.editComment || "Edit Comment"}
-                >
-                  <Edit2 className="h-4 w-4" />
-                </button>
-                <button 
-                  onClick={onDelete}
-                  className="flex items-center gap-1 transition-colors hover:text-red-500"
-                  title={dict.post?.deleteComment || "Delete Comment"}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </>
+             {canDelete && (
+               <>
+                 <button
+                   onClick={() => setIsEditing(!isEditing)}
+                   className="flex items-center gap-1 transition-colors hover:text-primary"
+                   title={dict.post?.editComment || "Edit Comment"}
+                 >
+                   <Edit2 className="h-4 w-4" />
+                 </button>
+                 <button
+                   onClick={onDelete}
+                   className="flex items-center gap-1 transition-colors hover:text-red-500"
+                   title={dict.post?.deleteComment || "Delete Comment"}
+                 >
+                   <Trash2 className="h-4 w-4" />
+                 </button>
+               </>
+             )}
+            {currentUser && currentUser.username !== comment.author?.username && (
+              <button
+                onClick={() => setReportOpen(true)}
+                className="flex items-center gap-1 transition-colors hover:text-red-500"
+                title={dict.report?.commentTitle || 'Report this comment'}
+              >
+                <Flag className="h-4 w-4" /> {dict.report?.action || 'Report'}
+              </button>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+           </div>
+         </div>
+       </div>
+
+      {reportOpen && (
+        <ReportDialog
+          isOpen
+          onClose={() => setReportOpen(false)}
+          targetType="COMMENT"
+          postId={comment.postId ?? ''}
+          commentId={comment.id}
+        />
+      )}
+     </div>
+   );
+ }

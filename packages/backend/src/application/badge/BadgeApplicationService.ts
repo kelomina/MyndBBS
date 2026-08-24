@@ -307,6 +307,10 @@ export class BadgeApplicationService {
         );
         return [...map.entries()].filter(([, count]) => count >= condition.threshold!).map(([id]) => id);
       }
+      case 'upheld_reports': {
+        const map = await this.opts.statsPort.getUpheldReportCountsByReporter();
+        return [...map.entries()].filter(([, count]) => count >= condition.threshold!).map(([id]) => id);
+      }
       default:
         return [];
     }
@@ -332,6 +336,10 @@ export class BadgeApplicationService {
           condition.endHour!,
           condition.utcOffsetHours,
         );
+        return (map.get(userId) ?? 0) >= condition.threshold!;
+      }
+      case 'upheld_reports': {
+        const map = await this.opts.statsPort.getUpheldReportCountsByReporter();
         return (map.get(userId) ?? 0) >= condition.threshold!;
       }
       default:

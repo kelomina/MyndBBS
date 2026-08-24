@@ -48,6 +48,19 @@ export class PrismaBadgeStatsAdapter implements IBadgeStatsPort {
     return { posts, comments };
   }
 
+  public async getUpheldReportCountsByReporter(): Promise<Map<string, number>> {
+    const groups = await prisma.contentReport.groupBy({
+      by: ['reporterId'],
+      where: { status: 'RESOLVED' },
+      _count: { _all: true },
+    });
+    const map = new Map<string, number>();
+    for (const row of groups) {
+      map.set(row.reporterId, row._count._all);
+    }
+    return map;
+  }
+
   public async getNightContentCountsByAuthor(
     startHour: number,
     endHour: number,

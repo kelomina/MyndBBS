@@ -30,6 +30,7 @@ import type { ICaptchaValidator } from './domain/community/ICaptchaValidator';
 import type { IIdentityIntegrationPort as CommunityIdentityIntegrationPort } from './domain/community/IIdentityIntegrationPort';
 import type { IBadgeRepository } from './domain/badge/IBadgeRepository';
 import type { IUserBadgeRepository } from './domain/badge/IUserBadgeRepository';
+import type { IContentReportRepository } from './domain/community/IContentReportRepository';
 import type { IFriendshipRepository } from './domain/messaging/IFriendshipRepository';
 import type { IPrivateMessageRepository } from './domain/messaging/IPrivateMessageRepository';
 import type { IUserKeyRepository } from './domain/messaging/IUserKeyRepository';
@@ -60,6 +61,7 @@ import { InstallationApplicationService } from './application/provisioning/Insta
 import { CommunityApplicationService } from './application/community/CommunityApplicationService';
 import { MessagingApplicationService } from './application/messaging/MessagingApplicationService';
 import { BadgeApplicationService } from './application/badge/BadgeApplicationService';
+import { ReportApplicationService } from './application/report/ReportApplicationService';
 import { RoleApplicationService } from './application/identity/RoleApplicationService';
 import { ModerationApplicationService } from './application/community/ModerationApplicationService';
 import { AdminUserManagementApplicationService } from './application/identity/AdminUserManagementApplicationService';
@@ -85,6 +87,7 @@ import { PrismaCommentRepository } from './infrastructure/repositories/PrismaCom
 import { PrismaEngagementRepository } from './infrastructure/repositories/PrismaEngagementRepository';
 import { PrismaBadgeRepository } from './infrastructure/repositories/PrismaBadgeRepository';
 import { PrismaUserBadgeRepository } from './infrastructure/repositories/PrismaUserBadgeRepository';
+import { PrismaContentReportRepository } from './infrastructure/repositories/PrismaContentReportRepository';
 import { PrismaBadgeStatsAdapter } from './infrastructure/services/PrismaBadgeStatsAdapter';
 import { PrismaNotificationRepository } from './infrastructure/repositories/PrismaNotificationRepository';
 import { PrismaFriendshipRepository } from './infrastructure/repositories/PrismaFriendshipRepository';
@@ -162,6 +165,7 @@ const T = {
   CommunityIdentityIntegrationPort: token<CommunityIdentityIntegrationPort>('CommunityIdentityIntegrationPort'),
   IBadgeRepository: token<IBadgeRepository>('IBadgeRepository'),
   IUserBadgeRepository: token<IUserBadgeRepository>('IUserBadgeRepository'),
+  IContentReportRepository: token<IContentReportRepository>('IContentReportRepository'),
   IFriendshipRepository: token<IFriendshipRepository>('IFriendshipRepository'),
   IPrivateMessageRepository: token<IPrivateMessageRepository>('IPrivateMessageRepository'),
   IUserKeyRepository: token<IUserKeyRepository>('IUserKeyRepository'),
@@ -220,6 +224,7 @@ function registerServices(): void {
 
   container.register(T.IBadgeRepository, () => new PrismaBadgeRepository());
   container.register(T.IUserBadgeRepository, () => new PrismaUserBadgeRepository());
+  container.register(T.IContentReportRepository, () => new PrismaContentReportRepository());
 
   container.register(T.IFriendshipRepository, () => new PrismaFriendshipRepository());
   container.register(T.IPrivateMessageRepository, () => new PrismaPrivateMessageRepository());
@@ -253,7 +258,7 @@ function validateRegistrations(): void {
     T.ITokenPort, T.ISessionCache, T.ISudoStore, T.IUserSecurityReadModel,
     T.ICategoryRepository, T.IPostRepository, T.ICommentRepository,
     T.IEngagementRepository, T.IModerationPolicy, T.IModeratedWordsCache,
-    T.IBadgeRepository, T.IUserBadgeRepository,
+    T.IBadgeRepository, T.IUserBadgeRepository, T.IContentReportRepository,
     T.IFriendshipRepository, T.IPrivateMessageRepository, T.IUserKeyRepository,
     T.IConversationSettingRepository, T.IAuditLogRepository, T.IStoragePort,
     T.IWikiRepository, T.IWikiPageRepository, T.IWikiCollaboratorRepository,
@@ -440,6 +445,13 @@ export const badgeApplicationService = new BadgeApplicationService({
   statsPort: new PrismaBadgeStatsAdapter(),
   notificationRepository: new PrismaNotificationRepository(),
   unitOfWork,
+});
+
+export const reportApplicationService = new ReportApplicationService({
+  reportRepository: container.resolve(T.IContentReportRepository),
+  postRepository: container.resolve(T.IPostRepository),
+  commentRepository: container.resolve(T.ICommentRepository),
+  eventBus: container.resolve(T.IEventBus),
 });
 
 export const wikiApplicationService = new WikiApplicationService({

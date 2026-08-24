@@ -565,7 +565,34 @@
     "failedToUpdateBadge": "Failed to update badge",
     "failedToDeleteBadge": "Failed to delete badge",
     "failedToGrantBadge": "Failed to grant badge",
-    "failedToRevokeBadge": "Failed to revoke badge"
+    "failedToRevokeBadge": "Failed to revoke badge",
+    "userReports": "User Reports",
+    "report_PENDING": "Pending",
+    "report_RESOLVED": "Upheld",
+    "report_DISMISSED": "Dismissed",
+    "report_resolve": "Uphold",
+    "report_dismiss": "Dismiss",
+    "reportReporter": "Reporter",
+    "reportResolved": "Report upheld",
+    "reportDismissed": "Report dismissed"
+  },
+  "report": {
+    "postTitle": "Report this post",
+    "commentTitle": "Report this comment",
+    "action": "Report",
+    "submit": "Submit report",
+    "submitted": "Report submitted. Thank you!",
+    "failed": "Failed to submit report. Please try again later.",
+    "notice": "Abuse of the report system may lead to action on your account.",
+    "detailPlaceholder": "Please describe the issue (required)",
+    "reasons": {
+      "SPAM": "Spam or advertising",
+      "PORNOGRAPHY": "Pornography or inappropriate content",
+      "ILLEGAL": "Illegal content",
+      "ABUSE": "Harassment or abuse",
+      "COPYRIGHT": "Copyright infringement",
+      "OTHER": "Other"
+    }
   },
   "badges": {
     "builtin": {
@@ -742,7 +769,13 @@
     "ERR_BADGE_INACTIVE": "Badge is currently inactive",
     "ERR_BADGE_NAME_TOO_LONG": "Badge name must be at most 64 characters",
     "ERR_BADGE_DESCRIPTION_TOO_LONG": "Badge description must be at most 500 characters",
-    "ERR_BADGE_ICON_TOO_LONG": "Badge icon must be at most 8 characters"
+    "ERR_BADGE_ICON_TOO_LONG": "Badge icon must be at most 8 characters",
+    "ERR_REPORT_TARGET_NOT_FOUND": "Reported content not found",
+    "ERR_REPORT_ALREADY_SUBMITTED": "You have already reported this content",
+    "ERR_REPORT_SELF_TARGET": "You cannot report your own content",
+    "ERR_REPORT_REASON_DETAIL_REQUIRED": "Please provide details when selecting Other",
+    "ERR_REPORT_NOT_FOUND": "Report not found",
+    "ERR_REPORT_ALREADY_HANDLED": "This report has already been handled"
   },
   "category": {
     "postsTitle": "Posts",

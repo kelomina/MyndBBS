@@ -32,4 +32,7 @@ export interface IBadgeStatsPort {
     endHour: number,
     utcOffsetHours: number,
   ): Promise<Map<string, number>>;
+
+  /** 返回每位举报人的"已采纳"举报数量（status = RESOLVED），按举报人聚合 */
+  getUpheldReportCountsByReporter(): Promise<Map<string, number>>;
 }

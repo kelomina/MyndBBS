@@ -21,7 +21,8 @@ export type BadgeConditionKind =
   | 'post_count'
   | 'comment_count'
   | 'content_count'
-  | 'night_activity';
+  | 'night_activity'
+  | 'upheld_reports';
 
 export interface BadgeConditionProps {
   kind: BadgeConditionKind;
@@ -41,6 +42,7 @@ const AUTO_KINDS: ReadonlySet<string> = new Set([
   'comment_count',
   'content_count',
   'night_activity',
+  'upheld_reports',
 ]);
 
 function isIntInRange(value: unknown, min: number, max: number): value is number {

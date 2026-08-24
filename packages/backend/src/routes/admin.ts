@@ -41,6 +41,7 @@ import {
   createBadgeSchema,
   updateBadgeSchema,
   grantBadgeSchema,
+  handleReportSchema,
 } from '../lib/validation/schemas';
 import { getAuditLogs } from '../controllers/auditLog';
 import {
@@ -63,6 +64,7 @@ import {
   getBadges, createBadge, updateBadge, deleteBadge,
   grantBadge, revokeBadge, listBadgeHolders, runBadgeEvaluation
 } from '../controllers/badge';
+import { getReports, resolveReport, dismissReport } from '../controllers/report';
 import { rateLimit } from 'express-rate-limit';
 import { getClientIp } from '../lib/rateLimit';
 
@@ -126,6 +128,12 @@ router.get('/badges/:id/grants', requireAbility('read', 'AdminPanel'), listBadge
 router.post('/badges/:id/grants', requireAbility('grant', 'Badge'), validate(grantBadgeSchema), grantBadge);
 router.delete('/badges/:id/grants/:userId', requireAbility('revoke', 'Badge'), revokeBadge);
 router.post('/badges/evaluate', requireAbility('manage', 'Badge'), runBadgeEvaluation);
+
+// ── 用户举报管理 ──
+// 队列查看：MODERATOR+（read AdminPanel / read Report）；处理：handle Report
+router.get('/reports', requireAbility('read', 'Report'), getReports);
+router.post('/reports/:id/resolve', requireAbility('handle', 'Report'), validate(handleReportSchema), resolveReport);
+router.post('/reports/:id/dismiss', requireAbility('handle', 'Report'), validate(handleReportSchema), dismissReport);
 
 // ── 数据库配置（仅 SUPER_ADMIN） ──
 router.get('/db-config', requireAbility('manage', 'all'), getDbConfig);

@@ -59,6 +59,7 @@ export type CommentListItemDTO = {
   deletedAt: Date | null;
   isPending: boolean;
   parentId: string | null;
+  postId: string;
   author: AuthorSummaryDTO;
   _count: { upvotes: number; bookmarks: number; replies: number };
   hasUpvoted?: boolean;
