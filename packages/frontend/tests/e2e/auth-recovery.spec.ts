@@ -52,6 +52,8 @@ test('register page can resend a verification email after the original link expi
   });
 
   await page.goto('/register?verificationToken=expired-token&email=recover@example.com');
+  // 等待 Next.js dev 完成 hydration，避免受控输入在 React 接管前被清空
+  await page.waitForLoadState('networkidle');
 
   await expect(page.getByTestId('register-verification-expired')).toContainText('recover@example.com');
   await page.getByTestId('register-resend-verification-button').click();
@@ -81,6 +83,7 @@ test('reset-password page switches into the expired branch when the reset token 
   });
 
   await page.goto('/reset-password?token=expired-token&email=recover@example.com');
+  await page.waitForLoadState('networkidle');
 
   await page.getByTestId('reset-password-new-password').fill('NewPassword!123');
   await page.getByTestId('reset-password-confirm-password').fill('NewPassword!123');

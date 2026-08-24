@@ -129,8 +129,11 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
       return;
     }
 
-    handledVerificationTokenRef.current = verificationToken;
+    // 注意：ref 必须在回调内部标记。若在此处提前标记，StrictMode 的
+    // cleanup 会清掉定时器，而二次执行又会因 ref 已设置而跳过，
+    // 导致 dev 模式下令牌校验永远不会发起。
     const timerId = window.setTimeout(() => {
+      handledVerificationTokenRef.current = verificationToken;
       void verifyRegistrationToken(verificationToken);
     }, 0);
 
