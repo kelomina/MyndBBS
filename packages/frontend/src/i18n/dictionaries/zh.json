@@ -247,6 +247,7 @@
   "post": {
     "tagsLabel": "标签（逗号分隔，最多 5 个）",
     "tagsPlaceholder": "技术, 生活, 问答",
+    "featured": "精华",
     "hoursAgo": "小时前",
     "comments": "评论",
     "writeComment": "写下你的评论...",
@@ -433,6 +434,16 @@
     "confirmDeletion": "确认删除",
     "confirmRemoveModerator": "确定要移除该版主吗？",
     "moderation": "内容审核",
+    "statsTitle": "站点统计",
+    "stat_usersTotal": "用户总数",
+    "stat_usersToday": "今日新增用户",
+    "stat_users7d": "近 7 天新增用户",
+    "stat_postsTotal": "帖子总数",
+    "stat_postsToday": "今日新帖",
+    "stat_posts7d": "近 7 天新帖",
+    "stat_commentsTotal": "评论总数",
+    "stat_commentsToday": "今日新评论",
+    "stat_comments7d": "近 7 天新评论",
     "pendingPosts": "待审帖子",
     "pendingComments": "待审评论",
     "moderatedWords": "审核词配置",
@@ -608,7 +619,15 @@
     "ipUnbanned": "已解除封禁",
     "failedToBanIp": "封禁失败",
     "failedToUnbanIp": "解封失败",
-    "ipBanNotice": "全站封禁将同时阻断该地址的注册与登录。"
+    "ipBanNotice": "全站封禁将同时阻断该地址的注册与登录。",
+    "siteSettingsTitle": "站点设置",
+    "siteName": "站点名称",
+    "siteNameHint": "显示在顶部导航；留空使用默认 MyndBBS。",
+    "announcement": "全站公告",
+    "announcementPlaceholder": "将以横幅形式展示在所有页面",
+    "registrationOpen": "开放注册",
+    "settingsSaved": "站点设置已保存",
+    "failedToSaveSettings": "保存站点设置失败"
   },
   "report": {
     "postTitle": "举报这篇帖子",
@@ -815,7 +834,8 @@
     "ERR_IP_ALREADY_BANNED": "该 IP 已被封禁",
     "ERR_IP_BAN_NOT_FOUND": "封禁记录不存在",
     "ERR_NEW_ACCOUNT_COOLDOWN": "账号注册时间过短，暂时无法发布内容，请稍后再试",
-    "ERR_NEW_ACCOUNT_RATE_LIMITED": "新账号每小时发布数量已达上限，请稍后再试"
+    "ERR_NEW_ACCOUNT_RATE_LIMITED": "新账号每小时发布数量已达上限，请稍后再试",
+    "ERR_REGISTRATION_DISABLED": "管理员已暂时关闭开放注册"
   },
   "tags": {
     "title": "话题标签",

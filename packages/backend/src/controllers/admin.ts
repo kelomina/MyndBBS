@@ -635,7 +635,7 @@ export const updatePostStatus = async (req: AuthRequest, res: Response): Promise
   const { status } = req.body;
   const operatorId = req.user?.userId || 'unknown';
 
-  if (!([PostStatus.PUBLISHED, PostStatus.HIDDEN, PostStatus.PINNED] as PostStatus[]).includes(status as PostStatus)) {
+  if (!([PostStatus.PUBLISHED, PostStatus.HIDDEN, PostStatus.PINNED, PostStatus.FEATURED] as PostStatus[]).includes(status as PostStatus)) {
     res.status(400).json({ error: 'ERR_INVALID_STATUS' });
     return;
   }

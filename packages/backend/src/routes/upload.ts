@@ -3,29 +3,18 @@
  *
  * 函数作用：
  *   文件上传 API 路由，支持图片上传，含 MIME 类型验证、扩展名过滤和魔数签名验证。
- * Purpose:
- *   File upload API route supporting image uploads with MIME type validation,
- *   extension filtering, and magic byte signature verification.
  *
  * 路由前缀 / Route prefix:
- *   /api/v1/messages/upload
- *
- * 安全注意 / Security:
- *   - 仅允许图片类型（MIME + 扩展名双重校验）
- *   - 魔数签名验证防止伪装文件
- *   - 文件大小限制 10MB
- *   - SVG 已被排除（无固定魔数签名，存在 XSS 风险）
- *
- * 中文关键词：
- *   上传，文件，图片，安全验证，魔数
- * English keywords:
- *   upload, file, image, security validation, magic bytes
+ *   /api/v1/messages/upload        — 私信图片（10MB）
+ *   /api/v1/messages/upload/post-image — 帖子正文插图（5MB，requireAuth）
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import { requireAuthHidden } from '../middleware/auth';
+import { requireAuthHidden, requireAuth } from '../middleware/auth';
 import { uploadLimiter } from '../lib/rateLimit';
 import { handleFileUpload } from '../controllers/upload';
+import { storagePort } from '../registry';
+import type { AuthRequest } from '../middleware/auth';
 
 const router: Router = Router();
 
@@ -45,8 +34,6 @@ const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.
  * Each entry maps a MIME type to one or more valid file header byte patterns.
  *
  * 各允许图片类型的文件头魔数签名，每个 MIME 类型对应一个或多个有效头部字节模式。
- *
- * Keywords: magic bytes, file signature, header, validate, upload, 魔数, 文件头, 签名, 验证, 上传
  */
 const MAGIC_BYTES: Record<string, (number | null)[][]> = {
   'image/jpeg': [[0xFF, 0xD8, 0xFF]],
@@ -57,19 +44,6 @@ const MAGIC_BYTES: Record<string, (number | null)[][]> = {
   'image/tiff': [[0x49, 0x49, 0x2A, 0x00], [0x4D, 0x4D, 0x00, 0x2A]],
 };
 
-/**
- * Callers: [validateMagicBytes]
- * Callees: []
- * Description: Checks whether the first bytes of a buffer match one of the expected magic byte signatures for a given MIME type.
- * 描述：检查缓冲区头部字节是否匹配指定 MIME 类型的任一有效魔数签名。
- * Variables: `buffer` 表示文件内容缓冲区；`signatures` 表示该 MIME 类型对应的签名模式列表。
- * 变量：`buffer` 是文件内容缓冲区；`signatures` 是该文件类型对应的签名模式列表。
- * Integration: Use this helper after file reception to validate the actual file content against its claimed MIME type.
- * 接入方式：在文件接收完毕后调用，验证实际文件内容与声称的 MIME 类型是否匹配。
- * Error Handling: Returns `true` when content matches; `false` when buffer is too short or no signature matches.
- * 错误处理：内容匹配时返回 `true`，缓冲区过短或无签名匹配时返回 `false`。
- * Keywords: validate, magic bytes, signature, file header, upload security, 验证, 魔数, 签名, 文件头, 上传安全
- */
 export function checkMagicBytes(buffer: Buffer, mimeType: string): boolean {
   const signatures = MAGIC_BYTES[mimeType];
   if (!signatures) return false;
@@ -79,19 +53,6 @@ export function checkMagicBytes(buffer: Buffer, mimeType: string): boolean {
   );
 }
 
-/**
- * Callers: [uploadMiddleware pipeline]
- * Callees: [checkMagicBytes]
- * Description: Validates that the uploaded file content matches its claimed MIME type via magic byte signature comparison.
- * 描述：通过魔数签名对比，验证上传文件的实际内容是否与声称的 MIME 类型匹配。
- * Variables: `file` 表示 multer 处理后的上传文件对象；`mimeType` 表示文件声称的 MIME 类型。
- * 变量：`file` 是 multer 处理后的上传文件对象；`mimeType` 是文件声称的 MIME 类型。
- * Integration: Call this middleware immediately after multer processes the file but before the controller handler.
- * 接入方式：在 multer 处理完文件之后、控制器处理器之前调用此中间件。
- * Error Handling: Returns `400` with `ERR_FILE_CONTENT_TYPE_MISMATCH` when magic bytes don't match the claimed MIME type.
- * 错误处理：魔数与声称的 MIME 类型不匹配时返回 400 错误 `ERR_FILE_CONTENT_TYPE_MISMATCH`。
- * Keywords: validate, magic bytes, middleware, content type, upload, 验证, 魔数, 中间件, 内容类型, 上传
- */
 function validateMagicBytes(req: Request, res: Response, next: NextFunction): void {
   if (!req.file) {
     next();
@@ -124,6 +85,38 @@ const uploadMiddleware = multer({
   fileFilter,
 });
 
-router.post('/', requireAuthHidden, uploadLimiter, uploadMiddleware.single('file'), validateMagicBytes, handleFileUpload);
+// ── 帖子正文插图（5MB，认证用户）──
+const postImageMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter,
+});
+
+router.post(
+  '/post-image',
+  requireAuth,
+  uploadLimiter,
+  postImageMiddleware.single('file'),
+  validateMagicBytes,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.userId;
+      const file = req.file;
+      if (!userId || !file) {
+        res.status(400).json({ error: 'ERR_NO_FILE' });
+        return;
+      }
+      const dotIndex = file.originalname.toLowerCase().lastIndexOf('.');
+      const ext = dotIndex === -1 ? '' : file.originalname.slice(dotIndex + 1);
+      const url = await storagePort.savePostImage(userId, file.buffer, ext);
+      res.status(201).json({ url });
+    } catch (err) {
+      console.error('[upload] post image failed:', err);
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
+  }
+);
+
+router.post('/', requireAuthHidden, uploadMiddleware.single('file'), validateMagicBytes, handleFileUpload);
 
 export default router;

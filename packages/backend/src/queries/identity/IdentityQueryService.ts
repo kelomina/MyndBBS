@@ -4,7 +4,7 @@ import type { AppAbility } from '../../lib/casl';
 import { UserProfileDTO, BookmarkDTO, PasskeySummaryDTO, UserForLoginDTO, UserWithRoleDTO, SessionDTO, PublicProfileDTO, PasskeyOptionDTO, PasskeyDTO, UserDTO } from './dto';
 import { TotpEncryptionService } from '../../infrastructure/services/identity/TotpEncryptionService';
 
-const NORMAL_READABLE_POST_STATUSES = ['PUBLISHED', 'PINNED'];
+const NORMAL_READABLE_POST_STATUSES = ['PUBLISHED', 'PINNED', 'FEATURED'];
 
 /**
  * Callers: [userController, registerController, authController, sudoController]

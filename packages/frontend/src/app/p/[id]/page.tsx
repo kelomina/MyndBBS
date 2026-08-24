@@ -15,6 +15,42 @@ import { serverApiUrl } from '../../../lib/bff/serverApi';
 
 export const dynamic = 'force-dynamic';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kolobbs.kolostudio.fun';
+
+interface PostMeta {
+  title: string;
+  content: string;
+  author?: { username?: string | null };
+}
+
+/** 详情页 SEO/OG 元数据：标题 + 正文摘要 */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  let post: PostMeta | null = null;
+  try {
+    const res = await fetch(serverApiUrl(`/api/posts/${id}`), { cache: 'no-store' });
+    if (res.ok) post = await res.json();
+  } catch {
+    return {};
+  }
+  if (!post) return {};
+
+  const description =
+    post.content.replace(/[#*`>\[\]!]/g, '').replace(/\s+/g, ' ').trim().slice(0, 160) || undefined;
+
+  return {
+    title: post.title,
+    description,
+    openGraph: {
+      title: post.title,
+      description,
+      type: 'article',
+      url: `${SITE_URL}/p/${id}`,
+    },
+    alternates: { canonical: `${SITE_URL}/p/${id}` },
+  };
+}
+
 /**
  * Callers: []
  * Callees: [headers, get, getDictionary, fetch, json, notFound, error, toUpperCase, toLocaleString, getTime, getCategoryTranslation, MarkdownContent, replace]
@@ -88,6 +124,14 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
               </span>
             </div>
             
+            {post.status === 'FEATURED' && (
+              <div className="mb-4">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                  ⭐ {dict.post?.featured || 'Featured'}
+                </span>
+              </div>
+            )}
+
             <h1 className="mb-4 text-3xl font-bold text-foreground">
               {post.title}
             </h1>

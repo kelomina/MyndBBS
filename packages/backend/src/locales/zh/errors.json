@@ -175,4 +175,6 @@
   "ERR_IP_BAN_NOT_FOUND": "封禁记录不存在",
   "ERR_NEW_ACCOUNT_COOLDOWN": "账号注册时间过短，暂时无法发布内容，请稍后再试",
   "ERR_NEW_ACCOUNT_RATE_LIMITED": "新账号每小时发布数量已达上限，请稍后再试"
+,
+  "ERR_REGISTRATION_DISABLED": "管理员已暂时关闭开放注册"
 }

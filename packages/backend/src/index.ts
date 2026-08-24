@@ -225,8 +225,9 @@ const publicRoutes = require('./routes/public').default;
     }
 
     const isInlineMessageImage = /^\/messages\/[^/]+\.(?:jpe?g|png|gif|webp|bmp|tiff?)$/i.test(requestedPath);
+    const isInlinePostImage = /^\/posts\/[0-9a-fA-F-]+\/[0-9a-fA-F-]+\.(?:jpe?g|png|gif|webp)$/i.test(requestedPath);
 
-    if (requestedPath.startsWith('/avatars/') || isInlineMessageImage) {
+    if (requestedPath.startsWith('/avatars/') || isInlineMessageImage || isInlinePostImage) {
       res.setHeader('Content-Disposition', 'inline');
       res.setHeader('Cache-Control', 'public, max-age=300, must-revalidate');
     } else {

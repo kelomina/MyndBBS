@@ -11,9 +11,20 @@ import { PasskeyBanner } from '../components/PasskeyBanner'
 import { CookieConsentModal } from '../components/CookieConsentModal'
 import { ToastProvider } from '../components/ui/Toast'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kolobbs.kolostudio.fun'
+
 export const metadata: Metadata = {
-  title: 'MyndBBS - Modern Community',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'MyndBBS - Modern Community',
+    template: '%s | MyndBBS',
+  },
   description: 'A clean, fast, and secure community platform.',
+  openGraph: {
+    type: 'website',
+    siteName: 'MyndBBS',
+    url: SITE_URL,
+  },
 }
 
 export default async function RootLayout({

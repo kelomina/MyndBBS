@@ -287,3 +287,24 @@ export const getAntiSpamPolicy = (): Promise<AntiSpamPolicy> =>
 
 export const updateAntiSpamPolicy = (policy: AntiSpamPolicy) =>
   fetcher('/api/admin/protection/anti-spam', { method: 'PUT', body: JSON.stringify(policy) });
+
+export interface SiteStats {
+  users: { total: number; today: number; last7Days: number };
+  posts: { total: number; today: number; last7Days: number };
+  comments: { total: number; today: number; last7Days: number };
+  moderation: { pendingReports: number };
+}
+
+export const getSiteStats = (): Promise<SiteStats> => fetcher('/api/admin/stats');
+
+export interface SiteSettings {
+  siteName: string;
+  announcement: string;
+  registrationDisabled: boolean;
+}
+
+export const getSiteSettings = (): Promise<SiteSettings> =>
+  fetcher('/api/admin/site-settings');
+
+export const updateSiteSettings = (data: Partial<SiteSettings>) =>
+  fetcher('/api/admin/site-settings', { method: 'PUT', body: JSON.stringify(data) });

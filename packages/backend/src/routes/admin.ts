@@ -44,6 +44,7 @@ import {
   handleReportSchema,
   bannedIpSchema,
   antiSpamPolicySchema,
+  siteSettingsSchema,
 } from '../lib/validation/schemas';
 import { getAuditLogs } from '../controllers/auditLog';
 import {
@@ -71,6 +72,8 @@ import {
   listIpBans, createIpBan, deleteIpBan,
   getAntiSpamPolicy, updateAntiSpamPolicy
 } from '../controllers/protection';
+import { getSiteSettings, updateSiteSettings } from '../controllers/siteSettings';
+import { statsQueryService } from '../queries/system/StatsQueryService';
 import { rateLimit } from 'express-rate-limit';
 import { getClientIp } from '../lib/rateLimit';
 
@@ -157,6 +160,19 @@ router.put(
   validate(antiSpamPolicySchema),
   updateAntiSpamPolicy
 );
+
+// ── 站点设置与统计（仅 ADMIN+）──
+router.get('/site-settings', requireAbility('manage', 'all'), getSiteSettings);
+router.put('/site-settings', requireAbility('manage', 'all'), validate(siteSettingsSchema), updateSiteSettings);
+router.get('/stats', requireAbility('manage', 'all'), (_req, res) => {
+  void statsQueryService.getSiteStats().then(
+    (stats) => res.json(stats),
+    (err) => {
+      console.error('[admin] stats failed:', err);
+      res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+    }
+  );
+});
 
 // ── 数据库配置（仅 SUPER_ADMIN） ──
 router.get('/db-config', requireAbility('manage', 'all'), getDbConfig);

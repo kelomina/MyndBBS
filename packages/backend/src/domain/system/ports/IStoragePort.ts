@@ -12,8 +12,11 @@
  *   storage, port interface, upload
  */
 export interface IStoragePort {
-  saveFile(filename: string, content: Buffer): Promise<string>;
-  saveAvatar(userId: string, content: Buffer, ext: string): Promise<string>;
+saveFile(filename: string, content: Buffer): Promise<string>;
+saveAvatar(userId: string, content: Buffer, ext: string): Promise<string>;
+/** 帖子正文图片：返回 /uploads/posts/... 相对 URL */
+savePostImage(userId: string, content: Buffer, ext: string): Promise<string>;
+deletePostImage(filePath: string): Promise<void>;
   deleteAvatar(filePath: string): Promise<void>;
 }
 

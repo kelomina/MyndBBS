@@ -135,7 +135,7 @@ export function PostEditor({
       const formData = new FormData();
       formData.append('file', file, file.name);
 
-      const res = await fetchWithAuth('/api/v1/messages/upload', {
+      const res = await fetchWithAuth('/api/v1/messages/upload/post-image', {
         method: 'POST',
         body: formData,
       });

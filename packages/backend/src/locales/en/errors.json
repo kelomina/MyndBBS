@@ -174,5 +174,6 @@
   "ERR_IP_ALREADY_BANNED": "This IP address is already banned",
   "ERR_IP_BAN_NOT_FOUND": "IP ban record not found",
   "ERR_NEW_ACCOUNT_COOLDOWN": "Your account is too new to post. Please wait a moment.",
-  "ERR_NEW_ACCOUNT_RATE_LIMITED": "New accounts can only publish a limited number of posts per hour"
+  "ERR_NEW_ACCOUNT_RATE_LIMITED": "New accounts can only publish a limited number of posts per hour",
+  "ERR_REGISTRATION_DISABLED": "Registration is currently disabled by the administrators"
 }

@@ -211,6 +211,13 @@ export const antiSpamPolicySchema = z.object({
   maxNewContentsPerHour: z.number().int().min(0).max(1000),
 });
 
+/** 站点展示设置校验 */
+export const siteSettingsSchema = z.object({
+  siteName: optionalString(64),
+  announcement: optionalString(500),
+  registrationDisabled: z.boolean().optional(),
+});
+
 // ── 帖子 ──
 
 /** 创建帖子请求校验 */

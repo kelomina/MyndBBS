@@ -15,6 +15,7 @@ import {
   ScrollText,
   Mail,
   Award,
+  BarChart3,
 } from 'lucide-react'
 import { serverApiUrl } from '../../lib/bff/serverApi'
 import { TranslationProvider } from '../../components/TranslationProvider'
@@ -124,6 +125,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               >
                 <ShieldAlert className="h-5 w-5" />
                 <span>{dict.admin?.protectionTitle || 'Protection & Anti-spam'}</span>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin/stats"
+                className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                <BarChart3 className="h-5 w-5" />
+                <span>{dict.admin?.statsTitle || 'Site Statistics'}</span>
               </Link>
             )}
             {isSuperAdmin && (

@@ -22,7 +22,7 @@ type LocalPostOrderByInput = {
   createdAt?: 'asc' | 'desc';
 };
 
-const NORMAL_READABLE_POST_STATUSES = ['PUBLISHED', 'PINNED'];
+const NORMAL_READABLE_POST_STATUSES = ['PUBLISHED', 'PINNED', 'FEATURED'];
 const DEFAULT_READ_PAGE_SIZE = 20;
 const MAX_READ_PAGE_SIZE = 100;
 

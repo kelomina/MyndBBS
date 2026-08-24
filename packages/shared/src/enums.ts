@@ -12,6 +12,7 @@ export enum PostStatus {
   ARCHIVED = 'ARCHIVED',
   HIDDEN = 'HIDDEN',
   PINNED = 'PINNED',
+  FEATURED = 'FEATURED',
   DELETED = 'DELETED',
   PENDING = 'PENDING',
 }

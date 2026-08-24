@@ -68,6 +68,7 @@ import { IpBanApplicationService } from './application/system/IpBanApplicationSe
 import { AntiSpamService } from './application/system/AntiSpamService';
 import { PrismaAntiSpamAdapter } from './infrastructure/services/PrismaAntiSpamAdapter';
 import { MentionNotifier } from './application/notification/MentionNotifier';
+import { SiteSettingsService } from './application/system/SiteSettingsService';
 import { RoleApplicationService } from './application/identity/RoleApplicationService';
 import { ModerationApplicationService } from './application/community/ModerationApplicationService';
 import { AdminUserManagementApplicationService } from './application/identity/AdminUserManagementApplicationService';
@@ -425,9 +426,15 @@ export const newContentGuard = {
   assertAllowed: (userId: string) => antiSpamService.assertContentAllowed(userId),
 };
 
+export const siteSettingsService = new SiteSettingsService(
+  container.resolve(T.ISitePolicyRepository)
+);
+
 export const tagRepository = new PrismaTagRepository();
 const postTagRepository = new PrismaPostTagRepository();
 export { postTagRepository };
+
+export const storagePort = container.resolve<IStoragePort>(T.IStoragePort);
 
 export const communityApplicationService = new CommunityApplicationService({
   categoryRepository: container.resolve(T.ICategoryRepository),

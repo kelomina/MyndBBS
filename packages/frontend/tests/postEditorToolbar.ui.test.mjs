@@ -23,7 +23,7 @@ test('PostEditor toolbar buttons perform real markdown actions', async (t) => {
   });
 
   await t.test('image button uploads through the existing upload API and inserts markdown image syntax', () => {
-    assert.match(editorContent, /fetchWithAuth\('\/api\/v1\/messages\/upload'/);
+    assert.match(editorContent, /fetchWithAuth\('\/api\/v1\/messages\/upload\/post-image'/);
     assert.match(editorContent, /const imageText = `!\[\$\{label\}\]\(\$\{url\}\)`/);
     assert.match(editorContent, /imageInputRef\.current\?\.click\(\)/);
   });

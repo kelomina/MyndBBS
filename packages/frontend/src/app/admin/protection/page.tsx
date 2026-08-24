@@ -12,8 +12,11 @@ import {
   deleteIpBan,
   getAntiSpamPolicy,
   updateAntiSpamPolicy,
+  getSiteSettings,
+  updateSiteSettings,
 } from '../../../lib/api/admin'
 import type { BannedIpItem, AntiSpamPolicy } from '../../../types/protection'
+import type { SiteSettings as SiteSettingsType } from '../../../lib/api/admin'
 import { Ban, Plus, ShieldAlert } from 'lucide-react'
 
 const EMPTY_BAN_FORM = { ip: '', scope: 'ALL' as 'ALL' | 'REGISTRATION', reason: '', expiresInDays: '' }
@@ -32,13 +35,20 @@ export default function ProtectionPage() {
 
   const [policy, setPolicy] = useState<AntiSpamPolicy | null>(null)
   const [policySaving, setPolicySaving] = useState(false)
+  const [siteSettings, setSiteSettings] = useState<SiteSettingsType | null>(null)
+  const [settingsSaving, setSettingsSaving] = useState(false)
 
   const loadAll = useCallback(async (): Promise<void> => {
     try {
       setLoading(true)
-      const [ipBans, antiSpam] = await Promise.all([getIpBans(), getAntiSpamPolicy()])
+      const [ipBans, antiSpam, siteCfg] = await Promise.all([
+        getIpBans(),
+        getAntiSpamPolicy(),
+        getSiteSettings(),
+      ])
       setBans(ipBans)
       setPolicy(antiSpam)
+      setSiteSettings(siteCfg)
       setError('')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
@@ -74,6 +84,28 @@ export default function ProtectionPage() {
       )
     } finally {
       setBanLoading(false)
+    }
+  }
+
+  const handleSaveSiteSettings = async () => {
+    if (!siteSettings) return
+    try {
+      setSettingsSaving(true)
+      const saved = await updateSiteSettings({
+        siteName: siteSettings.siteName,
+        announcement: siteSettings.announcement,
+        registrationDisabled: siteSettings.registrationDisabled,
+      })
+      setSiteSettings(saved)
+      toast(dict.admin?.settingsSaved || 'Site settings saved', 'success')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : ''
+      toast(
+        (dict.apiErrors as Record<string, string>)?.[msg] || msg || dict.admin?.failedToSaveSettings || 'Failed',
+        'error',
+      )
+    } finally {
+      setSettingsSaving(false)
     }
   }
 
@@ -168,6 +200,57 @@ export default function ProtectionPage() {
             </div>
             <div className="flex justify-end">
               <Button onClick={() => void handleSavePolicy()} loading={policySaving}>
+                {dict.common?.save || 'Save'}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── 站点设置 ── */}
+      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+        <h2 className="font-semibold">{dict.admin?.siteSettingsTitle || 'Site settings'}</h2>
+        {siteSettings && (
+          <>
+            <div className="space-y-1">
+              <label className="text-sm font-medium" htmlFor="site-name">{dict.admin?.siteName || 'Site name'}</label>
+              <input
+                id="site-name"
+                type="text"
+                value={siteSettings.siteName}
+                onChange={(e) => setSiteSettings({ ...siteSettings, siteName: e.target.value })}
+                maxLength={64}
+                placeholder="MyndBBS"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <p className="text-xs text-muted">{dict.admin?.siteNameHint || 'Shown in the header. Empty = default MyndBBS.'}</p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium" htmlFor="announcement">{dict.admin?.announcement || 'Announcement'}</label>
+              <textarea
+                id="announcement"
+                rows={2}
+                maxLength={500}
+                value={siteSettings.announcement}
+                onChange={(e) => setSiteSettings({ ...siteSettings, announcement: e.target.value })}
+                placeholder={dict.admin?.announcementPlaceholder || 'Shown as a banner on every page'}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={!siteSettings.registrationDisabled}
+                onChange={(e) => setSiteSettings({ ...siteSettings, registrationDisabled: !e.target.checked })}
+                className="accent-primary"
+              />
+              {dict.admin?.registrationOpen || 'Open registration'}
+            </label>
+
+            <div className="flex justify-end">
+              <Button onClick={() => void handleSaveSiteSettings()} loading={settingsSaving}>
                 {dict.common?.save || 'Save'}
               </Button>
             </div>

@@ -247,6 +247,7 @@
   "post": {
     "tagsLabel": "Tags (comma-separated, max 5)",
     "tagsPlaceholder": "tech, life, q&a",
+    "featured": "Featured",
     "hoursAgo": "hours ago",
     "comments": "Comments",
     "writeComment": "Write a comment...",
@@ -433,6 +434,16 @@
     "confirmDeletion": "Confirm Deletion",
     "confirmRemoveModerator": "Are you sure you want to remove this moderator?",
     "moderation": "Moderation",
+    "statsTitle": "Site Statistics",
+    "stat_usersTotal": "Total users",
+    "stat_usersToday": "New users today",
+    "stat_users7d": "New users in 7 days",
+    "stat_postsTotal": "Total posts",
+    "stat_postsToday": "New posts today",
+    "stat_posts7d": "New posts in 7 days",
+    "stat_commentsTotal": "Total comments",
+    "stat_commentsToday": "New comments today",
+    "stat_comments7d": "New comments in 7 days",
     "pendingPosts": "Pending Posts",
     "pendingComments": "Pending Comments",
     "moderatedWords": "Moderated Words",
@@ -608,7 +619,15 @@
     "ipUnbanned": "IP unbanned",
     "failedToBanIp": "Failed to ban IP",
     "failedToUnbanIp": "Failed to unban IP",
-    "ipBanNotice": "Site-wide bans block both registration and login from this address."
+    "ipBanNotice": "Site-wide bans block both registration and login from this address.",
+    "siteSettingsTitle": "Site settings",
+    "siteName": "Site name",
+    "siteNameHint": "Shown in the header. Empty = default MyndBBS.",
+    "announcement": "Announcement",
+    "announcementPlaceholder": "Shown as a banner on every page",
+    "registrationOpen": "Open registration",
+    "settingsSaved": "Site settings saved",
+    "failedToSaveSettings": "Failed to save site settings"
   },
   "report": {
     "postTitle": "Report this post",
@@ -815,7 +834,8 @@
     "ERR_IP_ALREADY_BANNED": "This IP address is already banned",
     "ERR_IP_BAN_NOT_FOUND": "IP ban record not found",
     "ERR_NEW_ACCOUNT_COOLDOWN": "Your account is too new to post. Please wait a moment.",
-    "ERR_NEW_ACCOUNT_RATE_LIMITED": "New accounts can only publish a limited number of posts per hour"
+    "ERR_NEW_ACCOUNT_RATE_LIMITED": "New accounts can only publish a limited number of posts per hour",
+    "ERR_REGISTRATION_DISABLED": "Registration is currently disabled by the administrators"
   },
   "tags": {
     "title": "Topics",

@@ -73,4 +73,44 @@ export class LocalFileStorageAdapter implements IStoragePort {
       }
     }
   }
+
+  public async savePostImage(userId: string, content: Buffer, ext: string): Promise<string> {
+    const safeExt = ext.replace(/[^a-zA-Z0-9]/g, '');
+    if (!safeExt || !['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(safeExt)) {
+      throw new Error('ERR_FILE_TYPE_NOT_ALLOWED');
+    }
+
+    const postsDir = path.join(this.getUploadRootDir(), 'posts', userId);
+    await fs.mkdir(postsDir, { recursive: true });
+
+    const filename = `${randomUUID()}.${safeExt}`;
+    await fs.writeFile(path.join(postsDir, filename), content);
+
+    return `/uploads/posts/${userId}/${filename}`;
+  }
+
+  public async deletePostImage(filePath: string): Promise<void> {
+    // 路径白名单：/uploads/posts/<uuid userId>/<uuid>.<ext>
+    const postImagePattern =
+      /^\/uploads\/posts\/[0-9a-fA-F-]{36}\/[0-9a-fA-F-]{36}\.(jpg|jpeg|png|gif|webp)$/;
+    if (!postImagePattern.test(filePath)) {
+      throw new Error('ERR_INVALID_PATH');
+    }
+
+    const relativePath = filePath.replace(/^\/uploads\//, '');
+    const uploadRoot = path.resolve(this.getUploadRootDir());
+    const fullPath = path.resolve(uploadRoot, relativePath);
+
+    if (!fullPath.startsWith(uploadRoot + path.sep)) {
+      throw new Error('ERR_INVALID_PATH');
+    }
+
+    try {
+      await fs.unlink(fullPath);
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        throw err;
+      }
+    }
+  }
 }

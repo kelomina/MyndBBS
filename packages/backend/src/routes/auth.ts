@@ -51,6 +51,7 @@ import {
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
 import { optionalAuth } from '../middleware/auth';
 import { checkIpBan } from '../middleware/ipBan';
+import { checkRegistrationOpen } from '../middleware/registrationGuard';
 import { validate, type ValidationOptions } from '../middleware/validation';
 import {
   registerSchema,
@@ -142,6 +143,7 @@ router.post(
   '/register',
   registerLimiter,
   checkIpBan('REGISTRATION'),
+  checkRegistrationOpen,
   validate(registerSchema, publicRegistrationValidation),
   registerUser
 );
