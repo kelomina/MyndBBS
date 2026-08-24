@@ -39,6 +39,7 @@ MyndBBS 在安全与基础设施层面已具备差异化优势（E2E 加密私�
 | **Phase 2** | G2 IP 封禁管理 + G3 新用户防灌水规则 | ✅ 已上线 |
 | **Phase 3** | G4 Tag 标签 → G5 @提及 → G8 邮件通知 | ✅ 已上线 |
 | **Phase 4** | G10 图片上传 → G11 站点设置 → G12 统计 → G13 SEO → G14 精华 | ✅ 已上线 |
+| **Phase 5** | G15 用户 Bio → G17 草稿保存 → G16 Hover 用户卡 → G18 PWA → G19 API 文档 | 规划中 |
 
 依赖关系：G1 是 G7（缉毒卫士自动授予条件）的前置；G4 与 G5 相互放大；建议 G8 在 G5 之后做以复用提及解析。
 
@@ -190,7 +191,57 @@ PENDING ──dismiss──> DISMISSED （终态）
 
 ---
 
-## 4. Phase 2-4 概要设计（后续按此展开）
+## 4. Phase 5 · 社区体验与生态 详细设计（G15-G19）
+
+### G15 · 用户资料 Bio
+
+- **模型**：`User.bio String? @db.VarChar(200)`；纯文本（trim 后入库，不做 Markdown 渲染）
+- **后端**：
+  - `updateProfile` 流程接受可选 `bio`（≤200 校验，超长截断拒绝：`ERR_BIO_TOO_LONG`）
+  - 公开资料 `PublicProfileDTO` 与查询新增 `bio`
+- **前端**：
+  - 设置·基本资料页 bio 文本域（字数计数，上限 200）
+  - 个人主页用户名下方渲染简介
+- **i18n**：settings/profile 节各两键 + 错误码
+
+### G17 · 草稿保存
+
+- **模型**：`PostDraft { userId @id, title, content Text, categoryId?, updatedAt }`——每用户单槽自动草稿
+- **API**：`GET|PUT|DELETE /api/v1/drafts/post`（requireAuth；PUT 校验 title≤200 / content≤50000 / categoryId 长度）
+- **语义**：多端同时编辑以最后写入为准（单槽）；成功发布后由前端调用 DELETE 清除；编辑已有帖不涉及草稿
+- **前端**：ComposeForm 挂载拉取草稿 → 存在非空内容时显示恢复横幅（含保存时间与恢复/放弃操作）；编辑期 8 秒防抖自动保存（仅内容变化时写入）
+
+### G16 · Hover 用户卡
+
+- **形态**：自建轻量 popover（无新依赖）：hover 300ms 延迟出现、移出 150ms 宽限消失、视口内钳位
+- **数据**：复用 `GET /api/v1/user/public/:username`（含徽章与 bio），模块级 Map 会话内缓存
+- **内容**：头像 48 + 用户名 + 紧凑徽章 ≤4 + bio 一行 + 加入日期/帖子数
+- **接入点**：评论作者名（帖子作者区信息已完整不重复）；后续扩展至其他列表
+
+### G18 · PWA（可安装）
+
+- `app/manifest.ts`：名称/short_name/theme_color/背景色/图标（`public/icon.svg`，sizes any）
+- 极简 `public/sw.js`：install/activate/fetch 透传——仅满足浏览器安装判定，**不做离线缓存声明**
+- 根布局挂 `SWRegister` 客户端组件（仅生产注册 `/sw.js`）
+- 明确不做：离线页面缓存、推送通知（留待后续阶段评估）
+
+### G19 · 开放 API 文档
+
+- 手工维护的端点描述数据（TS 常量）覆盖约 20 个核心公开端点（分类/帖子列表与详情/标签/评论/公开资料/举报等），标注方法、路径、鉴权要求、关键参数
+- 免依赖 `/api-docs` 页面（RSC）分组渲染上述数据，附 Cookie 会话机制与限流概览说明
+- 定位为信息性文档页，不承诺机器可执行契约；约定新公开端点合入时同步更新该数据文件
+
+### 实施顺序与迁移
+
+```
+G15 bio ──> G17 草稿 ──> G16 hover 卡 ──> G18 PWA ──> G19 API 文档
+```
+
+单一迁移 `add_bio_and_post_drafts` 打包 bio 列与 PostDraft 表；PWA 与文档无数据库变更。验收沿用既有门禁（双端 tsc/eslint/build、全量测试、CI 绿后 GHCR 流水线部署）。
+
+---
+
+## 5. Phase 2-4 概要设计（已完成并上线）
 
 ### Phase 2 · 治理强化
 - **IP 封禁**：`BannedIp { ip Inet, reason, createdBy, createdAt, expiresAt? }`；注册/登录中间件校验；管理面板 CRUD。registeredIp 已落库支持历史排查

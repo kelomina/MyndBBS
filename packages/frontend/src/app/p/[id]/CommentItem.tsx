@@ -8,6 +8,7 @@ import { ArrowBigUp, Bookmark, Share, MessageSquare, Trash2, Edit2, X, Check, Fl
 import { Avatar } from '../../../components/Avatar';
 import { BadgeChip } from '../../../components/BadgeChip';
 import { ReportDialog } from '../../../components/ReportDialog';
+import { UserHoverCard } from '../../../components/UserHoverCard';
 import type { Dictionary, PostComment, CurrentUser } from '../../../types';
 
 export function CommentItem({ 
@@ -142,12 +143,14 @@ export function CommentItem({
         <div className="flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             {comment.author?.username ? (
-              <Link
-                href={`/u/${encodeURIComponent(comment.author.username)}`}
-                className="font-medium text-foreground text-sm hover:underline"
-              >
-                {comment.author.username}
-              </Link>
+              <UserHoverCard username={comment.author.username}>
+                <Link
+                  href={`/u/${encodeURIComponent(comment.author.username)}`}
+                  className="font-medium text-foreground text-sm hover:underline"
+                >
+                  {comment.author.username}
+                </Link>
+              </UserHoverCard>
             ) : (
               <span className="font-medium text-foreground text-sm">Unknown</span>
             )}

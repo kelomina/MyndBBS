@@ -12,6 +12,7 @@ export interface UserProps {
   totpSecret: string | null;
   isTotpEnabled: boolean;
   avatarUrl: string | null;
+  bio?: string | null;
   cookiePreferences?: any | null;
   emailNotificationsEnabled?: boolean;
   createdAt: Date;
@@ -59,6 +60,16 @@ export class User {
   public get totpSecret(): string | null { return this.props.totpSecret; }
   public get isTotpEnabled(): boolean { return this.props.isTotpEnabled; }
   public get avatarUrl(): string | null { return this.props.avatarUrl; }
+  public get bio(): string | null { return this.props.bio ?? null; }
+
+  /** 更新个人简介：纯文本、trim、≤200 字符（空串归一为 null） */
+  public setBio(bio: string | null | undefined): void {
+    const trimmed = bio?.trim() ?? '';
+    if (trimmed.length > 200) {
+      throw new Error('ERR_BIO_TOO_LONG');
+    }
+    this.props.bio = trimmed === '' ? null : trimmed;
+  }
   public get cookiePreferences(): any | null { return this.props.cookiePreferences; }
   public get createdAt(): Date { return this.props.createdAt; }
 
@@ -168,8 +179,7 @@ export class User {
     this.props.emailNotificationsEnabled = enabled;
   }
 
-  public updateAvatar(url: string | null): void {
-    if (url !== null && !/^\/uploads\/avatars\/[a-f0-9-]{36}(?:-[a-f0-9-]{36})?\.[a-z]{3,4}$/.test(url)) {
+  public updateAvatar(url: string | null): void {    if (url !== null && !/^\/uploads\/avatars\/[a-f0-9-]{36}(?:-[a-f0-9-]{36})?\.[a-z]{3,4}$/.test(url)) {
       throw new Error('ERR_INVALID_AVATAR_URL');
     }
     this.props.avatarUrl = url;

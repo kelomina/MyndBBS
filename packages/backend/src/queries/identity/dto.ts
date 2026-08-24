@@ -8,6 +8,7 @@ export type UserProfileDTO = {
   role: { name: string } | null;
   isTotpEnabled: boolean;
   avatarUrl: string | null;
+  bio?: string | null;
   cookiePreferences?: any | null;
   _count: { passkeys: number };
 };
@@ -53,6 +54,7 @@ export type PublicProfileDTO = {
   id: string;
   username: string;
   avatarUrl: string | null;
+  bio?: string | null;
   createdAt: Date;
   posts: {
     id: string;

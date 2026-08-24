@@ -91,6 +91,7 @@ model User {
   totpSecret         String?
   isTotpEnabled      Boolean    @default(false)
   emailNotificationsEnabled Boolean @default(false)
+  bio                String?    @db.VarChar(200)
   avatarUrl          String?
   cookiePreferences  Json?      // e.g. { "essential": true, "analytics": false }
   createdAt          DateTime   @default(now())
@@ -444,6 +445,16 @@ model SitePolicy {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+// ── 发帖草稿（每用户单槽自动草稿）──
+
+model PostDraft {
+  userId     String   @id @db.Uuid
+  title      String
+  content    String   @db.Text
+  categoryId String?
+  updatedAt  DateTime @updatedAt
 }
 
 // ── 话题标签 ──

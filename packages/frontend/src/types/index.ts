@@ -18,6 +18,7 @@ export type {
   CommentNode,
   EditablePost,
   PostListPost,
+  PublicUserProfile,
   ProfilePost,
   ProfileUser,
   CommentBookmark,

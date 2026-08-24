@@ -39,6 +39,7 @@ export class IdentityQueryService {
         role: { select: { name: true } },
         isTotpEnabled: true,
         avatarUrl: true,
+        bio: true,
         cookiePreferences: true,
         _count: { select: { passkeys: true } },
       },
@@ -52,6 +53,7 @@ export class IdentityQueryService {
       role: user.role ? { name: user.role.name } : null,
       isTotpEnabled: user.isTotpEnabled,
       avatarUrl: user.avatarUrl,
+      bio: (user as unknown as { bio?: string | null }).bio ?? null,
       cookiePreferences: user.cookiePreferences,
       _count: { passkeys: user._count.passkeys },
     };
@@ -266,6 +268,7 @@ export class IdentityQueryService {
         id: true,
         username: true,
         avatarUrl: true,
+        bio: true,
         createdAt: true,
         posts: {
           where: {
@@ -305,6 +308,7 @@ export class IdentityQueryService {
       id: user.id,
       username: user.username,
       avatarUrl: user.avatarUrl,
+      bio: (user as unknown as { bio?: string | null }).bio ?? null,
       createdAt: user.createdAt,
       posts: user.posts.map(p => ({
         id: p.id,

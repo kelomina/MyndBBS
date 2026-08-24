@@ -98,6 +98,7 @@ import { PrismaContentReportRepository } from './infrastructure/repositories/Pri
 import { PrismaBannedIpRepository } from './infrastructure/repositories/PrismaBannedIpRepository';
 import { PrismaSitePolicyRepository } from './infrastructure/repositories/PrismaSitePolicyRepository';
 import { PrismaTagRepository, PrismaPostTagRepository } from './infrastructure/repositories/PrismaTagRepository';
+import { PrismaPostDraftRepository } from './infrastructure/repositories/PrismaPostDraftRepository';
 import { PrismaBadgeStatsAdapter } from './infrastructure/services/PrismaBadgeStatsAdapter';
 import { PrismaNotificationRepository } from './infrastructure/repositories/PrismaNotificationRepository';
 import { PrismaFriendshipRepository } from './infrastructure/repositories/PrismaFriendshipRepository';
@@ -433,6 +434,7 @@ export const siteSettingsService = new SiteSettingsService(
 export const tagRepository = new PrismaTagRepository();
 const postTagRepository = new PrismaPostTagRepository();
 export { postTagRepository };
+export const postDraftRepository = new PrismaPostDraftRepository();
 
 export const storagePort = container.resolve<IStoragePort>(T.IStoragePort);
 

@@ -114,6 +114,7 @@ describe('IdentityQueryService security filters', () => {
       id: 'user-1',
       username: 'author',
       avatarUrl: null,
+      bio: null,
       createdAt: new Date('2026-06-23T00:00:00.000Z'),
       posts: [
         {
@@ -145,6 +146,7 @@ describe('IdentityQueryService security filters', () => {
       id: 'user-1',
       username: 'author',
       avatarUrl: null,
+      bio: null,
       createdAt: new Date('2026-06-23T00:00:00.000Z'),
       posts: [
         {

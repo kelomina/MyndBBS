@@ -11,6 +11,16 @@ export type CurrentUser = {
 
 export type CommentAuthor = { username?: string | null; avatarUrl?: string | null; badges?: ProfileBadge[] };
 
+export type PublicUserProfile = {
+  id?: string;
+  username: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  createdAt: string;
+  badges?: ProfileBadge[];
+  _count?: { posts?: number };
+};
+
 export type PostComment = {
   id: string;
   postId?: string;

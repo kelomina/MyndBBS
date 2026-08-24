@@ -248,6 +248,10 @@
     "tagsLabel": "Tags (comma-separated, max 5)",
     "tagsPlaceholder": "tech, life, q&a",
     "featured": "Featured",
+    "draftFound": "Unpublished draft saved at {time}",
+    "draftRestore": "Restore",
+    "draftDiscardAction": "Discard",
+    "draftDiscarded": "Draft discarded",
     "hoursAgo": "hours ago",
     "comments": "Comments",
     "writeComment": "Write a comment...",
@@ -305,6 +309,10 @@
     "loadingProfile": "Loading profile...",
     "failedLoadProfile": "Failed to load profile",
     "manageProfile": "Manage your public profile and login details.",
+    "bioLabel": "Bio",
+    "bioPlaceholder": "Tell the community a little about yourself",
+    "bioUpdated": "Bio updated",
+    "bioUpdateFailed": "Failed to update bio",
     "username": "Username",
     "email": "Email",
     "changePassword": "Change Password",
@@ -835,7 +843,8 @@
     "ERR_IP_BAN_NOT_FOUND": "IP ban record not found",
     "ERR_NEW_ACCOUNT_COOLDOWN": "Your account is too new to post. Please wait a moment.",
     "ERR_NEW_ACCOUNT_RATE_LIMITED": "New accounts can only publish a limited number of posts per hour",
-    "ERR_REGISTRATION_DISABLED": "Registration is currently disabled by the administrators"
+    "ERR_REGISTRATION_DISABLED": "Registration is currently disabled by the administrators",
+    "ERR_BIO_TOO_LONG": "Bio must be at most 200 characters"
   },
   "tags": {
     "title": "Topics",
@@ -844,6 +853,10 @@
     "empty": "No tags yet",
     "backToTags": "All tags",
     "noPosts": "No posts with this tag yet"
+  },
+  "userCard": {
+    "joined": "Joined {date}",
+    "posts": "{count} posts"
   },
   "category": {
     "postsTitle": "Posts",

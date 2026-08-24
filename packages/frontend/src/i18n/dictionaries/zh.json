@@ -248,6 +248,10 @@
     "tagsLabel": "标签（逗号分隔，最多 5 个）",
     "tagsPlaceholder": "技术, 生活, 问答",
     "featured": "精华",
+    "draftFound": "检测到 {time} 保存的未发布草稿",
+    "draftRestore": "恢复",
+    "draftDiscardAction": "丢弃",
+    "draftDiscarded": "草稿已丢弃",
     "hoursAgo": "小时前",
     "comments": "评论",
     "writeComment": "写下你的评论...",
@@ -305,6 +309,10 @@
     "loadingProfile": "加载资料中...",
     "failedLoadProfile": "加载资料失败",
     "manageProfile": "管理您的公开资料和登录详情。",
+    "bioLabel": "个人简介",
+    "bioPlaceholder": "向社区介绍一下自己",
+    "bioUpdated": "简介已更新",
+    "bioUpdateFailed": "更新简介失败",
     "username": "用户名",
     "email": "邮箱",
     "changePassword": "更改密码",
@@ -835,7 +843,8 @@
     "ERR_IP_BAN_NOT_FOUND": "封禁记录不存在",
     "ERR_NEW_ACCOUNT_COOLDOWN": "账号注册时间过短，暂时无法发布内容，请稍后再试",
     "ERR_NEW_ACCOUNT_RATE_LIMITED": "新账号每小时发布数量已达上限，请稍后再试",
-    "ERR_REGISTRATION_DISABLED": "管理员已暂时关闭开放注册"
+    "ERR_REGISTRATION_DISABLED": "管理员已暂时关闭开放注册",
+    "ERR_BIO_TOO_LONG": "个人简介最多 200 个字符"
   },
   "tags": {
     "title": "话题标签",
@@ -844,6 +853,10 @@
     "empty": "还没有任何标签",
     "backToTags": "返回标签列表",
     "noPosts": "该标签下暂无帖子"
+  },
+  "userCard": {
+    "joined": "加入于 {date}",
+    "posts": "{count} 篇帖子"
   },
   "category": {
     "postsTitle": "帖子",

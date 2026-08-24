@@ -218,6 +218,13 @@ export const siteSettingsSchema = z.object({
   registrationDisabled: z.boolean().optional(),
 });
 
+/** 发帖草稿校验（长度规则与发帖一致） */
+export const upsertDraftSchema = z.object({
+  title: z.string().max(200).default(''),
+  content: z.string().max(50000, 'ERR_CONTENT_TOO_LONG').default(''),
+  categoryId: z.string().max(64).nullable().optional(),
+});
+
 // ── 帖子 ──
 
 /** 创建帖子请求校验 */

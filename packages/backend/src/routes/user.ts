@@ -25,7 +25,7 @@
  */
 import { Router, Router as ExpressRouter, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import { updateProfile, getSessions, revokeSession, getProfile, getPasskeys, deletePasskey, disableTotp, generatePasskeyOptions, verifyPasskey, generateTotp, verifyTotp, getPublicProfile, getBookmarkedPosts, updateCookiePreferences, uploadAvatar, deleteAvatar, updateEmailNotifications } from '../controllers/user';
+import { updateProfile, getSessions, revokeSession, getProfile, getPasskeys, deletePasskey, disableTotp, generatePasskeyOptions, verifyPasskey, generateTotp, verifyTotp, getPublicProfile, getBookmarkedPosts, updateCookiePreferences, uploadAvatar, deleteAvatar, updateEmailNotifications, updateUserBio } from '../controllers/user';
 import { getSudoPasskeyOptions, verifySudo, checkSudo } from '../controllers/sudo';
 import { requireSudo } from '../middleware/auth';
 import { requireAuth, optionalAuth } from '../middleware/auth';
@@ -92,6 +92,7 @@ router.get('/profile', getProfile);
 router.put('/profile', updateProfile);
 router.put('/cookie-preferences', updateCookiePreferences);
 router.put('/notification-preferences', updateEmailNotifications);
+router.put('/bio', updateUserBio);
 
 // ── 头像 ──
 router.post('/avatar', uploadLimiter, avatarUploadMiddleware.single('avatar'), validateAvatarMagicBytes, uploadAvatar);

@@ -10,7 +10,8 @@ import { fetcher, fetchWithAuth } from '../lib/api/fetcher';
 
 export function ProfileSettings() {
   const dict = useTranslation();
-  const [profile, setProfile] = useState<{ email: string; username: string; avatarUrl?: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ email: string; username: string; avatarUrl?: string | null; bio?: string | null } | null>(null);
+const [bio, setBio] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -30,6 +31,7 @@ export function ProfileSettings() {
         setProfile(data.user);
         setEmail(data.user.email);
         setUsername(data.user.username);
+        setBio(data.user.bio ?? '');
       } else {
         setError(dict.settings.failedLoadProfile);
       }
@@ -170,11 +172,34 @@ export function ProfileSettings() {
     if (username !== profile?.username) updateData.username = username;
     if (password) updateData.password = password;
 
-    if (Object.keys(updateData).length === 0) {
+    const hasAccountChanges = Object.keys(updateData).length > 0;
+    const bioChanged = bio.trim() !== (profile?.bio ?? '');
+
+    if (!hasAccountChanges && !bioChanged) {
       return;
     }
 
     await executeUpdate(updateData);
+
+    if (bioChanged) {
+      try {
+        const res = await fetchWithAuth('/api/v1/user/bio', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bio: bio.trim() || null }),
+        });
+        if (res.ok) {
+          setProfile(prev => prev ? { ...prev, bio: bio.trim() || null } : prev);
+          setMessage(dict.settings.bioUpdated || dict.settings.profileUpdated);
+        } else {
+          const data = await res.json();
+          setError(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.settings.bioUpdateFailed || 'Failed to update bio');
+        }
+      } catch {
+        setError(dict.settings.bioUpdateFailed || 'Failed to update bio');
+      }
+      setSaving(false);
+    }
   };
 
   if (loading) return <div className="text-sm text-muted">{dict.settings.loadingProfile}</div>;
@@ -239,6 +264,19 @@ export function ProfileSettings() {
               className="block w-full rounded-lg border border-border bg-background py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">{dict.settings.bioLabel || 'Bio'}</label>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            rows={3}
+            maxLength={200}
+            placeholder={dict.settings.bioPlaceholder || 'Tell the community a little about yourself'}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <p className="mt-1 text-xs text-muted">{bio.length}/200</p>
         </div>
 
         <div>

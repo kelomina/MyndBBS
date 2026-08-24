@@ -95,6 +95,16 @@ export class UserApplicationService {
     });
   }
 
+  /** 更新个人简介（Phase 5 G15）：纯文本 ≤200 字符 */
+  public async updateBio(userId: string, bio: string | null): Promise<void> {
+    return this.opts.unitOfWork.execute(async () => {
+      const user = await this.opts.userRepository.findById(userId);
+      if (!user) throw new Error('ERR_USER_NOT_FOUND');
+      user.setBio(bio);
+      await this.opts.userRepository.save(user);
+    });
+  }
+
   /**
    * 函数名称：enableTotp
    *

@@ -84,6 +84,31 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
  * Description: Updates the user's cookie preferences.
  * Keywords: cookie, preferences, update, user
  */
+export const updateUserBio = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+      return;
+    }
+
+    const { bio } = req.body;
+    if (bio !== null && bio !== undefined && typeof bio !== 'string') {
+      res.status(400).json({ error: 'ERR_BIO_TOO_LONG' });
+      return;
+    }
+
+    await userApplicationService.updateBio(userId, typeof bio === 'string' ? bio : null);
+    res.json({ success: true });
+  } catch (error: any) {
+    if (error.message?.startsWith('ERR_')) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    console.error('Error updating bio:', error);
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+  }
+};
 export const updateEmailNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;

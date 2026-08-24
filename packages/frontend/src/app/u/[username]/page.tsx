@@ -46,6 +46,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
             <Avatar src={user.avatarUrl} username={user.username} size={128} className="border-4 border-background shadow-sm" />
             <div className="pb-2">
               <h1 className="text-3xl font-bold text-foreground">{user.username}</h1>
+              {typeof user.bio === 'string' && user.bio.trim() !== '' && (
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">{user.bio}</p>
+              )}
             </div>
           </div>
           <div className="pb-2">

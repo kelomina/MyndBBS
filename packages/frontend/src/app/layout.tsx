@@ -10,6 +10,7 @@ import { TranslationProvider } from '../components/TranslationProvider'
 import { PasskeyBanner } from '../components/PasskeyBanner'
 import { CookieConsentModal } from '../components/CookieConsentModal'
 import { ToastProvider } from '../components/ui/Toast'
+import { SWRegister } from '../components/SWRegister'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kolobbs.kolostudio.fun'
 
@@ -27,6 +28,10 @@ export const metadata: Metadata = {
   },
 }
 
+export const viewport = {
+  themeColor: '#4f46e5',
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -42,8 +47,9 @@ export default async function RootLayout({
       <body className="min-h-screen flex flex-col bg-background transition-colors duration-300">
         <ThemeProvider nonce={nonce}>
           <TranslationProvider dict={dict}>
-            <ToastProvider>
-              <PasskeyBanner />
+<ToastProvider>
+<SWRegister />
+<PasskeyBanner />
               <Header locale={locale} />
               <CookieConsentModal />
               <div className="flex-1">{children}</div>

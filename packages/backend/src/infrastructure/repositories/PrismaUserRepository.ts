@@ -36,6 +36,7 @@ export class PrismaUserRepository implements IUserRepository {
       isTotpEnabled: raw.isTotpEnabled,
       emailNotificationsEnabled: raw.emailNotificationsEnabled,
       avatarUrl: raw.avatarUrl,
+      bio: raw.bio,
       cookiePreferences: raw.cookiePreferences,
       createdAt: raw.createdAt,
     };
@@ -85,6 +86,7 @@ export class PrismaUserRepository implements IUserRepository {
         isTotpEnabled: user.isTotpEnabled,
         emailNotificationsEnabled: user.emailNotificationsEnabled,
         avatarUrl: user.avatarUrl,
+      bio: user.bio,
         cookiePreferences: user.cookiePreferences ? (user.cookiePreferences as any) : null,
         createdAt: user.createdAt,
       },
@@ -100,6 +102,7 @@ export class PrismaUserRepository implements IUserRepository {
         isTotpEnabled: user.isTotpEnabled,
         emailNotificationsEnabled: user.emailNotificationsEnabled,
         avatarUrl: user.avatarUrl,
+      bio: user.bio,
         cookiePreferences: user.cookiePreferences ? (user.cookiePreferences as any) : null,
       },
     });
