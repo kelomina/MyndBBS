@@ -1,7 +1,11 @@
-import type { MetadataRoute } from 'next';
+import { NextResponse } from 'next/server';
 
-export default function manifest(): MetadataRoute.Manifest {
-  return {
+/**
+ * PWA manifest：经 /api/pwa/manifest 提供以绕过边缘 WAF 对
+ * .webmanifest 扩展名的拦截。内容为标准 Web App Manifest。
+ */
+export function GET(): NextResponse {
+  const manifest = {
     name: 'MyndBBS - Modern Community',
     short_name: 'MyndBBS',
     description: 'A clean, fast, and secure community platform.',
@@ -18,4 +22,8 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
   };
+
+  return NextResponse.json(manifest, {
+    headers: { 'Content-Type': 'application/manifest+json' },
+  });
 }

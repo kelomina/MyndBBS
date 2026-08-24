@@ -7,7 +7,7 @@ export function SWRegister() {
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') return
     if (!('serviceWorker' in navigator)) return
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    navigator.serviceWorker.register('/api/pwa/sw').catch((err) => {
       console.error('[SWRegister] failed:', err)
     })
   }, [])

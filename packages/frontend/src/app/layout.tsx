@@ -26,6 +26,7 @@ export const metadata: Metadata = {
     siteName: 'MyndBBS',
     url: SITE_URL,
   },
+  manifest: '/api/pwa/manifest',
 }
 
 export const viewport = {

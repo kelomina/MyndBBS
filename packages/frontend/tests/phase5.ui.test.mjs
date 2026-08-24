@@ -6,15 +6,15 @@ import path from 'node:path';
 test('phase5: bio, drafts, hover card, PWA and API docs', async (t) => {
   const root = process.cwd();
   const read = (p) => fs.readFile(path.join(root, p), 'utf-8');
-  const [profileSettings, profilePage, compose, hoverCard, swRegister, manifest, sw, docsPage, docsData, zhRaw, enRaw] =
+  const [profileSettings, profilePage, compose, hoverCard, swRegister, manifestRoute, swRoute, docsPage, docsData, zhRaw, enRaw] =
     await Promise.all([
       read('src/components/ProfileSettings.tsx'),
       read(path.join('src', 'app', 'u', '[username]', 'page.tsx')),
       read('src/app/compose/ComposeForm.tsx'),
       read('src/components/UserHoverCard.tsx'),
       read('src/components/SWRegister.tsx'),
-      read('src/app/manifest.ts'),
-      fs.readFile(path.join(root, 'public', 'sw.js'), 'utf-8'),
+      read(path.join('src', 'app', 'api', 'pwa', 'manifest', 'route.ts')),
+      read(path.join('src', 'app', 'api', 'pwa', 'sw', 'route.ts')),
       read('src/app/api-docs/page.tsx'),
       read('src/app/api-docs/openapi-data.ts'),
       fs.readFile(path.join(root, 'src', 'i18n', 'dictionaries', 'zh.json'), 'utf-8'),
@@ -47,11 +47,14 @@ test('phase5: bio, drafts, hover card, PWA and API docs', async (t) => {
     });
   });
 
-  await t.test('G18: PWA manifest, service worker and production registration', () => {
-    assert.match(manifest, /short_name: 'MyndBBS'/);
-    assert.match(manifest, /display: 'standalone'/);
+  await t.test('G18: PWA manifest route, service worker and production registration', () => {
+    assert.match(manifestRoute, /short_name: 'MyndBBS'/);
+    assert.match(manifestRoute, /display: 'standalone'/);
+    assert.match(manifestRoute, /application\/manifest\+json/);
+    assert.match(swRoute, /addEventListener\('fetch'/);
     assert.match(swRegister, /process\.env\.NODE_ENV !== 'production'/);
-    assert.match(sw, /addEventListener\('fetch'/);
+    assert.match(swRegister, /\/api\/pwa\/sw/);
+    assert.match(hoverCard, /profileCache/);
   });
 
   await t.test('G19: API docs page groups core endpoints', () => {
