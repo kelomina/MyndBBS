@@ -37,7 +37,7 @@ describe('PostStatus enum', () => {
     expect(unique.size).toBe(values.length)
   })
 
-  it('should have 7 members', () => {
-    expect(Object.keys(PostStatus).length).toBe(7)
+  it('should have 8 members', () => {
+    expect(Object.keys(PostStatus).length).toBe(8)
   })
 })
