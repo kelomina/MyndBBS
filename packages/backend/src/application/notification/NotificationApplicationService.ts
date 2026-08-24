@@ -5,6 +5,12 @@ import { PostApprovedEvent, PostRejectedEvent, PostRepliedEvent, CommentRepliedE
 import { randomUUID as uuidv4 } from 'crypto';
 import { IModeratorReadModel } from './ports/IModeratorReadModel';
 import { IUnitOfWork } from '../../domain/shared/IUnitOfWork';
+import type { IEmailSender } from '../../domain/identity/ports/IEmailSender';
+import type { IEmailTemplateRepository } from '../../domain/notification/IEmailTemplateRepository';
+import type { IUserDeliveryInfoPort } from './ports/IUserDeliveryInfoPort';
+
+/** 触发邮件通知的站内通知类型集合 */
+const EMAIL_ELIGIBLE_TYPES = new Set(['POST_REPLIED', 'COMMENT_REPLIED', 'MENTION']);
 
 /**
  * Callers: [Server initialization, Controllers]
@@ -23,7 +29,16 @@ export class NotificationApplicationService {
     private notificationRepository: INotificationRepository,
     private eventBus: IEventBus,
     private moderatorReadModel: IModeratorReadModel,
-    private unitOfWork: IUnitOfWork
+    private unitOfWork: IUnitOfWork,
+    private emailDeps?: {
+      emailSender: { sendEmail(command: { to: string; subject: string; textBody: string; htmlBody: string }): Promise<void> };
+      emailTemplateRepository: {
+        findByType(type: string): Promise<{
+          render(variables: Record<string, string>): { subject: string; textBody: string; htmlBody: string };
+        } | null>;
+      };
+      userDeliveryInfo: IUserDeliveryInfoPort;
+    }
   ) {
     this.registerEventHandlers();
   }
@@ -131,6 +146,45 @@ export class NotificationApplicationService {
         createdAt: new Date()
       });
       await this.notificationRepository.save(notification);
+    }).then(async () => {
+      // ── 邮件通知（G8）：用户开启且类型匹配时入队发送；失败静默不阻断 ──
+      if (!this.emailDeps || !EMAIL_ELIGIBLE_TYPES.has(type)) return;
+      try {
+        const info = await this.emailDeps.userDeliveryInfo.getDeliveryInfo(userId);
+        if (!info?.emailNotificationsEnabled) return;
+
+        let subject = title;
+        let textBody = `${title}\n\n${content}`;
+        let htmlBody = `<p><strong>${escapeHtml(title)}</strong></p><p>${escapeHtml(content)}</p>`;
+        try {
+          const template = await this.emailDeps.emailTemplateRepository.findByType('NOTIFICATION');
+          if (template) {
+            const rendered = template.render({ title, body: content });
+            subject = rendered.subject;
+            textBody = rendered.textBody;
+            htmlBody = rendered.htmlBody;
+          }
+        } catch {
+          // 模板缺失/渲染失败 → 使用内置默认文案
+        }
+
+        await this.emailDeps.emailSender.sendEmail({
+          to: info.email,
+          subject: `[MyndBBS] ${subject}`,
+          textBody,
+          htmlBody,
+        });
+      } catch (err) {
+        console.error('[Notification] email delivery failed:', err);
+      }
     });
   }
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

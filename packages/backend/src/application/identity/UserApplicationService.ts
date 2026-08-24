@@ -269,6 +269,16 @@ export class UserApplicationService {
     });
   }
 
+  /** 邮件通知开关（Phase 3 G8） */
+  public async updateEmailNotifications(userId: string, enabled: boolean): Promise<void> {
+    return this.opts.unitOfWork.execute(async () => {
+      const user = await this.opts.userRepository.findById(userId);
+      if (!user) throw new Error('ERR_USER_NOT_FOUND');
+      user.setEmailNotificationsEnabled(enabled);
+      await this.opts.userRepository.save(user);
+    });
+  }
+
   public async updateAvatar(userId: string, content: Buffer, ext: string): Promise<string> {
     return this.opts.unitOfWork.execute(async () => {
       const user = await this.opts.userRepository.findById(userId);

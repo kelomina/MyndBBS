@@ -14,6 +14,7 @@ export function EditPostForm({ dict, initialPost }: { dict: Dictionary; initialP
   const [title, setTitle] = useState(initialPost.title);
   const [content, setContent] = useState(initialPost.content);
   const [categoryId, setCategoryId] = useState(initialPost.categoryId);
+  const [tagsInput, setTagsInput] = useState((initialPost.tags ?? []).join(', '));
   const { categories } = useCategories();
   const [loading, setLoading] = useState(false);
 
@@ -25,9 +26,14 @@ export function EditPostForm({ dict, initialPost }: { dict: Dictionary; initialP
 
     setLoading(true);
     try {
+      const tags = tagsInput
+        .split(/[,，]/)
+        .map((t) => t.trim().replace(/^#/, ''))
+        .filter(Boolean)
+        .slice(0, 5);
       const data = await fetcher(`/api/posts/${initialPost.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ title, content, categoryId })
+        body: JSON.stringify({ title, content, categoryId, tags })
       });
 
       if (data.message === 'ERR_PENDING_MODERATION') {
@@ -62,6 +68,20 @@ export function EditPostForm({ dict, initialPost }: { dict: Dictionary; initialP
       </div>
 
       <PostEditor dict={dict} title={title} setTitle={setTitle} content={content} setContent={setContent} categoryId={categoryId} setCategoryId={setCategoryId} categories={categories} />
+
+      <div className="mt-4">
+        <label htmlFor="edit-tags" className="text-sm font-medium text-muted-foreground">
+          {dict.post?.tagsLabel || 'Tags (comma-separated, max 5)'}
+        </label>
+        <input
+          id="edit-tags"
+          type="text"
+          value={tagsInput}
+          onChange={(e) => setTagsInput(e.target.value)}
+          placeholder={dict.post?.tagsPlaceholder || 'tech, life, q&a'}
+          className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+      </div>
     </>
   );
 }

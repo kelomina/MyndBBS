@@ -124,7 +124,7 @@ describe('CommunityQueryService security filters', () => {
     const postsResult = await service.listPosts({ ability: publicAbility, take: 10 });
     const commentsResult = await service.listPostComments({ ability: publicAbility, postId: 'post-1' });
 
-    expect(postsResult[0]?.author).toEqual({ username: 'author', avatarUrl: null });
+    expect(postsResult[0]?.author).toEqual({ username: 'author', avatarUrl: null, badges: [] });
     expect(postsResult[0]).not.toHaveProperty('author.id');
     expect(commentsResult?.data[0]?.author).toEqual({ username: 'commenter', avatarUrl: null, badges: [] });
     expect(commentsResult?.data[0]).not.toHaveProperty('author.id');

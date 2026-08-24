@@ -13,6 +13,7 @@ export interface UserProps {
   isTotpEnabled: boolean;
   avatarUrl: string | null;
   cookiePreferences?: any | null;
+  emailNotificationsEnabled?: boolean;
   createdAt: Date;
 }
 
@@ -156,6 +157,15 @@ export class User {
    */
   public updateCookiePreferences(preferences: any): void {
     this.props.cookiePreferences = preferences;
+  }
+
+  public get emailNotificationsEnabled(): boolean {
+    return this.props.emailNotificationsEnabled ?? false;
+  }
+
+  /** 邮件通知开关（Phase 3 G8：被回复/被提及事件的邮件提醒） */
+  public setEmailNotificationsEnabled(enabled: boolean): void {
+    this.props.emailNotificationsEnabled = enabled;
   }
 
   public updateAvatar(url: string | null): void {

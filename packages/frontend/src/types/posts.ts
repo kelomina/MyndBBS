@@ -28,7 +28,7 @@ export type PostComment = {
 
 export type CommentNode = PostComment & { children: CommentNode[] };
 
-export type EditablePost = { id: string; title: string; content: string; categoryId: string };
+export type EditablePost = { id: string; title: string; content: string; categoryId: string; tags?: string[] };
 
 export type PostListPost = {
   id: string;

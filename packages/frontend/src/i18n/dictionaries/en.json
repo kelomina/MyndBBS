@@ -245,6 +245,8 @@
     "serverError": "Server error"
   },
   "post": {
+    "tagsLabel": "Tags (comma-separated, max 5)",
+    "tagsPlaceholder": "tech, life, q&a",
     "hoursAgo": "hours ago",
     "comments": "Comments",
     "writeComment": "Write a comment...",
@@ -356,7 +358,11 @@
     "passwordChangedRelogin": "Password changed successfully. Please log in again. Redirecting in 3 seconds...",
     "passkeyNotSupported": "Passkey is not supported or cancelled.",
     "passkeyDevice": "Device Type",
-    "passkeyBackedUp": "Backed Up"
+    "passkeyBackedUp": "Backed Up",
+    "emailPrefSaved": "Notification preferences saved",
+    "emailPrefFailed": "Failed to save notification preferences",
+    "emailNotifications": "Email notifications",
+    "emailNotificationsDesc": "Receive an email when someone replies to your posts or comments, or mentions you."
   },
   "admin": {
     "categoryManagement": "Category Management",
@@ -811,6 +817,14 @@
     "ERR_NEW_ACCOUNT_COOLDOWN": "Your account is too new to post. Please wait a moment.",
     "ERR_NEW_ACCOUNT_RATE_LIMITED": "New accounts can only publish a limited number of posts per hour"
   },
+  "tags": {
+    "title": "Topics",
+    "subtitle": "Browse conversations by topic tag.",
+    "postCount": "{count} posts",
+    "empty": "No tags yet",
+    "backToTags": "All tags",
+    "noPosts": "No posts with this tag yet"
+  },
   "category": {
     "postsTitle": "Posts",
     "showingPostsFor": "Showing posts for category: ",
@@ -850,6 +864,7 @@
     "POST_REJECTED": "Post Rejected",
     "POST_REPLIED": "New Reply",
     "COMMENT_REPLIED": "Comment Replied",
+    "MENTION": "Mentioned You",
     "SYSTEM": "System Notification"
   },
   "messages": {

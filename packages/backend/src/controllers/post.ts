@@ -83,6 +83,7 @@ export const getPostsList = async (req: AuthRequest, res: Response): Promise<voi
       ability: req.ability!,
       category: req.query.category as string,
       sortBy: req.query.sortBy as string,
+      tag: (req.query.tag as string) || undefined,
       take: getReadTake(req),
     });
 
@@ -162,12 +163,13 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
     
     try {
       const result = await communityApplicationService.createPost(
-        title, 
-        content, 
-        categoryId, 
-        req.user!.userId, 
+        title,
+        content,
+        categoryId,
+        req.user!.userId,
         userLevel,
-        captchaId
+        captchaId,
+        Array.isArray(req.body.tags) ? (req.body.tags as string[]) : undefined
       );
       const postDto = await communityQueryService.getPostById(req.ability!, result.postId);
       if (result.message) {
@@ -583,14 +585,21 @@ export const createComment = async (req: AuthRequest, res: Response): Promise<vo
 export const updatePost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const postId = req.params.id as string;
-    const { title, content, categoryId } = req.body;
-    
+    const { title, content, categoryId, tags } = req.body;
+
     if (!title || !content || !categoryId) {
       res.status(400).json({ error: 'ERR_TITLE_CONTENT_AND_CATEGORYID_ARE_REQUIRED' });
       return;
     }
 
-    const result = await communityApplicationService.updatePost(req.ability!, postId, title, content, categoryId);
+    const result = await communityApplicationService.updatePost(
+      req.ability!,
+      postId,
+      title,
+      content,
+      categoryId,
+      Array.isArray(tags) ? (tags as string[]) : undefined
+    );
     const postDto = await communityQueryService.getPostById(req.ability!, result.postId);
     if (postDto?.status === 'PENDING') {
       res.json({ message: 'ERR_PENDING_MODERATION', post: postDto });

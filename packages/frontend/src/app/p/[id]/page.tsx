@@ -88,9 +88,23 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
               </span>
             </div>
             
-            <h1 className="mb-6 text-3xl font-bold text-foreground">
+            <h1 className="mb-4 text-3xl font-bold text-foreground">
               {post.title}
             </h1>
+
+            {Array.isArray(post.tags) && post.tags.length > 0 && (
+              <div className="mb-6 flex flex-wrap gap-2">
+                {post.tags.map((tag: string) => (
+                  <Link
+                    key={tag}
+                    href={`/tags/${encodeURIComponent(tag)}`}
+                    className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                  >
+                    # {tag}
+                  </Link>
+                ))}
+              </div>
+            )}
             
             <div className="prose dark:prose-invert max-w-none text-foreground">
               <MarkdownContent content={post.content?.replace(/\\n/g, '\n') || ''} />

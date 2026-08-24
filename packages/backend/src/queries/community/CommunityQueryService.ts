@@ -104,7 +104,7 @@ export class CommunityQueryService {
    * Keywords: list, posts, filter, category, popular, findMany
    */
   public async listPosts(params: ListPostsParams): Promise<PostListItemDTO[]> {
-    const { ability, category, sortBy, take } = params;
+    const { ability, category, sortBy, tag, take } = params;
     const boundedTake = clampReadTake(take);
 
     const whereClause: LocalPostWhereInput = {
@@ -116,14 +116,18 @@ export class CommunityQueryService {
     if (category) {
       whereClause.AND!.push({ category: { name: String(category) } });
     }
+    if (tag) {
+      whereClause.AND!.push({ tags: { some: { tag: { name: String(tag).toLowerCase() } } } });
+    }
 
     let rows = await prisma.post.findMany({
       take: boundedTake,
       where: whereClause,
       orderBy: { createdAt: 'desc' }, // default to fetching latest first before sorting if popular
       include: {
-        author: { select: { username: true, avatarUrl: true } },
+        author: { select: AUTHOR_SUMMARY_SELECT },
         category: { select: { id: true, name: true, description: true } },
+        tags: { select: { tag: { select: { name: true } } }, orderBy: { tagId: 'asc' } },
         _count: { select: { comments: true, upvotes: true } },
       },
     });
@@ -150,7 +154,8 @@ export class CommunityQueryService {
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       status: p.status as unknown as import('@myndbbs/shared').PostStatus,
-      author: { username: p.author.username, avatarUrl: p.author.avatarUrl },
+      author: toAuthorSummary(p.author as unknown as RawAuthorSummary),
+      tags: (p as { tags?: Array<{ tag: { name: string } }> }).tags?.map((t) => t.tag.name) ?? [],
       category: p.category,
       _count: p._count,
     }));
@@ -174,6 +179,7 @@ export class CommunityQueryService {
       include: {
         author: { select: AUTHOR_SUMMARY_SELECT },
         category: { select: { id: true, name: true, description: true } },
+        tags: { select: { tag: { select: { name: true } } }, orderBy: { tagId: 'asc' } },
         _count: { select: { comments: true, upvotes: true, bookmarks: true } },
       },
     });
@@ -188,6 +194,7 @@ export class CommunityQueryService {
       updatedAt: post.updatedAt,
       status: post.status as unknown as import('@myndbbs/shared').PostStatus,
       author: toAuthorSummary(post.author as unknown as RawAuthorSummary),
+      tags: (post as unknown as { tags?: Array<{ tag: { name: string } }> }).tags?.map((t) => t.tag.name) ?? [],
       category: post.category,
       _count: post._count,
     };

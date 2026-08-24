@@ -31,10 +31,19 @@ export type PostListItemDTO = {
   createdAt: Date;
   updatedAt: Date;
   status: PostStatus;
-  author: { username: string; avatarUrl: string | null };
+  author: AuthorSummaryDTO;
+  tags?: string[];
   category: { id: string; name: string; description: string | null };
   _count: { comments: number; upvotes: number };
   highlight?: { title?: string; content?: string };
+};
+
+export type ListPostsParams = {
+  ability: import('../../lib/casl').AppAbility;
+  category?: string | undefined;
+  sortBy?: string | undefined;
+  tag?: string | undefined;
+  take?: number | undefined;
 };
 
 export type PostDetailDTO = {
@@ -45,6 +54,7 @@ export type PostDetailDTO = {
   updatedAt: Date;
   status: PostStatus;
   author: AuthorSummaryDTO;
+  tags: string[];
   category: { id: string; name: string; description: string | null };
   _count: { comments: number; upvotes: number; bookmarks: number };
 };
@@ -64,13 +74,6 @@ export type CommentListItemDTO = {
   _count: { upvotes: number; bookmarks: number; replies: number };
   hasUpvoted?: boolean;
   hasBookmarked?: boolean;
-};
-
-export type ListPostsParams = {
-  ability: import('../../lib/casl').AppAbility;
-  category?: string;
-  sortBy?: string;
-  take?: number;
 };
 
 export type GetPostParams = {

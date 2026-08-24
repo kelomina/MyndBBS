@@ -90,6 +90,7 @@ model User {
   isPasskeyMandatory Boolean    @default(false)
   totpSecret         String?
   isTotpEnabled      Boolean    @default(false)
+  emailNotificationsEnabled Boolean @default(false)
   avatarUrl          String?
   cookiePreferences  Json?      // e.g. { "essential": true, "analytics": false }
   createdAt          DateTime   @default(now())
@@ -209,6 +210,7 @@ model Post {
   comments   Comment[]
   upvotes    Upvote[]
   bookmarks  Bookmark[]
+  tags       PostTag[]
 
   @@index([authorId])
   @@index([categoryId])
@@ -359,6 +361,7 @@ enum NotificationType {
   POST_REJECTED
   POST_REPLIED
   COMMENT_REPLIED
+  MENTION
   SYSTEM
 }
 
@@ -441,6 +444,27 @@ model SitePolicy {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+// ── 话题标签 ──
+
+model Tag {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique // 规范化小写形式，展示与匹配共用
+  createdAt DateTime  @default(now())
+  posts     PostTag[]
+
+  @@index([name])
+}
+
+model PostTag {
+  postId String @db.Uuid
+  tagId  String @db.Uuid
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
 }
 
 model UserKey {
@@ -529,6 +553,7 @@ model RouteWhitelist {
 enum EmailTemplateType {
   REGISTRATION_VERIFICATION
   PASSWORD_RESET
+  NOTIFICATION
   TEST
 }
 

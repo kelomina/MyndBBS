@@ -29,6 +29,7 @@ interface EmailTemplateItem {
 const TEMPLATE_TYPE_LABELS: Record<string, { en: string; zh: string }> = {
   REGISTRATION_VERIFICATION: { en: 'Registration Verification', zh: '注册验证' },
   PASSWORD_RESET: { en: 'Password Reset', zh: '密码重置' },
+  NOTIFICATION: { en: 'Notification (reply/mention)', zh: '通知（回复/提及）' },
   TEST: { en: 'Test Email', zh: '测试邮件' },
 };
 

@@ -220,6 +220,7 @@ export const createPostSchema = z.object({
   categoryId: z.string().min(1, 'ERR_CATEGORY_REQUIRED'),
   captchaId: z.string().min(1, 'ERR_CAPTCHA_REQUIRED'),
   captchaCode: z.string().max(32).optional(),
+  tags: z.array(z.string().max(40)).max(5).optional(),
 });
 
 /** 更新帖子请求校验 */
@@ -227,6 +228,7 @@ export const updatePostSchema = z.object({
   title: z.string().min(1, 'ERR_TITLE_REQUIRED').max(200),
   content: z.string().min(1, 'ERR_CONTENT_REQUIRED').max(50000, 'ERR_CONTENT_TOO_LONG'),
   categoryId: z.string().min(1, 'ERR_CATEGORY_REQUIRED'),
+  tags: z.array(z.string().max(40)).max(5).optional(),
 });
 
 /** 创建评论请求校验 */

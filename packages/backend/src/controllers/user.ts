@@ -84,6 +84,27 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
  * Description: Updates the user's cookie preferences.
  * Keywords: cookie, preferences, update, user
  */
+export const updateEmailNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'ERR_UNAUTHORIZED' });
+      return;
+    }
+
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ error: 'ERR_NO_FIELDS_TO_UPDATE' });
+      return;
+    }
+
+    await userApplicationService.updateEmailNotifications(userId, enabled);
+    res.json({ success: true, enabled });
+  } catch (error: any) {
+    console.error('Error updating email notification preference:', error);
+    res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
+  }
+};
 export const updateCookiePreferences = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;

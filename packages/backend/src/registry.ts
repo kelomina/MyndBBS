@@ -67,6 +67,7 @@ import { ReportApplicationService } from './application/report/ReportApplication
 import { IpBanApplicationService } from './application/system/IpBanApplicationService';
 import { AntiSpamService } from './application/system/AntiSpamService';
 import { PrismaAntiSpamAdapter } from './infrastructure/services/PrismaAntiSpamAdapter';
+import { MentionNotifier } from './application/notification/MentionNotifier';
 import { RoleApplicationService } from './application/identity/RoleApplicationService';
 import { ModerationApplicationService } from './application/community/ModerationApplicationService';
 import { AdminUserManagementApplicationService } from './application/identity/AdminUserManagementApplicationService';
@@ -95,6 +96,7 @@ import { PrismaUserBadgeRepository } from './infrastructure/repositories/PrismaU
 import { PrismaContentReportRepository } from './infrastructure/repositories/PrismaContentReportRepository';
 import { PrismaBannedIpRepository } from './infrastructure/repositories/PrismaBannedIpRepository';
 import { PrismaSitePolicyRepository } from './infrastructure/repositories/PrismaSitePolicyRepository';
+import { PrismaTagRepository, PrismaPostTagRepository } from './infrastructure/repositories/PrismaTagRepository';
 import { PrismaBadgeStatsAdapter } from './infrastructure/services/PrismaBadgeStatsAdapter';
 import { PrismaNotificationRepository } from './infrastructure/repositories/PrismaNotificationRepository';
 import { PrismaFriendshipRepository } from './infrastructure/repositories/PrismaFriendshipRepository';
@@ -423,6 +425,10 @@ export const newContentGuard = {
   assertAllowed: (userId: string) => antiSpamService.assertContentAllowed(userId),
 };
 
+export const tagRepository = new PrismaTagRepository();
+const postTagRepository = new PrismaPostTagRepository();
+export { postTagRepository };
+
 export const communityApplicationService = new CommunityApplicationService({
   categoryRepository: container.resolve(T.ICategoryRepository),
   postRepository: container.resolve(T.IPostRepository),
@@ -435,6 +441,8 @@ export const communityApplicationService = new CommunityApplicationService({
   auditApplicationService: auditApplicationService,
   unitOfWork: container.resolve(T.IUnitOfWork),
   newContentGuard,
+  tagRepositories: { tags: tagRepository, postTags: postTagRepository },
+  mentionNotifier: new MentionNotifier(),
 });
 
 export const messagingApplicationService = new MessagingApplicationService({

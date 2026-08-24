@@ -110,7 +110,7 @@ describe('SearchQueryService', () => {
           createdAt: p.createdAt,
           updatedAt: undefined,
           status: p.status,
-          author: { username: p.author.username, avatarUrl: p.author.avatarUrl },
+          author: { username: p.author.username, avatarUrl: p.author.avatarUrl, badges: [] },
           category: p.category,
           _count: p._count,
         })),

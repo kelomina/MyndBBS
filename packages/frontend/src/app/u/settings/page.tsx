@@ -1,18 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Shield, Monitor, Bell, Palette, Settings } from 'lucide-react';
+import { User, Shield, Monitor, Bell, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { ProfileSettings } from '../../../components/ProfileSettings';
 import { SecuritySettings } from '../../../components/SecuritySettings';
 import { SessionManagement } from '../../../components/SessionManagement';
 import { PrivacySettings } from '../../../components/PrivacySettings';
+import { EmailNotificationsPanel } from '../../../components/EmailNotificationsPanel';
 import { useTranslation } from '../../../components/TranslationProvider';
 import { fetchWithAuth } from '../../../lib/api/fetcher';
 
 export default function SettingsPage() {
   const dict = useTranslation();
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'sessions' | 'privacy'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'sessions' | 'privacy' | 'notifications'>('profile');
   const [role, setRole] = useState<string>('USER');
 
   useEffect(() => {
@@ -58,14 +59,13 @@ export default function SettingsPage() {
             <Shield className="h-4 w-4" /> {dict.profile?.privacyOptions || "Privacy & Legal"}
           </button>
 
-          {/* Placeholders for future */}
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted/50 cursor-not-allowed">
-            <Palette className="h-4 w-4" /> {dict.profile.appearance}
-          </button>
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted/50 cursor-not-allowed">
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'notifications' ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted hover:bg-card hover:text-foreground'}`}
+          >
             <Bell className="h-4 w-4" /> {dict.profile.notificationSettings}
           </button>
-          
+
           {(role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'MODERATOR') && (
             <Link 
               href="/admin"
@@ -82,6 +82,7 @@ export default function SettingsPage() {
           {activeTab === 'security' && <SecuritySettings />}
           {activeTab === 'sessions' && <SessionManagement />}
           {activeTab === 'privacy' && <PrivacySettings />}
+            {activeTab === 'notifications' && <EmailNotificationsPanel />}
         </div>
       </div>
     </div>

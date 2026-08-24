@@ -15,6 +15,7 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [tagsInput, setTagsInput] = useState('');
   const { categories } = useCategories();
   const [loading, setLoading] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
@@ -31,12 +32,17 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
     setShowCaptcha(false);
     setLoading(true);
     try {
+      const tags = tagsInput
+        .split(/[,，]/)
+        .map((t) => t.trim().replace(/^#/, ''))
+        .filter(Boolean)
+        .slice(0, 5);
       const data = await fetcher('/api/posts', {
         method: 'POST',
-        headers: { 
+        headers: {
           'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify({ title, content, categoryId, captchaId })
+        body: JSON.stringify({ title, content, categoryId, captchaId, ...(tags.length ? { tags } : {}) })
       });
 
       if (data.message === 'ERR_PENDING_MODERATION') {
@@ -89,6 +95,20 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
       )}
 
       <PostEditor dict={dict} title={title} setTitle={setTitle} content={content} setContent={setContent} categoryId={categoryId} setCategoryId={setCategoryId} categories={categories} />
+
+      <div className="mt-4">
+        <label htmlFor="post-tags" className="text-sm font-medium text-muted-foreground">
+          {dict.post?.tagsLabel || 'Tags (comma-separated, max 5)'}
+        </label>
+        <input
+          id="post-tags"
+          type="text"
+          value={tagsInput}
+          onChange={(e) => setTagsInput(e.target.value)}
+          placeholder={dict.post?.tagsPlaceholder || 'tech, life, q&a'}
+          className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+      </div>
     </>
   );
 }

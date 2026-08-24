@@ -245,6 +245,8 @@
     "serverError": "服务器错误"
   },
   "post": {
+    "tagsLabel": "标签（逗号分隔，最多 5 个）",
+    "tagsPlaceholder": "技术, 生活, 问答",
     "hoursAgo": "小时前",
     "comments": "评论",
     "writeComment": "写下你的评论...",
@@ -355,6 +357,10 @@
     "failedRevokeSession": "注销会话失败",
     "passwordChangedRelogin": "密码修改成功，请重新登录。3秒后跳转...",
     "passkeyNotSupported": "设备不支持或取消了通行密钥操作。",
+    "emailPrefSaved": "通知偏好已保存",
+    "emailPrefFailed": "保存通知偏好失败",
+    "emailNotifications": "邮件通知",
+    "emailNotificationsDesc": "当有人回复你的帖子或评论、或提及你时，接收邮件提醒。",
     "passkeyDevice": "设备类型",
     "passkeyBackedUp": "已备份"
   },
@@ -811,6 +817,14 @@
     "ERR_NEW_ACCOUNT_COOLDOWN": "账号注册时间过短，暂时无法发布内容，请稍后再试",
     "ERR_NEW_ACCOUNT_RATE_LIMITED": "新账号每小时发布数量已达上限，请稍后再试"
   },
+  "tags": {
+    "title": "话题标签",
+    "subtitle": "按话题浏览社区讨论。",
+    "postCount": "{count} 篇帖子",
+    "empty": "还没有任何标签",
+    "backToTags": "返回标签列表",
+    "noPosts": "该标签下暂无帖子"
+  },
   "category": {
     "postsTitle": "帖子",
     "showingPostsFor": "显示分类下的帖子：",
@@ -850,6 +864,7 @@
     "POST_REJECTED": "帖子被拒绝",
     "POST_REPLIED": "收到新回复",
     "COMMENT_REPLIED": "评论收到回复",
+    "MENTION": "提到了你",
     "SYSTEM": "系统通知"
   },
   "messages": {

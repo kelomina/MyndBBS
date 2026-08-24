@@ -64,6 +64,20 @@ export interface CommunityApplicationServiceOptions {
   unitOfWork: IUnitOfWork
   /** 可选：新用户防灌水准入守卫（Phase 2 治理强化）；未注入则跳过 */
   newContentGuard?: { assertAllowed(userId: string): Promise<void> }
+  /** 可选：话题标签读写（Phase 3 活跃引擎）；未注入则忽略 tags 参数 */
+  tagRepositories?: {
+    tags: { ensure(name: string): Promise<{ id: string; name: string }> }
+    postTags: { setTagsForPost(postId: string, tagIds: string[]): Promise<void> }
+  }
+  /** 可选：@提及通知器（Phase 3 活跃引擎）；未注入则跳过提及解析 */
+  mentionNotifier?: {
+    notifyMentions(params: {
+      content: string
+      authorId: string
+      postId: string
+      commentId: string | null
+    }): Promise<void>
+  }
 }
 export class CommunityApplicationService {
   /**
@@ -509,6 +523,7 @@ export class CommunityApplicationService {
     authorId: string,
     userLevel: number,
     captchaId: string,
+    tags?: string[],
   ): Promise<{ postId: string; isModerated: boolean; status: string; message?: string }> {
     await this.opts.newContentGuard?.assertAllowed(authorId)
 
@@ -539,6 +554,26 @@ export class CommunityApplicationService {
     )
 
     await this.opts.postRepository.save(post)
+
+    // ── 话题标签同步（在事务内 ensure + 关联替换）──
+    if (tags && tags.length > 0 && this.opts.tagRepositories) {
+      const { normalizeTagNames } = await import('../../domain/community/Tag')
+      const names = normalizeTagNames(tags)
+      const tagIds: string[] = []
+      for (const name of names) {
+        const tag = await this.opts.tagRepositories.tags.ensure(name)
+        tagIds.push(tag.id)
+      }
+      await this.opts.tagRepositories.postTags.setTagsForPost(post.id, tagIds)
+    }
+
+    // ── @提及通知（帖子正文）──
+    await this.opts.mentionNotifier?.notifyMentions({
+      content: `${title}\n${content}`,
+      authorId,
+      postId: post.id,
+      commentId: null,
+    })
 
     const result: { postId: string; isModerated: boolean; status: string; message?: string } = {
       postId: post.id,
@@ -598,6 +633,7 @@ export class CommunityApplicationService {
     title: string,
     content: string,
     categoryId: string,
+    tags?: string[],
   ): Promise<{ postId: string }> {
     const post = await this.opts.postRepository.findById(postId)
     if (!post) throw new Error('ERR_POST_NOT_FOUND')
@@ -615,6 +651,18 @@ export class CommunityApplicationService {
 
     post.updateContent(title, content, categoryId, isModerated)
     await this.opts.postRepository.save(post)
+
+    // ── 标签同步（传入 undefined 表示不修改标签）──
+    if (tags !== undefined && this.opts.tagRepositories) {
+      const { normalizeTagNames } = await import('../../domain/community/Tag')
+      const names = normalizeTagNames(tags)
+      const tagIds: string[] = []
+      for (const name of names) {
+        const tag = await this.opts.tagRepositories.tags.ensure(name)
+        tagIds.push(tag.id)
+      }
+      await this.opts.tagRepositories.postTags.setTagsForPost(post.id, tagIds)
+    }
 
     return { postId: post.id }
   }
@@ -788,6 +836,14 @@ export class CommunityApplicationService {
         new CommentRepliedEvent(parentId!, parentComment.authorId, postId, authorId, comment.id),
       )
     }
+
+    // ── @提及通知（评论内容）──
+    await this.opts.mentionNotifier?.notifyMentions({
+      content,
+      authorId,
+      postId,
+      commentId: comment.id,
+    })
 
     return { commentId: comment.id }
   }
