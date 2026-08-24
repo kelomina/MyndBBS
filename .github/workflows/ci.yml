@@ -193,6 +193,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build backend (E2E starts it via playwright webServer)
+        run: pnpm --filter backend run build
+        env:
+          DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
+
       - name: Install Playwright browsers
         run: cd packages/frontend && pnpm exec playwright install --with-deps chromium
 
@@ -201,5 +206,5 @@ jobs:
         env:
           DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
           REDIS_URL: redis://localhost:6379
-          JWT_SECRET: test-jwt-secret
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret
+          JWT_SECRET: test-jwt-secret-e2e-0123456789abcdef0123456789abcdef
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-e2e-0123456789abcdef
