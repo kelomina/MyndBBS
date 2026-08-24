@@ -1,5 +1,6 @@
 import { fetcher } from './fetcher';
 import type { BadgeDto, BadgeHolder } from '../../types/badges';
+import type { BannedIpItem, AntiSpamPolicy } from '../../types/protection';
 
 export interface AuditLogEntry {
   id: string;
@@ -265,3 +266,24 @@ export const getBadgeHolders = (badgeId: string, query?: string): Promise<BadgeH
 
 export const runBadgeEvaluation = (): Promise<{ message: string; grantedCount: number }> =>
   fetcher('/api/admin/badges/evaluate', { method: 'POST' });
+
+// ── Protection (IP bans + anti-spam policy) ──
+
+export const getIpBans = (): Promise<BannedIpItem[]> => fetcher('/api/admin/protection/ip-bans');
+
+export const createIpBan = (data: {
+  ip: string;
+  scope: 'ALL' | 'REGISTRATION';
+  reason?: string;
+  expiresInDays?: number;
+}) =>
+  fetcher('/api/admin/protection/ip-bans', { method: 'POST', body: JSON.stringify(data) });
+
+export const deleteIpBan = (id: string) =>
+  fetcher(`/api/admin/protection/ip-bans/${id}`, { method: 'DELETE' });
+
+export const getAntiSpamPolicy = (): Promise<AntiSpamPolicy> =>
+  fetcher('/api/admin/protection/anti-spam');
+
+export const updateAntiSpamPolicy = (policy: AntiSpamPolicy) =>
+  fetcher('/api/admin/protection/anti-spam', { method: 'PUT', body: JSON.stringify(policy) });

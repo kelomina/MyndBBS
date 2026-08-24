@@ -42,6 +42,8 @@ import {
   updateBadgeSchema,
   grantBadgeSchema,
   handleReportSchema,
+  bannedIpSchema,
+  antiSpamPolicySchema,
 } from '../lib/validation/schemas';
 import { getAuditLogs } from '../controllers/auditLog';
 import {
@@ -65,6 +67,10 @@ import {
   grantBadge, revokeBadge, listBadgeHolders, runBadgeEvaluation
 } from '../controllers/badge';
 import { getReports, resolveReport, dismissReport } from '../controllers/report';
+import {
+  listIpBans, createIpBan, deleteIpBan,
+  getAntiSpamPolicy, updateAntiSpamPolicy
+} from '../controllers/protection';
 import { rateLimit } from 'express-rate-limit';
 import { getClientIp } from '../lib/rateLimit';
 
@@ -134,6 +140,23 @@ router.post('/badges/evaluate', requireAbility('manage', 'Badge'), runBadgeEvalu
 router.get('/reports', requireAbility('read', 'Report'), getReports);
 router.post('/reports/:id/resolve', requireAbility('handle', 'Report'), validate(handleReportSchema), resolveReport);
 router.post('/reports/:id/dismiss', requireAbility('handle', 'Report'), validate(handleReportSchema), dismissReport);
+
+// ── 治理强化（仅 ADMIN+，manage all 守卫）──
+router.get('/protection/ip-bans', requireAbility('manage', 'all'), listIpBans);
+router.post(
+  '/protection/ip-bans',
+  requireAbility('manage', 'all'),
+  validate(bannedIpSchema),
+  createIpBan
+);
+router.delete('/protection/ip-bans/:id', requireAbility('manage', 'all'), deleteIpBan);
+router.get('/protection/anti-spam', requireAbility('manage', 'all'), getAntiSpamPolicy);
+router.put(
+  '/protection/anti-spam',
+  requireAbility('manage', 'all'),
+  validate(antiSpamPolicySchema),
+  updateAntiSpamPolicy
+);
 
 // ── 数据库配置（仅 SUPER_ADMIN） ──
 router.get('/db-config', requireAbility('manage', 'all'), getDbConfig);

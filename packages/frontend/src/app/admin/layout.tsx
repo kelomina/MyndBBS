@@ -6,11 +6,11 @@ import { headers, cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import {
   ShieldCheck,
+  ShieldAlert,
   Users,
   FolderTree,
   Trash2,
   Database,
-  ShieldAlert,
   Globe,
   ScrollText,
   Mail,
@@ -115,6 +115,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               >
                 <Trash2 className="h-5 w-5" />
                 <span>{dict.admin?.recycleBin || 'Recycle Bin'}</span>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin/protection"
+                className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                <ShieldAlert className="h-5 w-5" />
+                <span>{dict.admin?.protectionTitle || 'Protection & Anti-spam'}</span>
               </Link>
             )}
             {isSuperAdmin && (

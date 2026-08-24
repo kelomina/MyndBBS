@@ -7,6 +7,7 @@ export type {
   BadgeHolder,
 } from './badges';
 export type { ReportTargetType, ReportReason, SubmitReportPayload, AdminReportItem } from './reports';
+export type { IpBanScope, BannedIpItem, AntiSpamPolicy } from './protection';
 export type { ModerationPost, ModerationComment, ModerationWord, RecyclePost, RecycleComment } from './admin';
 export type { MessageThread, InboxMessage, ChatMessage } from './messages';
 export type {

@@ -420,6 +420,29 @@ model ContentReport {
   @@index([reporterId])
 }
 
+// ── 治理强化：IP 封禁与站点策略 ──
+
+enum IpBanScope {
+  ALL          // 全站封禁（注册 + 登录）
+  REGISTRATION // 仅禁止注册新账号
+}
+
+model BannedIp {
+  id        String     @id @default(uuid()) @db.Uuid
+  ip        String     @unique
+  scope     IpBanScope @default(ALL)
+  reason    String?
+  createdBy String?    @db.Uuid
+  createdAt DateTime   @default(now())
+  expiresAt DateTime? // null = 永久
+}
+
+model SitePolicy {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
 model UserKey {
   id                       String   @id @default(uuid()) @db.Uuid
   userId                   String   @unique @db.Uuid

@@ -50,6 +50,7 @@ import {
 } from '../controllers/register';
 import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
 import { optionalAuth } from '../middleware/auth';
+import { checkIpBan } from '../middleware/ipBan';
 import { validate, type ValidationOptions } from '../middleware/validation';
 import {
   registerSchema,
@@ -140,6 +141,7 @@ router.use(authLimiter);
 router.post(
   '/register',
   registerLimiter,
+  checkIpBan('REGISTRATION'),
   validate(registerSchema, publicRegistrationValidation),
   registerUser
 );
@@ -166,7 +168,7 @@ router.post(
 );
 
 // ── 登录/注销 ──
-router.post('/login', loginLimiter, validate(loginSchema, publicAuthValidation), loginUser);
+router.post('/login', loginLimiter, checkIpBan('LOGIN'), validate(loginSchema, publicAuthValidation), loginUser);
 router.post('/logout', logoutUser);
 router.post('/refresh', refreshLimiter, checkSession);
 

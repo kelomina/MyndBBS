@@ -181,6 +181,36 @@ export const handleReportSchema = z.object({
   note: optionalString(200),
 });
 
+// ── 治理强化：IP 封禁与防灌水 ──
+
+const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+
+/** IP 封禁校验（IPv4 逐段 ≤255；IPv6 宽松格式） */
+export const bannedIpSchema = z.object({
+  ip: z
+    .string()
+    .min(3, 'ERR_INVALID_IP')
+    .max(45, 'ERR_INVALID_IP')
+    .refine(
+      (value) => {
+        const v4 = value.match(ipv4Regex);
+        if (v4) return v4.slice(1).every((octet) => Number(octet) <= 255);
+        return value.includes(':') && /^[0-9a-fA-F:.]+$/.test(value);
+      },
+      { message: 'ERR_INVALID_IP' }
+    ),
+  scope: z.enum(['ALL', 'REGISTRATION']).default('ALL'),
+  reason: optionalString(200),
+  expiresInDays: z.number().int().min(1).max(3650).optional(),
+});
+
+/** 防灌水策略校验（0 = 关闭对应规则；上限与领域解析保持一致） */
+export const antiSpamPolicySchema = z.object({
+  accountAgeDays: z.number().int().min(0).max(365),
+  cooldownMinutes: z.number().int().min(0).max(10080),
+  maxNewContentsPerHour: z.number().int().min(0).max(1000),
+});
+
 // ── 帖子 ──
 
 /** 创建帖子请求校验 */

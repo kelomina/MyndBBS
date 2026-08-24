@@ -31,6 +31,8 @@ import type { IIdentityIntegrationPort as CommunityIdentityIntegrationPort } fro
 import type { IBadgeRepository } from './domain/badge/IBadgeRepository';
 import type { IUserBadgeRepository } from './domain/badge/IUserBadgeRepository';
 import type { IContentReportRepository } from './domain/community/IContentReportRepository';
+import type { IBannedIpRepository } from './domain/system/IBannedIpRepository';
+import type { ISitePolicyRepository } from './domain/system/ISitePolicyRepository';
 import type { IFriendshipRepository } from './domain/messaging/IFriendshipRepository';
 import type { IPrivateMessageRepository } from './domain/messaging/IPrivateMessageRepository';
 import type { IUserKeyRepository } from './domain/messaging/IUserKeyRepository';
@@ -62,6 +64,9 @@ import { CommunityApplicationService } from './application/community/CommunityAp
 import { MessagingApplicationService } from './application/messaging/MessagingApplicationService';
 import { BadgeApplicationService } from './application/badge/BadgeApplicationService';
 import { ReportApplicationService } from './application/report/ReportApplicationService';
+import { IpBanApplicationService } from './application/system/IpBanApplicationService';
+import { AntiSpamService } from './application/system/AntiSpamService';
+import { PrismaAntiSpamAdapter } from './infrastructure/services/PrismaAntiSpamAdapter';
 import { RoleApplicationService } from './application/identity/RoleApplicationService';
 import { ModerationApplicationService } from './application/community/ModerationApplicationService';
 import { AdminUserManagementApplicationService } from './application/identity/AdminUserManagementApplicationService';
@@ -88,6 +93,8 @@ import { PrismaEngagementRepository } from './infrastructure/repositories/Prisma
 import { PrismaBadgeRepository } from './infrastructure/repositories/PrismaBadgeRepository';
 import { PrismaUserBadgeRepository } from './infrastructure/repositories/PrismaUserBadgeRepository';
 import { PrismaContentReportRepository } from './infrastructure/repositories/PrismaContentReportRepository';
+import { PrismaBannedIpRepository } from './infrastructure/repositories/PrismaBannedIpRepository';
+import { PrismaSitePolicyRepository } from './infrastructure/repositories/PrismaSitePolicyRepository';
 import { PrismaBadgeStatsAdapter } from './infrastructure/services/PrismaBadgeStatsAdapter';
 import { PrismaNotificationRepository } from './infrastructure/repositories/PrismaNotificationRepository';
 import { PrismaFriendshipRepository } from './infrastructure/repositories/PrismaFriendshipRepository';
@@ -166,6 +173,8 @@ const T = {
   IBadgeRepository: token<IBadgeRepository>('IBadgeRepository'),
   IUserBadgeRepository: token<IUserBadgeRepository>('IUserBadgeRepository'),
   IContentReportRepository: token<IContentReportRepository>('IContentReportRepository'),
+  IBannedIpRepository: token<IBannedIpRepository>('IBannedIpRepository'),
+  ISitePolicyRepository: token<ISitePolicyRepository>('ISitePolicyRepository'),
   IFriendshipRepository: token<IFriendshipRepository>('IFriendshipRepository'),
   IPrivateMessageRepository: token<IPrivateMessageRepository>('IPrivateMessageRepository'),
   IUserKeyRepository: token<IUserKeyRepository>('IUserKeyRepository'),
@@ -225,6 +234,8 @@ function registerServices(): void {
   container.register(T.IBadgeRepository, () => new PrismaBadgeRepository());
   container.register(T.IUserBadgeRepository, () => new PrismaUserBadgeRepository());
   container.register(T.IContentReportRepository, () => new PrismaContentReportRepository());
+  container.register(T.IBannedIpRepository, () => new PrismaBannedIpRepository());
+  container.register(T.ISitePolicyRepository, () => new PrismaSitePolicyRepository());
 
   container.register(T.IFriendshipRepository, () => new PrismaFriendshipRepository());
   container.register(T.IPrivateMessageRepository, () => new PrismaPrivateMessageRepository());
@@ -259,6 +270,7 @@ function validateRegistrations(): void {
     T.ICategoryRepository, T.IPostRepository, T.ICommentRepository,
     T.IEngagementRepository, T.IModerationPolicy, T.IModeratedWordsCache,
     T.IBadgeRepository, T.IUserBadgeRepository, T.IContentReportRepository,
+    T.IBannedIpRepository, T.ISitePolicyRepository,
     T.IFriendshipRepository, T.IPrivateMessageRepository, T.IUserKeyRepository,
     T.IConversationSettingRepository, T.IAuditLogRepository, T.IStoragePort,
     T.IWikiRepository, T.IWikiPageRepository, T.IWikiCollaboratorRepository,
@@ -394,6 +406,23 @@ export const moderationCacheInvalidationHandler = new ModerationCacheInvalidatio
 
 export const identityIntegrationPort = new IdentityIntegrationPort(identityQueryService);
 
+const antiSpamAdapter = new PrismaAntiSpamAdapter();
+
+export const ipBanApplicationService = new IpBanApplicationService({
+  bannedIpRepository: container.resolve(T.IBannedIpRepository),
+});
+
+export const antiSpamService = new AntiSpamService({
+  sitePolicyRepository: container.resolve(T.ISitePolicyRepository),
+  getUserCreatedAt: (userId) => antiSpamAdapter.getUserCreatedAt(userId),
+  countRecentContentsByAuthor: (userId, since) =>
+    antiSpamAdapter.countRecentContentsByAuthor(userId, since),
+});
+
+export const newContentGuard = {
+  assertAllowed: (userId: string) => antiSpamService.assertContentAllowed(userId),
+};
+
 export const communityApplicationService = new CommunityApplicationService({
   categoryRepository: container.resolve(T.ICategoryRepository),
   postRepository: container.resolve(T.IPostRepository),
@@ -405,6 +434,7 @@ export const communityApplicationService = new CommunityApplicationService({
   eventBus: container.resolve(T.IEventBus),
   auditApplicationService: auditApplicationService,
   unitOfWork: container.resolve(T.IUnitOfWork),
+  newContentGuard,
 });
 
 export const messagingApplicationService = new MessagingApplicationService({

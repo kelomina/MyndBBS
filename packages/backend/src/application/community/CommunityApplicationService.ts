@@ -62,6 +62,8 @@ export interface CommunityApplicationServiceOptions {
   eventBus: IEventBus
   auditApplicationService: AuditApplicationService
   unitOfWork: IUnitOfWork
+  /** 可选：新用户防灌水准入守卫（Phase 2 治理强化）；未注入则跳过 */
+  newContentGuard?: { assertAllowed(userId: string): Promise<void> }
 }
 export class CommunityApplicationService {
   /**
@@ -508,6 +510,8 @@ export class CommunityApplicationService {
     userLevel: number,
     captchaId: string,
   ): Promise<{ postId: string; isModerated: boolean; status: string; message?: string }> {
+    await this.opts.newContentGuard?.assertAllowed(authorId)
+
     const isCaptchaValid = await this.opts.captchaValidator.consumeCaptcha(captchaId)
     if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA')
 
@@ -726,6 +730,8 @@ export class CommunityApplicationService {
     captchaId: string,
     parentId?: string,
   ): Promise<{ commentId: string }> {
+    await this.opts.newContentGuard?.assertAllowed(authorId)
+
     const isCaptchaValid = await this.opts.captchaValidator.consumeCaptcha(captchaId)
     if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA')
 

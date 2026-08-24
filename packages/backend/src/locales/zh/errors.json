@@ -168,5 +168,11 @@
   "ERR_REPORT_SELF_TARGET": "不能举报自己的内容",
   "ERR_REPORT_REASON_DETAIL_REQUIRED": "选择其他理由时必须填写说明",
   "ERR_REPORT_NOT_FOUND": "举报记录不存在",
-  "ERR_REPORT_ALREADY_HANDLED": "该举报已被处理"
+  "ERR_REPORT_ALREADY_HANDLED": "该举报已被处理",
+  "ERR_IP_BANNED": "你的 IP 地址已被封禁",
+  "ERR_INVALID_IP": "IP 地址格式无效",
+  "ERR_IP_ALREADY_BANNED": "该 IP 已被封禁",
+  "ERR_IP_BAN_NOT_FOUND": "封禁记录不存在",
+  "ERR_NEW_ACCOUNT_COOLDOWN": "账号注册时间过短，暂时无法发布内容，请稍后再试",
+  "ERR_NEW_ACCOUNT_RATE_LIMITED": "新账号每小时发布数量已达上限，请稍后再试"
 }
