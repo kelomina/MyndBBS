@@ -198,6 +198,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
 
+      - name: Compile shared package to CJS (runtime requires resolvable main)
+        run: |
+          pnpm run build:shared
+          node -e "const fs=require('fs');const p='packages/shared/package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.main='dist/index.js';j.types='dist/index.d.ts';fs.writeFileSync(p,JSON.stringify(j,null,2))"
+
       - name: Install Playwright browsers
         run: cd packages/frontend && pnpm exec playwright install --with-deps chromium
 

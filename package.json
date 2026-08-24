@@ -10,6 +10,7 @@
     "test": "pnpm --filter backend test && pnpm --filter frontend test",
     "lint": "pnpm --filter '*' lint",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "build:shared": "tsc --project packages/shared/tsconfig.json --outDir packages/shared/dist --rootDir packages/shared/src --module commonjs --target es2022 --ignoreDeprecations \"6.0\"",
     "db:update-win": "powershell -ExecutionPolicy Bypass -File scripts\\update-db.ps1",
     "db:update": "./scripts/update-db.sh",
     "db:restore-win": "powershell -ExecutionPolicy Bypass -File scripts\\restore-db.ps1",
