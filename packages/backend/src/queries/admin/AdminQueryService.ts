@@ -161,7 +161,7 @@ export class AdminQueryService {
       where: {
         AND: [
           rulesToPrisma(ability, 'read', 'Post'),
-          { status: { in: [PostStatus.PUBLISHED, PostStatus.PINNED] } },
+          { status: { in: [PostStatus.PUBLISHED, PostStatus.PINNED, PostStatus.FEATURED] } },
         ],
       },
       include: { author: { select: { id: true, username: true } }, category: { select: { id: true, name: true } } },

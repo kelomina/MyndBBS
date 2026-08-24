@@ -184,7 +184,7 @@ describe('AdminQueryService', () => {
         where: {
           AND: [
             { categoryId: { in: ['cat-1'] } },
-            { status: { in: ['PUBLISHED', 'PINNED'] } },
+            { status: { in: ['PUBLISHED', 'PINNED', 'FEATURED'] } },
           ],
         },
       }));

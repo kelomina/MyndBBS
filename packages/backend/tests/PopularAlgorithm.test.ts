@@ -81,7 +81,7 @@ describe('CommunityQueryService - Popular Algorithm', () => {
     expect(result[0].author).toEqual({ username: 'user3', avatarUrl: null, badges: [] });
     expect(result[0].author).not.toHaveProperty('id');
     expect((prisma.post.findMany as jest.Mock).mock.calls[0][0].where.AND).toEqual(expect.arrayContaining([
-      { status: { in: ['PUBLISHED', 'PINNED'] } },
+      { status: { in: ['PUBLISHED', 'PINNED', 'FEATURED'] } },
     ]));
   });
 });

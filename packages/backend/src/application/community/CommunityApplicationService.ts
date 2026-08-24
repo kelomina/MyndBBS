@@ -1,4 +1,4 @@
-﻿import { ICategoryRepository } from '../../domain/community/ICategoryRepository'
+import { ICategoryRepository } from '../../domain/community/ICategoryRepository'
 import { IPostRepository } from '../../domain/community/IPostRepository'
 import { ICommentRepository } from '../../domain/community/ICommentRepository'
 import { IEngagementRepository } from '../../domain/community/IEngagementRepository'
@@ -785,7 +785,7 @@ export class CommunityApplicationService {
 
     const post = await this.opts.postRepository.findById(postId)
     if (!post) throw new Error('ERR_POST_NOT_FOUND')
-    if (![PostStatus.PUBLISHED, PostStatus.PINNED].includes(post.status as PostStatus)) {
+    if (![PostStatus.PUBLISHED, PostStatus.PINNED, PostStatus.FEATURED].includes(post.status as PostStatus)) {
       throw new Error('ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS')
     }
 

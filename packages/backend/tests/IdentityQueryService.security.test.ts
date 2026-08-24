@@ -41,7 +41,7 @@ describe('IdentityQueryService security filters', () => {
         userId: 'user-1',
         post: expect.objectContaining({
           AND: expect.arrayContaining([
-            { status: { in: ['PUBLISHED', 'PINNED'] } },
+            { status: { in: ['PUBLISHED', 'PINNED', 'FEATURED'] } },
           ]),
         }),
       }),
@@ -54,7 +54,7 @@ describe('IdentityQueryService security filters', () => {
             expect.objectContaining({
               post: expect.objectContaining({
                 AND: expect.arrayContaining([
-                  { status: { in: ['PUBLISHED', 'PINNED'] } },
+                  { status: { in: ['PUBLISHED', 'PINNED', 'FEATURED'] } },
                 ]),
               }),
             }),
@@ -77,10 +77,10 @@ describe('IdentityQueryService security filters', () => {
 
     const select = (prisma.user.findUnique as jest.Mock).mock.calls[0][0].select;
     expect(select.posts.where.AND).toEqual(expect.arrayContaining([
-      { status: { in: ['PUBLISHED', 'PINNED'] } },
+      { status: { in: ['PUBLISHED', 'PINNED', 'FEATURED'] } },
     ]));
     expect(select._count.select.posts.where.AND).toEqual(expect.arrayContaining([
-      { status: { in: ['PUBLISHED', 'PINNED'] } },
+      { status: { in: ['PUBLISHED', 'PINNED', 'FEATURED'] } },
     ]));
   });
 

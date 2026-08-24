@@ -9,7 +9,7 @@ import {
     searchUsers,
 } from '../../infrastructure/search/SearchIndexer';
 
-const SEARCH_READABLE_POST_STATUSES = [PostStatus.PUBLISHED, PostStatus.PINNED] as const;
+const SEARCH_READABLE_POST_STATUSES = [PostStatus.PUBLISHED, PostStatus.PINNED, PostStatus.FEATURED] as const;
 
 export interface SearchParams {
   q: string

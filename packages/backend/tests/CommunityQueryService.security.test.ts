@@ -42,7 +42,7 @@ describe('CommunityQueryService security filters', () => {
 
     expect((prisma.post.findFirst as jest.Mock).mock.calls[0][0].where.AND).toEqual(expect.arrayContaining([
       { id: 'post-1' },
-      { status: { in: ['PUBLISHED', 'PINNED'] } },
+      { status: { in: ['PUBLISHED', 'PINNED', 'FEATURED'] } },
     ]));
   });
 
@@ -53,7 +53,7 @@ describe('CommunityQueryService security filters', () => {
 
     expect((prisma.post.findFirst as jest.Mock).mock.calls[0][0].where.AND).toEqual(expect.arrayContaining([
       { id: 'post-1' },
-      { status: { in: ['PUBLISHED', 'PINNED'] } },
+      { status: { in: ['PUBLISHED', 'PINNED', 'FEATURED'] } },
     ]));
     expect(prisma.comment.findMany).not.toHaveBeenCalled();
   });

@@ -68,7 +68,7 @@ describe('SearchQueryService', () => {
         where: {
           AND: [
             mockRule,
-            { status: { in: [PostStatus.PUBLISHED, PostStatus.PINNED] } },
+            { status: { in: [PostStatus.PUBLISHED, PostStatus.PINNED, PostStatus.FEATURED] } },
             {
               OR: [
                 { title: { contains: mockQ, mode: 'insensitive' } },
@@ -146,7 +146,7 @@ describe('SearchQueryService', () => {
           where: {
             AND: [
               mockRestrictedRule,
-              { status: { in: [PostStatus.PUBLISHED, PostStatus.PINNED] } },
+              { status: { in: [PostStatus.PUBLISHED, PostStatus.PINNED, PostStatus.FEATURED] } },
               {
                 OR: [
                   { title: { contains: mockQ, mode: 'insensitive' } },
