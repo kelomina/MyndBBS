@@ -6,7 +6,7 @@ import path from 'node:path';
 test('phase5: bio, drafts, hover card, PWA and API docs', async (t) => {
   const root = process.cwd();
   const read = (p) => fs.readFile(path.join(root, p), 'utf-8');
-  const [profileSettings, profilePage, compose, hoverCard, swRegister, manifest, sw, docsPage, docsData, settingsPage, zhRaw, enRaw] =
+  const [profileSettings, profilePage, compose, hoverCard, swRegister, manifest, sw, docsPage, docsData, zhRaw, enRaw] =
     await Promise.all([
       read('src/components/ProfileSettings.tsx'),
       read(path.join('src', 'app', 'u', '[username]', 'page.tsx')),
@@ -17,7 +17,6 @@ test('phase5: bio, drafts, hover card, PWA and API docs', async (t) => {
       fs.readFile(path.join(root, 'public', 'sw.js'), 'utf-8'),
       read('src/app/api-docs/page.tsx'),
       read('src/app/api-docs/openapi-data.ts'),
-      read('src/app/u/settings/page.tsx'),
       fs.readFile(path.join(root, 'src', 'i18n', 'dictionaries', 'zh.json'), 'utf-8'),
       fs.readFile(path.join(root, 'src', 'i18n', 'dictionaries', 'en.json'), 'utf-8'),
     ]);
