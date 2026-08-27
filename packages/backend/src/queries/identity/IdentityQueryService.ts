@@ -1,10 +1,11 @@
 import { prisma } from '../../db';
 import { rulesToPrisma } from '../../lib/rulesToPrisma';
 import type { AppAbility } from '../../lib/casl';
+import { PostStatus } from '@myndbbs/shared';
 import { UserProfileDTO, BookmarkDTO, PasskeySummaryDTO, UserForLoginDTO, UserWithRoleDTO, SessionDTO, PublicProfileDTO, PasskeyOptionDTO, PasskeyDTO, UserDTO } from './dto';
 import { TotpEncryptionService } from '../../infrastructure/services/identity/TotpEncryptionService';
 
-const NORMAL_READABLE_POST_STATUSES = ['PUBLISHED', 'PINNED', 'FEATURED'];
+const NORMAL_READABLE_POST_STATUSES = [PostStatus.PUBLISHED, PostStatus.PINNED, PostStatus.FEATURED];
 
 /**
  * Callers: [userController, registerController, authController, sudoController]

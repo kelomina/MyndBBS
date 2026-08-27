@@ -73,6 +73,7 @@ enum PostStatus {
   ARCHIVED
   HIDDEN
   PINNED
+  FEATURED
   DELETED
   PENDING
 }

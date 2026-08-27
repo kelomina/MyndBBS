@@ -1,0 +1,1 @@
+-- Phase 4: add FEATURED to PostStatus enum

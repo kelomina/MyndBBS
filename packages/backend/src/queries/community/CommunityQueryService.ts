@@ -1,6 +1,7 @@
 import { prisma } from '../../db';
 import { rulesToPrisma } from '../../lib/rulesToPrisma';
 import type { AppAbility } from '../../lib/casl';
+import { PostStatus } from '@myndbbs/shared';
 import {
   AuthorBadgeDTO,
   CategoryListItemDTO,
@@ -22,7 +23,7 @@ type LocalPostOrderByInput = {
   createdAt?: 'asc' | 'desc';
 };
 
-const NORMAL_READABLE_POST_STATUSES = ['PUBLISHED', 'PINNED', 'FEATURED'];
+const NORMAL_READABLE_POST_STATUSES = [PostStatus.PUBLISHED, PostStatus.PINNED, PostStatus.FEATURED];
 const DEFAULT_READ_PAGE_SIZE = 20;
 const MAX_READ_PAGE_SIZE = 100;
 
