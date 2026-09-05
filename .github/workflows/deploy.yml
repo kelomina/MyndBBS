@@ -76,7 +76,7 @@ jobs:
             sudo -n docker compose pull backend frontend
             sudo -n docker compose up -d backend frontend
 
-      - name: Health check
+      - name: Health check (server loopback)
         id: health
         uses: appleboy/ssh-action@v1
         with:
@@ -87,21 +87,33 @@ jobs:
           envs: DEPLOY_DIR,PUBLIC_URL,BACKEND_IMAGE,FRONTEND_IMAGE
           script_stop: false
           script: |
-            sleep 18
+            sleep 25
             cd "$DEPLOY_DIR"
-            HEALTH=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/api/health || echo 000)
-            SITE=$(curl -s -o /dev/null -w '%{http_code}' "$PUBLIC_URL" --max-time 20 || echo 000)
+            # 注：curl 失败时 -w 本身输出 000，用 || true 防止 set -e 误杀（勿再 echo 000 导致 000000）
+            HEALTH=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/api/health || true)
             # 注：服务器无 jq，用 compose ps 文本匹配代替 JSON 解析
             PSOUT=$(sudo -n docker compose ps 2>&1)
             echo "$PSOUT"
             UNHEALTHY=$(echo "$PSOUT" | grep -cE 'unhealthy|[Ee]xited' || true)
-            echo "backend=$HEALTH site=$SITE unhealthy_containers=$UNHEALTHY"
-            if [ "$HEALTH" != "200" ] || [ "$SITE" != "200" ] || [ "$UNHEALTHY" != "0" ]; then
+            echo "backend=$HEALTH unhealthy_containers=$UNHEALTHY"
+            if [ "$HEALTH" != "200" ] || [ "$UNHEALTHY" != "0" ]; then
               exit 1
             fi
 
+      - name: Health check (public site via runner egress)
+        id: site
+        # 注：服务器回环访问自身公网 IP:443 不通（hairpin 被拦），公网检查必须在 runner 侧做
+        run: |
+          for i in 1 2 3 4 5 6; do
+            SITE=$(curl -s -o /dev/null -w '%{http_code}' "${{ env.PUBLIC_URL }}" --max-time 20 || true)
+            echo "attempt $i: site=$SITE"
+            if [ "$SITE" = "200" ]; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+
       - name: Rollback on failed health check
-        if: ${{ github.event.inputs.rollback == 'true' || steps.health.outcome == 'failure' }}
+        if: ${{ github.event.inputs.rollback == 'true' || steps.health.outcome == 'failure' || steps.site.outcome == 'failure' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ env.SSH_HOST }}
