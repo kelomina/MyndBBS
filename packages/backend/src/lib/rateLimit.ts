@@ -16,6 +16,7 @@ import {
   getTestReadMax,
   getTestReadWindowSec,
   hasTestResetHeader,
+  hasFederalTestResetHeader,
   isIntranetIp,
 } from './rateLimitExemption'
 import { verifyUnlockToken } from './unlockToken'
@@ -317,3 +318,77 @@ export const unlockLimiter = rateLimit({
   validate: { ip: false, xForwardedForHeader: false },
   handler: (req, res) => unlockExceededHandler(req as Request, res as Response),
 })
+
+// ── 联邦颁发独立限流 federalIssueLimiter 30次/15分钟/IP（与 captchaLimiter/unlockLimiter 独立） ──
+
+function federalIssueExceededHandler(req: Request, res: Response): void {
+  const retryAfterSec = calcRetryAfterSec(req, 15 * 60)
+  res.setHeader('Retry-After', String(retryAfterSec))
+  // 通用体，不含 unlockRequired（冻结）
+  res.status(429).json({ success: false, error: 'ERR_RATE_LIMITED', retryAfterSec })
+}
+
+const federalIssueUnderlyingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  limit: 30,
+  keyGenerator: getClientIp,
+  validate: { ip: false, xForwardedForHeader: false },
+  handler: (req, res) => federalIssueExceededHandler(req as Request, res as Response),
+})
+
+type FederalIssueLimiter = ((req: Request, res: Response, next: NextFunction) => Promise<void>) & {
+  resetKey: (key: string) => Promise<void>
+}
+
+async function resetFederalIssueBucket(ip: string): Promise<void> {
+  try {
+    await federalIssueUnderlyingLimiter.resetKey(ip)
+  } catch {
+    // ignore
+  }
+  try {
+    const { PrismaCaptchaChallengeRepository } = await import(
+      '../infrastructure/repositories/PrismaCaptchaChallengeRepository'
+    )
+    const repo = new PrismaCaptchaChallengeRepository()
+    await repo.deleteManyFederalForTest()
+  } catch {
+    // ignore（无 DB 时仅清桶）
+  }
+}
+
+const federalIssueLimiterFn = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  // 测试钩子：X-Test-Reset-Federal（test 清桶+清联邦行当次旁路；生产 404 隐藏）
+  if (hasFederalTestResetHeader(req)) {
+    if (process.env.NODE_ENV !== 'test') {
+      res.status(404).json({ success: false, error: 'ERR_NOT_FOUND' })
+      return
+    }
+    try {
+      const ip = getClientIp(req)
+      await resetFederalIssueBucket(ip)
+    } catch {
+      // ignore
+    }
+    next()
+    return
+  }
+  // 容器内网 IP 不豁免、直接计数（冻结，与 publicRead 一致；此处不旁路，仅声明）
+  await federalIssueUnderlyingLimiter(req, res, next)
+  return
+}
+
+export const federalIssueLimiter = Object.assign(federalIssueLimiterFn, {
+  resetKey: async (key: string): Promise<void> => {
+    await resetFederalIssueBucket(key)
+  },
+}) as FederalIssueLimiter
+
+export async function resetFederalIssueForTest(ip: string): Promise<void> {
+  await resetFederalIssueBucket(ip)
+}

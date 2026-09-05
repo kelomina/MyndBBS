@@ -27,6 +27,13 @@ export function hasTestResetHeader(req: Request): boolean {
   return false
 }
 
+export function hasFederalTestResetHeader(req: Request): boolean {
+  const v = req.headers['x-test-reset-federal']
+  if (typeof v === 'string') return v === '1' || v.toLowerCase() === 'true'
+  if (Array.isArray(v)) return v.some((x) => x === '1' || String(x).toLowerCase() === 'true')
+  return false
+}
+
 /**
  * 容器内网 IP（F3 冻结）：作为 getClientIp 结果时不豁免、直接计数
  * 10.0.0.0/8、172.16.0.0/12、192.168.0.0/16、127.0.0.0/8、::1、fc00::/7、fe80::/10

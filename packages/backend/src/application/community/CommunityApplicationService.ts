@@ -76,6 +76,7 @@ export interface CommunityApplicationServiceOptions {
       authorId: string
       postId: string
       commentId: string | null
+      postAuthorId?: string | null
     }): Promise<void>
   }
 }
@@ -573,6 +574,7 @@ export class CommunityApplicationService {
       authorId,
       postId: post.id,
       commentId: null,
+      postAuthorId: authorId,
     })
 
     const result: { postId: string; isModerated: boolean; status: string; message?: string } = {
@@ -831,18 +833,23 @@ export class CommunityApplicationService {
         new PostRepliedEvent(postId, post.authorId, post.title, authorId, comment.id),
       )
     }
+    // 去重冻结（Q5：父==帖主只 POST_REPLIED，跳过 COMMENT_REPLIED，避免帖主收两条）：
+    // 父评论作者 == 帖主时，本条已发 POST_REPLIED，不再发 COMMENT_REPLIED（发射侧去重，禁下游查询）。
     if (parentComment && parentComment.authorId !== authorId) {
-      await this.opts.eventBus.publish(
-        new CommentRepliedEvent(parentId!, parentComment.authorId, postId, authorId, comment.id),
-      )
+      if (parentComment.authorId !== post.authorId) {
+        await this.opts.eventBus.publish(
+          new CommentRepliedEvent(parentId!, parentComment.authorId, postId, authorId, comment.id),
+        )
+      }
     }
 
-    // ── @提及通知（评论内容）──
+    // ── @提及通知（评论内容，去重：@==帖主跳 MENTION，本条已发 POST_REPLIED）──
     await this.opts.mentionNotifier?.notifyMentions({
       content,
       authorId,
       postId,
       commentId: comment.id,
+      postAuthorId: post.authorId,
     })
 
     return { commentId: comment.id }

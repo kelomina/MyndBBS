@@ -37,4 +37,15 @@ export interface ICaptchaChallengeRepository {
    * Keywords: delete, remove, consume, captcha, repository
    */
   delete(id: string): Promise<void>;
+
+  /**
+   * 联邦增量：持久化几何尝试计数（失败递增，成功删行；与滑块 verified 路径互斥）。
+   */
+  updateAttempts(id: string, attempts: number): Promise<void>;
+
+  /**
+   * 联邦增量（仅 NODE_ENV=test 调用）：清联邦挑战行（geometry/pow）供单测隔离。
+   * 生产不可达（调用方必须先判 NODE_ENV）。
+   */
+  deleteManyFederalForTest(): Promise<number>;
 }

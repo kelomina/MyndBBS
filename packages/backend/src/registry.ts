@@ -56,6 +56,7 @@ import type { IModeratorReadModel } from './application/notification/ports/IMode
 
 import { UserApplicationService } from './application/identity/UserApplicationService'
 import { AuthApplicationService } from './application/identity/AuthApplicationService'
+import { FederalCaptchaService } from './application/identity/FederalCaptchaService'
 import { OidcLoginService } from './application/identity/OidcLoginService'
 import { SystemApplicationService } from './application/system/SystemApplicationService'
 import { IdentityBootstrapApplicationService } from './application/identity/IdentityBootstrapApplicationService'
@@ -67,6 +68,7 @@ import { ReportApplicationService } from './application/report/ReportApplication
 import { IpBanApplicationService } from './application/system/IpBanApplicationService'
 import { AntiSpamService } from './application/system/AntiSpamService'
 import { RateLimitProtectionService } from './application/system/RateLimitProtectionService'
+import { FederalProtectionService } from './application/system/FederalProtectionService'
 import { PrismaAntiSpamAdapter } from './infrastructure/services/PrismaAntiSpamAdapter'
 import { MentionNotifier } from './application/notification/MentionNotifier'
 import { SiteSettingsService } from './application/system/SiteSettingsService'
@@ -430,6 +432,10 @@ export const authApplicationService = new AuthApplicationService({
   unitOfWork: container.resolve(T.IUnitOfWork),
 })
 
+export const federalCaptchaService = new FederalCaptchaService({
+  captchaChallengeRepository: container.resolve(T.ICaptchaChallengeRepository),
+})
+
 export const oidcLoginService = new OidcLoginService({
   userRepository: container.resolve(T.IUserRepository),
   roleRepository: container.resolve(T.IRoleRepository),
@@ -505,6 +511,10 @@ export const siteSettingsService = new SiteSettingsService(
 )
 
 export const rateLimitProtectionService = new RateLimitProtectionService({
+  sitePolicyRepository: container.resolve(T.ISitePolicyRepository),
+})
+
+export const federalProtectionService = new FederalProtectionService({
   sitePolicyRepository: container.resolve(T.ISitePolicyRepository),
 })
 

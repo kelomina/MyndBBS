@@ -23,6 +23,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
       title: raw.title,
       content: raw.content,
       relatedId: raw.relatedId,
+      commentId: (raw.commentId as string | null | undefined) ?? null,
       read: raw.read,
       createdAt: raw.createdAt,
     };
@@ -57,6 +58,7 @@ export class PrismaNotificationRepository implements INotificationRepository {
         title: notification.title,
         content: notification.content,
         relatedId: notification.relatedId,
+        commentId: notification.commentId,
         isRead: notification.read,
         createdAt: notification.createdAt,
       },
@@ -74,5 +76,9 @@ export class PrismaNotificationRepository implements INotificationRepository {
    */
   public async delete(id: string): Promise<void> {
     await prisma.notification.delete({ where: { id } });
+  }
+
+  public async countUnreadByUser(userId: string): Promise<number> {
+    return prisma.notification.count({ where: { userId, isRead: false } });
   }
 }

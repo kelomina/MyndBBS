@@ -37,4 +37,9 @@ export interface INotificationRepository {
    * Keywords: delete, remove, notification, repository
    */
   delete(id: string): Promise<void>;
+
+  /**
+   * 通知徽标增量：统计本人未读数（isRead=false，全类型；复合索引 (userId,isRead,createdAt)）。
+   */
+  countUnreadByUser(userId: string): Promise<number>;
 }

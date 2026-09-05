@@ -248,6 +248,53 @@ export const rateLimitProtectionSchema = z
   })
   .strict()
 
+/**
+ * 联邦验证管理配置校验（G2 冻结：zod 严格模式，禁止 coerce，无 clamp）
+ * - 6 字段必填 + strictTimeoutSec 可选兼容：enabled/kinds/defaultKind/powBits/geometryLevel/timeoutSec 必填，
+ *   strictTimeoutSec 可选缺省默认 15（v1.0.1 兼容补丁：前端 6 字段 PUT 不再 400；GET 回显恒含该字段）
+ * - "16" 等数字字符串→400（不归一）；除 strictTimeoutSec 外缺字段→400；未知字段→400
+ * - powBits 8–24 默认 16；geometryLevel 1–3 默认 1；timeoutSec 5–60 默认 10；strictTimeoutSec 5–60 默认 15（传了仍校验）
+ * - 三开关全关→400（至少保 1）；defaultKind 指向已关类型→400
+ */
+export const federalProtectionSchema = z
+  .object({
+    enabled: z.boolean(),
+    kinds: z
+      .object({
+        sliderEnabled: z.boolean(),
+        geometryEnabled: z.boolean(),
+        powEnabled: z.boolean(),
+      })
+      .strict(),
+    defaultKind: z.enum(['slider', 'geometry', 'pow']),
+    powBits: z.number().int().min(8).max(24),
+    geometryLevel: z.number().int().min(1).max(3),
+    timeoutSec: z.number().int().min(5).max(60),
+    strictTimeoutSec: z.number().int().min(5).max(60).default(15),
+  })
+  .strict()
+  .superRefine((val, ctx) => {
+    if (!val.kinds.sliderEnabled && !val.kinds.geometryEnabled && !val.kinds.powEnabled) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['kinds'],
+        message: 'ERR_INVALID_FEDERAL_POLICY',
+      })
+    }
+    const enabledMap: Record<string, boolean> = {
+      slider: val.kinds.sliderEnabled,
+      geometry: val.kinds.geometryEnabled,
+      pow: val.kinds.powEnabled,
+    }
+    if (!enabledMap[val.defaultKind]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['defaultKind'],
+        message: 'ERR_INVALID_FEDERAL_POLICY',
+      })
+    }
+  })
+
 /** 站点展示设置校验 */
 export const siteSettingsSchema = z.object({
   siteName: optionalString(64),

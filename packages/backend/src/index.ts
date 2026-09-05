@@ -157,6 +157,7 @@ const publicRoutes = require('./routes/public').default;
   const reportRoutes = require('./routes/report').default;
   const tagRoutes = require('./routes/tag').default;
   const draftsRoutes = require('./routes/drafts').default;
+  const notificationRoutes = require('./routes/notification').default;
 
   // Initialize Domain Event Subscribers
   const { bootstrapDomainSubscribers } = require('./startup/bootstrapDomainSubscribers');
@@ -212,6 +213,7 @@ const publicRoutes = require('./routes/public').default;
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/tags', tagRoutes);
   app.use('/api/v1/drafts', draftsRoutes);
+  app.use('/api/notifications', notificationRoutes);
 
   // 所有没有匹配到具体路由的 API 请求，都返回统一 JSON，避免 Express 默认 HTML 暴露路径细节。
   app.use('/api', (_req, res) => {

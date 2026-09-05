@@ -13,6 +13,13 @@ interface SliderCaptchaProps {
    * 回传给父组件，由父调 POST /unlock（冻结契约：unlock 自含验证，不依赖外部 verify 标记）。
    */
   manual?: boolean;
+  /**
+   * 联邦注入（ additive，不影响现有 5 处调用：缺省时走内部 GET /captcha 拉题）。
+   * FederalCaptchaModal slider 分支传入联邦 issue 的 captchaId/image，直接复用采集器，
+   * 不占用 legacy 拉题配额；未传时保持原行为。
+   */
+  externalCaptchaId?: string;
+  externalImage?: string | null;
 }
 
 export interface SliderCaptchaDragPoint {
@@ -27,7 +34,7 @@ export interface SliderCaptchaSolutionPayload {
   finalPosition: number;
 }
 
-export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth', manual = false }: SliderCaptchaProps) {
+export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth', manual = false, externalCaptchaId, externalImage }: SliderCaptchaProps) {
   const dict = useTranslation();
   const [captchaId, setCaptchaId] = useState<string | null>(null);
   const [captchaImage, setCaptchaImage] = useState<string | null>(null);
@@ -49,6 +56,12 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth', manual = fal
       resetUI();
       dragPathRef.current = [];
       setErrorMsg('');
+      // 联邦注入优先：直接采用联邦 issue 的 captchaId/image，不再 GET legacy（省一次颁发配额）
+      if (externalCaptchaId) {
+        setCaptchaId(externalCaptchaId);
+        setCaptchaImage(externalImage ?? null);
+        return;
+      }
       const res = await fetch(`${apiUrl}/captcha`);
       if (!res.ok) throw new Error('Failed to load captcha');
       const data = await res.json();
@@ -59,7 +72,7 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth', manual = fal
       setStatus('error');
       setErrorMsg(dict.captcha.networkError);
     }
-  }, [apiUrl, resetUI, dict.captcha.networkError]);
+  }, [apiUrl, resetUI, dict.captcha.networkError, externalCaptchaId, externalImage]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {

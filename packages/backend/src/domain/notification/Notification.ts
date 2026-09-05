@@ -5,6 +5,7 @@ export interface NotificationProps {
   title: string;
   content: string;
   relatedId: string | null;
+  commentId?: string | null;
   read: boolean;
   createdAt: Date;
 }
@@ -49,6 +50,7 @@ export class Notification {
   public get title(): string { return this.props.title; }
   public get content(): string { return this.props.content; }
   public get relatedId(): string | null { return this.props.relatedId; }
+  public get commentId(): string | null { return this.props.commentId ?? null; }
   public get read(): boolean { return this.props.read; }
   public get createdAt(): Date { return this.props.createdAt; }
 

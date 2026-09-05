@@ -9,6 +9,8 @@
  */
 import { randomUUID as uuidv4 } from 'crypto';
 import { prisma } from '../../db';
+import { MentionedEvent } from '../../domain/shared/events/DomainEvents';
+import { getEventBus } from '../../infrastructure/events/EventBusFactory';
 
 const MAX_MENTIONS_PER_CONTENT = 10;
 const MENTION_REGEX = /(?:^|[^\p{L}\p{N}_@])@([\p{L}\p{N}_-]{1,32})/gu;
@@ -19,6 +21,7 @@ export class MentionNotifier {
     authorId: string;
     postId: string;
     commentId: string | null;
+    postAuthorId?: string | null;
   }): Promise<void> {
     try {
       const usernames = this.extractMentions(params.content);
@@ -36,6 +39,8 @@ export class MentionNotifier {
       let notified = 0;
       for (const user of users) {
         if (user.id === params.authorId) continue;
+        // 去重冻结（Q5：@==帖主跳 MENTION，同 commentId 下帖主已收 POST_REPLIED，不再重复行）
+        if (params.postAuthorId && user.id === params.postAuthorId) continue;
         if (notified >= MAX_MENTIONS_PER_CONTENT) break;
 
         await prisma.notification.create({
@@ -46,10 +51,19 @@ export class MentionNotifier {
             title,
             content: snippet,
             relatedId: params.postId,
+            commentId: params.commentId,
             isRead: false,
           },
         });
         notified += 1;
+        // WS 补 MENTION 推送（邮件链路不变，仍不发邮件；离线靠 unread-count 兜底）
+        try {
+          await getEventBus().publish(
+            new MentionedEvent(user.id, params.postId, params.commentId, params.authorId),
+          );
+        } catch (err) {
+          console.error('[MentionNotifier] publish MentionedEvent failed:', err);
+        }
       }
     } catch (err) {
       console.error('[MentionNotifier] failed:', err);

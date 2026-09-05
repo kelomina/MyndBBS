@@ -57,6 +57,20 @@ export class CommentRepliedEvent implements IDomainEvent {
   }
 }
 
+export class MentionedEvent implements IDomainEvent {
+  public readonly eventName = 'MentionedEvent';
+  public readonly occurredOn: Date;
+
+  constructor(
+    public readonly userId: string,
+    public readonly postId: string,
+    public readonly commentId: string | null,
+    public readonly mentionerId: string
+  ) {
+    this.occurredOn = new Date();
+  }
+}
+
 export class PrivateMessageSentEvent implements IDomainEvent {
   public readonly eventName = 'PrivateMessageSentEvent';
   public readonly occurredOn: Date;

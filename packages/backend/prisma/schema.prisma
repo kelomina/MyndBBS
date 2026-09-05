@@ -169,6 +169,10 @@ model CaptchaChallenge {
   verified       Boolean  @default(false)
   // B1 强度快照（生成时冻结：low/normal/strict；存量默认 normal 保持现行语义）
   strength       String   @default("normal")
+  // 联邦验证增量：题型判别 + 题面快照 + 几何尝试计数（存量默认 slider/0，滑块语义不变）
+  challengeKind  String   @default("slider")
+  challengeData  Json?
+  attempts       Int      @default(0)
   expiresAt      DateTime
   createdAt      DateTime @default(now())
 
@@ -377,12 +381,15 @@ model Notification {
   title     String
   content   String           @db.Text
   relatedId String?          @db.Uuid
+  // 通知深链：子评论/直接回复/提及所在评论 id（可空；relatedId 仍为 postId，v1 unread-count 不暴露）
+  commentId String?          @db.Uuid
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
   @@index([userId])
   @@index([createdAt])
+  @@index([userId, isRead, createdAt])
 }
 
 enum ReportStatus {

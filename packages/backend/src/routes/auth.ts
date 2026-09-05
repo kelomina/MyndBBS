@@ -27,7 +27,7 @@
  */
 import { Router } from 'express'
 import { rateLimit } from 'express-rate-limit'
-import { getClientIp, unlockLimiter } from '../lib/rateLimit'
+import { getClientIp, unlockLimiter, federalIssueLimiter } from '../lib/rateLimit'
 import {
   generateTotp,
   verifyTotpRegistration,
@@ -49,6 +49,7 @@ import {
   logoutUser,
 } from '../controllers/register'
 import { generateCaptcha, verifyCaptcha, unlockCaptcha } from '../controllers/captcha'
+import { issueFederalCaptcha, verifyFederalCaptcha } from '../controllers/federalCaptcha'
 import { optionalAuth } from '../middleware/auth'
 import { checkIpBan } from '../middleware/ipBan'
 import { checkRegistrationOpen } from '../middleware/registrationGuard'
@@ -138,6 +139,10 @@ router.post('/captcha/verify', captchaLimiter, verifyCaptcha)
 // B2 解锁兑换：独立 unlockLimiter（10次/15分钟/IP，与 captchaLimiter 独立）；
 // 挂在 authLimiter 之前，避免被 authLimiter（100次/15分钟）叠加限流
 router.post('/captcha/unlock', unlockLimiter, unlockCaptcha)
+// 联邦验证：独立 federalIssueLimiter（30次/15分钟/IP，与 captchaLimiter/unlockLimiter 独立）；
+// 同样挂在 authLimiter 之前，避免叠加；verify 亦经同一桶（防 farming 拉题+刷验）
+router.post('/captcha/federal/issue', federalIssueLimiter, issueFederalCaptcha)
+router.post('/captcha/federal/verify', federalIssueLimiter, verifyFederalCaptcha)
 
 router.use(authLimiter)
 

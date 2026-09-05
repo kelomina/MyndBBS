@@ -6,8 +6,9 @@ import path from 'node:path';
 test('F1 RateLimitUnlockModal: five states + unlock exchange + a11y + mobile + dict', async (t) => {
   const root = process.cwd();
   const read = (p) => fs.readFile(path.join(root, p), 'utf-8');
-  const [modalSrc, sliderSrc, uiModalSrc, zhRaw, enRaw, publicDictSrc] = await Promise.all([
+  const [modalSrc, federalSrc, sliderSrc, uiModalSrc, zhRaw, enRaw, publicDictSrc] = await Promise.all([
     read('src/components/RateLimitUnlockModal.tsx'),
+    read('src/components/federal/FederalCaptchaModal.tsx'),
     read('src/components/SliderCaptcha.tsx'),
     read('src/components/ui/Modal.tsx'),
     fs.readFile(path.join(root, 'src', 'i18n', 'dictionaries', 'zh.json'), 'utf-8'),
@@ -16,36 +17,51 @@ test('F1 RateLimitUnlockModal: five states + unlock exchange + a11y + mobile + d
   ]);
   const zh = JSON.parse(zhRaw);
   const en = JSON.parse(enRaw);
+  // 联邦接入后：RateLimitUnlockModal 为 FederalCaptchaModal mode=unlock 薄封装（X-RateLimit-Unlock 载体不变）；
+  // 五态与直兑载荷断言落在 FederalCaptchaModal（超集 timeout/degraded 不破坏五态）。
+  const combinedModal = `${modalSrc}\n${federalSrc}`;
 
   await t.test('modal has five states idle/verifying/success/error/cooldown', () => {
-    assert.match(modalSrc, /idle.*verifying.*success.*error.*cooldown/s);
+    assert.match(combinedModal, /idle.*verifying.*success.*error.*cooldown/s);
     assert.match(modalSrc, /UnlockModalState/);
+    assert.match(modalSrc, /FederalCaptchaModal/);
+    assert.match(modalSrc, /mode="unlock"/);
   });
 
   await t.test('modal embeds SliderCaptcha manual + posts full unlock payload', () => {
-    assert.match(modalSrc, /import.*SliderCaptcha.*from/);
-    assert.match(modalSrc, /<SliderCaptcha[^>]*manual/);
-    assert.match(modalSrc, /postUnlock/);
-    assert.match(modalSrc, /captchaId/);
-    assert.match(modalSrc, /dragPath/);
-    assert.match(modalSrc, /totalDragTime/);
-    assert.match(modalSrc, /finalPosition/);
-    assert.match(modalSrc, /unlockToken/);
-    assert.match(modalSrc, /exemptMinutes/);
-    assert.match(modalSrc, /expiresAt/);
+    assert.match(federalSrc, /import.*SliderCaptcha.*from/);
+    assert.match(federalSrc, /<SliderCaptcha[^>]*manual/);
+    assert.match(federalSrc, /postUnlock/);
+    assert.match(federalSrc, /captchaId/);
+    assert.match(federalSrc, /dragPath/);
+    assert.match(federalSrc, /totalDragTime/);
+    assert.match(federalSrc, /finalPosition/);
+    assert.match(federalSrc, /unlockToken/);
+    assert.match(federalSrc, /exemptMinutes/);
+    assert.match(federalSrc, /expiresAt/);
+  });
+
+  await t.test('unlock flows via federal issue/verify, X-RateLimit-Unlock carrier unchanged, no Cookie', async () => {
+    const federalApiSrc = await read('src/lib/federal/federal-api.ts');
+    assert.match(federalSrc, /issueFederalCaptcha/);
+    assert.match(federalSrc, /verifyFederalCaptcha/);
+    // 路径收敛在 federal-api.ts（组件化分层），modal 经封装调用
+    assert.match(federalApiSrc, /\/api\/v1\/auth\/captcha\/federal\/issue/);
+    assert.match(federalApiSrc, /\/api\/v1\/auth\/captcha\/federal\/verify/);
+    assert.doesNotMatch(combinedModal, /document\.cookie/);
   });
 
   await t.test('modal failure 1.5s refresh + visible refresh button', () => {
-    assert.match(modalSrc, /1500/);
-    assert.match(modalSrc, /refreshChallenge/);
-    assert.match(modalSrc, /disabled=\{verifying/);
+    assert.match(federalSrc, /1500/);
+    assert.match(combinedModal, /refreshChallenge/);
+    assert.match(federalSrc, /disabled=\{verifying/);
   });
 
   await t.test('modal a11y: labelledby/describedby, alert, status, Esc, focus return, reduced-motion', () => {
-    assert.match(modalSrc, /describedBy/);
-    assert.match(modalSrc, /role="alert"/);
-    assert.match(modalSrc, /role="status"/);
-    assert.match(modalSrc, /aria-live/);
+    assert.match(federalSrc, /describedBy/);
+    assert.match(federalSrc, /role="alert"/);
+    assert.match(federalSrc, /role="status"/);
+    assert.match(federalSrc, /aria-live/);
     assert.match(uiModalSrc, /Escape/);
     assert.match(uiModalSrc, /previouslyFocusedRef/);
     assert.match(uiModalSrc, /aria-labelledby/);
@@ -63,6 +79,9 @@ test('F1 RateLimitUnlockModal: five states + unlock exchange + a11y + mobile + d
     assert.match(sliderSrc, /manual\?: boolean/);
     assert.match(sliderSrc, /manual = false/);
     assert.match(sliderSrc, /solution\?: SliderCaptchaSolutionPayload/);
+    // 联邦注入 additive（externalCaptchaId/externalImage 可选，缺省走 legacy 拉题）
+    assert.match(sliderSrc, /externalCaptchaId\?: string/);
+    assert.match(sliderSrc, /externalImage\?:/);
     // 禁止 toUpperCase 破坏中文（DESIGN §1.7）
     assert.doesNotMatch(sliderSrc, /\.toUpperCase\(\)/);
     // img alt 不允许空裸奔
@@ -84,6 +103,9 @@ test('F1 RateLimitUnlockModal: five states + unlock exchange + a11y + mobile + d
       assert.match(src, /<SliderCaptcha/);
       // 禁止新增 manual 直兑 prop（现有调用保持默认 /verify 流程）；用 prop 级正则避免误伤英文 manual/manually 注释
       assert.doesNotMatch(src, /<SliderCaptcha[^>]*\bmanual\b/);
+      // 联邦注入亦不得污染现有 5 处（external* 仅联邦 modal 使用）
+      assert.doesNotMatch(src, /<SliderCaptcha[^>]*\bexternalCaptchaId\b/);
+      assert.doesNotMatch(src, /<SliderCaptcha[^>]*\bexternalImage\b/);
     }
   });
 
@@ -327,14 +349,18 @@ test('F4 admin fourth section: rows + strict zod mirror + dangerous confirms + f
 test('Forbidden zones: no Cookie carrier, X-RateLimit-Unlock sole carrier, no backend URL stitching', async (t) => {
   const root = process.cwd();
   const read = (p) => fs.readFile(path.join(root, p), 'utf-8');
-  const [fetcherSrc, unlockSrc, tokenSrc, islandSrc, modalSrc] = await Promise.all([
+  const [fetcherSrc, unlockSrc, tokenSrc, islandSrc, modalSrc, federalSrc, federalApiSrc, powSrc, clockSrc] = await Promise.all([
     read('src/lib/api/fetcher.ts'),
     read('src/lib/rate-limit/unlock.ts'),
     read('src/lib/rate-limit/unlock-token.ts'),
     read('src/components/PostListRateLimitIsland.tsx'),
     read('src/components/RateLimitUnlockModal.tsx'),
+    read('src/components/federal/FederalCaptchaModal.tsx'),
+    read('src/lib/federal/federal-api.ts'),
+    read('src/components/federal/PowCollector.tsx'),
+    read('src/components/federal/GeometryClock.tsx'),
   ]);
-  const all = [fetcherSrc, unlockSrc, tokenSrc, islandSrc, modalSrc].join('\n');
+  const all = [fetcherSrc, unlockSrc, tokenSrc, islandSrc, modalSrc, federalSrc, federalApiSrc, powSrc, clockSrc].join('\n');
 
   await t.test('no Cookie carrier introduced', () => {
     assert.doesNotMatch(all, /document\.cookie/);
@@ -350,5 +376,18 @@ test('Forbidden zones: no Cookie carrier, X-RateLimit-Unlock sole carrier, no ba
     assert.match(unlockSrc, /fetch\('\/api\/v1\/auth\/captcha\/unlock'/);
     assert.doesNotMatch(unlockSrc, /API_URL|buildBackendUrl|localhost:3001|127\.0\.0\.1:3001/);
     assert.doesNotMatch(islandSrc, /API_URL|buildBackendUrl/);
+    // 联邦 BFF 相对路径，禁直拼后端
+    assert.match(federalApiSrc, /fetch\('\/api\/v1\/auth\/captcha\/federal\/issue'/);
+    assert.match(federalApiSrc, /fetch\('\/api\/v1\/auth\/captcha\/federal\/verify'/);
+    assert.doesNotMatch(federalApiSrc, /API_URL|buildBackendUrl|localhost:3001|127\.0\.0\.1:3001/);
+    assert.doesNotMatch(federalSrc, /API_URL|buildBackendUrl|localhost:3001|127\.0\.0\.1:3001/);
+  });
+
+  await t.test('BFF zero-change: no federal/unlock special-case in proxy', async () => {
+    const proxySrc = await read('src/lib/bff/proxy.ts');
+    assert.match(proxySrc, /copyRequestHeaders/);
+    assert.doesNotMatch(proxySrc, /X-RateLimit-Unlock/);
+    assert.doesNotMatch(proxySrc, /federal/);
+    assert.doesNotMatch(proxySrc, /unlock/);
   });
 });

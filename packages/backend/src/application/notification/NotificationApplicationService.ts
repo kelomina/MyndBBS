@@ -101,7 +101,8 @@ export class NotificationApplicationService {
         'POST_REPLIED',
         'New Reply to Your Post',
         `Someone replied to your post "${event.postTitle}".`,
-        event.postId
+        event.postId,
+        event.commentId ?? null
       );
     });
 
@@ -112,7 +113,8 @@ export class NotificationApplicationService {
         'COMMENT_REPLIED',
         'New Reply to Your Comment',
         `Someone replied to your comment on a post.`,
-        event.postId
+        event.postId,
+        event.childCommentId ?? null
       );
     });
 
@@ -133,7 +135,7 @@ export class NotificationApplicationService {
    * Description: Helper method to instantiate and persist a Notification aggregate.
    * Keywords: create, persist, helper, notification, aggregate
    */
-  private async createNotification(userId: string, type: string, title: string, content: string, relatedId: string | null): Promise<void> {
+  private async createNotification(userId: string, type: string, title: string, content: string, relatedId: string | null, commentId: string | null = null): Promise<void> {
     return this.unitOfWork.execute(async () => {
       const notification = Notification.create({
         id: uuidv4(),
@@ -142,6 +144,7 @@ export class NotificationApplicationService {
         title,
         content,
         relatedId,
+        commentId,
         read: false,
         createdAt: new Date()
       });

@@ -257,6 +257,10 @@ export class AuthApplicationService {
     if (!challenge) {
       throw new Error('ERR_INVALID_CAPTCHA')
     }
+    // 联邦互斥：旧 unlock 仅接受 slider 种挑战（geometry/pow 一律 400，防旧滑块绕过）
+    if (challenge.challengeKind !== 'slider') {
+      throw new Error('ERR_INVALID_CAPTCHA')
+    }
     // B5 固定解旁路（仅 test）：finalPosition 容差 ±1 + 最小轨迹豁免，仍走原子消费
     if (process.env.NODE_ENV === 'test') {
       const fixedTargetRaw = process.env.TEST_CAPTCHA_TARGET
@@ -358,6 +362,10 @@ export class AuthApplicationService {
     if (!challenge) {
       throw new Error('ERR_INVALID_CAPTCHA')
     }
+    // 联邦互斥：旧 verify 仅接受 slider（geometry/pow 走联邦 verify，kind 不一致一律 400）
+    if (challenge.challengeKind !== 'slider') {
+      throw new Error('ERR_INVALID_CAPTCHA')
+    }
 
     try {
       challenge.verifyTrajectory(dragPath, totalDragTime, finalPosition)
@@ -412,6 +420,10 @@ export class AuthApplicationService {
   public async consumeCaptcha(captchaId: string): Promise<boolean> {
     const challenge = await this.opts.captchaChallengeRepository.findById(captchaId)
     if (!challenge) {
+      return false
+    }
+    // 联邦互斥：发帖/评论/注册 consume 仅接受 slider（联邦 geometry/pow 不得绕过 kind 校验）
+    if (challenge.challengeKind !== 'slider') {
       return false
     }
     try {

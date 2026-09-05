@@ -7,12 +7,17 @@ export interface CaptchaStrengthParams {
   maxTimeMs: number
 }
 
+export type FederalChallengeKind = 'slider' | 'geometry' | 'pow'
+
 export interface CaptchaChallengeProps {
   id: string
   targetPosition: number
   verified: boolean
   expiresAt: Date
   strength?: CaptchaStrength
+  challengeKind?: FederalChallengeKind
+  challengeData?: Record<string, unknown> | null
+  attempts?: number
 }
 
 export interface DragNode {
@@ -84,14 +89,26 @@ export class CaptchaChallenge {
     if (props.expiresAt <= new Date()) {
       throw new Error('ERR_CAPTCHA_ALREADY_EXPIRED')
     }
-    return new CaptchaChallenge({ strength: 'normal', ...props })
+    return new CaptchaChallenge({
+      strength: 'normal',
+      challengeKind: 'slider',
+      challengeData: null,
+      attempts: 0,
+      ...props,
+    })
   }
 
   public static reconstitute(props: CaptchaChallengeProps): CaptchaChallenge {
     if (props.targetPosition < 0) {
       throw new Error('ERR_INVALID_TARGET_POSITION')
     }
-    return new CaptchaChallenge({ strength: 'normal', ...props })
+    return new CaptchaChallenge({
+      strength: 'normal',
+      challengeKind: 'slider',
+      challengeData: null,
+      attempts: 0,
+      ...props,
+    })
   }
 
   // --- Accessors ---
@@ -110,6 +127,25 @@ export class CaptchaChallenge {
   }
   public get strength(): CaptchaStrength {
     return this.props.strength ?? 'normal'
+  }
+  public get challengeKind(): FederalChallengeKind {
+    const k = this.props.challengeKind
+    if (k === 'geometry' || k === 'pow' || k === 'slider') return k
+    return 'slider'
+  }
+  public get challengeData(): Record<string, unknown> | null {
+    const d = this.props.challengeData
+    if (d === undefined) return null
+    return d
+  }
+  public get attempts(): number {
+    const a = this.props.attempts
+    return typeof a === 'number' && Number.isInteger(a) && a >= 0 ? a : 0
+  }
+
+  public incrementAttempts(): void {
+    const next = this.attempts + 1
+    this.props = { ...this.props, attempts: next }
   }
 
   // --- Domain Behaviors ---

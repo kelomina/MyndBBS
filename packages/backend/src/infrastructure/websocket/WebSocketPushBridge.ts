@@ -3,6 +3,7 @@ import { getEventBus } from '../events/EventBusFactory';
 import type { IDomainEvent } from '../../domain/shared/events/IEventBus';
 import type {
   CommentRepliedEvent,
+  MentionedEvent,
   MessageExpiredEvent,
   MessageRemovedEvent,
   PostApprovedEvent,
@@ -63,6 +64,20 @@ export function bootstrapWebSocketPushBridge(): void {
         postId: event.postId,
         commentId: event.childCommentId,
         notificationType: 'COMMENT_REPLIED',
+      },
+    });
+  });
+
+  // 通知增量：MENTION 补 WS 推送（现 MENTION 仅直写 DB 无 WS，本次补 WS，邮件链路不变）
+  eventBus.subscribe<MentionedEvent>('MentionedEvent', async (event) => {
+    if (event.userId === event.mentionerId) return;
+    await pushToUser(event.userId, {
+      type: 'notification',
+      data: {
+        eventName: event.eventName,
+        postId: event.postId,
+        commentId: event.commentId,
+        notificationType: 'MENTION',
       },
     });
   });

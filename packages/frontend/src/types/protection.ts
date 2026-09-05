@@ -66,3 +66,47 @@ export const RATE_LIMIT_POLICY_DEFAULTS: RateLimitProtectionConfig = {
 export const RATE_LIMIT_WINDOW_OPTIONS: ReadonlyArray<RateLimitProtectionConfig['windowSec']> = [
   10, 30, 60, 300, 600,
 ];
+
+/**
+ * 联邦验证配置（冻结契约 API-SPEC-TAG-CAPTCHA-NOTIFY.yaml v1.0.0 FederalProtectionConfig 6 字段）。
+ * PUT/GET 同形；zod 严格无 coerce；三开关至少保 1；defaultKind 须指向已启用类型。
+ * 注：任务书“strictTimeout”仅为前端几何 idle 行为（严格 15s/默认 60s，演示批准增量），
+ * 不属 API 字段（additionalProperties:false，增字段即 400），故类型内不含该字段。
+ */
+export type FederalKind = 'slider' | 'geometry' | 'pow';
+
+export interface FederalKinds {
+  sliderEnabled: boolean;
+  geometryEnabled: boolean;
+  powEnabled: boolean;
+}
+
+export interface FederalProtectionConfig {
+  /** 联邦总开关，默认 true；false 时全回落 slider-low */
+  enabled: boolean;
+  kinds: FederalKinds;
+  /** 管理默认题型，默认 slider */
+  defaultKind: FederalKind;
+  /** PoW 难度 bits，整数 8–24，默认 16 */
+  powBits: number;
+  /** 几何复杂度档，整数 1–3，默认 1 */
+  geometryLevel: number;
+  /** 前端解题超时秒，整数 5–60，默认 10 */
+  timeoutSec: number;
+}
+
+export type FederalProtectionUpdate = FederalProtectionConfig;
+
+export interface FederalProtectionUpdateResult {
+  message: 'FEDERAL_POLICY_UPDATED';
+  policy: FederalProtectionConfig;
+}
+
+export const FEDERAL_POLICY_DEFAULTS: FederalProtectionConfig = {
+  enabled: true,
+  kinds: { sliderEnabled: true, geometryEnabled: true, powEnabled: true },
+  defaultKind: 'slider',
+  powBits: 16,
+  geometryLevel: 1,
+  timeoutSec: 10,
+};

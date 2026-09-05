@@ -48,6 +48,8 @@ export async function Header({ locale }: { locale: Locale }) {
             title={dict.common.account}
             newPostText={dict.common.newPost}
             messagesText={dict.messages.title}
+            badgeAriaTemplate={dict.notifications.badgeAria}
+            badgeTooltipTemplate={dict.notifications.badgeTooltip}
           />
         </div>
       </div>

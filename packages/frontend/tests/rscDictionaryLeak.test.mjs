@@ -34,6 +34,17 @@ test('public translation dictionary omits privileged dictionary branches', async
     ['ERR_RATE_LIMITED', 'ERR_RATE_LIMITED_NEEDS_CAPTCHA', 'ERR_VERIFICATION_FAILED'].sort(),
   )
   assert.match(publicDictionary, /messages:\s*pick\(dict\.messages,\s*\['title'\]\)/)
+  // 联邦验证公开子键（匿名解题必需）：captcha.geometry/pow/federal 精确 pick，不透 admin.federal（管理页需 ADMIN，经完整字典走 BFF，不进公开字典）
+  assert.match(publicDictionary, /geometry:\s*pick\(/)
+  assert.match(publicDictionary, /pow:\s*pick\(/)
+  assert.match(publicDictionary, /federal:\s*pick\(/)
+  assert.match(publicDictionary, /switchKind/)
+  assert.match(publicDictionary, /fallbackToSlider/)
+  // 通知徽标合计公开键（UserNav 求和 tooltip/aria-label 所需）
+  assert.match(publicDictionary, /notifications:\s*pick\(dict\.notifications/)
+  assert.match(publicDictionary, /badgeAria/)
+  assert.match(publicDictionary, /badgeTooltip/)
+  assert.match(publicDictionary, /unreadTitle/)
   assert.doesNotMatch(publicDictionary, /ERR_DB_CONNECTION_FAILED/)
   assert.doesNotMatch(publicDictionary, /ERR_CSRF_TOKEN_MISSING_OR_INVALID/)
   assert.doesNotMatch(publicDictionary, /domainConfig/)

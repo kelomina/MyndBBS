@@ -27,6 +27,16 @@ export class PrismaCaptchaChallengeRepository implements ICaptchaChallengeReposi
       expiresAt: raw.expiresAt,
       // 存量行无 strength 列时回落 normal（现行语义）；非法值亦回落 normal
       strength: normalizeCaptchaStrength(raw.strength),
+      challengeKind:
+        raw.challengeKind === 'geometry' || raw.challengeKind === 'pow' ? raw.challengeKind : 'slider',
+      challengeData:
+        raw.challengeData !== undefined && raw.challengeData !== null
+          ? (raw.challengeData as Record<string, unknown>)
+          : null,
+      attempts:
+        typeof raw.attempts === 'number' && Number.isInteger(raw.attempts) && raw.attempts >= 0
+          ? raw.attempts
+          : 0,
     };
     return CaptchaChallenge.reconstitute(props);
   }
@@ -57,6 +67,9 @@ export class PrismaCaptchaChallengeRepository implements ICaptchaChallengeReposi
         targetPosition: challenge.targetPosition,
         verified: challenge.verified,
         strength: challenge.strength,
+        challengeKind: challenge.challengeKind,
+        challengeData: (challenge.challengeData ?? null) as any,
+        attempts: challenge.attempts,
         expiresAt: challenge.expiresAt,
       },
       update: {
@@ -73,5 +86,16 @@ export class PrismaCaptchaChallengeRepository implements ICaptchaChallengeReposi
    */
   public async delete(id: string): Promise<void> {
     await prisma.captchaChallenge.delete({ where: { id } });
+  }
+
+  public async updateAttempts(id: string, attempts: number): Promise<void> {
+    await prisma.captchaChallenge.update({ where: { id }, data: { attempts } });
+  }
+
+  public async deleteManyFederalForTest(): Promise<number> {
+    const result = await prisma.captchaChallenge.deleteMany({
+      where: { challengeKind: { in: ['geometry', 'pow'] } },
+    });
+    return result.count;
   }
 }

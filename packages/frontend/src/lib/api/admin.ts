@@ -5,6 +5,8 @@ import type {
   AntiSpamPolicy,
   RateLimitProtectionConfig,
   RateLimitProtectionUpdateResult,
+  FederalProtectionConfig,
+  FederalProtectionUpdateResult,
 } from '../../types/protection';
 
 export interface AuditLogEntry {
@@ -302,6 +304,20 @@ export const updateRateLimitPolicy = (
   policy: RateLimitProtectionConfig,
 ): Promise<RateLimitProtectionUpdateResult> =>
   fetcher('/api/admin/protection/rate-limit', {
+    method: 'PUT',
+    body: JSON.stringify(policy),
+  });
+
+// ── Federal captcha policy (API-SPEC-TAG-CAPTCHA-NOTIFY.yaml v1.0.0, ADMIN+) ──
+// BFF 相对路径经代理透传；匿名 404 / MODERATOR 403 由后端兜底；PUT 全量（禁 PATCH）。
+
+export const getFederalPolicy = (): Promise<FederalProtectionConfig> =>
+  fetcher('/api/admin/protection/federal');
+
+export const updateFederalPolicy = (
+  policy: FederalProtectionConfig,
+): Promise<FederalProtectionUpdateResult> =>
+  fetcher('/api/admin/protection/federal', {
     method: 'PUT',
     body: JSON.stringify(policy),
   });

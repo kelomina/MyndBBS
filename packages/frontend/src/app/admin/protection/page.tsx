@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from '../../../components/ui/Button'
 import { Modal } from '../../../components/ui/Modal'
 import { RateLimitPolicySection } from '../../../components/RateLimitPolicySection'
+import { FederalCaptchaSection } from '../../../components/FederalCaptchaSection'
 import {
   getIpBans,
   createIpBan,
@@ -210,6 +211,9 @@ export default function ProtectionPage() {
 
       {/* ── 读接口限流与解锁（F4 新增第四节前置：与防灌水/站点设置/IP封禁并列） ── */}
       <RateLimitPolicySection />
+
+      {/* ── 联邦验证题型与难度（第五节进站：沿 RateLimitPolicySection，6 字段 strict） ── */}
+      <FederalCaptchaSection />
 
       {/* ── 站点设置 ── */}
       <div className="rounded-xl border border-border bg-card p-6 space-y-4">
