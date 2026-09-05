@@ -58,17 +58,23 @@ jobs:
             cd "$DEPLOY_DIR"
 
             # ── 备份：DB dump + 当前镜像 ID（回滚锚点）──
+            # 注：/opt/myndbbs 与 docker.sock 均为 root 拥有，myndops 需 sudo -n
             BK="$DEPLOY_DIR/backup/$(date +%Y%m%d-%H%M%S)-auto"
-            mkdir -p "$BK"
-            docker compose exec -T postgres pg_dump -U myndbbs myndbbs | gzip > "$BK/db_dump.sql.gz"
-            docker images --format '{{.ID}}' $BACKEND_IMAGE:latest  | head -1 > "$BK/backend_image_id"
-            docker images --format '{{.ID}}' $FRONTEND_IMAGE:latest | head -1 > "$BK/frontend_image_id"
-            cp docker-compose.yml "$BK/"
+            sudo -n mkdir -p "$BK"
+            sudo -n docker compose exec -T postgres pg_dump -U myndbbs myndbbs | gzip > /tmp/db_dump.sql.gz
+            sudo -n install -m 600 -o root -g root /tmp/db_dump.sql.gz "$BK/db_dump.sql.gz"
+            rm -f /tmp/db_dump.sql.gz
+            sudo -n docker images --format '{{.ID}}' $BACKEND_IMAGE:latest  | head -1 > /tmp/backend_image_id
+            sudo -n docker images --format '{{.ID}}' $FRONTEND_IMAGE:latest | head -1 > /tmp/frontend_image_id
+            sudo -n install -m 644 -o root -g root /tmp/backend_image_id "$BK/backend_image_id"
+            sudo -n install -m 644 -o root -g root /tmp/frontend_image_id "$BK/frontend_image_id"
+            rm -f /tmp/backend_image_id /tmp/frontend_image_id
+            sudo -n cp docker-compose.yml "$BK/"
             echo "[backup] -> $BK ($(cat "$BK/backend_image_id") / $(cat "$BK/frontend_image_id"))"
 
             # ── 拉取并滚动更新（数据库迁移由 backend entrypoint 的 prisma migrate deploy 安全执行）──
-            docker compose pull backend frontend
-            docker compose up -d backend frontend
+            sudo -n docker compose pull backend frontend
+            sudo -n docker compose up -d backend frontend
 
       - name: Health check
         id: health
@@ -85,7 +91,7 @@ jobs:
             cd "$DEPLOY_DIR"
             HEALTH=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/api/health || echo 000)
             SITE=$(curl -s -o /dev/null -w '%{http_code}' "$PUBLIC_URL" --max-time 20 || echo 000)
-            UNHEALTHY=$(docker compose ps --format json | jq -s '[.[] | select(.Health == "unhealthy" or .State == "exited")] | length')
+            UNHEALTHY=$(sudo -n docker compose ps --format json | jq -s '[.[] | select(.Health == "unhealthy" or .State == "exited")] | length')
             echo "backend=$HEALTH site=$SITE unhealthy_containers=$UNHEALTHY"
             if [ "$HEALTH" != "200" ] || [ "$SITE" != "200" ] || [ "$UNHEALTHY" != "0" ]; then
               exit 1
@@ -106,11 +112,11 @@ jobs:
             BK=$(ls -td "$DEPLOY_DIR"/backup/*-auto 2>/dev/null | head -1)
             if [ -z "$BK" ]; then echo "ERROR: no auto backup found"; exit 1; fi
             echo "[rollback] restoring image ids from $BK"
-            docker tag "$(cat "$BK/backend_image_id")"  $BACKEND_IMAGE:latest
-            docker tag "$(cat "$BK/frontend_image_id")" $FRONTEND_IMAGE:latest
-            docker compose up -d backend frontend
+            sudo -n docker tag "$(cat "$BK/backend_image_id")"  $BACKEND_IMAGE:latest
+            sudo -n docker tag "$(cat "$BK/frontend_image_id")" $FRONTEND_IMAGE:latest
+            sudo -n docker compose up -d backend frontend
             sleep 15
-            docker compose ps
+            sudo -n docker compose ps
             echo "Rollback complete. DB dump available at $BK/db_dump.sql.gz (manual restore only)"
 
       - name: Notify deployment success
