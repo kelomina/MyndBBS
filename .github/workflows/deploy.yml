@@ -91,7 +91,10 @@ jobs:
             cd "$DEPLOY_DIR"
             HEALTH=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/api/health || echo 000)
             SITE=$(curl -s -o /dev/null -w '%{http_code}' "$PUBLIC_URL" --max-time 20 || echo 000)
-            UNHEALTHY=$(sudo -n docker compose ps --format json | jq -s '[.[] | select(.Health == "unhealthy" or .State == "exited")] | length')
+            # 注：服务器无 jq，用 compose ps 文本匹配代替 JSON 解析
+            PSOUT=$(sudo -n docker compose ps 2>&1)
+            echo "$PSOUT"
+            UNHEALTHY=$(echo "$PSOUT" | grep -cE 'unhealthy|[Ee]xited' || true)
             echo "backend=$HEALTH site=$SITE unhealthy_containers=$UNHEALTHY"
             if [ "$HEALTH" != "200" ] || [ "$SITE" != "200" ] || [ "$UNHEALTHY" != "0" ]; then
               exit 1
