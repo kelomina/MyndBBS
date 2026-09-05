@@ -167,6 +167,8 @@ model CaptchaChallenge {
   id             String   @id @default(uuid()) @db.Uuid
   targetPosition Int
   verified       Boolean  @default(false)
+  // B1 强度快照（生成时冻结：low/normal/strict；存量默认 normal 保持现行语义）
+  strength       String   @default("normal")
   expiresAt      DateTime
   createdAt      DateTime @default(now())
 

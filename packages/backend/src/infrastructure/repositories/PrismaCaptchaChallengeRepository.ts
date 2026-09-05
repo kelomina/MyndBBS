@@ -1,5 +1,9 @@
 import { ICaptchaChallengeRepository } from '../../domain/identity/ICaptchaChallengeRepository';
-import { CaptchaChallenge, CaptchaChallengeProps } from '../../domain/identity/CaptchaChallenge';
+import {
+  CaptchaChallenge,
+  CaptchaChallengeProps,
+  normalizeCaptchaStrength,
+} from '../../domain/identity/CaptchaChallenge';
 import { prisma } from '../../db';
 
 /**
@@ -21,6 +25,8 @@ export class PrismaCaptchaChallengeRepository implements ICaptchaChallengeReposi
       targetPosition: raw.targetPosition,
       verified: raw.verified,
       expiresAt: raw.expiresAt,
+      // 存量行无 strength 列时回落 normal（现行语义）；非法值亦回落 normal
+      strength: normalizeCaptchaStrength(raw.strength),
     };
     return CaptchaChallenge.reconstitute(props);
   }
@@ -50,6 +56,7 @@ export class PrismaCaptchaChallengeRepository implements ICaptchaChallengeReposi
         id: challenge.id,
         targetPosition: challenge.targetPosition,
         verified: challenge.verified,
+        strength: challenge.strength,
         expiresAt: challenge.expiresAt,
       },
       update: {

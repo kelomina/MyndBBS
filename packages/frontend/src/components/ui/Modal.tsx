@@ -11,20 +11,53 @@ export interface ModalProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  /** a11y：标题/说明元素 id（F1 要求 dialog + labelledby/describedby）。未传时自动生成。 */
+  labelledBy?: string;
+  describedBy?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children, className }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, className, labelledBy, describedBy }: ModalProps) {
   const dict = useTranslation();
+  const titleId = React.useId();
+  const resolvedLabelledBy = labelledBy ?? (title ? titleId : undefined);
+  const resolvedDescribedBy = describedBy;
+  const previouslyFocusedRef = React.useRef<HTMLElement | null>(null);
+
   React.useEffect(() => {
     if (isOpen) {
+      previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
       document.body.style.overflow = 'hidden';
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
+      };
+      document.addEventListener('keydown', onKeyDown);
+      return () => {
+        document.body.style.overflow = 'unset';
+        document.removeEventListener('keydown', onKeyDown);
+        // 焦点返回触发按钮（F1 a11y）
+        const prev = previouslyFocusedRef.current;
+        if (prev && typeof prev.focus === 'function') {
+          try {
+            prev.focus({ preventScroll: true });
+          } catch {
+            try {
+              prev.focus();
+            } catch {
+              // 忽略焦点恢复失败（如节点已卸载）
+            }
+          }
+        }
+      };
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -40,16 +73,19 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
       {/* Modal Panel */}
       <div 
         className={cn(
-          "fixed z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg",
+          "fixed z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 motion-reduce:animate-none motion-reduce:transition-none sm:rounded-lg",
+          "max-h-[90dvh] overflow-y-auto w-[calc(100vw-2rem)] sm:w-full",
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
           className
         )}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={resolvedLabelledBy}
+        aria-describedby={resolvedDescribedBy}
       >
         {title && (
           <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-            <h2 className="text-lg font-semibold leading-none tracking-tight">{title}</h2>
+            <h2 id={resolvedLabelledBy} className="text-lg font-semibold leading-none tracking-tight">{title}</h2>
           </div>
         )}
         

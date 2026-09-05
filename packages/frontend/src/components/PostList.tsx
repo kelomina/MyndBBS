@@ -19,7 +19,7 @@ interface PostListProps {
 export function PostList({ posts, emptyMessage = "No posts found.", dict }: PostListProps) {
   if (posts.length === 0) {
     return (
-      <div className="text-center text-muted py-10">
+      <div data-testid="empty-state" className="text-center text-muted py-10">
         {emptyMessage}
       </div>
     );

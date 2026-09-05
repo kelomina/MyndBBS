@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { Locale, defaultLocale } from '../../i18n/config';
 import { getDictionary } from '../../i18n/get-dictionary';
 import { Sidebar } from '../../components/layout/Sidebar';
-import { serverApiUrl } from '../../lib/bff/serverApi';
+import { TagsRateLimitIsland } from '../../components/TagsRateLimitIsland';
+import { serverFetch } from '../../lib/bff/serverApi';
+import { getSsrRateLimitInfo } from '../../lib/rate-limit/ssr-rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,19 +14,22 @@ interface TagItem {
   postCount: number;
 }
 
-async function getTags(): Promise<TagItem[]> {
+async function getTags(): Promise<{ tags: TagItem[]; rateLimited: { retryAfterSec: number } | null }> {
   try {
-    const res = await fetch(serverApiUrl('/api/tags'), { cache: 'no-store' });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data.tags) ? data.tags : [];
+    const res = await serverFetch('/api/tags');
+    if (res.ok) {
+      const data = await res.json();
+      return { tags: Array.isArray(data.tags) ? data.tags : [], rateLimited: null };
+    }
+    const rateLimited = await getSsrRateLimitInfo(res);
+    return { tags: [], rateLimited };
   } catch {
-    return [];
+    return { tags: [], rateLimited: null };
   }
 }
 
 export default async function TagsPage() {
-  const tags = await getTags();
+  const { tags, rateLimited } = await getTags();
   const headersList = await headers();
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;
   const dict = await getDictionary(locale);
@@ -37,8 +42,10 @@ export default async function TagsPage() {
           <h1 className="mb-2 text-3xl font-bold text-foreground">{dict.tags?.title || 'Topics'}</h1>
           <p className="mb-8 text-muted">{dict.tags?.subtitle || 'Browse conversations by topic tag.'}</p>
 
-          {tags.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-10 text-center text-muted">
+          {rateLimited ? (
+            <TagsRateLimitIsland initialRetryAfterSec={rateLimited.retryAfterSec} dict={dict} />
+          ) : tags.length === 0 ? (
+            <div data-testid="empty-state" className="rounded-xl border border-border bg-card p-10 text-center text-muted">
               {dict.tags?.empty || 'No tags yet'}
             </div>
           ) : (

@@ -17,7 +17,7 @@ import {
   Award,
   BarChart3,
 } from 'lucide-react'
-import { serverApiUrl } from '../../lib/bff/serverApi'
+import { serverFetch } from '../../lib/bff/serverApi'
 import { TranslationProvider } from '../../components/TranslationProvider'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -34,11 +34,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   let response: Response
   try {
-    response = await fetch(serverApiUrl('/api/v1/user/profile'), {
+    response = await serverFetch('/api/v1/user/profile', {
       headers: {
         Cookie: allCookies,
       },
-      cache: 'no-store',
     })
   } catch {
     redirect('/')

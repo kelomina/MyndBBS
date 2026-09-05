@@ -4,9 +4,11 @@ import { Locale, defaultLocale } from '../../../i18n/config'
 import { getPublicDictionary } from '../../../i18n/public-dictionary'
 
 import { PostList } from '../../../components/PostList'
+import { PostListRateLimitIsland } from '../../../components/PostListRateLimitIsland'
 import { AutoRefresh } from '../../../components/AutoRefresh'
 import { getCategoryTranslation, getPostListEmptyMessage } from '../../../lib/utils'
-import { serverApiUrl } from '../../../lib/bff/serverApi'
+import { serverFetch } from '../../../lib/bff/serverApi'
+import { getSsrRateLimitInfo } from '../../../lib/rate-limit/ssr-rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,16 +20,16 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
   const rawCategory = resolvedParams.category
   const decodedCategory = decodeURIComponent(rawCategory)
 
+  const backendPath = `/api/posts?category=${encodeURIComponent(decodedCategory)}`
+  const bffUrl = `/api/posts?category=${encodeURIComponent(decodedCategory)}`
   let posts = []
+  let rateLimited: { retryAfterSec: number } | null = null
   try {
-    const res = await fetch(
-      serverApiUrl(`/api/posts?category=${encodeURIComponent(decodedCategory)}`),
-      {
-        cache: 'no-store',
-      },
-    )
+    const res = await serverFetch(backendPath)
     if (res.ok) {
       posts = await res.json()
+    } else {
+      rateLimited = await getSsrRateLimitInfo(res)
     }
   } catch (error) {
     console.error('Failed to fetch posts:', error)
@@ -38,7 +40,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
 
   return (
     <main className="mx-auto flex max-w-7xl px-4 sm:px-6 lg:px-8">
-      <AutoRefresh />
+      <AutoRefresh paused={!!rateLimited} />
       <Sidebar dict={dict} />
 
       {/* Main Feed Area */}
@@ -54,11 +56,20 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
             </p>
           </div>
 
-          <PostList
-            posts={posts}
-            emptyMessage={getPostListEmptyMessage('category', dict)}
-            dict={dict}
-          />
+          {rateLimited ? (
+            <PostListRateLimitIsland
+              initialRetryAfterSec={rateLimited.retryAfterSec}
+              bffUrl={bffUrl}
+              emptyMessage={getPostListEmptyMessage('category', dict)}
+              dict={dict}
+            />
+          ) : (
+            <PostList
+              posts={posts}
+              emptyMessage={getPostListEmptyMessage('category', dict)}
+              dict={dict}
+            />
+          )}
         </div>
       </div>
     </main>

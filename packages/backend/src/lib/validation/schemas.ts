@@ -13,12 +13,12 @@
  * English keywords:
  *   validation, Zod, schema, request body validation, API
  */
-import { z } from 'zod';
-import { STRICT_PASSWORD_REGEX } from '@myndbbs/shared';
+import { z } from 'zod'
+import { STRICT_PASSWORD_REGEX } from '@myndbbs/shared'
 
-const optionalNullableString = (max: number) => z.string().max(max).nullable().optional();
-const optionalString = (max: number) => z.string().max(max).optional();
-const nonEmptyString = (message: string, max: number) => z.string().min(1, message).max(max);
+const optionalNullableString = (max: number) => z.string().max(max).nullable().optional()
+const optionalString = (max: number) => z.string().max(max).optional()
+const nonEmptyString = (message: string, max: number) => z.string().min(1, message).max(max)
 
 // ── 认证 ──
 
@@ -32,18 +32,18 @@ export const registerSchema = z.object({
     .max(128, 'ERR_PASSWORD_TOO_LONG')
     .regex(STRICT_PASSWORD_REGEX, 'ERR_PASSWORD_WEAK'),
   captchaId: z.string().min(1, 'ERR_CAPTCHA_REQUIRED'),
-});
+})
 
 /** 登录请求校验：邮箱/用户名、密码 */
 export const loginSchema = z.object({
   email: z.string().min(1, 'ERR_EMAIL_REQUIRED'),
   password: z.string().min(1, 'ERR_PASSWORD_REQUIRED'),
-});
+})
 
 /** 忘记密码请求校验：邮箱 */
 export const forgotPasswordSchema = z.object({
   email: z.string().email('ERR_INVALID_EMAIL').max(255),
-});
+})
 
 /** 重置密码请求校验：令牌、新密码 */
 export const resetPasswordSchema = z.object({
@@ -53,27 +53,28 @@ export const resetPasswordSchema = z.object({
     .min(8, 'ERR_PASSWORD_TOO_SHORT')
     .max(128, 'ERR_PASSWORD_TOO_LONG')
     .regex(STRICT_PASSWORD_REGEX, 'ERR_PASSWORD_WEAK'),
-});
+})
 
 /** 邮箱验证请求校验：令牌 */
 export const verifyEmailSchema = z.object({
   token: z.string().min(1, 'ERR_TOKEN_REQUIRED'),
-});
+})
 
 // ── 管理后台配置 ──
 
 /** 数据库配置校验：主机、端口、用户名、密码、数据库名 */
 export const dbConfigSchema = z.object({
   host: z.string().min(1, 'ERR_HOST_REQUIRED'),
-  port: z.number().int().min(1).max(65535).or(
-    z.string().regex(/^\d+$/).transform(Number).pipe(
-      z.number().int().min(1).max(65535)
-    )
-  ),
+  port: z
+    .number()
+    .int()
+    .min(1)
+    .max(65535)
+    .or(z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1).max(65535))),
   username: z.string().min(1, 'ERR_USERNAME_REQUIRED'),
   password: z.string().min(1, 'ERR_PASSWORD_REQUIRED'),
   database: z.string().min(1, 'ERR_DATABASE_NAME_REQUIRED'),
-});
+})
 
 /** 域名配置校验：协议、主机名、RP ID、反向代理模式 */
 export const domainConfigSchema = z.object({
@@ -81,7 +82,7 @@ export const domainConfigSchema = z.object({
   hostname: z.string().min(1, 'ERR_HOSTNAME_REQUIRED').optional(),
   rpId: z.string().min(1, 'ERR_RP_ID_REQUIRED').optional(),
   reverseProxyMode: z.boolean().optional(),
-});
+})
 
 // ── 管理-用户管理 ──
 
@@ -89,12 +90,12 @@ export const domainConfigSchema = z.object({
 export const changeUserRoleSchema = z.object({
   role: z.string().min(1, 'ERR_ROLE_REQUIRED'),
   level: z.number().int().min(0).optional(),
-});
+})
 
 /** 变更用户状态校验 */
 export const changeUserStatusSchema = z.object({
   status: z.string().min(1, 'ERR_STATUS_REQUIRED'),
-});
+})
 
 /** 创建测试账号校验：仅允许 test_ 前缀用户名，密码沿用正式账号强度规则 */
 export const createTestAccountSchema = z.object({
@@ -110,18 +111,25 @@ export const createTestAccountSchema = z.object({
     .min(8, 'ERR_PASSWORD_TOO_SHORT')
     .max(128, 'ERR_PASSWORD_TOO_LONG')
     .regex(STRICT_PASSWORD_REGEX, 'ERR_PASSWORD_WEAK'),
-});
+})
 
 // ── 管理-徽章管理 ──
 
 /** 徽章自动授予条件结构校验（字段间约束由领域层 BadgeCondition 复核） */
 export const badgeConditionSchema = z.object({
-  kind: z.enum(['manual', 'user_level', 'post_count', 'comment_count', 'content_count', 'night_activity']),
+  kind: z.enum([
+    'manual',
+    'user_level',
+    'post_count',
+    'comment_count',
+    'content_count',
+    'night_activity',
+  ]),
   threshold: z.number().int().min(1).max(1_000_000).optional(),
   startHour: z.number().int().min(0).max(23).optional(),
   endHour: z.number().int().min(0).max(23).optional(),
   utcOffsetHours: z.number().int().min(-12).max(14).optional(),
-});
+})
 
 /** 创建自定义徽章校验 */
 export const createBadgeSchema = z.object({
@@ -134,7 +142,7 @@ export const createBadgeSchema = z.object({
   condition: badgeConditionSchema.optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
-});
+})
 
 /** 更新徽章校验（code/type 不可变更；SYSTEM 徽章仅允许启停/排序） */
 export const updateBadgeSchema = z.object({
@@ -146,17 +154,17 @@ export const updateBadgeSchema = z.object({
   condition: badgeConditionSchema.optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
-});
+})
 
 /** 手动授予徽章校验 */
 export const grantBadgeSchema = z.object({
   userId: nonEmptyString('ERR_USER_NOT_FOUND', 64),
   reason: optionalString(200),
-});
+})
 
 // ── 用户举报 ──
 
-const reportReasonSchema = z.enum(['SPAM', 'PORNOGRAPHY', 'ILLEGAL', 'ABUSE', 'COPYRIGHT', 'OTHER']);
+const reportReasonSchema = z.enum(['SPAM', 'PORNOGRAPHY', 'ILLEGAL', 'ABUSE', 'COPYRIGHT', 'OTHER'])
 
 /** 提交举报校验（OTHER 必须携带 detail；领域层复核目标结构） */
 export const createReportSchema = z
@@ -169,21 +177,25 @@ export const createReportSchema = z
   })
   .superRefine((val, ctx) => {
     if (val.targetType === 'COMMENT' && !val.commentId) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['commentId'], message: 'ERR_BAD_REQUEST' });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['commentId'], message: 'ERR_BAD_REQUEST' })
     }
     if (val.reason === 'OTHER' && !val.detail?.trim()) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['detail'], message: 'ERR_REPORT_REASON_DETAIL_REQUIRED' });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['detail'],
+        message: 'ERR_REPORT_REASON_DETAIL_REQUIRED',
+      })
     }
-  });
+  })
 
 /** 处理举报（成立/驳回）校验 */
 export const handleReportSchema = z.object({
   note: optionalString(200),
-});
+})
 
 // ── 治理强化：IP 封禁与防灌水 ──
 
-const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
 
 /** IP 封禁校验（IPv4 逐段 ≤255；IPv6 宽松格式） */
 export const bannedIpSchema = z.object({
@@ -193,37 +205,62 @@ export const bannedIpSchema = z.object({
     .max(45, 'ERR_INVALID_IP')
     .refine(
       (value) => {
-        const v4 = value.match(ipv4Regex);
-        if (v4) return v4.slice(1).every((octet) => Number(octet) <= 255);
-        return value.includes(':') && /^[0-9a-fA-F:.]+$/.test(value);
+        const v4 = value.match(ipv4Regex)
+        if (v4) return v4.slice(1).every((octet) => Number(octet) <= 255)
+        return value.includes(':') && /^[0-9a-fA-F:.]+$/.test(value)
       },
-      { message: 'ERR_INVALID_IP' }
+      { message: 'ERR_INVALID_IP' },
     ),
   scope: z.enum(['ALL', 'REGISTRATION']).default('ALL'),
   reason: optionalString(200),
   expiresInDays: z.number().int().min(1).max(3650).optional(),
-});
+})
 
 /** 防灌水策略校验（0 = 关闭对应规则；上限与领域解析保持一致） */
 export const antiSpamPolicySchema = z.object({
   accountAgeDays: z.number().int().min(0).max(365),
   cooldownMinutes: z.number().int().min(0).max(10080),
   maxNewContentsPerHour: z.number().int().min(0).max(1000),
-});
+})
+
+/**
+ * B4 读限流解锁配置校验（G2/G3 冻结：zod 严格模式，禁止 coerce，无 clamp）
+ * - 7 字段全量：enabled/publicReadMax/windowSec/captchaStrength/exemptionMinutes/exemptionScope/loginRelaxed
+ * - "30" 等数字字符串→400（不归一）；缺字段→400（写路径不补默认）；未知字段（含 search*）→400
+ * - windowSec 离散 10|30|60|300|600；publicReadMax 10–1000；exemptionMinutes 1–120；
+ *   exemptionScope 只读 ip；loginRelaxed 恒 false（传 true/"false"→400）
+ */
+export const rateLimitProtectionSchema = z
+  .object({
+    enabled: z.boolean(),
+    publicReadMax: z.number().int().min(10).max(1000),
+    windowSec: z.union([
+      z.literal(10),
+      z.literal(30),
+      z.literal(60),
+      z.literal(300),
+      z.literal(600),
+    ]),
+    captchaStrength: z.enum(['low', 'normal', 'strict']),
+    exemptionMinutes: z.number().int().min(1).max(120),
+    exemptionScope: z.literal('ip'),
+    loginRelaxed: z.literal(false),
+  })
+  .strict()
 
 /** 站点展示设置校验 */
 export const siteSettingsSchema = z.object({
   siteName: optionalString(64),
   announcement: optionalString(500),
   registrationDisabled: z.boolean().optional(),
-});
+})
 
 /** 发帖草稿校验（长度规则与发帖一致） */
 export const upsertDraftSchema = z.object({
   title: z.string().max(200).default(''),
   content: z.string().max(50000, 'ERR_CONTENT_TOO_LONG').default(''),
   categoryId: z.string().max(64).nullable().optional(),
-});
+})
 
 // ── 帖子 ──
 
@@ -235,7 +272,7 @@ export const createPostSchema = z.object({
   captchaId: z.string().min(1, 'ERR_CAPTCHA_REQUIRED'),
   captchaCode: z.string().max(32).optional(),
   tags: z.array(z.string().max(40)).max(5).optional(),
-});
+})
 
 /** 更新帖子请求校验 */
 export const updatePostSchema = z.object({
@@ -243,24 +280,24 @@ export const updatePostSchema = z.object({
   content: z.string().min(1, 'ERR_CONTENT_REQUIRED').max(50000, 'ERR_CONTENT_TOO_LONG'),
   categoryId: z.string().min(1, 'ERR_CATEGORY_REQUIRED'),
   tags: z.array(z.string().max(40)).max(5).optional(),
-});
+})
 
 /** 创建评论请求校验 */
 export const createCommentSchema = z.object({
   content: z.string().min(1, 'ERR_CONTENT_REQUIRED').max(10000, 'ERR_CONTENT_TOO_LONG'),
   parentId: z.string().min(1).max(128).nullable().optional(),
   captchaId: z.string().min(1, 'ERR_CAPTCHA_REQUIRED'),
-});
+})
 
 /** 更新评论请求校验 */
 export const updateCommentSchema = z.object({
   content: z.string().min(1, 'ERR_CONTENT_REQUIRED').max(10000, 'ERR_CONTENT_TOO_LONG'),
-});
+})
 
 /** 更新帖子状态校验 */
 export const updatePostStatusSchema = z.object({
   status: z.string().min(1, 'ERR_STATUS_REQUIRED'),
-});
+})
 
 // ── 分类 ──
 
@@ -270,7 +307,7 @@ export const createCategorySchema = z.object({
   description: z.string().max(500).nullable().optional(),
   sortOrder: z.number().int().min(0).optional(),
   minLevel: z.number().int().min(0).optional(),
-});
+})
 
 /** 更新分类请求校验 */
 export const updateCategorySchema = z.object({
@@ -278,23 +315,24 @@ export const updateCategorySchema = z.object({
   description: z.string().max(500).nullable().optional(),
   sortOrder: z.number().int().min(0).optional(),
   minLevel: z.number().int().min(0).optional(),
-});
+})
 
 // ── 邮件配置 ──
 
 /** SMTP 配置校验：主机、端口、TLS、用户名、密码、发件人 */
 export const emailConfigSchema = z.object({
   host: z.string().min(1, 'ERR_HOST_REQUIRED'),
-  port: z.number().int().min(1).max(65535).or(
-    z.string().regex(/^\d+$/).transform(Number).pipe(
-      z.number().int().min(1).max(65535)
-    )
-  ),
+  port: z
+    .number()
+    .int()
+    .min(1)
+    .max(65535)
+    .or(z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1).max(65535))),
   secure: z.boolean().optional(),
   user: z.string().optional(),
   pass: z.string().optional(),
   from: z.string().min(1, 'ERR_FROM_REQUIRED'),
-});
+})
 
 /** 邮件模板更新校验：类型、主题、文本正文、HTML 正文 */
 export const emailTemplateSchema = z.object({
@@ -302,13 +340,13 @@ export const emailTemplateSchema = z.object({
   subject: z.string().min(1, 'ERR_SUBJECT_REQUIRED'),
   textBody: z.string().min(1, 'ERR_TEXT_BODY_REQUIRED'),
   htmlBody: z.string().min(1, 'ERR_HTML_BODY_REQUIRED'),
-});
+})
 
 /** 测试邮件发送校验：目标邮箱、可选 SMTP 配置 */
 export const testEmailSchema = z.object({
   targetEmail: z.string().email('ERR_INVALID_EMAIL'),
   smtpConfig: emailConfigSchema.optional(),
-});
+})
 
 // ── 私信 ──
 
@@ -319,7 +357,7 @@ export const uploadMessageKeysSchema = z.object({
   encryptedPrivateKey: nonEmptyString('ERR_ENCRYPTED_PRIVATE_KEY_REQUIRED', 50000),
   mlKemPublicKey: optionalString(20000),
   encryptedMlKemPrivateKey: optionalString(50000),
-});
+})
 
 /** 发送私信请求校验 */
 export const sendMessageSchema = z.object({
@@ -328,54 +366,59 @@ export const sendMessageSchema = z.object({
   ephemeralPublicKey: nonEmptyString('ERR_EPHEMERAL_PUBLIC_KEY_REQUIRED', 20000),
   senderEncryptedContent: z.string().max(200000).nullable().optional(),
   isTimedMessage: z.boolean().optional(),
-  expiresIn: z.number().int().min(1).max(30 * 24 * 60 * 60 * 1000).optional(),
+  expiresIn: z
+    .number()
+    .int()
+    .min(1)
+    .max(30 * 24 * 60 * 60 * 1000)
+    .optional(),
   autoDeleteForSelf: z.boolean().optional(),
-});
+})
 
 /** 标记私信已读请求校验 */
 export const markMessageReadSchema = z.object({
   senderId: nonEmptyString('ERR_SENDER_REQUIRED', 128),
-});
+})
 
 /** 会话设置请求校验 */
 export const conversationSettingsSchema = z.object({
   allowTwoSidedDelete: z.boolean(),
-});
+})
 
 // ── Wiki ──
 
-const wikiRoleSchema = z.enum(['VIEW', 'EDIT', 'ADMIN']);
+const wikiRoleSchema = z.enum(['VIEW', 'EDIT', 'ADMIN'])
 
 /** 创建 Wiki 请求校验 */
 export const createWikiSchema = z.object({
   title: nonEmptyString('ERR_WIKI_TITLE_REQUIRED', 200),
   description: nonEmptyString('ERR_WIKI_DESCRIPTION_REQUIRED', 2000),
   coverUrl: optionalNullableString(2048),
-});
+})
 
 /** 更新 Wiki 请求校验 */
 export const updateWikiSchema = z.object({
   title: nonEmptyString('ERR_WIKI_TITLE_REQUIRED', 200).optional(),
   description: nonEmptyString('ERR_WIKI_DESCRIPTION_REQUIRED', 2000).optional(),
   coverUrl: optionalNullableString(2048),
-});
+})
 
 /** 更新 Wiki 权限请求校验 */
 export const updateWikiPermissionsSchema = z.object({
   minReadLevel: z.number().int().min(0).max(100),
   minEditLevel: z.number().int().min(0).max(100),
   isPublic: z.boolean(),
-});
+})
 
 /** Wiki 协作者请求校验 */
 export const addWikiCollaboratorSchema = z.object({
   userId: nonEmptyString('ERR_USER_ID_REQUIRED', 128),
   role: wikiRoleSchema,
-});
+})
 
 export const updateWikiCollaboratorSchema = z.object({
   role: wikiRoleSchema,
-});
+})
 
 /** 创建 Wiki 页面请求校验 */
 export const createWikiPageSchema = z.object({
@@ -383,7 +426,7 @@ export const createWikiPageSchema = z.object({
   slug: optionalString(200),
   content: nonEmptyString('ERR_WIKI_PAGE_CONTENT_REQUIRED', 100000),
   parentId: z.string().min(1).max(128).nullable().optional(),
-});
+})
 
 /** 更新 Wiki 页面请求校验 */
 export const updateWikiPageSchema = z.object({
@@ -391,4 +434,4 @@ export const updateWikiPageSchema = z.object({
   slug: optionalString(200),
   content: nonEmptyString('ERR_WIKI_PAGE_CONTENT_REQUIRED', 100000),
   editNote: optionalString(500),
-});
+})

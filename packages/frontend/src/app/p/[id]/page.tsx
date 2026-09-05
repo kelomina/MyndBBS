@@ -5,13 +5,15 @@ import { getDictionary } from "../../../i18n/get-dictionary";
 import { notFound } from "next/navigation";
 import { CommentsSection } from "./CommentsSection";
 import { PostActions } from "./PostActions";
+import { PostDetailRateLimitIsland } from "../../../components/PostDetailRateLimitIsland";
 import Link from "next/link";
 import { Avatar } from "../../../components/Avatar";
 import { BadgeChip } from "../../../components/BadgeChip";
 import type { ProfileBadge } from "../../../types/badges";
 import { getCategoryTranslation } from '../../../lib/utils';
 import { MarkdownContent } from '../../../components/MarkdownContent';
-import { serverApiUrl } from '../../../lib/bff/serverApi';
+import { serverFetch } from '../../../lib/bff/serverApi';
+import { getSsrRateLimitInfo } from '../../../lib/rate-limit/ssr-rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +30,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   let post: PostMeta | null = null;
   try {
-    const res = await fetch(serverApiUrl(`/api/posts/${id}`), { cache: 'no-store' });
+    const res = await serverFetch(`/api/posts/${id}`);
     if (res.ok) post = await res.json();
   } catch {
     return {};
@@ -65,17 +67,31 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
   const dict = await getDictionary(locale);
 
   let post = null;
+  let rateLimited: { retryAfterSec: number } | null = null;
   try {
-    const res = await fetch(serverApiUrl(`/api/posts/${id}`), {
-      cache: 'no-store'
-    });
+    const res = await serverFetch(`/api/posts/${id}`);
     if (res.ok) {
       post = await res.json();
     } else if (res.status === 404) {
       return notFound();
+    } else {
+      rateLimited = await getSsrRateLimitInfo(res);
     }
   } catch (error) {
     console.error('Failed to fetch post:', error);
+  }
+
+  if (rateLimited) {
+    return (
+      <main className="mx-auto flex max-w-7xl px-4 sm:px-6 lg:px-8">
+        <Sidebar dict={dict} />
+        <div className="flex-1 py-6 md:pl-8">
+          <div className="mx-auto max-w-3xl">
+            <PostDetailRateLimitIsland postId={id} initialRetryAfterSec={rateLimited.retryAfterSec} dict={dict} />
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (!post) {

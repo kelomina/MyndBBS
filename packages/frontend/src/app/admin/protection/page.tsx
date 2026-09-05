@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/Table'
 import { Button } from '../../../components/ui/Button'
 import { Modal } from '../../../components/ui/Modal'
+import { RateLimitPolicySection } from '../../../components/RateLimitPolicySection'
 import {
   getIpBans,
   createIpBan,
@@ -206,6 +207,9 @@ export default function ProtectionPage() {
           </>
         )}
       </div>
+
+      {/* ── 读接口限流与解锁（F4 新增第四节前置：与防灌水/站点设置/IP封禁并列） ── */}
+      <RateLimitPolicySection />
 
       {/* ── 站点设置 ── */}
       <div className="rounded-xl border border-border bg-card p-6 space-y-4">

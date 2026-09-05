@@ -3,7 +3,9 @@ import { headers } from 'next/headers';
 import { Locale, defaultLocale } from '../../../i18n/config';
 import { getDictionary } from '../../../i18n/get-dictionary';
 import { Sidebar } from '../../../components/layout/Sidebar';
-import { serverApiUrl } from '../../../lib/bff/serverApi';
+import { PostListRateLimitIsland } from '../../../components/PostListRateLimitIsland';
+import { serverFetch } from '../../../lib/bff/serverApi';
+import { getSsrRateLimitInfo } from '../../../lib/rate-limit/ssr-rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,23 +18,24 @@ interface PostItem {
   category?: { name?: string };
 }
 
-async function getPostsByTag(tag: string): Promise<PostItem[]> {
+async function getPostsByTag(tag: string): Promise<{ posts: PostItem[]; rateLimited: { retryAfterSec: number } | null }> {
   try {
-    const res = await fetch(serverApiUrl(`/api/posts?tag=${encodeURIComponent(tag)}`), {
-      cache: 'no-store',
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const res = await serverFetch(`/api/posts?tag=${encodeURIComponent(tag)}`);
+    if (res.ok) {
+      const data = await res.json();
+      return { posts: Array.isArray(data) ? data : [], rateLimited: null };
+    }
+    const rateLimited = await getSsrRateLimitInfo(res);
+    return { posts: [], rateLimited };
   } catch {
-    return [];
+    return { posts: [], rateLimited: null };
   }
 }
 
 export default async function TagDetailPage({ params }: { params: Promise<{ name: string }> }) {
   const resolved = await params;
   const tagName = decodeURIComponent(resolved.name);
-  const posts = await getPostsByTag(tagName);
+  const { posts, rateLimited } = await getPostsByTag(tagName);
 
   const headersList = await headers();
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale;
@@ -52,8 +55,15 @@ export default async function TagDetailPage({ params }: { params: Promise<{ name
 
           <h1 className="mb-8 text-3xl font-bold text-foreground"># {tagName}</h1>
 
-          {posts.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-10 text-center text-muted">
+          {rateLimited ? (
+            <PostListRateLimitIsland
+              initialRetryAfterSec={rateLimited.retryAfterSec}
+              bffUrl={`/api/posts?tag=${encodeURIComponent(tagName)}`}
+              emptyMessage={dict.tags?.noPosts || 'No posts with this tag yet'}
+              dict={dict}
+            />
+          ) : posts.length === 0 ? (
+            <div data-testid="empty-state" className="rounded-xl border border-border bg-card p-10 text-center text-muted">
               {dict.tags?.noPosts || 'No posts with this tag yet'}
             </div>
           ) : (

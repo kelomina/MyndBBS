@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { serverApiUrl } from '../../lib/bff/serverApi';
+import { serverFetch } from '../../lib/bff/serverApi';
 
 export default async function AdminPage() {
   const cookieStore = await cookies();
@@ -8,9 +8,8 @@ export default async function AdminPage() {
 
   let response: Response;
   try {
-    response = await fetch(serverApiUrl('/api/v1/user/profile'), {
+    response = await serverFetch('/api/v1/user/profile', {
       headers: { Cookie: allCookies },
-      cache: 'no-store',
     });
   } catch {
     redirect('/');

@@ -41,6 +41,10 @@ jest.mock('../../src/controllers/captcha', () => ({
   verifyCaptcha: (_req: Request, res: Response): void => {
     res.status(200).json({ ok: true });
   },
+  // B2 unlock 路由需 handler（mock 隔离，不测兑换逻辑本身）
+  unlockCaptcha: (_req: Request, res: Response): void => {
+    res.status(200).json({ unlockToken: 'mock-token', exemptMinutes: 15, expiresAt: new Date().toISOString() });
+  },
 }));
 
 jest.mock('../../src/controllers/register', () => ({

@@ -2,7 +2,9 @@ import fs from 'fs';
 import path from 'path';
 
 describe('admin route security wiring', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../src/routes/admin.ts'), 'utf8');
+  const raw = fs.readFileSync(path.join(__dirname, '../src/routes/admin.ts'), 'utf8');
+  // Prettier 可能将长路由折为多行；去除全部空白后断言（仍校验 requireSudo 接线存在）
+  const source = raw.replace(/\s+/g, '');
 
   it('requires sudo for high-risk configuration mutations', () => {
     const routes = [
@@ -30,11 +32,13 @@ describe('admin route security wiring', () => {
     ];
 
     for (const route of routes) {
-      expect(source).toContain(route);
+      expect(source).toContain(route.replace(/\s+/g, ''));
     }
   });
 
   it('restricts the full route whitelist admin view to manage all', () => {
-    expect(source).toContain("router.get('/routing-whitelist', requireAbility('manage', 'all'), getRouteWhitelist)");
+    expect(source).toContain(
+      "router.get('/routing-whitelist',requireAbility('manage','all'),getRouteWhitelist)".replace(/\s+/g, ''),
+    );
   });
 });

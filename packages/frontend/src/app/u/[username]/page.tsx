@@ -8,12 +8,10 @@ import { OwnerSettingsButton } from './OwnerSettingsButton';
 import { Avatar } from '../../../components/Avatar';
 import { BadgeChip } from '../../../components/BadgeChip';
 import type { ProfileBadge } from '../../../types/badges';
-import { serverApiUrl } from '../../../lib/bff/serverApi';
+import { serverFetch } from '../../../lib/bff/serverApi';
 
 async function getProfile(username: string) {
-  const res = await fetch(serverApiUrl(`/api/v1/user/public/${username}`), {
-    cache: 'no-store'
-  });
+  const res = await serverFetch(`/api/v1/user/public/${username}`);
   if (!res.ok) {
     return null;
   }

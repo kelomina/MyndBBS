@@ -1,14 +1,24 @@
+export type CaptchaStrength = 'low' | 'normal' | 'strict'
+
+export interface CaptchaStrengthParams {
+  tolerance: number
+  minPoints: number
+  minTimeMs: number
+  maxTimeMs: number
+}
+
 export interface CaptchaChallengeProps {
-  id: string;
-  targetPosition: number;
-  verified: boolean;
-  expiresAt: Date;
+  id: string
+  targetPosition: number
+  verified: boolean
+  expiresAt: Date
+  strength?: CaptchaStrength
 }
 
 export interface DragNode {
-  x: number;
-  y: number;
-  t: number;
+  x: number
+  y: number
+  t: number
 }
 
 /**
@@ -17,8 +27,39 @@ export interface DragNode {
  * Description: Represents a CaptchaChallenge Aggregate Root. Encapsulates bot-detection heuristics and single-use invariant checks.
  * Keywords: captcha, challenge, aggregate, root, domain, entity, security, slider
  */
+/**
+ * B1 冻结强度三档（API-SPEC v1.0.2 x-strength-levels-frozen + PRD §6）：
+ * - low（默认最宽松）：±20 / ≥8点 / 150–15000ms / 仅拒绝完全直线+完全匀速（放宽：varY===0 && varSpeedX===0）
+ * - normal（现行）：±15 / ≥10点 / 200–10000ms / varY===0 && varSpeedX<0.01 拒绝
+ * - strict（最严）：±8 / ≥15点 / 400–8000ms / Y方差与X速度方差双阈值严判（冻结：varY<5.0 || varSpeedX<0.1 拒绝）
+ *   + 目标位置随机范围扩大（冻结：60–260；low/normal 为 80–240）
+ */
+export const CAPTCHA_STRENGTH_PARAMS: Record<CaptchaStrength, CaptchaStrengthParams> = {
+  low: { tolerance: 20, minPoints: 8, minTimeMs: 150, maxTimeMs: 15000 },
+  normal: { tolerance: 15, minPoints: 10, minTimeMs: 200, maxTimeMs: 10000 },
+  strict: { tolerance: 8, minPoints: 15, minTimeMs: 400, maxTimeMs: 8000 },
+}
+
+/** strict 双阈值冻结值（实现时冻结，QA AC-4 容差边界不受影响） */
+export const STRICT_VARIANCE_THRESHOLDS = {
+  varY: 5.0,
+  varSpeedX: 0.1,
+} as const
+
+/** strict 目标位置随机范围（冻结）；low/normal 为 80–240 */
+export const CAPTCHA_TARGET_RANGE: Record<CaptchaStrength, { min: number; max: number }> = {
+  low: { min: 80, max: 240 },
+  normal: { min: 80, max: 240 },
+  strict: { min: 60, max: 260 },
+}
+
+export function normalizeCaptchaStrength(value: unknown): CaptchaStrength {
+  if (value === 'low' || value === 'normal' || value === 'strict') return value
+  return 'normal'
+}
+
 export class CaptchaChallenge {
-  private props: CaptchaChallengeProps;
+  private props: CaptchaChallengeProps
 
   /**
    * Callers: [CaptchaChallenge.create, PrismaCaptchaChallengeRepository.toDomain]
@@ -27,7 +68,7 @@ export class CaptchaChallenge {
    * Keywords: constructor, captcha, challenge, entity, instantiation
    */
   private constructor(props: CaptchaChallengeProps) {
-    this.props = { ...props };
+    this.props = { ...props }
   }
 
   /**
@@ -38,27 +79,38 @@ export class CaptchaChallenge {
    */
   public static create(props: CaptchaChallengeProps): CaptchaChallenge {
     if (props.targetPosition < 0) {
-      throw new Error('ERR_INVALID_TARGET_POSITION');
+      throw new Error('ERR_INVALID_TARGET_POSITION')
     }
     if (props.expiresAt <= new Date()) {
-      throw new Error('ERR_CAPTCHA_ALREADY_EXPIRED');
+      throw new Error('ERR_CAPTCHA_ALREADY_EXPIRED')
     }
-    return new CaptchaChallenge(props);
+    return new CaptchaChallenge({ strength: 'normal', ...props })
   }
 
   public static reconstitute(props: CaptchaChallengeProps): CaptchaChallenge {
     if (props.targetPosition < 0) {
-      throw new Error('ERR_INVALID_TARGET_POSITION');
+      throw new Error('ERR_INVALID_TARGET_POSITION')
     }
-    return new CaptchaChallenge(props);
+    return new CaptchaChallenge({ strength: 'normal', ...props })
   }
 
   // --- Accessors ---
 
-  public get id(): string { return this.props.id; }
-  public get targetPosition(): number { return this.props.targetPosition; }
-  public get verified(): boolean { return this.props.verified; }
-  public get expiresAt(): Date { return this.props.expiresAt; }
+  public get id(): string {
+    return this.props.id
+  }
+  public get targetPosition(): number {
+    return this.props.targetPosition
+  }
+  public get verified(): boolean {
+    return this.props.verified
+  }
+  public get expiresAt(): Date {
+    return this.props.expiresAt
+  }
+  public get strength(): CaptchaStrength {
+    return this.props.strength ?? 'normal'
+  }
 
   // --- Domain Behaviors ---
 
@@ -68,69 +120,190 @@ export class CaptchaChallenge {
    * Description: Evaluates a user's drag trajectory to verify human interaction. Encapsulates variance and speed calculations to detect linear or robotic movements.
    * Keywords: verify, trajectory, captcha, challenge, heuristic, bot, detection
    */
-  public verifyTrajectory(dragPath: DragNode[], totalDragTime: number, finalPosition: number): void {
+  public verifyTrajectory(
+    dragPath: DragNode[],
+    totalDragTime: number,
+    finalPosition: number,
+    strengthOverride?: CaptchaStrength,
+  ): void {
+    const strength: CaptchaStrength = strengthOverride ?? this.strength
+    const params = CAPTCHA_STRENGTH_PARAMS[strength]
     if (this.props.expiresAt < new Date()) {
-      throw new Error('ERR_CAPTCHA_EXPIRED');
+      throw new Error('ERR_CAPTCHA_EXPIRED')
     }
     if (this.props.verified) {
-      throw new Error('ERR_CAPTCHA_ALREADY_VERIFIED');
+      throw new Error('ERR_CAPTCHA_ALREADY_VERIFIED')
     }
 
-    if (!dragPath || dragPath.length < 10 || totalDragTime < 200 || totalDragTime > 10000) {
-      throw new Error('ERR_AUTOMATION_DETECTED_INVALID_PATH');
+    if (
+      !dragPath ||
+      dragPath.length < params.minPoints ||
+      totalDragTime < params.minTimeMs ||
+      totalDragTime > params.maxTimeMs
+    ) {
+      throw new Error('ERR_AUTOMATION_DETECTED_INVALID_PATH')
     }
 
     // Heuristics: calculate variance of Y and speed of X
-    let sumY = 0;
-    let sumSpeedX = 0;
-    const speedsX: number[] = [];
+    let sumY = 0
+    let sumSpeedX = 0
+    const speedsX: number[] = []
 
     for (let i = 1; i < dragPath.length; i++) {
-      const prev = dragPath[i - 1];
-      const curr = dragPath[i];
-      if (!prev || !curr) continue;
+      const prev = dragPath[i - 1]
+      const curr = dragPath[i]
+      if (!prev || !curr) continue
 
-      sumY += curr.y;
-      
-      const dt = curr.t - prev.t;
+      sumY += curr.y
+
+      const dt = curr.t - prev.t
       if (dt > 0) {
-        const speed = (curr.x - prev.x) / dt;
-        speedsX.push(speed);
-        sumSpeedX += speed;
+        const speed = (curr.x - prev.x) / dt
+        speedsX.push(speed)
+        sumSpeedX += speed
       }
     }
 
-    const avgY = sumY / (dragPath.length - 1);
-    const avgSpeedX = sumSpeedX / speedsX.length;
+    if (speedsX.length === 0) {
+      throw new Error('ERR_AUTOMATION_DETECTED_INVALID_PATH')
+    }
 
-    let varY = 0;
-    let varSpeedX = 0;
+    const avgY = sumY / (dragPath.length - 1)
+    const avgSpeedX = sumSpeedX / speedsX.length
+
+    let varY = 0
+    let varSpeedX = 0
 
     for (let i = 1; i < dragPath.length; i++) {
-      const p = dragPath[i];
+      const p = dragPath[i]
       if (p) {
-        varY += Math.pow(p.y - avgY, 2);
+        varY += Math.pow(p.y - avgY, 2)
       }
     }
     for (const speed of speedsX) {
-      varSpeedX += Math.pow(speed - avgSpeedX, 2);
+      varSpeedX += Math.pow(speed - avgSpeedX, 2)
     }
 
-    varY /= (dragPath.length - 1);
-    varSpeedX /= speedsX.length;
+    varY /= dragPath.length - 1
+    varSpeedX /= speedsX.length
 
-    // If completely straight line (varY === 0) and perfectly constant speed, it's a bot
-    if (varY === 0 && varSpeedX < 0.01) {
-      throw new Error('ERR_AUTOMATION_DETECTED_LINEAR_TRAJECTORY');
+    // B1 三档方差判定（冻结）：
+    // - low：仅拒绝完全直线+完全匀速（放宽：varSpeedX===0）
+    // - normal：现行 varY===0 && varSpeedX<0.01
+    // - strict：双阈值严判 varY<5.0 || varSpeedX<0.1
+    if (strength === 'low') {
+      if (varY === 0 && varSpeedX === 0) {
+        throw new Error('ERR_AUTOMATION_DETECTED_LINEAR_TRAJECTORY')
+      }
+    } else if (strength === 'strict') {
+      if (
+        varY < STRICT_VARIANCE_THRESHOLDS.varY ||
+        varSpeedX < STRICT_VARIANCE_THRESHOLDS.varSpeedX
+      ) {
+        throw new Error('ERR_AUTOMATION_DETECTED_LINEAR_TRAJECTORY')
+      }
+    } else {
+      // If completely straight line (varY === 0) and perfectly constant speed, it's a bot
+      if (varY === 0 && varSpeedX < 0.01) {
+        throw new Error('ERR_AUTOMATION_DETECTED_LINEAR_TRAJECTORY')
+      }
     }
 
     // Validate final position
-    const VALIDATION_TOLERANCE = 15;
-    if (Math.abs(finalPosition - this.props.targetPosition) > VALIDATION_TOLERANCE) {
-      throw new Error('ERR_INVALID_POSITION');
+    if (Math.abs(finalPosition - this.props.targetPosition) > params.tolerance) {
+      throw new Error('ERR_INVALID_POSITION')
     }
 
-    this.props.verified = true;
+    this.props.verified = true
+  }
+
+  /**
+   * B2 解锁兑换专用验证：不依赖外部 /verify 标记（verified 无论 true/false 均重新按快照校验轨迹），
+   * 校验通过后不置 verified（调用方直接删除行实现原子消费）。
+   * Callers: [AuthApplicationService.verifyAndConsumeForUnlock]
+   */
+  public verifyTrajectoryForUnlock(
+    dragPath: DragNode[],
+    totalDragTime: number,
+    finalPosition: number,
+  ): void {
+    const strength = this.strength
+    const params = CAPTCHA_STRENGTH_PARAMS[strength]
+    if (this.props.expiresAt < new Date()) {
+      throw new Error('ERR_CAPTCHA_EXPIRED')
+    }
+
+    if (
+      !dragPath ||
+      dragPath.length < params.minPoints ||
+      totalDragTime < params.minTimeMs ||
+      totalDragTime > params.maxTimeMs
+    ) {
+      throw new Error('ERR_AUTOMATION_DETECTED_INVALID_PATH')
+    }
+
+    let sumY = 0
+    let sumSpeedX = 0
+    const speedsX: number[] = []
+
+    for (let i = 1; i < dragPath.length; i++) {
+      const prev = dragPath[i - 1]
+      const curr = dragPath[i]
+      if (!prev || !curr) continue
+
+      sumY += curr.y
+
+      const dt = curr.t - prev.t
+      if (dt > 0) {
+        const speed = (curr.x - prev.x) / dt
+        speedsX.push(speed)
+        sumSpeedX += speed
+      }
+    }
+
+    if (speedsX.length === 0) {
+      throw new Error('ERR_AUTOMATION_DETECTED_INVALID_PATH')
+    }
+
+    const avgY = sumY / (dragPath.length - 1)
+    const avgSpeedX = sumSpeedX / speedsX.length
+
+    let varY = 0
+    let varSpeedX = 0
+
+    for (let i = 1; i < dragPath.length; i++) {
+      const p = dragPath[i]
+      if (p) {
+        varY += Math.pow(p.y - avgY, 2)
+      }
+    }
+    for (const speed of speedsX) {
+      varSpeedX += Math.pow(speed - avgSpeedX, 2)
+    }
+
+    varY /= dragPath.length - 1
+    varSpeedX /= speedsX.length
+
+    if (strength === 'low') {
+      if (varY === 0 && varSpeedX === 0) {
+        throw new Error('ERR_AUTOMATION_DETECTED_LINEAR_TRAJECTORY')
+      }
+    } else if (strength === 'strict') {
+      if (
+        varY < STRICT_VARIANCE_THRESHOLDS.varY ||
+        varSpeedX < STRICT_VARIANCE_THRESHOLDS.varSpeedX
+      ) {
+        throw new Error('ERR_AUTOMATION_DETECTED_LINEAR_TRAJECTORY')
+      }
+    } else {
+      if (varY === 0 && varSpeedX < 0.01) {
+        throw new Error('ERR_AUTOMATION_DETECTED_LINEAR_TRAJECTORY')
+      }
+    }
+
+    if (Math.abs(finalPosition - this.props.targetPosition) > params.tolerance) {
+      throw new Error('ERR_INVALID_POSITION')
+    }
   }
 
   /**
@@ -141,10 +314,10 @@ export class CaptchaChallenge {
    */
   public validateForConsumption(): void {
     if (!this.props.verified) {
-      throw new Error('ERR_CAPTCHA_NOT_VERIFIED');
+      throw new Error('ERR_CAPTCHA_NOT_VERIFIED')
     }
     if (this.props.expiresAt < new Date()) {
-      throw new Error('ERR_CAPTCHA_EXPIRED');
+      throw new Error('ERR_CAPTCHA_EXPIRED')
     }
   }
 }

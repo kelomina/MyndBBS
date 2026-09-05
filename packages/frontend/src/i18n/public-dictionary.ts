@@ -52,6 +52,21 @@ export const getPublicDictionary = async (locale: Locale): Promise<Dictionary> =
       'networkError',
       'verificationFailed',
       'serverError',
+      'refresh',
+    ]),
+    rateLimitUnlock: pick(dict.rateLimitUnlock, [
+      'cardTitle',
+      'cardDesc',
+      'retryAfter',
+      'verifyToUnlock',
+      'retryNow',
+      'modalTitle',
+      'modalDesc',
+      'refreshChallenge',
+      'unlockSuccess',
+      'unlockFailedRetry',
+      'exemptedHint',
+      'waitWithoutUnlock',
     ]),
     post: pick(dict.post, [
       'hoursAgo',
@@ -77,7 +92,18 @@ export const getPublicDictionary = async (locale: Locale): Promise<Dictionary> =
     ]),
     settings: pick(dict.settings, ['saving', 'saveChanges']),
     admin: {},
-    apiErrors: {},
+    // 公开字典 apiErrors 精确白名单（QA门禁 2026-09-05 [REJECTED] 首选方案a）：
+    // 仅透出 3 个匿名可达的限流/验证错误码 —— ERR_VERIFICATION_FAILED /
+    // ERR_RATE_LIMITED_NEEDS_CAPTCHA / ERR_RATE_LIMITED。
+    // Rationale：3 码本就经匿名 429/400 响应体明文下发（无新增披露），公开字典透出是
+    // 匿名双语限流卡（RateLimitCard/UnlockModal SSR+Client）所必需；其余特权码
+    //（如 DB 连接失败/CSRF 缺失类）仍禁止透出，
+    // 见 tests/rscDictionaryLeak.test.mjs 精确白名单断言。
+    // as unknown 兼容 Dictionary 全量类型。
+    apiErrors: pick(
+      dict.apiErrors as unknown as Record<string, string>,
+      ['ERR_VERIFICATION_FAILED', 'ERR_RATE_LIMITED_NEEDS_CAPTCHA', 'ERR_RATE_LIMITED'] as const,
+    ) as unknown as Dictionary['apiErrors'],
     category: pick(dict.category, [
       'postsTitle',
       'showingPostsFor',

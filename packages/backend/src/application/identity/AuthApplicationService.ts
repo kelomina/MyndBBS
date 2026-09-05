@@ -7,7 +7,11 @@ import { IRoleRepository } from '../../domain/identity/IRoleRepository'
 import { IEmailRegistrationTicketRepository } from '../../domain/identity/IEmailRegistrationTicketRepository'
 import { IPasswordResetTicketRepository } from '../../domain/identity/IPasswordResetTicketRepository'
 import { ISessionCache } from './ports/ISessionCache'
-import { CaptchaChallenge } from '../../domain/identity/CaptchaChallenge'
+import {
+  CaptchaChallenge,
+  CAPTCHA_TARGET_RANGE,
+  type CaptchaStrength,
+} from '../../domain/identity/CaptchaChallenge'
 import { Passkey } from '../../domain/identity/Passkey'
 import { Session } from '../../domain/identity/Session'
 import { AuthChallenge } from '../../domain/identity/AuthChallenge'
@@ -35,17 +39,20 @@ const rpName = APP_NAME
 const BACKOFFICE_ROLE_NAMES = new Set(['MODERATOR', 'ADMIN', 'SUPER_ADMIN'])
 const getRpID = () => process.env.RP_ID || 'localhost'
 const getOrigin = (): string | string[] => {
-  const raw = process.env.ORIGIN;
-  if (!raw) return `http://${process.env.RP_ID || 'localhost'}:3000`;
-  const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
-  return parts.length === 1 ? (parts[0] as string) : parts;
-};
+  const raw = process.env.ORIGIN
+  if (!raw) return `http://${process.env.RP_ID || 'localhost'}:3000`
+  const parts = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return parts.length === 1 ? (parts[0] as string) : parts
+}
 
 const getFirstOrigin = (): string => {
-  const origin = getOrigin();
-  if (Array.isArray(origin)) return origin[0] || 'http://localhost:3000';
-  return origin;
-};
+  const origin = getOrigin()
+  if (Array.isArray(origin)) return origin[0] || 'http://localhost:3000'
+  return origin
+}
 
 export interface RegisteredUserResult {
   id: string
@@ -191,21 +198,112 @@ export class AuthApplicationService {
    * 中文关键词: 验证码生成, SVG图形, 随机位置, 挑战创建, 人机验证, 机器人防护, 图形验证码
    * English keywords: captcha generation, SVG image, random position, challenge creation, human verification, bot protection, image captcha
    */
-  public async generateCaptcha(): Promise<{ id: string; image: string }> {
-    // Random position between 80 and 240
-    const targetPosition = Math.floor(Math.random() * (240 - 80 + 1)) + 80
+  public async generateCaptcha(strength?: CaptchaStrength): Promise<{ id: string; image: string }> {
+    // B1 强度快照：生成时冻结 strength（默认 low，Q2 拍板）；strict 目标范围扩大 60–260，其余 80–240
+    const snapshot: CaptchaStrength =
+      strength === 'low' || strength === 'normal' || strength === 'strict' ? strength : 'low'
+    const range = CAPTCHA_TARGET_RANGE[snapshot]
+    // B5 测试钩子：NODE_ENV=test 且显式固定目标时由调用方传入 targetOverride（见 controllers/captcha）
+    const targetPosition = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min
 
     const challenge = CaptchaChallenge.create({
       id: uuidv4(),
       targetPosition,
       verified: false,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+      strength: snapshot,
     })
 
     await this.opts.captchaChallengeRepository.save(challenge)
 
     const image = SvgCaptchaGenerator.generateImage(targetPosition)
     return { id: challenge.id, image }
+  }
+
+  /**
+   * B1 测试/固定目标专用：生成确定性挑战（仅 NODE_ENV=test 调用方使用）。
+   * Callers: [CaptchaController.generate(testFixed)]
+   */
+  public async generateFixedCaptcha(
+    targetPosition: number,
+  ): Promise<{ id: string; image: string }> {
+    const challenge = CaptchaChallenge.create({
+      id: uuidv4(),
+      targetPosition,
+      verified: false,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      strength: 'low',
+    })
+    await this.opts.captchaChallengeRepository.save(challenge)
+    const image = SvgCaptchaGenerator.generateImage(targetPosition)
+    return { id: challenge.id, image }
+  }
+
+  /**
+   * B2 解锁兑换原子消费（verify+consume 一次完成，不依赖外部 /verify 标记）。
+   * - 按生成时 strength 快照校验轨迹（防切档 farming）
+   * - 成功即删除挑战行（复用 consume 语义），与发帖/评论/注册 consume 互斥、先到先得；
+   *   二次/并发双兑仅一胜（首删成功，其余 find null 或 delete 丢失 → false），调用方统一 400
+   * - 兑换后再 verify 亦 400（行已删）
+   * Returns: { strength } 快照（供签发 unlockToken 观测/日志，不改变豁免效力）
+   */
+  public async verifyAndConsumeForUnlock(
+    id: string,
+    dragPath: any[],
+    totalDragTime: number,
+    finalPosition: number,
+  ): Promise<{ strength: CaptchaStrength }> {
+    const challenge = await this.opts.captchaChallengeRepository.findById(id)
+    if (!challenge) {
+      throw new Error('ERR_INVALID_CAPTCHA')
+    }
+    // B5 固定解旁路（仅 test）：finalPosition 容差 ±1 + 最小轨迹豁免，仍走原子消费
+    if (process.env.NODE_ENV === 'test') {
+      const fixedTargetRaw = process.env.TEST_CAPTCHA_TARGET
+      const fixedTarget = fixedTargetRaw ? Number(fixedTargetRaw) : 120
+      if (
+        Number.isInteger(fixedTarget) &&
+        typeof finalPosition === 'number' &&
+        Math.abs(finalPosition - fixedTarget) <= 1 &&
+        challenge.targetPosition === fixedTarget
+      ) {
+        try {
+          await this.opts.captchaChallengeRepository.delete(id)
+        } catch {
+          throw new Error('ERR_INVALID_CAPTCHA')
+        }
+        // 确认删除生效（并发双兑落败：行仍存在说明删失败？Prisma delete 不存在抛错已转 400；此处复查一次）
+        const still = await this.opts.captchaChallengeRepository.findById(id).catch(() => null)
+        if (still) {
+          throw new Error('ERR_INVALID_CAPTCHA')
+        }
+        return { strength: challenge.strength }
+      }
+    }
+    try {
+      challenge.verifyTrajectoryForUnlock(dragPath, totalDragTime, finalPosition)
+    } catch (error: any) {
+      if (error?.message === 'ERR_CAPTCHA_EXPIRED') {
+        try {
+          await this.opts.captchaChallengeRepository.delete(id)
+        } catch {
+          // ignore
+        }
+      }
+      throw error
+    }
+    // 原子消费：删除争用仅一胜；删除抛错（已删/不存在）→ 400
+    try {
+      await this.opts.captchaChallengeRepository.delete(id)
+    } catch {
+      throw new Error('ERR_INVALID_CAPTCHA')
+    }
+    // 防 TOCTOU 复查：删后仍能查到（极端竞态）则视为落败
+    const after = await this.opts.captchaChallengeRepository.findById(id).catch(() => null)
+    if (after) {
+      throw new Error('ERR_INVALID_CAPTCHA')
+    }
+    return { strength: challenge.strength }
   }
 
   /**
@@ -399,7 +497,8 @@ export class AuthApplicationService {
       throw new Error('ERR_EMAIL_ALREADY_EXISTS')
     }
 
-    const pendingTicket = await this.opts.emailRegistrationTicketRepository.findByEmail(normalizedEmail)
+    const pendingTicket =
+      await this.opts.emailRegistrationTicketRepository.findByEmail(normalizedEmail)
     if (!pendingTicket) {
       throw new Error('ERR_EMAIL_REGISTRATION_NOT_FOUND')
     }
@@ -857,7 +956,10 @@ export class AuthApplicationService {
       transports: ['internal'] as any,
     }))
 
-    const options = await this.opts.passkeyPort.generateRegistrationOptions(user, excludeCredentials)
+    const options = await this.opts.passkeyPort.generateRegistrationOptions(
+      user,
+      excludeCredentials,
+    )
 
     const authChallenge = await this.generateAuthChallenge(options.challenge)
 
@@ -2361,7 +2463,8 @@ export class AuthApplicationService {
       throw new Error('ERR_EMAIL_ALREADY_EXISTS')
     }
 
-    const pendingByUsername = await this.opts.emailRegistrationTicketRepository.findByUsername(username)
+    const pendingByUsername =
+      await this.opts.emailRegistrationTicketRepository.findByUsername(username)
     if (pendingByUsername && pendingByUsername.email !== email) {
       throw new Error('ERR_USERNAME_ALREADY_EXISTS')
     }
@@ -2386,7 +2489,8 @@ export class AuthApplicationService {
       await this.opts.emailRegistrationTicketRepository.delete(pendingByEmail.id)
     }
 
-    const pendingByUsername = await this.opts.emailRegistrationTicketRepository.findByUsername(username)
+    const pendingByUsername =
+      await this.opts.emailRegistrationTicketRepository.findByUsername(username)
     if (
       pendingByUsername &&
       pendingByUsername.email === email &&

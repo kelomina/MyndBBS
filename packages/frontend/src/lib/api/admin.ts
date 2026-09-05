@@ -1,6 +1,11 @@
 import { fetcher } from './fetcher';
 import type { BadgeDto, BadgeHolder } from '../../types/badges';
-import type { BannedIpItem, AntiSpamPolicy } from '../../types/protection';
+import type {
+  BannedIpItem,
+  AntiSpamPolicy,
+  RateLimitProtectionConfig,
+  RateLimitProtectionUpdateResult,
+} from '../../types/protection';
 
 export interface AuditLogEntry {
   id: string;
@@ -287,6 +292,19 @@ export const getAntiSpamPolicy = (): Promise<AntiSpamPolicy> =>
 
 export const updateAntiSpamPolicy = (policy: AntiSpamPolicy) =>
   fetcher('/api/admin/protection/anti-spam', { method: 'PUT', body: JSON.stringify(policy) });
+
+// ── Rate limit & unlock policy (API-SPEC v1.0.2, ADMIN+) ──
+
+export const getRateLimitPolicy = (): Promise<RateLimitProtectionConfig> =>
+  fetcher('/api/admin/protection/rate-limit');
+
+export const updateRateLimitPolicy = (
+  policy: RateLimitProtectionConfig,
+): Promise<RateLimitProtectionUpdateResult> =>
+  fetcher('/api/admin/protection/rate-limit', {
+    method: 'PUT',
+    body: JSON.stringify(policy),
+  });
 
 export interface SiteStats {
   users: { total: number; today: number; last7Days: number };

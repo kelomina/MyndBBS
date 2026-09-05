@@ -6,7 +6,7 @@ import { ThemeToggle } from '../ThemeToggle'
 import { UserNav } from './UserNav'
 
 import { SearchInput } from '../SearchInput'
-import { serverApiUrl } from '../../lib/bff/serverApi'
+import { serverFetch } from '../../lib/bff/serverApi'
 
 interface PublicSiteSettings {
   siteName: string | null
@@ -15,9 +15,7 @@ interface PublicSiteSettings {
 
 async function getSiteSettings(): Promise<PublicSiteSettings> {
   try {
-    const res = await fetch(serverApiUrl('/api/public/site-settings'), {
-      cache: 'no-store',
-    })
+    const res = await serverFetch('/api/public/site-settings')
     if (!res.ok) return { siteName: null, announcement: null }
     return (await res.json()) as PublicSiteSettings
   } catch {

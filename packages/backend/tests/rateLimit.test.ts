@@ -27,11 +27,19 @@ function createMockRes() {
     setHeader(key: string, value: string) {
       headers[key] = value
     },
+    getHeader(key: string) {
+      return headers[key]
+    },
     status(code: number) {
       this.statusCode = code
       return this
     },
     send(data: any) {
+      this.body = data
+      this.writableEnded = true
+      return this
+    },
+    json(data: any) {
       this.body = data
       this.writableEnded = true
       return this
@@ -60,14 +68,25 @@ async function callLimiter(
 }
 
 describe('getClientIp', () => {
-  it('should use Express-calculated req.ip instead of raw X-Forwarded-For', () => {
+  // F3 冻结（API-SPEC v1.0.2 x-f3-ssr-trust-chain + PRD F3）：XFF 首 IP 优先，若存在且非空
+  it('should prefer X-Forwarded-For first IP when present (F3 frozen)', () => {
     const request = {
       ip: '198.51.100.10',
       socket: { remoteAddress: '203.0.113.10' },
       headers: { 'x-forwarded-for': '1.1.1.1' },
     }
 
-    expect(getClientIp(request as never)).toBe('198.51.100.10')
+    expect(getClientIp(request as never)).toBe('1.1.1.1')
+  })
+
+  it('should take first segment when X-Forwarded-For contains chain', () => {
+    const request = {
+      ip: '198.51.100.10',
+      socket: { remoteAddress: '203.0.113.10' },
+      headers: { 'x-forwarded-for': '1.1.1.1, 203.0.113.10' },
+    }
+
+    expect(getClientIp(request as never)).toBe('1.1.1.1')
   })
 
   it('should fall back to socket.remoteAddress when req.ip is undefined', () => {
@@ -131,15 +150,18 @@ describe('publicReadLimiter', () => {
     expect(nextCalled).toBe(true)
   })
 
-  it('should return appropriate rate limit error message when rate-limited', async () => {
+  // B3 冻结（API-SPEC v1.0.2 x-public-read-429）：仅 publicReadLimiter 定制 429 体
+  it('should return unlock-required rate limit body when rate-limited', async () => {
     for (let i = 0; i < 30; i++) {
       await callLimiter(publicReadLimiter)
     }
     const { res } = await callLimiter(publicReadLimiter)
     expect(res.statusCode).toBe(429)
-    expect(res.body).toEqual({
-      error: 'Too many requests from this IP, please try again later.',
-    })
+    expect(res.body.error).toBe('ERR_RATE_LIMITED_NEEDS_CAPTCHA')
+    expect(res.body.unlockRequired).toBe(true)
+    expect(res.body.unlockEndpoint).toBe('/api/v1/auth/captcha/unlock')
+    expect(typeof res.body.retryAfterSec).toBe('number')
+    expect(res.headers['Retry-After']).toBeDefined()
   })
 })
 

@@ -25,19 +25,19 @@
  * English keywords:
  *   auth, registration, login, password reset, two-factor auth, captcha
  */
-import { Router } from 'express';
-import { rateLimit } from 'express-rate-limit';
-import { getClientIp } from '../lib/rateLimit';
-import { 
-  generateTotp, 
-  verifyTotpRegistration, 
-  generatePasskeyRegistrationOptions, 
+import { Router } from 'express'
+import { rateLimit } from 'express-rate-limit'
+import { getClientIp, unlockLimiter } from '../lib/rateLimit'
+import {
+  generateTotp,
+  verifyTotpRegistration,
+  generatePasskeyRegistrationOptions,
   verifyPasskeyRegistrationResponse,
   verifyTotpLogin,
   generatePasskeyAuthenticationOptions,
   verifyPasskeyAuthenticationResponse,
-  getAbility
-} from '../controllers/auth';
+  getAbility,
+} from '../controllers/auth'
 import {
   registerUser,
   resendEmailRegistration,
@@ -46,32 +46,32 @@ import {
   resetPasswordWithToken,
   loginUser,
   checkSession,
-  logoutUser
-} from '../controllers/register';
-import { generateCaptcha, verifyCaptcha } from '../controllers/captcha';
-import { optionalAuth } from '../middleware/auth';
-import { checkIpBan } from '../middleware/ipBan';
-import { checkRegistrationOpen } from '../middleware/registrationGuard';
-import { validate, type ValidationOptions } from '../middleware/validation';
+  logoutUser,
+} from '../controllers/register'
+import { generateCaptcha, verifyCaptcha, unlockCaptcha } from '../controllers/captcha'
+import { optionalAuth } from '../middleware/auth'
+import { checkIpBan } from '../middleware/ipBan'
+import { checkRegistrationOpen } from '../middleware/registrationGuard'
+import { validate, type ValidationOptions } from '../middleware/validation'
 import {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyEmailSchema,
-} from '../lib/validation/schemas';
+} from '../lib/validation/schemas'
 
-const router: Router = Router();
+const router: Router = Router()
 
 const publicAuthValidation: ValidationOptions = {
   exposeDetails: false,
   publicErrorCode: 'ERR_AUTH_REQUEST_INVALID',
-};
+}
 
 const publicRegistrationValidation: ValidationOptions = {
   exposeDetails: false,
   publicErrorCode: 'ERR_REGISTRATION_REQUEST_INVALID',
-};
+}
 
 // ── 频率限制器定义 ──
 
@@ -81,8 +81,8 @@ const authLimiter = rateLimit({
   max: 100,
   keyGenerator: getClientIp,
   validate: { ip: false, xForwardedForHeader: false },
-  message: { error: 'ERR_TOO_MANY_REQUESTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
-});
+  message: { error: 'ERR_TOO_MANY_REQUESTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' },
+})
 
 /** 登录频率限制：10次/小时 */
 const loginLimiter = rateLimit({
@@ -91,8 +91,8 @@ const loginLimiter = rateLimit({
   skipSuccessfulRequests: true,
   keyGenerator: getClientIp,
   validate: { ip: false, xForwardedForHeader: false },
-  message: { error: 'ERR_TOO_MANY_FAILED_LOGIN_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
-});
+  message: { error: 'ERR_TOO_MANY_FAILED_LOGIN_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' },
+})
 
 /** 注册频率限制：5次/小时 */
 const registerLimiter = rateLimit({
@@ -100,8 +100,8 @@ const registerLimiter = rateLimit({
   max: 5,
   keyGenerator: getClientIp,
   validate: { ip: false, xForwardedForHeader: false },
-  message: { error: 'ERR_TOO_MANY_REGISTRATION_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
-});
+  message: { error: 'ERR_TOO_MANY_REGISTRATION_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' },
+})
 
 /** 双因素认证限制：5次/15分钟，成功不计入 */
 const strict2FALimiter = rateLimit({
@@ -110,8 +110,8 @@ const strict2FALimiter = rateLimit({
   skipSuccessfulRequests: true,
   keyGenerator: getClientIp,
   validate: { ip: false, xForwardedForHeader: false },
-  message: { error: 'ERR_TOO_MANY_FAILED_2FA_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
-});
+  message: { error: 'ERR_TOO_MANY_FAILED_2FA_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' },
+})
 
 /** Token 刷新限制：10次/15分钟，成功不计入 */
 const refreshLimiter = rateLimit({
@@ -120,8 +120,8 @@ const refreshLimiter = rateLimit({
   skipSuccessfulRequests: true,
   keyGenerator: getClientIp,
   validate: { ip: false, xForwardedForHeader: false },
-  message: { error: 'ERR_TOO_MANY_REFRESH_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
-});
+  message: { error: 'ERR_TOO_MANY_REFRESH_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' },
+})
 
 /** 验证码限制：30次/15分钟，避免无限获取和脚本化试探 */
 const captchaLimiter = rateLimit({
@@ -129,14 +129,17 @@ const captchaLimiter = rateLimit({
   max: 30,
   keyGenerator: getClientIp,
   validate: { ip: false, xForwardedForHeader: false },
-  message: { error: 'ERR_TOO_MANY_CAPTCHA_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' }
-});
+  message: { error: 'ERR_TOO_MANY_CAPTCHA_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' },
+})
 
 // ── 验证码 ──
-router.get('/captcha', captchaLimiter, generateCaptcha);
-router.post('/captcha/verify', captchaLimiter, verifyCaptcha);
+router.get('/captcha', captchaLimiter, generateCaptcha)
+router.post('/captcha/verify', captchaLimiter, verifyCaptcha)
+// B2 解锁兑换：独立 unlockLimiter（10次/15分钟/IP，与 captchaLimiter 独立）；
+// 挂在 authLimiter 之前，避免被 authLimiter（100次/15分钟）叠加限流
+router.post('/captcha/unlock', unlockLimiter, unlockCaptcha)
 
-router.use(authLimiter);
+router.use(authLimiter)
 
 // ── 注册 ──
 router.post(
@@ -145,49 +148,55 @@ router.post(
   checkIpBan('REGISTRATION'),
   checkRegistrationOpen,
   validate(registerSchema, publicRegistrationValidation),
-  registerUser
-);
-router.post('/register/resend-email', registerLimiter, resendEmailRegistration);
+  registerUser,
+)
+router.post('/register/resend-email', registerLimiter, resendEmailRegistration)
 router.post(
   '/register/verify-email',
   strict2FALimiter,
   validate(verifyEmailSchema, publicAuthValidation),
-  verifyEmailRegistration
-);
+  verifyEmailRegistration,
+)
 
 // ── 密码重置 ──
 router.post(
   '/password/forgot',
   registerLimiter,
   validate(forgotPasswordSchema, publicAuthValidation),
-  requestPasswordReset
-);
+  requestPasswordReset,
+)
 router.post(
   '/password/reset',
   strict2FALimiter,
   validate(resetPasswordSchema, publicAuthValidation),
-  resetPasswordWithToken
-);
+  resetPasswordWithToken,
+)
 
 // ── 登录/注销 ──
-router.post('/login', loginLimiter, checkIpBan('LOGIN'), validate(loginSchema, publicAuthValidation), loginUser);
-router.post('/logout', logoutUser);
-router.post('/refresh', refreshLimiter, checkSession);
+router.post(
+  '/login',
+  loginLimiter,
+  checkIpBan('LOGIN'),
+  validate(loginSchema, publicAuthValidation),
+  loginUser,
+)
+router.post('/logout', logoutUser)
+router.post('/refresh', refreshLimiter, checkSession)
 
 // ── TOTP ──
-router.post('/totp/generate', generateTotp);
-router.post('/totp/verify', strict2FALimiter, verifyTotpRegistration);
+router.post('/totp/generate', generateTotp)
+router.post('/totp/verify', strict2FALimiter, verifyTotpRegistration)
 
 // ── Passkey 注册 ──
-router.get('/passkey/generate-registration-options', generatePasskeyRegistrationOptions);
-router.post('/passkey/verify-registration', strict2FALimiter, verifyPasskeyRegistrationResponse);
+router.get('/passkey/generate-registration-options', generatePasskeyRegistrationOptions)
+router.post('/passkey/verify-registration', strict2FALimiter, verifyPasskeyRegistrationResponse)
 
 // ── 双因素登录 ──
-router.post('/totp/login-verify', strict2FALimiter, verifyTotpLogin);
-router.get('/passkey/generate-authentication-options', generatePasskeyAuthenticationOptions);
-router.post('/passkey/verify-authentication', strict2FALimiter, verifyPasskeyAuthenticationResponse);
+router.post('/totp/login-verify', strict2FALimiter, verifyTotpLogin)
+router.get('/passkey/generate-authentication-options', generatePasskeyAuthenticationOptions)
+router.post('/passkey/verify-authentication', strict2FALimiter, verifyPasskeyAuthenticationResponse)
 
 // ── 权限查询 ──
-router.get('/ability', optionalAuth, getAbility);
+router.get('/ability', optionalAuth, getAbility)
 
-export default router;
+export default router

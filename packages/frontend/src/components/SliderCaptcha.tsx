@@ -5,11 +5,29 @@ import { ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useTranslation } from './TranslationProvider';
 
 interface SliderCaptchaProps {
-  onSuccess: (captchaId: string) => void;
+  onSuccess: (captchaId: string, solution?: SliderCaptchaSolutionPayload) => void;
   apiUrl?: string;
+  /**
+   * 解锁直兑模式（F1 新增，后向兼容：默认 false 保持原 /verify 流程，现有 5 处调用不受影响）。
+   * 为 true 时拖拽完成后不调 POST /verify，而是把完整解 {dragPath,totalDragTime,finalPosition}
+   * 回传给父组件，由父调 POST /unlock（冻结契约：unlock 自含验证，不依赖外部 verify 标记）。
+   */
+  manual?: boolean;
 }
 
-export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCaptchaProps) {
+export interface SliderCaptchaDragPoint {
+  x: number;
+  y: number;
+  t: number;
+}
+
+export interface SliderCaptchaSolutionPayload {
+  dragPath: SliderCaptchaDragPoint[];
+  totalDragTime: number;
+  finalPosition: number;
+}
+
+export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth', manual = false }: SliderCaptchaProps) {
   const dict = useTranslation();
   const [captchaId, setCaptchaId] = useState<string | null>(null);
   const [captchaImage, setCaptchaImage] = useState<string | null>(null);
@@ -74,6 +92,18 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
 
     const totalDragTime = Date.now() - dragStartTimeRef.current;
     const finalPosition = Number(e.currentTarget.value);
+    const dragPath = [...dragPathRef.current];
+
+    // 解锁直兑模式：不调 /verify，直接回传完整解由父调 POST /unlock（单次验证，避免 verify+unlock 双调）。
+    if (manual) {
+      if (!captchaId) {
+        setStatus('error');
+        setErrorMsg(dict.captcha.networkError);
+        return;
+      }
+      onSuccess(captchaId, { dragPath, totalDragTime, finalPosition });
+      return;
+    }
 
     try {
       const res = await fetch(`${apiUrl}/captcha/verify`, {
@@ -84,7 +114,7 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
         },
         body: JSON.stringify({
           captchaId,
-          dragPath: dragPathRef.current,
+          dragPath,
           totalDragTime,
           finalPosition
         })
@@ -93,7 +123,7 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
       const data = await res.json();
       if (data.success) {
         setStatus('success');
-        onSuccess(captchaId!);
+        onSuccess(captchaId!, { dragPath, totalDragTime, finalPosition });
       } else {
         setStatus('error');
         setErrorMsg(dict.apiErrors?.[data.error as keyof typeof dict.apiErrors] || data.error || dict.captcha.verificationFailed);
@@ -108,19 +138,22 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
   };
 
   return (
-    <div className="relative w-[350px] mx-auto rounded-2xl border border-white/10 bg-[#0f172a] p-4 shadow-xl select-none touch-none overflow-hidden">
+    <div
+      className="relative w-full max-w-[350px] mx-auto rounded-2xl border border-white/10 bg-[#0f172a] p-4 shadow-xl select-none touch-none overflow-hidden"
+      aria-busy={status === 'verifying'}
+    >
       {/* Status Header */}
       <div className="mb-4 text-xs font-medium text-slate-400 flex justify-between items-center tracking-wider">
         <span>{dict.captcha.securityVerification}</span>
         {status === 'success' && <span className="text-emerald-400 flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5"/> {dict.captcha.verified}</span>}
-        {status === 'error' && <span className="text-rose-400 flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5"/> {errorMsg.toUpperCase()}</span>}
+        {status === 'error' && <span role="alert" className="text-rose-400 flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5"/> {errorMsg}</span>}
       </div>
 
       {/* Captcha Area */}
       <div className={`captcha-image ${captchaImage ? 'has-captcha-image' : ''} relative h-32 w-full rounded-xl transition-opacity duration-300 ${status === 'verifying' ? 'opacity-70' : 'opacity-100'}`}>
         {captchaImage && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={captchaImage} alt="" className="absolute inset-0 h-full w-full rounded-xl object-cover" />
+          <img src={captchaImage} alt={dict.captcha.securityVerification} className="absolute inset-0 h-full w-full rounded-xl object-cover" />
         )}
         {/* Track Container - centered vertically */}
         <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 mx-2">
@@ -131,6 +164,7 @@ export function SliderCaptcha({ onSuccess, apiUrl = '/api/v1/auth' }: SliderCapt
             value={sliderValue}
             disabled={status === 'success' || status === 'verifying'}
             aria-label={dict.captcha.securityVerification}
+            aria-valuetext={`${sliderValue}/300`}
             className={`captcha-slider w-full cursor-grab active:cursor-grabbing ${status === 'success' ? 'captcha-slider-success' : status === 'error' ? 'captcha-slider-error' : ''}`}
             onChange={(e) => {
               const value = Number(e.currentTarget.value);
