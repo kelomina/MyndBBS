@@ -42,7 +42,7 @@ jobs:
   deploy:
     name: Pull & Rollout (or Rollback)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Backup DB and record current images, then pull & rollout
         if: ${{ github.event.inputs.rollback != 'true' }}
@@ -52,6 +52,7 @@ jobs:
           port: ${{ env.SSH_PORT }}
           username: ${{ env.SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 25m
           envs: BACKEND_IMAGE,FRONTEND_IMAGE,DEPLOY_DIR
           script_stop: true
           script: |
@@ -73,7 +74,14 @@ jobs:
             echo "[backup] -> $BK ($(cat "$BK/backend_image_id") / $(cat "$BK/frontend_image_id"))"
 
             # ── 拉取并滚动更新（数据库迁移由 backend entrypoint 的 prisma migrate deploy 安全执行）──
-            sudo -n docker compose pull backend frontend
+            # 注：服务器直连 ghcr.io 偶发抖动/限速，pull 自带断点续传，这里再套 3 次重试
+            PULLED=false
+            for i in 1 2 3; do
+              if sudo -n docker compose pull backend frontend; then PULLED=true; break; fi
+              echo "[pull] attempt $i failed, retrying in 15s..."
+              sleep 15
+            done
+            if [ "$PULLED" != "true" ]; then echo "[pull] failed after 3 attempts"; exit 1; fi
             sudo -n docker compose up -d backend frontend
 
       - name: Health check (server loopback)
