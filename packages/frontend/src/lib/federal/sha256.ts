@@ -2,7 +2,14 @@
  * 纯 JS SHA-256（零外部依赖，file:// 可用，禁 crypto.subtle）。
  * 逐字移植自站外演示 captcha-federal-demo.html 内联实现（经用户批准的 ground truth），
  * 前后端前导零 bits 计数同一口径：hash hex 首 bits 全零即达标。
- * 进站拼装口径：`SHA256(challenge + '|' + nonce)`（challenge 为 hex32，nonce 为 hex 字符串）。
+ * 进站拼装口径：`SHA256(challenge + '|' + nonce)`（challenge 为 hex32，nonce 为十进制串）。
+ * 跨端固定向量 H5（与后端同向量，互指防复发）：
+ * 后端见 `packages/backend/src/lib/federalPow.ts:hashPowChallenge` + `tests/federalPow.test.ts` 固定向量
+ * （H1 后端对齐本 '|' 口径，powNonce 与本向量同值）；前端断言见 `tests/federalHotfix.ui.test.mjs` H5。
+ * 向量：challenge=0123456789abcdef0123456789abcdef / nonce='13' / bits=8 →
+ * powHash=0025b120f0ff25a607c96117b781129351077fd0a0b28c91f09ef7ac5608abe2（前导零 10bits≥8，通过）。
+ * 反向量：同 challenge 下 nonce='0' 在 '|' 口径仅 1bit（69ace822…，必失败），
+ * 而无 '|' 口径为 12bits（000cb919…，通过）——两向量严格区分拼装口径，任一端改动拼装必须同步更新两端断言。
  */
 
 /* eslint-disable no-var, @typescript-eslint/no-explicit-any */

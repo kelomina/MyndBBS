@@ -49,6 +49,12 @@ export interface BehaviorSample {
   t: number;
   x: number;
   y: number;
+  /**
+   * H3 P0 hotfix：stroke（提笔序号，GeometryClock 按 pointerdown 递增）。
+   * 透出后服务端仅在同 stroke 内判定瞬移（数百 px + dt<100ms 跨笔跳变不再误杀）；
+   * 后端 isValidBehaviorSamples 仅校验 t/x/y 有限数，s 为透传附加字段，线兼容。
+   */
+  s: number;
 }
 
 export interface FederalGeometrySolution {
@@ -175,12 +181,18 @@ export function isFederalKind(v: unknown): v is FederalKind {
 
 /** geometry puzzle 是否含可交互所需的 targetHour/perm（缺失则调用方回落 slider-low）。 */
 export function hasGeometryInteractable(puzzle: FederalGeometryPuzzle | null | undefined): boolean {
+  // H4 P0 hotfix：小时域 0–11（与后端 isValidTargetHour/generateTargetHour 对齐；原 1–12 致 targetHour=0
+  // 约 8.3% 概率误判 degraded）。perm 为 0–11 排列（与后端 isValidPerm 对齐）。
   if (!puzzle) return false;
-  return (
-    typeof puzzle.targetHour === 'number' &&
-    puzzle.targetHour >= 1 &&
-    puzzle.targetHour <= 12 &&
-    Array.isArray(puzzle.perm) &&
-    puzzle.perm.length === 12
+  if (
+    typeof puzzle.targetHour !== 'number' ||
+    !Number.isInteger(puzzle.targetHour) ||
+    puzzle.targetHour < 0 ||
+    puzzle.targetHour > 11
+  )
+    return false;
+  if (!Array.isArray(puzzle.perm) || puzzle.perm.length !== 12) return false;
+  return puzzle.perm.every(
+    (v) => typeof v === 'number' && Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 11,
   );
 }

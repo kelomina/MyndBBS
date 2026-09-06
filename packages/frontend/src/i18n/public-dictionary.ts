@@ -121,6 +121,9 @@ export const getPublicDictionary = async (locale: Locale): Promise<Dictionary> =
           'timeoutNote',
           'loading',
           'verifying',
+          // H2 P0 hotfix：unlock 入口仅 slider 说明（匿名解锁弹窗必需，常驻展示不许静默失败）
+          'unlockSliderOnlyTip',
+          'unlockSliderOnlyNote',
         ] as const,
       ),
     },

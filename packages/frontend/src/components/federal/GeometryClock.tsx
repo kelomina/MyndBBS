@@ -8,7 +8,7 @@ import type { BehaviorSample } from '../../lib/federal/federal-api';
  * - SVG 错序时钟：12 数字 Fisher-Yates 由服务端 perm 渲染（DOM 按数字语义顺序插入，读数只看所指槽盘面数字）。
  * - 纯鼠标拖针：SVG pointer 拖针 + setPointerCapture + rAF 节流；删滑杆键盘（无 range/键盘移动针）。
  * - 一周 1560 微槽（字面值，130/数字）；严格档语义命中+中心偏差≤30 微槽（约±6.9°），默认档仅语义命中（判定由服务端重算，前端不做判定）。
- * - 行为采样 (t,x,y) 随 solution 上传，采集侧不下结论（仅透出采样数，判定由服务端重算）。
+ * - 行为采样 (t,x,y,s) 随 solution 上传，采集侧不下结论（仅透出采样数，判定由服务端重算）。
  */
 
 export const TOTAL_SLOTS = 1560;
@@ -70,7 +70,9 @@ export const GeometryClock = React.forwardRef<GeometryClockHandle, GeometryClock
   React.useImperativeHandle(ref, () => ({
     getSolution: () => ({
       microSlot: normMicro(microRef.current),
-      behaviorSamples: samplesRef.current.map((s) => ({ t: s.t, x: s.x, y: s.y })),
+      // H3 P0 hotfix：透出 s（stroke 提笔序号），服务端仅同 stroke 内判定瞬移；
+      // 纯鼠标拖针 / 1560 微槽 / 严格 ±30 微槽 / 15s 语义一律不变（判定仍由服务端重算）。
+      behaviorSamples: samplesRef.current.map((s) => ({ t: s.t, x: s.x, y: s.y, s: s.s })),
     }),
     getSampleCount: () => samplesRef.current.length,
   }));

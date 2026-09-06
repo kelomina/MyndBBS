@@ -2,15 +2,17 @@ import { createHash } from 'crypto'
 
 /**
  * 联邦 PoW 单一入口（前后端同一口径，零外部依赖）。
- * - 哈希输入：UTF-8(challengeHex + nonce) 单次 SHA-256（禁搜索循环，调用方只做一次）
+ * - 哈希输入：UTF-8(challengeHex + '|' + nonce) 单次 SHA-256（禁搜索循环，调用方只做一次）
+ *   口径与前端 powHash / 演示 ground truth 一致：ASCII(challengeHex)+'|'+ASCII(nonce)，
+ *   '|' 为 0x7C 单字节分隔（防 challenge/nonce 边界拼接歧义，如 'ab'+'c' vs 'a'+'bc'）。
  * - 前导零计数：MSB 优先逐位计数（bits 口径前后端一致）
  * - 后端单次验证 CPU ≤50ms（单哈希 + 上界循环，天然成立）
  */
 
-/** 单次 SHA-256(challengeHex + nonce)，返回 32 字节摘要 */
+/** 单次 SHA-256(challengeHex + '|' + nonce)，返回 32 字节摘要 */
 export function hashPowChallenge(challengeHex: string, nonce: string): Buffer {
   return createHash('sha256')
-    .update(challengeHex + nonce, 'utf8')
+    .update(challengeHex + '|' + nonce, 'utf8')
     .digest()
 }
 

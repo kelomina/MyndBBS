@@ -71,8 +71,10 @@ export const TEST_FEDERAL_DEFAULTS = {
   geometryPerm: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
   powChallengeHex: '0123456789abcdef0123456789abcdef',
   powBits: 8,
-  // 预计算 nonce（SHA256(challengeHex+nonce) 前导零 ≥8bits，单哈希可过；见 tests/federalPow.fixed.test.ts 生成口径）
-  powNonce: '0',
+  // 预计算 nonce（'|' 口径：SHA256(challengeHex+'|'+nonce) 前导零 ≥8bits，单哈希可过；
+  // 固定向量 challenge=0123…/nonce='13' → digest 0025b120…前导零10bits，与前端 powHash ground truth 一致；
+  // 旧 nonce '0' 在无 '|' 口径下通过、在 '|' 口径下仅1bit（69ace8…），已作废；见 tests/federalPow.test.ts + federalCrossVectors.test.ts）
+  powNonce: '13',
 } as const
 
 export class FederalCaptchaService {

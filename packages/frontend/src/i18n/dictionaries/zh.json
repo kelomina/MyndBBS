@@ -297,7 +297,9 @@
       "degradedNote": "新题型不可用，已回落滑块。",
       "timeoutNote": "解题超时，已回落滑块。",
       "loading": "加载题目中…",
-      "verifying": "校验中…"
+      "verifying": "校验中…",
+      "unlockSliderOnlyTip": "解锁仅支持滑块题",
+      "unlockSliderOnlyNote": "解锁验证仅支持滑块题。几何与工作量证明题暂不支持解锁兑换（待后端扩展），已禁用换题，不会静默失败。"
     }
   },
   "rateLimitUnlock": {

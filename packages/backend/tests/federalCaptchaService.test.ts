@@ -136,8 +136,8 @@ describe('FederalCaptchaService issue/verify', () => {
     const issued = await service.issuePow({ powBits: 8, testFixed: true })
     expect(issued.challengeHex).toMatch(/^[0-9a-f]{32}$/)
     expect(issued.bits).toBe(8)
-    // 固定解 nonce=0 单哈希可过（见 federalPow.test.ts 向量）
-    await service.verifyPow(issued.id, '0')
+    // 固定解 nonce='13'（'|' 口径，digest 0025b120…前导零10bits，见 federalPow.test.ts 向量）
+    await service.verifyPow(issued.id, '13')
     expect(await repo.findById(issued.id)).toBeNull()
   })
 
@@ -162,6 +162,51 @@ describe('FederalCaptchaService issue/verify', () => {
     const micro = slot * 130
     // testFixed 行拖拽豁免：空行为亦可过（仍原子消费）
     await service.verifyGeometry(issued.id, micro, [])
+    expect(await repo.findById(issued.id)).toBeNull()
+  })
+
+  it('handles targetHour=0 snapshot without degraded misjudgment (H4, 0–11 unified)', async () => {
+    process.env.NODE_ENV = 'test'
+    process.env.TEST_FEDERAL_TARGET_HOUR = '0'
+    try {
+      const issued = await service.issueGeometry({
+        geometryLevel: 1,
+        strength: 'low',
+        timeoutSec: 60,
+        strictTimeoutSec: 60,
+        testFixed: true,
+      })
+      expect(issued.targetHour).toBe(0)
+      expect(issued.perm).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+      // 快照 targetHour=0：槽 0 中心微槽 0，语义命中（testFixed 豁免行为，仍原子消费）
+      await service.verifyGeometry(issued.id, 0, [])
+      expect(await repo.findById(issued.id)).toBeNull()
+    } finally {
+      delete process.env.TEST_FEDERAL_TARGET_HOUR
+    }
+  })
+
+  it('verifies geometry behavior with s-bearing samples (H3 dual-compatible)', async () => {
+    const issued = await service.issueGeometry({
+      geometryLevel: 1,
+      strength: 'low',
+      timeoutSec: 60,
+      strictTimeoutSec: 60,
+      testFixed: false,
+    })
+    const slot = issued.perm.indexOf(issued.targetHour)
+    const micro = slot * 130
+    // 类人拨针（含 s 单笔，整数像素，变速）：low 档须过（strict 重标见 federalGeometry.test.ts 10 段）
+    const samples: BehaviorSample[] = []
+    for (let i = 0; i < 16; i++) {
+      samples.push({
+        t: Math.round((900 * i) / 15),
+        x: 400 + Math.round(i * 5 + Math.sin(i * 0.8) * 3),
+        y: 300 + Math.round(Math.sin(i * 1.1) * 10 + (i % 3) * 2),
+        s: 1,
+      })
+    }
+    await service.verifyGeometry(issued.id, micro, samples)
     expect(await repo.findById(issued.id)).toBeNull()
   })
 })

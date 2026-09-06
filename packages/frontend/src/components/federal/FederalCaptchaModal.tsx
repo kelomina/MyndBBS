@@ -26,8 +26,9 @@ import type { Dictionary } from '../../types';
  * - slider 分支复用 SliderCaptcha manual（联邦 challenge 注入，现有 5 处调用零改）。
  * - GeometryClock：SVG 错序时钟 + 纯鼠标拖针 + 1560 微槽 + 行为采样随 solution 上传，不做客户端判定。
  * - PowCollector：Worker 纯 JS SHA-256 + 进度 + 取消 + 10s 超时回落 slider-low + 降档重试。
- * - mode=verify：联邦 verify 成功即 onVerified{captchaId,kind}；mode=unlock：slider 经旧 POST/unlock 换 token，
- *   geometry/pow 先 federal verify 成功后再试 POST/unlock 换 token（扩展未就绪 400 则自动回落 slider-low 保可用，见 channel-api CONSULT）。
+ * - mode=verify：联邦 verify 成功即 onVerified{captchaId,kind}；mode=unlock：仅签发 slider
+ *  （H2 P0 hotfix 门控：后端 /unlock 仅收 kind==slider，直至扩展兑换；verify 模式不受影响），
+ *   slider 经旧 POST/unlock 换 token；unlock 入口禁用换题并附说明文案（不许静默失败）。
  */
 
 export type FederalModalState = 'idle' | 'verifying' | 'success' | 'error' | 'cooldown' | 'timeout' | 'degraded';
@@ -69,6 +70,10 @@ export function FederalCaptchaModal({
   const powDict = ((dict.captcha as unknown as Record<string, unknown>).pow ?? {}) as Record<string, string>;
   const rl = (dict.rateLimitUnlock ?? {}) as unknown as Record<string, string>;
 
+  // H2 P0 hotfix：unlock 模式门控标记（后端 /unlock 仅收 kind==slider，直至扩展兑换）。
+  // unlock 入口只签发 slider、禁用换题、附说明文案（不许静默失败）；verify 模式不受影响。
+  const isUnlockMode = mode === 'unlock';
+
   const [state, setState] = React.useState<FederalModalState>('idle');
   const [issue, setIssue] = React.useState<FederalIssueResponse | null>(null);
   const [errorText, setErrorText] = React.useState('');
@@ -105,15 +110,17 @@ export function FederalCaptchaModal({
 
   const doIssue = React.useCallback(
     async (kindHint?: FederalKind) => {
+      // H2：unlock 模式强制 slider（门控 issue kind）；verify 模式按 hint/服务端默认（effectiveKind）。
+      const effectiveHint: FederalKind | undefined = isUnlockMode ? 'slider' : kindHint;
       const seq = ++issueSeqRef.current;
-      if (kindHint) issueKindRef.current = kindHint;
+      if (effectiveHint) issueKindRef.current = effectiveHint;
       setState('idle');
       setErrorText('');
       setDegradedNote('');
       setFallbackSlider(false);
       setPowSolved(null);
       try {
-        const res = await issueFederalCaptcha(kindHint);
+        const res = await issueFederalCaptcha(effectiveHint);
         if (seq !== issueSeqRef.current) return;
         issueKindRef.current = res.kind;
         // puzzle 缺目标字段则视为 infra 失败 → 回落 slider-low（不直接 400 锁死）
@@ -134,8 +141,9 @@ export function FederalCaptchaModal({
           return;
         }
         // 受限换一种 hint 指向已关类型 → 400 统一码：记 disabled，1.5s 后回当前题（不回落至默认，避免 farming）
-        if (kindHint && err instanceof FederalIssueError && err.status === 400) {
-          setDisabledKinds((prev) => new Set(prev).add(kindHint));
+        //（unlock 模式 effectiveHint 恒为 slider，此分支仅 verify 模式可达）
+        if (effectiveHint && err instanceof FederalIssueError && err.status === 400) {
+          setDisabledKinds((prev) => new Set(prev).add(effectiveHint));
           setErrorText(mapFederalError('ERR_VERIFICATION_FAILED'));
           setState('error');
           if (refreshTimerRef.current !== null) window.clearTimeout(refreshTimerRef.current);
@@ -161,7 +169,7 @@ export function FederalCaptchaModal({
         setFallbackSlider(true);
       }
     },
-    [fed.degradedNote, mapFederalError],
+    [fed.degradedNote, isUnlockMode, mapFederalError],
   );
 
   const scheduleRefresh = React.useCallback(() => {
@@ -212,7 +220,9 @@ export function FederalCaptchaModal({
   }, [state, cooldownSec, doIssue, issue?.kind]);
 
   const handleSwitchKind = React.useCallback(() => {
-    // 受限换一种 ghost：按 slider→geometry→pow 轮转，跳过已知 disabled；未知 disabled 由服务端 400 判定
+    // H2：unlock 入口不可换题（仅 slider 可选，说明文案见下方 unlockSliderOnlyNote，不许静默失败）。
+    // verify 模式保持受限换一种 ghost：按 slider→geometry→pow 轮转，跳过已知 disabled；未知 disabled 由服务端 400 判定
+    if (isUnlockMode) return;
     const cur = issue?.kind;
     const idx = cur ? KIND_ORDER.indexOf(cur) : -1;
     for (let step = 1; step <= KIND_ORDER.length; step++) {
@@ -222,7 +232,7 @@ export function FederalCaptchaModal({
       void doIssue(next);
       return;
     }
-  }, [disabledKinds, doIssue, issue?.kind]);
+  }, [disabledKinds, doIssue, isUnlockMode, issue?.kind]);
 
   const handleFallbackSlider = React.useCallback(() => {
     // 回落走现网 legacy GET /captcha 滑块路径（不占用联邦 kind:slider hint 配额，slider 被关时亦可用）
@@ -243,10 +253,13 @@ export function FederalCaptchaModal({
 
   const exchangeUnlockToken = React.useCallback(
     async (captchaId: string, kind: FederalKind, extra: Record<string, unknown>): Promise<boolean> => {
+      // H2 P0 hotfix：unlock 换 token 仅 slider 成功（后端 /unlock 仅收 kind==slider，
+      // verifyAndConsumeForUnlock kind 守卫；geometry/pow 兑换待后端扩展，前端不发起兑换，
+      // 直接返回 false 走回落/行内错误，不静默成功）。verify 模式（不换 token）不受影响。
+      if (kind !== 'slider') return false;
       // slider：旧 POST/unlock 直接换 token（kind==slider 兼容，冻结语义）。
-      // geometry/pow：先 federal verify 成功后，再试 POST/unlock{captchaId,kind}（扩展未就绪 400 则回落 slider-low）。
       try {
-        if (kind === 'slider') {
+        {
           const drag = extra as { dragPath: unknown; totalDragTime: number; finalPosition: number };
           const result = await postUnlock({
             captchaId,
@@ -261,29 +274,6 @@ export function FederalCaptchaModal({
           onVerified?.({ captchaId, kind });
           return true;
         }
-        // geometry/pow：尝试扩展换 token（forward-compatible；后端未实现则 400）
-        const res = await fetch('/api/v1/auth/captcha/unlock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-          credentials: 'include',
-          body: JSON.stringify({ captchaId, kind }),
-        });
-        if (res.ok) {
-          const data = (await res.json().catch(() => ({}))) as {
-            unlockToken?: string;
-            exemptMinutes?: number;
-            expiresAt?: string;
-          };
-          if (typeof data.unlockToken === 'string' && typeof data.expiresAt === 'string' && typeof data.exemptMinutes === 'number') {
-            saveUnlockToken(data as { unlockToken: string; expiresAt: string; exemptMinutes: number });
-            setExemptMinutes(data.exemptMinutes);
-            setState('success');
-            onUnlocked?.({ exemptMinutes: data.exemptMinutes, expiresAt: data.expiresAt });
-            onVerified?.({ captchaId, kind });
-            return true;
-          }
-        }
-        return false;
       } catch (err) {
         if (err instanceof UnlockCooldownError) {
           setState('cooldown');
@@ -346,6 +336,11 @@ export function FederalCaptchaModal({
 
   const handleGeometryVerify = React.useCallback(async () => {
     if (!issue || issue.kind !== 'geometry') return;
+    // H2：unlock 入口无几何题体（仅 slider 可选）；防御性直接回落，不消费联邦挑战、不静默。
+    if (isUnlockMode) {
+      handleFallbackSlider();
+      return;
+    }
     const sol = clockRef.current?.getSolution();
     if (!sol || sol.behaviorSamples.length === 0) {
       setState('error');
@@ -356,35 +351,29 @@ export function FederalCaptchaModal({
     setErrorText('');
     try {
       await verifyFederalCaptcha({ captchaId: issue.captchaId, kind: 'geometry', solution: sol });
-      if (mode === 'unlock') {
-        const ok = await exchangeUnlockToken(issue.captchaId, 'geometry', {});
-        if (ok) return;
-        // 扩展未就绪 → 回落 slider-low（amber），保证解锁可用（日志 hint 经 degradedNote 展示，不写控制台）
-        handleFallbackSlider();
-        return;
-      }
+      // H2 后：此处仅 verify 模式可达（unlock 已在上方回落）；verify 成功即 onVerified，不换 token。
       succeedVerify(issue.captchaId, 'geometry');
     } catch {
       setState('error');
       setErrorText(mapFederalError('ERR_VERIFICATION_FAILED'));
       scheduleRefresh();
     }
-  }, [exchangeUnlockToken, handleFallbackSlider, issue, mapFederalError, mode, scheduleRefresh, succeedVerify]);
+  }, [handleFallbackSlider, isUnlockMode, issue, mapFederalError, scheduleRefresh, succeedVerify]);
 
   const handlePowSolved = React.useCallback(
     async (info: { nonce: string; hash: string; tried: number; sec: number }) => {
       if (!issue || issue.kind !== 'pow') return;
+      // H2：unlock 入口无 PoW 题体（仅 slider 可选）；防御性直接回落，不消费联邦挑战、不静默。
+      if (isUnlockMode) {
+        handleFallbackSlider();
+        return;
+      }
       setPowSolved(info);
       setState('verifying');
       setErrorText('');
       try {
         await verifyFederalCaptcha({ captchaId: issue.captchaId, kind: 'pow', nonce: info.nonce });
-        if (mode === 'unlock') {
-          const ok = await exchangeUnlockToken(issue.captchaId, 'pow', {});
-          if (ok) return;
-          handleFallbackSlider();
-          return;
-        }
+        // H2 后：此处仅 verify 模式可达（unlock 已在上方回落）；verify 成功即 onVerified，不换 token。
         succeedVerify(issue.captchaId, 'pow');
       } catch {
         setState('error');
@@ -392,7 +381,7 @@ export function FederalCaptchaModal({
         scheduleRefresh();
       }
     },
-    [exchangeUnlockToken, handleFallbackSlider, issue, mapFederalError, mode, scheduleRefresh, succeedVerify],
+    [handleFallbackSlider, isUnlockMode, issue, mapFederalError, scheduleRefresh, succeedVerify],
   );
 
   const verifying = state === 'verifying';
@@ -438,12 +427,27 @@ export function FederalCaptchaModal({
               variant="ghost"
               size="sm"
               onClick={handleSwitchKind}
-              disabled={verifying || cooling}
-              title={fed.switchDisabledTip || 'This type is disabled'}
+              disabled={verifying || cooling || isUnlockMode}
+              title={
+                isUnlockMode
+                  ? fed.unlockSliderOnlyTip || 'Unlock supports slider only'
+                  : fed.switchDisabledTip || 'This type is disabled'
+              }
             >
               {fed.switchKind || 'Try another'}
             </Button>
           </div>
+        )}
+
+        {/* H2：unlock 入口仅 slider 可选说明（常驻展示，不许静默失败；verify 模式不渲染） */}
+        {isUnlockMode && (
+          <p
+            role="note"
+            className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/20 dark:text-amber-200"
+          >
+            {fed.unlockSliderOnlyNote ||
+              'Unlock verification supports slider only. Geometry and proof-of-work cannot be exchanged for unlock yet.'}
+          </p>
         )}
 
         {state === 'error' && errorText ? (
@@ -485,16 +489,38 @@ export function FederalCaptchaModal({
         ) : null}
 
         {/* 题体按 kind Island 切换，统一状态机；verifying/cooldown 双层禁用 */}
+        {/* H2：unlock 入口仅渲染 slider 题体（issue 必为 slider；防御性：非 slider issue 渲染说明+切滑块按钮，不静默） */}
         <div aria-busy={verifying || cooling} className={verifying || cooling ? 'pointer-events-none opacity-90' : undefined}>
           {fallbackSlider ? (
             <SliderCaptcha key={`fallback-${issue?.captchaId ?? 'legacy'}`} manual apiUrl="/api/v1/auth" onSuccess={(id, sol) => void handleSliderSolution(id, sol)} />
+          ) : isUnlockMode ? (
+            issue?.kind === 'slider' ? (
+              <SliderCaptcha
+                key={issue.captchaId}
+                manual
+                apiUrl="/api/v1/auth"
+                externalCaptchaId={issue.captchaId}
+                externalImage={issue.image}
+                onSuccess={(id, sol) => void handleSliderSolution(id, sol)}
+              />
+            ) : issue ? (
+              <div className="space-y-2">
+                <p role="note" className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
+                  {fed.unlockSliderOnlyNote ||
+                    'Unlock verification supports slider only. Geometry and proof-of-work cannot be exchanged for unlock yet.'}
+                </p>
+                <Button type="button" onClick={() => void doIssue('slider')} disabled={verifying || cooling}>
+                  {fed.fallbackToSlider || 'Fall back to slider'}
+                </Button>
+              </div>
+            ) : null
           ) : issue?.kind === 'geometry' ? (
             <div className="rounded-2xl border border-white/10 bg-[#0f172a] p-4 shadow-xl">
               <p className="mb-2 text-xs font-medium tracking-wider text-slate-400">GEOMETRY · SHUFFLED CLOCK</p>
               <GeometryClock
                 ref={clockRef}
                 targetHour={issue.puzzle.targetHour ?? 7}
-                perm={issue.puzzle.perm ?? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}
+                perm={issue.puzzle.perm ?? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
                 strength={issue.strength}
                 disabled={verifying || cooling}
                 dict={geoDict}

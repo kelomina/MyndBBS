@@ -297,7 +297,9 @@
       "degradedNote": "New type unavailable — fell back to slider.",
       "timeoutNote": "Timed out — fell back to slider.",
       "loading": "Loading challenge…",
-      "verifying": "Verifying…"
+      "verifying": "Verifying…",
+      "unlockSliderOnlyTip": "Unlock supports slider only",
+      "unlockSliderOnlyNote": "Unlock verification supports slider only. Geometry and proof-of-work cannot be exchanged for unlock yet (pending backend support) — switching is disabled, never a silent failure."
     }
   },
   "rateLimitUnlock": {

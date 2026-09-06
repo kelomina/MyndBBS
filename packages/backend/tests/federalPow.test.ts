@@ -29,9 +29,15 @@ describe('FederalPow single-hash leading-zero', () => {
 
   it('verifies fixed test vector with single hash', () => {
     const challengeHex = '0123456789abcdef0123456789abcdef'
-    const nonce = '0'
+    // '|' 口径固定解（与前端 powHash ground truth 一致）：challenge+'|'+'13' → 0025b120…前导零10bits
+    // 旧 nonce '0' 在无 '|' 口径下通过、在 '|' 口径下仅1bit（69ace8…），P0 R0 已证伪作废
+    const nonce = '13'
     const digest = hashPowChallenge(challengeHex, nonce)
     expect(digest).toHaveLength(32)
+    // 双端 digest 一致：后端 node:crypto 与前端纯 JS SHA-256 同一原像同一摘要（跨端固定向量，见 federalCrossVectors.test.ts）
+    expect(digest.toString('hex')).toBe(
+      '0025b120f0ff25a607c96117b781129351077fd0a0b28c91f09ef7ac5608abe2',
+    )
     expect(countLeadingZeroBits(digest)).toBeGreaterThanOrEqual(8)
     expect(verifyPowNonce(challengeHex, nonce, 8)).toBe(true)
   })
@@ -50,17 +56,17 @@ describe('FederalPow single-hash leading-zero', () => {
   it('verifies within 50ms backend budget (single hash, no search loop)', () => {
     const challengeHex = '0123456789abcdef0123456789abcdef'
     const start = Date.now()
-    verifyPowNonce(challengeHex, '0', 8)
+    verifyPowNonce(challengeHex, '13', 8)
     expect(Date.now() - start).toBeLessThan(50)
   })
 
   it('is strength-orthogonal: bits is sole difficulty source', () => {
     const challengeHex = '0123456789abcdef0123456789abcdef'
     // 同一 nonce 在 8bits 下通过，在 24bits 下几乎必失败（若通过则说明测试向量需更换，但概率极低）
-    expect(verifyPowNonce(challengeHex, '0', 8)).toBe(true)
-    const digest = hashPowChallenge(challengeHex, '0')
+    expect(verifyPowNonce(challengeHex, '13', 8)).toBe(true)
+    const digest = hashPowChallenge(challengeHex, '13')
     if (countLeadingZeroBits(digest) < 24) {
-      expect(verifyPowNonce(challengeHex, '0', 24)).toBe(false)
+      expect(verifyPowNonce(challengeHex, '13', 24)).toBe(false)
     }
   })
 })
