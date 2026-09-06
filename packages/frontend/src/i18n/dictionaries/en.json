@@ -708,6 +708,8 @@
     "invalidThreshold": "Threshold must be an integer 10–1000",
     "invalidExemption": "Exemption must be an integer 1–120",
     "invalidWindow": "Window must be one of 10 / 30 / 60 / 300 / 600",
+    "rateLimitNoPermission": "No permission: only admins can configure read rate limit",
+    "rateLimitNoPermissionHint": "Current account lacks admin permission; the form is hidden. Contact an admin for changes.",
     "federal": {
       "title": "Federal challenge types & difficulty",
       "desc": "Toggle slider/geometry/PoW, default type, PoW difficulty and geometry complexity. Takes effect within 60s.",

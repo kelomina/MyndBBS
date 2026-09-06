@@ -19,9 +19,10 @@ export interface FederalSliderIssue {
 }
 
 export interface FederalGeometryPuzzle {
-  svg: string;
+  /** 旧契约遗留（后端现不下发 svg，Clock 按 perm 自绘；保留可选兼容旧包）。 */
+  svg?: string;
   targetHint?: string;
-  /** 02:00 增量假设字段（后端增量透出；缺失则前端回落 slider-low，见 channel-api CONSULT）： */
+  /** B3 回包对接：后端 issueFederalCaptcha:186 恒返 {perm, targetHour}（0–11），缺失则前端回落 slider-low，见 channel-api CONSULT */
   targetHour?: number;
   perm?: number[];
 }
@@ -185,7 +186,11 @@ export function isFederalKind(v: unknown): v is FederalKind {
   return v === 'slider' || v === 'geometry' || v === 'pow';
 }
 
-/** geometry puzzle 是否含可交互所需的 targetHour/perm（缺失则调用方回落 slider-low）。 */
+/** geometry puzzle 是否含可交互所需的 targetHour/perm（缺失则调用方回落 slider-low）。
+ * B3 复现结论：后端恒返 {perm[12] 0–11 排列, targetHour 0–11}（controller:186 + FederalGeometry 生成器），
+ * 本判定 0–11 与后端 isValidTargetHour/isValidPerm 对齐；旧包仅 {svg,targetHint} 无此二字段时正确回落，
+ * 非误触发。目标行与倒计时仅 Clock 挂载时显现（见 GeometryClock data-testid），回落 slider 时隐去。
+ */
 export function hasGeometryInteractable(puzzle: FederalGeometryPuzzle | null | undefined): boolean {
   // H4 P0 hotfix：小时域 0–11（与后端 isValidTargetHour/generateTargetHour 对齐；原 1–12 致 targetHour=0
   // 约 8.3% 概率误判 degraded）。perm 为 0–11 排列（与后端 isValidPerm 对齐）。

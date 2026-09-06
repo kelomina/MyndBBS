@@ -369,10 +369,20 @@ test('Forbidden zones: no Cookie carrier, X-RateLimit-Unlock sole carrier, no ba
   ]);
   const all = [fetcherSrc, unlockSrc, tokenSrc, islandSrc, modalSrc, federalSrc, federalApiSrc, powSrc, clockSrc].join('\n');
 
-  await t.test('no Cookie carrier introduced', () => {
-    assert.doesNotMatch(all, /document\.cookie/);
+  await t.test('no Cookie carrier introduced (B1 allowlist: unlock-token dual-write only)', () => {
+    // B1 生产修复：unlock-token.ts 允许同源持久化 Cookie（localStorage + document.cookie 双写，
+    // 供 SSR serverFetch 读后附头；后端仍只认 X-RateLimit-Unlock 头，BFF 零改）；
+    // 其余 8 文件仍禁 document.cookie；全量仍禁服务端独占标记（JS 须可读写，设该标记会断兼容读）。
+    // 注：源码注释已 sanitized，字面 HttpOnly 仅以“服务端独占标记”中文指代，免触发整文件 doesNotMatch 误报。
+    assert.match(tokenSrc, /document\.cookie/);
+    assert.match(tokenSrc, /UNLOCK_COOKIE_NAME/);
+    assert.match(tokenSrc, /localStorage/);
+    assert.match(tokenSrc, /SameSite=Lax/);
+    const others = [fetcherSrc, unlockSrc, islandSrc, modalSrc, federalSrc, federalApiSrc, powSrc, clockSrc].join('\n');
+    assert.doesNotMatch(others, /document\.cookie/);
     assert.doesNotMatch(all, /HttpOnly/);
-    assert.doesNotMatch(all, /SameSite/);
+    // SameSite 仅允许 unlock-token 双写处（SSR Cookie），他处不得新增
+    assert.doesNotMatch(others, /SameSite/);
   });
 
   await t.test('X-RateLimit-Unlock is the sole carrier', () => {
@@ -396,5 +406,107 @@ test('Forbidden zones: no Cookie carrier, X-RateLimit-Unlock sole carrier, no ba
     assert.doesNotMatch(proxySrc, /X-RateLimit-Unlock/);
     assert.doesNotMatch(proxySrc, /federal/);
     assert.doesNotMatch(proxySrc, /unlock/);
+  });
+});
+
+test('B1 SSR同状态：unlockToken Cookie双写 + serverFetch附头 + 无token仍限流（防刷新绕过）', async (t) => {
+  const root = process.cwd();
+  const read = (p) => fs.readFile(path.join(root, p), 'utf-8');
+  const [tokenSrc, serverApiSrc, hookSrc, islandSrc, ssrSrc] = await Promise.all([
+    read('src/lib/rate-limit/unlock-token.ts'),
+    read('src/lib/bff/serverApi.ts'),
+    read('src/lib/rate-limit/use-rate-limit.ts'),
+    read('src/components/PostListRateLimitIsland.tsx'),
+    read('src/lib/rate-limit/ssr-rate-limit.ts'),
+  ]);
+
+  await t.test('unlock-token双写localStorage+Cookie、兼容读、过期自洁', () => {
+    // 双写
+    assert.match(tokenSrc, /UNLOCK_COOKIE_NAME/);
+    assert.match(tokenSrc, /window\.localStorage\.setItem/);
+    assert.match(tokenSrc, /document\.cookie/);
+    assert.match(tokenSrc, /Max-Age/);
+    assert.match(tokenSrc, /SameSite=Lax/);
+    assert.match(tokenSrc, /encodeURIComponent/);
+    // 兼容读：local优先、Cookie回填/补写
+    assert.match(tokenSrc, /window\.localStorage\.getItem/);
+    assert.match(tokenSrc, /readCookieRaw/);
+    assert.match(tokenSrc, /decodeURIComponent/);
+    assert.match(tokenSrc, /writeCookieRecord/);
+    // 过期自洁：双端过期均不附头
+    assert.match(tokenSrc, /isExpiredRecord/);
+    assert.match(tokenSrc, /clearUnlockToken/);
+    assert.match(tokenSrc, /getValidUnlockToken/);
+  });
+
+  await t.test('serverFetch读Cookie附X-RateLimit-Unlock、无token不附头', () => {
+    assert.match(serverApiSrc, /getServerUnlockToken/);
+    assert.match(serverApiSrc, /UNLOCK_COOKIE_NAME/);
+    assert.match(serverApiSrc, /X-RateLimit-Unlock/);
+    assert.match(serverApiSrc, /cookies\(\)/);
+    assert.match(serverApiSrc, /decodeURIComponent/);
+    assert.match(serverApiSrc, /Date\.parse/);
+    // 已显式附头不覆盖
+    assert.match(serverApiSrc, /merged\.has\(UNLOCK_HEADER_NAME\)/);
+    // 有token才附、无token/过期返回null保持限流
+    assert.match(serverApiSrc, /if \(token\) merged\.set/);
+    assert.match(serverApiSrc, /if \(!raw\) return null/);
+    assert.match(serverApiSrc, /Number\.isNaN\(exp\)/);
+  });
+
+  await t.test('无token连刷仍限流：水合无自动重试、SSR无头仍429卡', () => {
+    // 水合后无token不自动试（early return），首帧必卡
+    assert.match(hookSrc, /if \(!getValidUnlockToken\(\)\) return/);
+    assert.match(hookSrc, /useState\(true\)/);
+    // Island仅恢复+有数据才切列表，否则恒卡（无token无data不切）
+    assert.match(islandSrc, /if \(!limited && data\)/);
+    assert.match(islandSrc, /RateLimitCard/);
+    // SSR仅解锁型429才进卡，通用/无token仍按头倒计时限流态（不 bypass 为正常页）
+    assert.match(ssrSrc, /ERR_RATE_LIMITED_NEEDS_CAPTCHA/);
+    assert.match(ssrSrc, /unlockRequired/);
+  });
+});
+
+test('B2 管理时长：window行内错 + dict不覆盖dirty + Save指明字段 + MODERATOR无权限显式', async (t) => {
+  const root = process.cwd();
+  const read = (p) => fs.readFile(path.join(root, p), 'utf-8');
+  const [sectionSrc, zhRaw, enRaw] = await Promise.all([
+    read('src/components/RateLimitPolicySection.tsx'),
+    fs.readFile(path.join(root, 'src', 'i18n', 'dictionaries', 'zh.json'), 'utf-8'),
+    fs.readFile(path.join(root, 'src', 'i18n', 'dictionaries', 'en.json'), 'utf-8'),
+  ]);
+  const zh = JSON.parse(zhRaw);
+  const en = JSON.parse(enRaw);
+
+  await t.test('windowSelect行内错误态与阈值/豁免同形', () => {
+    assert.match(sectionSrc, /showWindowError/);
+    assert.match(sectionSrc, /ratelimit-window-error/);
+    assert.match(sectionSrc, /ratelimit-window-hint/);
+    assert.match(sectionSrc, /aria-invalid=\{showWindowError\}/);
+    assert.match(sectionSrc, /invalidWindow/);
+  });
+
+  await t.test('dict变化不覆盖dirty（仅首次加载回填）', () => {
+    assert.match(sectionSrc, /initialFilledRef/);
+    assert.match(sectionSrc, /if \(!initialFilledRef\.current\)/);
+  });
+
+  await t.test('Save禁用title指明具体非法字段', () => {
+    assert.match(sectionSrc, /saveDisabledTitle/);
+    assert.match(sectionSrc, /invalidThreshold/);
+    assert.match(sectionSrc, /invalidExemption/);
+    assert.match(sectionSrc, /invalidWindow/);
+    assert.ok(zh.admin?.invalidWindow, 'zh admin.invalidWindow missing');
+    assert.ok(en.admin?.invalidWindow, 'en admin.invalidWindow missing');
+  });
+
+  await t.test('MODERATOR错误态明确无权限而非表单消失', () => {
+    assert.match(sectionSrc, /ratelimit-no-permission/);
+    assert.match(sectionSrc, /isNoPermission/);
+    assert.match(sectionSrc, /loadErrorCode/);
+    assert.match(sectionSrc, /rateLimitNoPermission/);
+    assert.match(sectionSrc, /无权限/);
+    assert.ok(zh.admin?.rateLimitNoPermission?.includes('无权限'), 'zh rateLimitNoPermission must contain 无权限');
+    assert.match(en.admin?.rateLimitNoPermission ?? '', /No permission/);
   });
 });

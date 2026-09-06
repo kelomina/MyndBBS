@@ -250,7 +250,7 @@ export const GeometryClock = React.forwardRef<GeometryClockHandle, GeometryClock
   const rotation = (normMicro(micro) * 360) / TOTAL_SLOTS;
 
   return (
-    <div>
+    <div data-testid="geometry-clock">
       <div className="dial-row flex flex-wrap items-center gap-4">
         <svg
           ref={svgRef}
@@ -279,9 +279,11 @@ export const GeometryClock = React.forwardRef<GeometryClockHandle, GeometryClock
         </svg>
         <dl className="readout min-w-[200px] flex-1 text-[13px]">
           <dt className="text-xs text-slate-400">{t('target', 'Target hour')}</dt>
-          <dd className="mono mb-1 text-[15px]">{targetHour}</dd>
+          {/* B3 目标行：Clock 挂载即显现（含有效 targetHour 值），回落/loading 未挂载即隐去 */}
+          <dd data-testid="geometry-target" className="mono mb-1 text-[15px]">{targetHour}</dd>
           <dt className="text-xs text-slate-400">{t('idleCountdown', 'Idle countdown')}</dt>
-          <dd className="mono mb-1 text-[15px]" role="status">
+          {/* B3 倒计时：挂载即 1s 步进显现（role=status），卸载清理后隐去 */}
+          <dd data-testid="geometry-countdown" className="mono mb-1 text-[15px]" role="status">
             {idleLeft}s
           </dd>
         </dl>

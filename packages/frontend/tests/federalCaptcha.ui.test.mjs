@@ -309,3 +309,43 @@ test('Notify badge sum: parallel unread-count + DM, 99+ cap, aria split, WS spli
     assert.match(publicDictSrc, /badgeAria/);
   });
 });
+
+test('B3 几何目标与倒计时显隐：回包对接 + 回落门控 + 目标行/倒计时testid', async (t) => {
+  const root = process.cwd();
+  const read = (p) => fs.readFile(path.join(root, p), 'utf-8');
+  const [apiSrc, modalSrc, clockSrc] = await Promise.all([
+    read('src/lib/federal/federal-api.ts'),
+    read('src/components/federal/FederalCaptchaModal.tsx'),
+    read('src/components/federal/GeometryClock.tsx'),
+  ]);
+
+  await t.test('回包对接：后端恒返{perm,targetHour}，svg可选，判定0-11对齐', () => {
+    // B3复现：后端controller:186恒返puzzle{perm,targetHour}（0-11），无svg；前端svg已改可选，判定与后端isValid对齐
+    assert.match(apiSrc, /svg\?:/);
+    assert.match(apiSrc, /targetHour\?:/);
+    assert.match(apiSrc, /perm\?:/);
+    assert.match(apiSrc, /hasGeometryInteractable/);
+    assert.match(apiSrc, /targetHour < 0/);
+    assert.match(apiSrc, /targetHour > 11/);
+    assert.match(apiSrc, /perm\.length !== 12/);
+  });
+
+  await t.test('回落门控：缺targetHour/perm才degraded+fallbackSlider，非误触发', () => {
+    assert.match(modalSrc, /hasGeometryInteractable\(res\.puzzle\)/);
+    assert.match(modalSrc, /setState\('degraded'\)/);
+    assert.match(modalSrc, /setFallbackSlider\(true\)/);
+    // 几何挂载仅过门控后（fallbackSlider优先，geometry分支挂Clock）
+    assert.match(modalSrc, /fallbackSlider \?/);
+    assert.match(modalSrc, /issue\?\.kind === 'geometry'/);
+  });
+
+  await t.test('目标行与倒计时显隐正确（挂载显、回落隐）', () => {
+    // Clock挂载即显现目标值+倒计时（testid可断言），回落/loading未挂载即隐去（Modal分支保证）
+    assert.match(clockSrc, /data-testid="geometry-clock"/);
+    assert.match(clockSrc, /data-testid="geometry-target"/);
+    assert.match(clockSrc, /data-testid="geometry-countdown"/);
+    assert.match(clockSrc, /role="status"/);
+    assert.match(clockSrc, /idleLeft/);
+    assert.match(clockSrc, /targetHour/);
+  });
+});

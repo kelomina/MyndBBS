@@ -55,6 +55,7 @@ export function RateLimitPolicySection() {
 
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
+  const [loadErrorCode, setLoadErrorCode] = React.useState('');
   const [saved, setSaved] = React.useState<RateLimitProtectionConfig | null>(null);
   const [enabled, setEnabled] = React.useState(true);
   const [publicReadMaxRaw, setPublicReadMaxRaw] = React.useState('30');
@@ -66,21 +67,30 @@ export function RateLimitPolicySection() {
   const [confirmKind, setConfirmKind] = React.useState<ConfirmKind>(null);
   const [confirming, setConfirming] = React.useState(false);
   const [lastSavedAt, setLastSavedAt] = React.useState<string | null>(null);
+  // B2 仅首次加载回填：dict 身份变化（切语言/重渲染新对象）触发的后续 load 不再覆盖用户未存选择；
+  // 手动 Retry（未回填过）仍可回填；保存成功后经 setSaved 更新基线，不经 load 回写 inputs。
+  const initialFilledRef = React.useRef(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     setLoadError('');
+    setLoadErrorCode('');
     try {
       const policy = await getRateLimitPolicy();
       setSaved(policy);
-      setEnabled(policy.enabled);
-      setPublicReadMaxRaw(String(policy.publicReadMax));
-      setWindowSecRaw(String(policy.windowSec));
-      setStrength(policy.captchaStrength);
-      setExemptionRaw(String(policy.exemptionMinutes));
+      // 仅首次加载回填表单；后续 dict 变化触发的重 load 只更新 saved 基线，不覆盖 dirty 输入
+      if (!initialFilledRef.current) {
+        setEnabled(policy.enabled);
+        setPublicReadMaxRaw(String(policy.publicReadMax));
+        setWindowSecRaw(String(policy.windowSec));
+        setStrength(policy.captchaStrength);
+        setExemptionRaw(String(policy.exemptionMinutes));
+        initialFilledRef.current = true;
+      }
       setSaveState('idle');
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
+      setLoadErrorCode(msg);
       setLoadError(apiErrors[msg] || msg || 'Failed to load');
     } finally {
       setLoading(false);
@@ -101,6 +111,9 @@ export function RateLimitPolicySection() {
   const showLowWarn = thresholdValid && thresholdNum !== null && thresholdNum < LOW_THRESHOLD_WARN;
   const showThresholdError = publicReadMaxRaw.trim() !== '' && !thresholdValid;
   const showExemptionError = exemptionRaw.trim() !== '' && !exemptionValid;
+  // B2 window 行内错误态（与阈值/豁免同形：aria-invalid + describedby + role=alert 行内红错）；
+  // select 恒为 OPTIONS 之一时恒合法，仅后端回落非法值/手动篡改 DOM 时显错，不误杀正常选择。
+  const showWindowError = windowSecRaw.trim() !== '' && !windowValid;
 
   const current: RateLimitProtectionConfig = React.useMemo(
     () => ({
@@ -125,6 +138,26 @@ export function RateLimitPolicySection() {
       saved.exemptionMinutes !== current.exemptionMinutes
     );
   }, [saved, current, formValid]);
+
+  // B2 Save 禁用 title 指明具体非法字段（阈值/豁免/窗口逐项），不再统一 Fix invalid fields；
+  // 优先级：阈值 → 豁免 → 窗口（与表单行序一致），无改动时沿用 No changes。
+  const saveDisabledTitle = !formValid
+    ? !thresholdValid
+      ? admin.invalidThreshold || 'Fix invalid fields'
+      : !exemptionValid
+        ? admin.invalidExemption || 'Fix invalid fields'
+        : !windowValid
+          ? admin.invalidWindow || 'Fix invalid fields'
+          : admin.invalidThreshold || 'Fix invalid fields'
+    : !dirty
+      ? dict.common?.noData || 'No changes'
+      : undefined;
+
+  // B2 MODERATOR 显式无权限：后端 GET 403（ERR_FORBIDDEN_* / 403）时不止表单消失，
+  // 以 data-testid=ratelimit-no-permission + role=alert 明确“无权限”，与通用加载失败区分。
+  const isNoPermission =
+    /FORBIDDEN|ERR_FORBIDDEN|403/.test(loadErrorCode) ||
+    /权限不足|无权限|Forbidden|permissions/i.test(loadError);
 
   const needsDisableConfirm = saved?.enabled === true && enabled === false;
   const needsLowConfirm = thresholdValid && thresholdNum !== null && thresholdNum < LOW_THRESHOLD_WARN;
@@ -206,6 +239,20 @@ export function RateLimitPolicySection() {
   }
 
   if (loadError && !saved) {
+    // B2 MODERATOR 无权限态：明确“无权限”，不止表单消失（通用失败仍保留 Retry）。
+    if (isNoPermission) {
+      return (
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <h2 className="font-semibold">{admin.rateLimitTitle || 'Read rate limit & unlock'}</h2>
+          <div role="alert" data-testid="ratelimit-no-permission" className="text-sm text-red-500">
+            {admin.rateLimitNoPermission || '无权限：仅管理员可配置读限流'}
+          </div>
+          <p className="text-xs text-muted">
+            {admin.rateLimitNoPermissionHint || loadError}
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="rounded-xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-semibold">{admin.rateLimitTitle || 'Read rate limit & unlock'}</h2>
@@ -332,15 +379,22 @@ export function RateLimitPolicySection() {
             value={windowSecRaw}
             onChange={(e) => setWindowSecRaw(e.target.value)}
             disabled={saveState === 'saving'}
+            aria-invalid={showWindowError}
+            aria-describedby="ratelimit-window-hint ratelimit-window-error"
             className="w-full rounded-md border border-border bg-background px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           >
             {RATE_LIMIT_WINDOW_OPTIONS.map((v) => (
               <option key={v} value={String(v)}>{v}s</option>
             ))}
           </select>
-          <p className="text-xs text-muted">
+          <p id="ratelimit-window-hint" className="text-xs text-muted">
             {(admin.publicReadWindowHint || 'About {perMin}/min (display only)').replace('{perMin}', perMin)}
           </p>
+          {showWindowError && (
+            <p id="ratelimit-window-error" role="alert" className="text-sm text-red-500">
+              {admin.invalidWindow || 'Window must be one of 10 / 30 / 60 / 300 / 600'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -437,7 +491,7 @@ export function RateLimitPolicySection() {
           type="button"
           loading={saveState === 'saving'}
           disabled={!formValid || !dirty || saveState === 'saving'}
-          title={!formValid ? (admin.invalidThreshold || 'Fix invalid fields') : !dirty ? (dict.common?.noData || 'No changes') : undefined}
+          title={saveDisabledTitle}
           onClick={handleSaveClick}
         >
           {dict.common?.save || 'Save'}

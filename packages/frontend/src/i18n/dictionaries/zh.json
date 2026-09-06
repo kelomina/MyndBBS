@@ -708,6 +708,8 @@
     "invalidThreshold": "阈值须为 10–1000 的整数",
     "invalidExemption": "豁免时长须为 1–120 的整数",
     "invalidWindow": "窗口须为 10 / 30 / 60 / 300 / 600 之一",
+    "rateLimitNoPermission": "无权限：仅管理员可配置读限流",
+    "rateLimitNoPermissionHint": "当前账号无管理权限，配置表单已隐藏。如需调整请联系管理员。",
     "federal": {
       "title": "联邦验证题型与难度",
       "desc": "开关滑块/几何/PoW、默认题型、PoW 难度与几何复杂度，60 秒内生效。",
