@@ -12,7 +12,7 @@ interface RateLimitCardProps {
   onRetryClick: () => void;
   /** 来自 RSC 的字典（公开页经 props 注入）；缺省时回退 useTranslation */
   dict?: Dictionary;
-  /** 倒计时归零后是否正在重试（禁用双按钮防抖） */
+  /** 倒计时归零后是否正在重试（COPY-CHANGE-1 v1.1 D31 后副按钮已删，仅保留兼容字段，不再用于禁用） */
   retrying?: boolean;
 }
 
@@ -24,7 +24,7 @@ function formatRetryText(template: string, sec: number): string {
  * 限流提示卡（F1/F2）。
  * 与“暂无帖子”空态零复用：独立 amber 视觉 + ShieldAlert + data-testid="ratelimit-card"（空态为 empty-state）。
  */
-export function RateLimitCard({ retryAfterSec, onVerifyClick, onRetryClick, dict: dictProp, retrying = false }: RateLimitCardProps) {
+export function RateLimitCard({ retryAfterSec, onVerifyClick, dict: dictProp }: RateLimitCardProps) {
   const hookDict = useTranslation();
   const dict = (dictProp ?? hookDict) as Dictionary;
   const rl = dict.rateLimitUnlock as unknown as Record<string, string>;
@@ -39,11 +39,8 @@ export function RateLimitCard({ retryAfterSec, onVerifyClick, onRetryClick, dict
     return () => window.clearTimeout(id);
   }, [remaining]);
 
-  const canRetry = remaining <= 0 && !retrying;
-  const countdownText =
-    remaining > 0
-      ? formatRetryText(rl.retryAfter || 'Retry available in {sec}s', remaining)
-      : (rl.retryNow || 'Retry now');
+  // COPY-CHANGE-1 v1.1 D31：删副按钮整按钮 + 副文案分支；倒计时归零后仅保留主 CTA + 倒计时
+  const countdownText = formatRetryText(rl.retryAfter || 'Retry available in {sec}s', remaining);
 
   return (
     <div
@@ -60,11 +57,8 @@ export function RateLimitCard({ retryAfterSec, onVerifyClick, onRetryClick, dict
             {countdownText}
           </div>
           <div className="flex flex-wrap gap-3 pt-1">
-            <Button type="button" onClick={onVerifyClick} disabled={retrying}>
+            <Button type="button" onClick={onVerifyClick}>
               {rl.verifyToUnlock || 'Verify to unlock'}
-            </Button>
-            <Button type="button" variant="ghost" onClick={onRetryClick} disabled={!canRetry}>
-              {rl.retryNow || 'Retry now'}
             </Button>
           </div>
         </div>

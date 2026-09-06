@@ -94,7 +94,7 @@ test('GeometryClock: SVG shuffled clock + mouse drag + 1560 slots + behavior sam
   });
 });
 
-test('PowCollector: Worker pure JS SHA-256 + progress + cancel + 10s timeout + downgrade + fallback', async (t) => {
+test('PowCollector: Worker pure JS SHA-256 + silent progress + 10s auto-downgrade/fallback (COPY-CHANGE-1 v1.1)', async (t) => {
   const root = process.cwd();
   const read = (p) => fs.readFile(path.join(root, p), 'utf-8');
   const [powSrc, shaSrc, modalSrc] = await Promise.all([
@@ -103,30 +103,49 @@ test('PowCollector: Worker pure JS SHA-256 + progress + cancel + 10s timeout + d
     read('src/components/federal/FederalCaptchaModal.tsx'),
   ]);
 
-  await t.test('Worker + pure JS SHA-256 zero-dep + progress + cancel', () => {
+  await t.test('Worker + pure JS SHA-256 zero-dep + silent progress, no manual cancel', () => {
     assert.match(powSrc, /new Worker/);
     assert.match(powSrc, /POW_WORKER_SOURCE/);
     assert.match(powSrc, /postMessage/);
     assert.match(powSrc, /terminate\(\)/);
-    assert.match(powSrc, /cancel/);
+    // COPY-CHANGE-1 v1.1 D15：删取消按钮与用户中断路径（仅保留 unmount/切换/超时内部 cleanup terminate）
+    assert.doesNotMatch(powSrc, /handleCancel/);
+    assert.doesNotMatch(powSrc, /onCancel/);
+    // D1/E2 静默进度：进度条 + 纯数字 nonce 行 + 空态 role=status（无 pow.* 文案依赖）
+    assert.match(powSrc, /nonce-live/);
+    assert.match(powSrc, /data-testid="pow-mining"/);
+    assert.match(powSrc, /role="status"/);
     assert.match(shaSrc, /sha256Hex/);
     assert.match(shaSrc, /meetsLeadingZeroBits/);
     assert.match(shaSrc, /powHash/);
     assert.doesNotMatch(shaSrc, /from 'crypto'|require\('crypto'\)|node:crypto/);
   });
 
-  await t.test('10s timeout fallback slider-low + downgrade retry', () => {
+  await t.test('10s dual-track timeout + auto-downgrade once + auto-fallback slider-low', () => {
     assert.match(powSrc, /timeoutSec = 10/);
     assert.match(powSrc, /setTimeout\(handleTimeout, timeoutSec \* 1000\)/);
-    assert.match(powSrc, /downgrade/);
-    assert.match(powSrc, /fallbackToSlider|onFallback/);
+    // 双轨：timerRef 超时 + 主线程分片 elapsed 检查
+    assert.match(powSrc, /\(nowMs - startRef\.current\) \/ 1000 > timeoutSec/);
+    assert.match(powSrc, /suggestedBits/);
     assert.match(powSrc, /bits - 4/);
+    // D16/D23：删手动降档/切换按钮，改自动链（Modal 侧计数恰 1 + 直接回落）
+    assert.doesNotMatch(powSrc, /t\('downgrade'/);
+    assert.doesNotMatch(powSrc, /t\('fallbackGo'/);
+    assert.match(modalSrc, /powDowngradeCountRef/);
     assert.match(modalSrc, /handleFallbackSlider/);
+    assert.match(modalSrc, /handlePowTimeout/);
   });
 
-  await t.test('no auto-start (user gesture required)', () => {
-    assert.match(powSrc, /Start computing|start/);
-    assert.doesNotMatch(powSrc, /useEffect\(\(\) => \{\s*startMining/);
+  await t.test('auto-start on issue success with triple guard (no manual start button)', () => {
+    // COPY-CHANGE-1 v1.1 §6.2：删开始按钮，issue 成功回调自动开算（经挂载 effect，不经点击）
+    assert.doesNotMatch(powSrc, /t\('start'/);
+    assert.doesNotMatch(powSrc, /Start computing/);
+    // 三重守卫：captchaId+challenge 快照 + miningRef/solvedRef + issueSeqRef（Modal 侧 seq 守卫）
+    assert.match(powSrc, /captchaId/);
+    assert.match(powSrc, /miningRef/);
+    assert.match(powSrc, /solvedRef/);
+    assert.match(modalSrc, /issueSeqRef/);
+    assert.match(modalSrc, /powDowngradeCountRef/);
   });
 });
 
@@ -199,22 +218,33 @@ test('Federal admin fifth section: kinds保1 + default select + bits/level/timeo
     assert.match(sectionSrc, /60/);
   });
 
-  await t.test('admin.federal dict + captcha.geometry/pow/federal + notifications badge + FEDERAL error en/zh', () => {
+  await t.test('admin.federal dict + captcha.geometry/federal retained + pow deleted + notifications badge + FEDERAL error en/zh (COPY-CHANGE-1 v1.1)', () => {
     for (const k of ['title', 'powBits', 'geometryLevel', 'timeoutSec', 'saved']) {
       assert.ok(zh.admin?.federal?.[k], `zh admin.federal.${k} missing`);
       assert.ok(en.admin?.federal?.[k], `en admin.federal.${k} missing`);
     }
-    for (const k of ['title', 'verify', 'timeout']) {
+    // geometry 保留 11 键存在
+    for (const k of ['target', 'verify', 'timeout', 'targetValue', 'idleCountdown']) {
       assert.ok(zh.captcha?.geometry?.[k], `zh captcha.geometry.${k} missing`);
       assert.ok(en.captcha?.geometry?.[k], `en captcha.geometry.${k} missing`);
     }
-    for (const k of ['title', 'start', 'timeout']) {
-      assert.ok(zh.captcha?.pow?.[k], `zh captcha.pow.${k} missing`);
-      assert.ok(en.captcha?.pow?.[k], `en captcha.pow.${k} missing`);
+    // geometry 删 8 键不存在
+    for (const k of ['title', 'desc', 'current', 'tolerance', 'idle', 'degraded', 'again', 'faceValue']) {
+      assert.equal(zh.captcha?.geometry?.[k], undefined, `zh captcha.geometry.${k} should be deleted`);
+      assert.equal(en.captcha?.geometry?.[k], undefined, `en captcha.geometry.${k} should be deleted`);
     }
-    for (const k of ['modalTitle', 'switchKind', 'fallbackToSlider']) {
+    // pow 17 键全删：整段不存在
+    assert.equal(zh.captcha?.pow, undefined, 'zh captcha.pow should be deleted');
+    assert.equal(en.captcha?.pow, undefined, 'en captcha.pow should be deleted');
+    // federal 保留 9 键存在
+    for (const k of ['modalTitle', 'switchKind', 'kindSlider', 'strengthHint', 'loading']) {
       assert.ok(zh.captcha?.federal?.[k], `zh captcha.federal.${k} missing`);
       assert.ok(en.captcha?.federal?.[k], `en captcha.federal.${k} missing`);
+    }
+    // federal 删 4 键不存在
+    for (const k of ['modalDesc', 'fallbackToSlider', 'degradedNote', 'timeoutNote']) {
+      assert.equal(zh.captcha?.federal?.[k], undefined, `zh captcha.federal.${k} should be deleted`);
+      assert.equal(en.captcha?.federal?.[k], undefined, `en captcha.federal.${k} should be deleted`);
     }
     for (const k of ['badgeAria', 'badgeTooltip', 'unreadTitle']) {
       assert.ok(zh.notifications?.[k], `zh notifications.${k} missing`);

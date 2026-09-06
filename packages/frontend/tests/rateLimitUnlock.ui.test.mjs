@@ -109,9 +109,9 @@ test('F1 RateLimitUnlockModal: five states + unlock exchange + a11y + mobile + d
     }
   });
 
-  await t.test('dictionaries contain rateLimitUnlock.* 12 keys en/zh + public pick', () => {
+  await t.test('dictionaries contain rateLimitUnlock.* 11 keys en/zh + public pick (COPY-CHANGE-1 v1.1: retryNow deleted, modalDesc rewritten)', () => {
     const keys = [
-      'cardTitle', 'cardDesc', 'retryAfter', 'verifyToUnlock', 'retryNow',
+      'cardTitle', 'cardDesc', 'retryAfter', 'verifyToUnlock',
       'modalTitle', 'modalDesc', 'refreshChallenge', 'unlockSuccess',
       'unlockFailedRetry', 'exemptedHint', 'waitWithoutUnlock',
     ];
@@ -119,8 +119,15 @@ test('F1 RateLimitUnlockModal: five states + unlock exchange + a11y + mobile + d
       assert.ok(zh.rateLimitUnlock?.[k], `zh rateLimitUnlock.${k} missing`);
       assert.ok(en.rateLimitUnlock?.[k], `en rateLimitUnlock.${k} missing`);
     }
+    // D31 删键不存在
+    assert.equal(zh.rateLimitUnlock?.retryNow, undefined, 'zh retryNow should be deleted');
+    assert.equal(en.rateLimitUnlock?.retryNow, undefined, 'en retryNow should be deleted');
+    // E3 改写键新值（zh/en 同义同步）
+    assert.equal(zh.rateLimitUnlock?.modalDesc, '按提示完成验证');
+    assert.equal(en.rateLimitUnlock?.modalDesc, 'Follow the prompt to complete verification.');
     assert.match(publicDictSrc, /rateLimitUnlock/);
     assert.match(publicDictSrc, /refresh/);
+    assert.doesNotMatch(publicDictSrc, /retryNow/);
   });
 });
 

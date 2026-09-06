@@ -124,6 +124,9 @@ export const GeometryClock = React.forwardRef<GeometryClockHandle, GeometryClock
     if (d > TOTAL_SLOTS / 2) d = TOTAL_SLOTS - d;
     return d;
   }, [micro, targetSlot]);
+  // COPY-CHANGE-1 v1.1 D04/D09：readingFace/dev 计算保留（判定用）但不再渲染；readout 仅保留 target + idleCountdown，aria-label 仅 target
+  void readingFace;
+  void dev;
 
   const setMicroNorm = React.useCallback(
     (m: number) => {
@@ -253,7 +256,7 @@ export const GeometryClock = React.forwardRef<GeometryClockHandle, GeometryClock
           ref={svgRef}
           viewBox="0 0 200 200"
           role="img"
-          aria-label={`${t('target', 'Target hour')}: ${targetHour}, ${t('current', 'Pointing at')}: ${readingFace()}`}
+          aria-label={`${t('target', 'Target hour')}: ${targetHour}`}
           aria-busy={disabled}
           className="w-[210px] max-w-[60vw] touch-none select-none"
           style={{ touchAction: 'none' }}
@@ -277,13 +280,6 @@ export const GeometryClock = React.forwardRef<GeometryClockHandle, GeometryClock
         <dl className="readout min-w-[200px] flex-1 text-[13px]">
           <dt className="text-xs text-slate-400">{t('target', 'Target hour')}</dt>
           <dd className="mono mb-1 text-[15px]">{targetHour}</dd>
-          <dt className="text-xs text-slate-400">{t('current', 'Pointing at')}</dt>
-          <dd className="mono mb-1 text-[15px]">
-            {(t('faceValue', 'Face number {face} (micro {micro}, off-center {dev})') as string)
-              .replace('{face}', String(readingFace()))
-              .replace('{micro}', String(normMicro(micro)))
-              .replace('{dev}', String(dev))}
-          </dd>
           <dt className="text-xs text-slate-400">{t('idleCountdown', 'Idle countdown')}</dt>
           <dd className="mono mb-1 text-[15px]" role="status">
             {idleLeft}s

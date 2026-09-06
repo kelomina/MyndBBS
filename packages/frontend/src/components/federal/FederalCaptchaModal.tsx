@@ -68,7 +68,6 @@ export function FederalCaptchaModal({
   const dict = (dictProp ?? hookDict) as Dictionary;
   const fed = ((dict.captcha as unknown as Record<string, unknown>).federal ?? {}) as Record<string, string>;
   const geoDict = ((dict.captcha as unknown as Record<string, unknown>).geometry ?? {}) as Record<string, string>;
-  const powDict = ((dict.captcha as unknown as Record<string, unknown>).pow ?? {}) as Record<string, string>;
   const rl = (dict.rateLimitUnlock ?? {}) as unknown as Record<string, string>;
 
   // 解锁模式标记（v1.0.2 去 H2 门控：解锁恢复三题型，仅决定 verify 后是否兑换 unlockToken，不再门控 issue kind/换题/题体）。
@@ -80,10 +79,11 @@ export function FederalCaptchaModal({
   const [errorText, setErrorText] = React.useState('');
   const [cooldownSec, setCooldownSec] = React.useState(0);
   const [exemptMinutes, setExemptMinutes] = React.useState<number | null>(null);
-  const [degradedNote, setDegradedNote] = React.useState('');
   const [disabledKinds, setDisabledKinds] = React.useState<Set<FederalKind>>(new Set());
   const [fallbackSlider, setFallbackSlider] = React.useState(false);
   const issueSeqRef = React.useRef(0);
+  // COPY-CHANGE-1 v1.1 §6.3：PoW 自动降档计数（单会话最多 1 次新 challenge 降档，再超时直接回落滑块）
+  const powDowngradeCountRef = React.useRef(0);
   const refreshTimerRef = React.useRef<number | null>(null);
   const cooldownTimerRef = React.useRef<number | null>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -112,23 +112,22 @@ export function FederalCaptchaModal({
   const doIssue = React.useCallback(
     async (kindHint?: FederalKind) => {
       // v1.0.2 去 H2 门控：解锁/验证均按 hint/服务端 effectiveKind 签发，不再强制 slider。
+      // COPY-CHANGE-1 v1.1 §6.2：PoW 自动链开算权唯一在 issue 成功回调（PowCollector 挂载即自动开算，见 PowCollector 自动起算 effect + captchaId/miningRef/solvedRef/issueSeqRef 三重守卫）。
       const effectiveHint: FederalKind | undefined = kindHint;
       const seq = ++issueSeqRef.current;
       if (effectiveHint) issueKindRef.current = effectiveHint;
       setState('idle');
       setErrorText('');
-      setDegradedNote('');
       setFallbackSlider(false);
       setPowSolved(null);
       try {
         const res = await issueFederalCaptcha(effectiveHint);
         if (seq !== issueSeqRef.current) return;
         issueKindRef.current = res.kind;
-        // puzzle 缺目标字段则视为 infra 失败 → 回落 slider-low（不直接 400 锁死）
+        // puzzle 缺目标字段则视为 infra 失败 → 直接回落 slider-low（无 note，D29 已删，回落信号 degraded+fallbackSlider 直接渲染滑块）
         if (res.kind === 'geometry' && !hasGeometryInteractable(res.puzzle)) {
           setIssue(res);
           setState('degraded');
-          setDegradedNote(fed.degradedNote || 'New type unavailable — fell back to slider.');
           setFallbackSlider(true);
           return;
         }
@@ -162,14 +161,13 @@ export function FederalCaptchaModal({
           }, 1500);
           return;
         }
-        // 颁发 infra 失败/超时 → 回落 slider-low（amber 降级条 + 日志 hint）
+        // 颁发 infra 失败/超时 → 直接回落 slider-low（无 note，直接滑块，与 PoW 回落一致）
         console.warn('[federal] issue failed, fallback to slider-low', err);
         setState('degraded');
-        setDegradedNote(fed.degradedNote || 'New type unavailable — fell back to slider.');
         setFallbackSlider(true);
       }
     },
-    [fed.degradedNote, mapFederalError],
+    [mapFederalError],
   );
 
   const scheduleRefresh = React.useCallback(() => {
@@ -189,6 +187,7 @@ export function FederalCaptchaModal({
       setErrorText('');
       setDisabledKinds(new Set());
       setFallbackSlider(false);
+      powDowngradeCountRef.current = 0;
       issueKindRef.current = undefined;
       void doIssue();
     }, 0);
@@ -234,10 +233,24 @@ export function FederalCaptchaModal({
 
   const handleFallbackSlider = React.useCallback(() => {
     // 回落走现网 legacy GET /captcha 滑块路径（不占用联邦 kind:slider hint 配额，slider 被关时亦可用）
+    // COPY-CHANGE-1 v1.1 D29：回落信号改为 state=degraded + fallbackSlider 直接渲染滑块，无 note
     setFallbackSlider(true);
     setState('degraded');
-    setDegradedNote(fed.degradedNote || 'New type unavailable — fell back to slider.');
-  }, [fed.degradedNote]);
+  }, []);
+
+  // COPY-CHANGE-1 v1.1 §6.3：PoW 超时自动链（首次 timeout 自动降档一次 bits-4 新 challenge，再超时自动回落滑块；无手动文案，仅 D1/E2 反馈）
+  const handlePowTimeout = React.useCallback(
+    (info: { tried: number; suggestedBits: number }, bits: number) => {
+      if (powDowngradeCountRef.current < 1 && bits - 4 >= 8) {
+        powDowngradeCountRef.current += 1;
+        void doIssue('pow');
+        return;
+      }
+      handleFallbackSlider();
+      void info;
+    },
+    [doIssue, handleFallbackSlider],
+  );
 
   const succeedVerify = React.useCallback(
     (captchaId: string, kind: FederalKind) => {
@@ -471,8 +484,9 @@ export function FederalCaptchaModal({
       describedBy="federal-captcha-desc"
     >
       <div ref={contentRef} className="space-y-4">
+        {/* COPY-CHANGE-1 v1.1 D27：删联邦描述分支，唯一来源为限流描述（E3 新值） */}
         <p id="federal-captcha-desc" className="text-sm text-muted">
-          {fed.modalDesc || rl.modalDesc || 'Complete the challenge to continue; you can close anytime.'}
+          {rl.modalDesc || 'Follow the prompt to complete verification.'}
         </p>
 
         {issue && !fallbackSlider && (
@@ -514,12 +528,6 @@ export function FederalCaptchaModal({
         {state === 'success' && mode === 'verify' ? (
           <div role="status" className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-200">
             {rl.unlockSuccess || fed.verifying || 'Verified'}
-          </div>
-        ) : null}
-
-        {state === 'degraded' && degradedNote ? (
-          <div role="status" className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
-            {degradedNote}
           </div>
         ) : null}
 
@@ -572,17 +580,16 @@ export function FederalCaptchaModal({
           ) : issue?.kind === 'pow' ? (
             <div className="rounded-2xl border border-white/10 bg-[#0f172a] p-4 shadow-xl">
               <p className="mb-2 text-xs font-medium tracking-wider text-slate-400">PROOF-OF-WORK · INLINE HASH</p>
+              {/* COPY-CHANGE-1 v1.1 §6：PoW 自动链（挂载即自动开算，三重守卫 captchaId/miningRef/solvedRef/issueSeqRef；超时自动降档一次，再超时自动回落滑块；仅 D1/E2 反馈） */}
               <PowCollector
+                key={issue.captchaId}
+                captchaId={issue.captchaId}
                 challenge={issue.challenge}
                 bits={issue.bits}
                 timeoutSec={10}
                 disabled={verifying || cooling}
-                dict={powDict}
                 onSolved={(info) => void handlePowSolved(info)}
-                onTimeout={() => {
-                  setState('timeout');
-                }}
-                onFallback={handleFallbackSlider}
+                onTimeout={(info) => handlePowTimeout(info, issue.bits)}
               />
               {powSolved && verifying ? (
                 <div role="status" className="mt-2 text-sm text-slate-200">
@@ -598,7 +605,7 @@ export function FederalCaptchaModal({
                   disabled={verifying || cooling}
                   className="text-slate-200"
                 >
-                  {powDict.idle || 'New challenge'}
+                  {geoDict.newChallenge || rl.refreshChallenge || 'New challenge'}
                 </Button>
               </div>
             </div>
