@@ -92,6 +92,18 @@ test('GeometryClock: SVG shuffled clock + mouse drag + 1560 slots + behavior sam
     assert.match(clockSrc, /strength === 'strict' \? 15 : 60/);
     assert.match(clockSrc, /idleTimeoutSec/);
   });
+
+  await t.test('用户禁令：禁读数/行为显示（仅 target+idleCountdown，采集上传不动）', () => {
+    // 读数渲染一律无：无 current/faceValue 读取与英文回落
+    assert.doesNotMatch(clockSrc, /t\('current'/);
+    assert.doesNotMatch(clockSrc, /faceValue/);
+    assert.doesNotMatch(clockSrc, /Pointing at/);
+    assert.doesNotMatch(clockSrc, /Face number/);
+    // 采集与上传逻辑保留：getSolution/microSlot/behaviorSamples 仍在
+    assert.match(clockSrc, /getSolution/);
+    assert.match(clockSrc, /microSlot/);
+    assert.match(clockSrc, /behaviorSamples/);
+  });
 });
 
 test('PowCollector: Worker pure JS SHA-256 + silent progress + 10s auto-downgrade/fallback (COPY-CHANGE-1 v1.1)', async (t) => {
@@ -115,6 +127,14 @@ test('PowCollector: Worker pure JS SHA-256 + silent progress + 10s auto-downgrad
     assert.match(powSrc, /nonce-live/);
     assert.match(powSrc, /data-testid="pow-mining"/);
     assert.match(powSrc, /role="status"/);
+    // 用户禁令：禁读数/行为显示——nonce 行仅纯数字（去速率后缀），空态置空；采集与上传逻辑不动
+    assert.match(powSrc, /nonce \{liveNonce\}/);
+    assert.doesNotMatch(powSrc, /H\/s/);
+    assert.doesNotMatch(powSrc, /nonce \{liveNonce\} ·/);
+    assert.doesNotMatch(powSrc, /\$\{tried\}/);
+    assert.match(powSrc, /triedRef/);
+    assert.match(powSrc, /onSolved/);
+    assert.match(powSrc, /onTimeout/);
     assert.match(shaSrc, /sha256Hex/);
     assert.match(shaSrc, /meetsLeadingZeroBits/);
     assert.match(shaSrc, /powHash/);

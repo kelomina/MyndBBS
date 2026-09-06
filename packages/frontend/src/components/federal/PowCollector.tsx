@@ -4,8 +4,10 @@ import React from 'react';
 import { POW_WORKER_SOURCE, powHash, meetsLeadingZeroBits } from '../../lib/federal/sha256';
 
 /**
- * PoW 收集器（COPY-CHANGE-1 v1.1 静默化 + 自动链）。
+ * PoW 收集器（COPY-CHANGE-1 v1.1 静默化 + 自动链 + 用户禁令：禁读数/行为显示）。
  * - PoW 卡面静默化：删挑战行/开始/取消/降档按钮与全部 pow.* 文案（D10–D26），仅保留进度条 + 纯数字 nonce 行 + 空态 role=status（D1/E2 由联邦 Modal 承接）。
+ * - 用户禁令（禁止显示当前读数、行为分析）：nonce 行仅保留纯数字 nonce（去速率显示，COPY-CHANGE-1 D17 的速率部分按禁令移除）；
+ *   `pow-mining` 空态容器置空（去 tried/rate 计数显示）；tried/rate 展示态一律不保留，仅保留 triedRef（上传判定用）与 elapsed（进度条用）。
  * - 自动链（§6）：Modal doIssue 成功回调（kind=pow）后挂载即自动开算，不经用户点击；
  *   challenge/bits 切换 effect 仅做重置（开算权唯一在 issue 成功回调，防 StrictMode 双 effect 双开）。
  * - 三重守卫防双开：captchaId+challenge 快照 + miningRef + solvedRef + autoStartSeq（Modal issueSeqRef 快照），同一 captchaId 重复触发直接 return。
@@ -36,8 +38,7 @@ export const PowCollector = React.forwardRef<PowCollectorHandle, PowCollectorPro
   ref,
 ) {
   const [state, setState] = React.useState<PowState>('idle');
-  const [tried, setTried] = React.useState(0);
-  const [rate, setRate] = React.useState(0);
+  // 用户禁令：展示态速率与计数已删（行为指标禁显示）；triedRef 保留（上传判定用），elapsed 保留（进度条用），liveNonce 保留（纯数字 nonce 行）。
   const [elapsed, setElapsed] = React.useState(0);
   const [liveNonce, setLiveNonce] = React.useState('—');
   const workerRef = React.useRef<Worker | null>(null);
@@ -85,8 +86,6 @@ export const PowCollector = React.forwardRef<PowCollectorHandle, PowCollectorPro
       cleanup();
       solvedRef.current = false;
       setPowState('idle');
-      setTried(0);
-      setRate(0);
       setElapsed(0);
       setLiveNonce('—');
     }, 0);
@@ -147,19 +146,16 @@ export const PowCollector = React.forwardRef<PowCollectorHandle, PowCollectorPro
     solvedRef.current = false;
     miningRef.current = true;
     triedRef.current = 0;
-    setTried(0);
-    setRate(0);
     setElapsed(0);
     setPowState('mining');
     startRef.current = window.performance && window.performance.now ? window.performance.now() : Date.now();
     const startNonce = Math.floor(Math.random() * 1000000);
 
-    // 进度 tick（1s 步进，用 triedRef 估算 H/s）
+    // 进度 tick（1s 步进，仅更新 elapsed 供进度条；用户禁令：不再计算/显示速率）
     tickRef.current = window.setInterval(() => {
       const nowMs = window.performance && window.performance.now ? window.performance.now() : Date.now();
       const sec = (nowMs - startRef.current) / 1000;
       setElapsed(sec);
-      if (sec > 0) setRate(Math.round(triedRef.current / Math.max(sec, 0.01)));
     }, 500);
 
     // 超时：terminate + 经 onTimeout 自动降档/回落（不直接 400 锁死；与分片内检查双轨，solvedRef 优先）
@@ -167,12 +163,10 @@ export const PowCollector = React.forwardRef<PowCollectorHandle, PowCollectorPro
 
     const onProgress = (nonceStr: string, triedCount: number): void => {
       triedRef.current = triedCount;
-      setTried(triedCount);
       setLiveNonce(nonceStr);
       const nowMs = window.performance && window.performance.now ? window.performance.now() : Date.now();
       const sec = (nowMs - startRef.current) / 1000;
       setElapsed(sec);
-      if (sec > 0.2) setRate(Math.round(triedCount / Math.max(sec, 0.01)));
     };
 
     const onFound = (nonceStr: string, hash: string, triedCount: number): void => {
@@ -251,18 +245,16 @@ export const PowCollector = React.forwardRef<PowCollectorHandle, PowCollectorPro
   const mining = state === 'mining';
   const pct = Math.min(100, (elapsed / timeoutSec) * 100);
 
-  // D1/E2 静默进度：仅进度条 + 纯数字 nonce 行 + 空态 role=status（无任何 pow.* 字典依赖；success/error/timeout/degraded 一律走 Modal E2）
+  // D1/E2 静默进度 + 用户禁令：仅进度条 + 纯数字 nonce 行 + 空态 role=status（无任何 pow.* 字典依赖；无计数速率类行为显示；采集与上传逻辑不动；success/error/timeout/degraded 一律走 Modal E2）
   return (
     <div>
       <div className="progress mt-2 h-3 overflow-hidden rounded-full bg-slate-500/30" aria-hidden="true">
         <i className={mining ? 'stripes block h-full rounded-full bg-sky-500' : 'block h-full rounded-full bg-sky-500'} style={{ width: `${pct}%` }} />
       </div>
       <p className="mono nonce-live mt-1 text-[13px] text-slate-200" aria-hidden="true">
-        nonce {liveNonce} · {rate} H/s
+        nonce {liveNonce}
       </p>
-      <div role="status" aria-live="polite" data-testid="pow-mining" className="sr-only">
-        {mining ? `${tried} ${rate}` : ''}
-      </div>
+      <div role="status" aria-live="polite" data-testid="pow-mining" className="sr-only" />
     </div>
   );
 });
