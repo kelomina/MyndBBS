@@ -356,6 +356,12 @@ async function resetFederalIssueBucket(ip: string): Promise<void> {
   } catch {
     // ignore（无 DB 时仅清桶）
   }
+  try {
+    const { federalRedeemStore } = await import('./federalRedeem')
+    await federalRedeemStore.resetForTest()
+  } catch {
+    // ignore（单测隔离：清一次性兑换凭证，失败不阻断）
+  }
 }
 
 const federalIssueLimiterFn = async (

@@ -9,7 +9,6 @@
  */
 import { Request, Response } from 'express'
 import {
-  authApplicationService,
   federalCaptchaService,
   federalProtectionService,
   rateLimitProtectionService,
@@ -238,6 +237,9 @@ export const verifyFederalCaptcha = async (req: Request, res: Response): Promise
 
   // 联邦总开关关闭时 verify 全回落语义：已颁发联邦题按快照照常校验（防切档 farming）；
   // 此处不直接回落 slider-low（verify 无签发，回落无意义），仍按 kind 判别校验。
+  // 增量 v1.0.2：verify 成功原子签发一次性兑换凭证（redeemToken，绑定 captchaId+kind+ip+jti，短 TTL 5 分钟），
+  // 供 POST /unlock 联邦兑换（凭 redeemToken+kind 换 unlockToken，一证一兑）；强度正交、豁免快照不变。
+  const clientIp = getClientIp(req)
   try {
     if (kind === 'geometry') {
       // 兼容两种载荷：{microSlot, behaviorSamples} 平铺，或 {solution:{microSlot, behaviorSamples}}
@@ -256,19 +258,30 @@ export const verifyFederalCaptcha = async (req: Request, res: Response): Promise
         respondFederalFailure(req, res, 'ERR_DEPRECATED_GEOMETRY_PAYLOAD')
         return
       }
-      const { strength } = await federalCaptchaService.verifyGeometry(
+      const { redeemToken, redeemExpiresAt, redeemExpiresInSec } =
+        await federalCaptchaService.verifyGeometry(captchaId, microSlot, behaviorSamples, clientIp)
+      res.json({
+        success: true,
         captchaId,
-        microSlot,
-        behaviorSamples,
-      )
-      void strength
-      res.json({ success: true, captchaId, kind })
+        kind,
+        redeemToken,
+        redeemExpiresInSec,
+        redeemExpiresAt: redeemExpiresAt.toISOString(),
+      })
       return
     }
     if (kind === 'pow') {
       const nonce = body.nonce
-      await federalCaptchaService.verifyPow(captchaId, nonce)
-      res.json({ success: true, captchaId, kind })
+      const { redeemToken, redeemExpiresAt, redeemExpiresInSec } =
+        await federalCaptchaService.verifyPow(captchaId, nonce, clientIp)
+      res.json({
+        success: true,
+        captchaId,
+        kind,
+        redeemToken,
+        redeemExpiresInSec,
+        redeemExpiresAt: redeemExpiresAt.toISOString(),
+      })
       return
     }
     // slider 联邦态：复用 drag 载荷（dragPath/totalDragTime/finalPosition，兼容 t/time）
@@ -287,14 +300,24 @@ export const verifyFederalCaptcha = async (req: Request, res: Response): Promise
       const rec = (p ?? {}) as Record<string, unknown>
       return { x: rec.x, y: rec.y, t: (rec.t ?? rec.time) as number }
     })
-    // 联邦 slider 走独立消费（与旧 unlock 同语义，kind 一致性由 service 保证）
-    await authApplicationService.verifyAndConsumeForUnlock(
+    // 联邦 slider 走独立消费+发凭证（与旧 unlock 同 delete 语义，kind 一致性由 service 保证；
+    // v1.0.2 起统一经 FederalCaptchaService 签发 redeem，供 /unlock redeem 兑换，旧 drag 直兑仍兼容）
+    const { redeemToken, redeemExpiresAt, redeemExpiresInSec } =
+      await federalCaptchaService.verifySliderFederal(
+        captchaId,
+        formatted as { x: number; y: number; t: number }[],
+        totalDragTime,
+        finalPosition,
+        clientIp,
+      )
+    res.json({
+      success: true,
       captchaId,
-      formatted as { x: number; y: number; t: number }[],
-      totalDragTime,
-      finalPosition,
-    )
-    res.json({ success: true, captchaId, kind })
+      kind,
+      redeemToken,
+      redeemExpiresInSec,
+      redeemExpiresAt: redeemExpiresAt.toISOString(),
+    })
   } catch (error: unknown) {
     const internal = error instanceof Error ? error.message : String(error)
     // 统一对外码（篡改/错位姿/二次/并发落败/过期/不存在/kind 不一致全同一码，日志记真因）

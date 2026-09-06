@@ -2,8 +2,14 @@ import { Request, Response } from 'express'
 import { authApplicationService, rateLimitProtectionService } from '../registry'
 import { getClientIp } from '../lib/rateLimit'
 import { signUnlockToken, getExemptTtlSec } from '../lib/unlockToken'
+import {
+  verifyFederalRedeem,
+  federalRedeemStore,
+  isFederalRedeemKind,
+} from '../lib/federalRedeem'
 import { rateLimitExemptionStore } from '../infrastructure/services/RateLimitExemptionStore'
 import { DEFAULT_RATE_LIMIT_PROTECTION_POLICY } from '../domain/system/RateLimitProtection'
+import type { CaptchaStrength } from '../domain/identity/CaptchaChallenge'
 
 const CAPTCHA_VERIFICATION_FAILED_ERROR = 'ERR_VERIFICATION_FAILED'
 
@@ -163,18 +169,139 @@ export const verifyCaptcha = async (req: Request, res: Response): Promise<void> 
 }
 
 /**
- * B2 解锁兑换：POST /api/v1/auth/captcha/unlock（匿名可用）
- * - 入参 {captchaId, dragPath, totalDragTime, finalPosition}（验证入参；内部 verify+consume，不依赖外部 verify 标记）
- * - captchaId 原子消费一次一用，与发帖/评论/注册 consume 互斥先到先得；二次/并发双兑统一 400 ERR_VERIFICATION_FAILED
- * - 强度按生成时快照判定；成功签发 unlockToken（typ=ratelimit-unlock+ip+jti+exp=strength快照+签发时exemptionMinutes快照）+ 服务端豁免记录
- * - 兑换超限由独立 unlockLimiter 429（通用体，不用解锁 429 体）；此处只处理验证/消费/签发
+ * B2 解锁兑换：POST /api/v1/auth/captcha/unlock（匿名可用，双模式，安全优先）
+ * - 旧滑块直兑（兼容）：入参 {captchaId, dragPath, totalDragTime, finalPosition}（验证入参；内部 verify+consume，
+ *   不依赖外部 verify 标记）；captchaId 原子消费一次一用，与发帖/评论/注册 consume 互斥先到先得；
+ *   二次/并发双兑统一 400 ERR_VERIFICATION_FAILED；强度按生成时快照判定。
+ * - 联邦兑换（v1.0.2 新增，去 H2 门控）：入参 {redeemToken, kind}，其中 redeemToken 为
+ *   POST /federal/verify 成功签发的一次性兑换凭证（绑定 captchaId+kind+ip+jti，短 TTL 5 分钟）；
+ *   凭该凭证+kind 兑换 unlockToken 并消费凭证（一证一兑，防重放/双花）；未解题 captchaId（无凭证）、
+ *   跨 kind 冒充、过期/复用凭证一律统一 400 ERR_VERIFICATION_FAILED（真因仅日志）。
+ * - 成功均签发 unlockToken（typ=ratelimit-unlock+ip+jti+exp=签发时 exemptionMinutes 快照默认 15 分钟+strength 快照）
+ *   + 服务端豁免记录；强度正交、豁免快照、审计语义不变。
+ * - 兑换超限由独立 unlockLimiter 429（通用体，不用解锁 429 体）；此处只处理验证/消费/签发。
  */
 export const unlockCaptcha = async (req: Request, res: Response): Promise<void> => {
   const body = (req.body ?? {}) as Record<string, unknown>
+
+  // ── 联邦兑换路径优先判别：含 redeemToken 即按联邦语义（ kind 必填 ）──
+  const redeemTokenRaw = body.redeemToken
+  if (typeof redeemTokenRaw === 'string' && redeemTokenRaw.length > 0) {
+    const respondRedeemFailure = (internal: string): void => {
+      let currentIpForLog = 'unknown'
+      try {
+        currentIpForLog = getClientIp(req)
+      } catch {
+        currentIpForLog = 'unknown'
+      }
+      console.warn('[Unlock] Exchange failed (federal redeem)', {
+        ip: currentIpForLog,
+        internalErrorCode: internal.startsWith('ERR_') ? internal : 'ERR_UNLOCK_FAILED',
+      })
+      res.status(400).json({ success: false, error: CAPTCHA_VERIFICATION_FAILED_ERROR })
+    }
+    const kindRaw = body.kind
+    if (!isFederalRedeemKind(kindRaw)) {
+      respondRedeemFailure('ERR_INVALID_REDEEM_KIND')
+      return
+    }
+    const payload = verifyFederalRedeem(redeemTokenRaw)
+    if (!payload) {
+      respondRedeemFailure('ERR_INVALID_REDEEM_TOKEN')
+      return
+    }
+    if (payload.kind !== kindRaw) {
+      respondRedeemFailure('ERR_REDEEM_KIND_MISMATCH')
+      return
+    }
+    let currentIp = 'unknown'
+    try {
+      currentIp = getClientIp(req)
+    } catch {
+      currentIp = 'unknown'
+    }
+    if (payload.ip !== currentIp) {
+      respondRedeemFailure('ERR_REDEEM_IP_MISMATCH')
+      return
+    }
+    let redeemedCaptchaId = ''
+    let redeemedStrength: CaptchaStrength = 'low'
+    try {
+      const record = await federalRedeemStore.consume(payload.jti)
+      if (!record) {
+        respondRedeemFailure('ERR_REDEEM_ALREADY_CONSUMED_OR_EXPIRED')
+        return
+      }
+      if (
+        record.captchaId !== payload.captchaId ||
+        record.kind !== payload.kind ||
+        record.ip !== payload.ip
+      ) {
+        respondRedeemFailure('ERR_REDEEM_RECORD_MISMATCH')
+        return
+      }
+      redeemedCaptchaId = record.captchaId
+      redeemedStrength = record.strength
+    } catch {
+      respondRedeemFailure('ERR_REDEEM_CONSUME_FAILED')
+      return
+    }
+    try {
+      let exemptionMinutes = DEFAULT_RATE_LIMIT_PROTECTION_POLICY.exemptionMinutes
+      try {
+        const policy = await rateLimitProtectionService.getPolicy()
+        exemptionMinutes = policy.exemptionMinutes
+      } catch {
+        exemptionMinutes = DEFAULT_RATE_LIMIT_PROTECTION_POLICY.exemptionMinutes
+      }
+      const { token, jti, expiresAt } = signUnlockToken({
+        ip: currentIp,
+        exemptionMinutes,
+        strength: redeemedStrength,
+      })
+      const ttlSec = getExemptTtlSec(exemptionMinutes)
+      try {
+        await rateLimitExemptionStore.save(currentIp, jti, ttlSec)
+      } catch (error) {
+        console.error('[Unlock] Exemption store save failed (fail-closed, still issue token):', error)
+      }
+      console.warn('[Unlock] Exchange success (federal redeem)', {
+        ip: currentIp,
+        captchaId: redeemedCaptchaId,
+        redeemJti: payload.jti,
+        redeemKind: payload.kind,
+        jti,
+        strength: redeemedStrength,
+        exemptMinutes: exemptionMinutes,
+      })
+      res.json({
+        unlockToken: token,
+        exemptMinutes: exemptionMinutes,
+        expiresAt: expiresAt.toISOString(),
+      })
+    } catch (error: unknown) {
+      const internal = error instanceof Error ? error.message : String(error)
+      console.warn('[Unlock] Exchange failed (federal redeem)', {
+        ip: currentIp,
+        captchaId: payload.captchaId,
+        internalErrorCode: internal.startsWith('ERR_') ? internal : 'ERR_UNLOCK_FAILED',
+      })
+      res.status(400).json({ success: false, error: CAPTCHA_VERIFICATION_FAILED_ERROR })
+    }
+    return
+  }
+
   const captchaId = body.captchaId
   const dragPath = body.dragPath
   const totalDragTime = body.totalDragTime
   const finalPosition = body.finalPosition
+
+  // 旧滑块直兑 kind 一致性：若显式传 kind，非 slider 一律 400（防联邦题型经旧路径冒充；联邦 geometry/pow 须走 redeem）
+  const legacyKind = body.kind
+  if (legacyKind !== undefined && legacyKind !== 'slider') {
+    respondWithPublicCaptchaFailure(req, res, 'ERR_INVALID_UNLOCK_KIND')
+    return
+  }
 
   if (
     typeof captchaId !== 'string' ||

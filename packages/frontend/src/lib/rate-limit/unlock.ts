@@ -1,8 +1,10 @@
 'use client';
 
 /**
- * POST /api/v1/auth/captcha/unlock 兑换助手（F1）。
- * 冻结契约 API-SPEC v1.0.2：入参 { captchaId, dragPath, totalDragTime, finalPosition }，
+ * POST /api/v1/auth/captcha/unlock 兑换助手（F1 + v1.0.2 联邦兑换）。
+ * 冻结契约 API-SPEC.yaml v1.0.2 + API-SPEC-TAG-CAPTCHA-NOTIFY.yaml v1.0.2 双模式：
+ * - 旧滑块直兑兼容：{ captchaId, dragPath, totalDragTime, finalPosition }（kind 显式非 slider→400）；
+ * - 联邦兑换：{ redeemToken, kind }（凭 federal verify 签发的一次性凭证+kind 换 unlockToken，一证一兑）。
  * 成功 { unlockToken, exemptMinutes, expiresAt }；失败统一 400 ERR_VERIFICATION_FAILED；
  * 自身超限 429 为通用体 { error: ERR_RATE_LIMITED }（无 unlockRequired，不进解锁循环）。
  * 浏览器统一走相对 /api/* 经 BFF 代理，禁止直拼后端 URL。
@@ -20,6 +22,13 @@ export interface UnlockRequest {
   totalDragTime: number;
   finalPosition: number;
 }
+
+export interface UnlockRedeemRequest {
+  redeemToken: string;
+  kind: 'slider' | 'geometry' | 'pow';
+}
+
+export type UnlockPayload = UnlockRequest | UnlockRedeemRequest;
 
 export interface UnlockSuccess {
   unlockToken: string;
@@ -50,7 +59,7 @@ function readRetryAfter(res: Response): number {
   return 60;
 }
 
-export async function postUnlock(payload: UnlockRequest): Promise<UnlockSuccess> {
+export async function postUnlock(payload: UnlockPayload): Promise<UnlockSuccess> {
   const res = await fetch('/api/v1/auth/captcha/unlock', {
     method: 'POST',
     headers: {

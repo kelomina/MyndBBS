@@ -1,9 +1,11 @@
 'use client';
 
 /**
- * 联邦验证 BFF 相对路径封装（冻结契约 API-SPEC-TAG-CAPTCHA-NOTIFY.yaml v1.0.0 + 02:00 演示批准增量）。
+ * 联邦验证 BFF 相对路径封装（冻结契约 API-SPEC-TAG-CAPTCHA-NOTIFY.yaml v1.0.2 + 02:00 演示批准增量）。
  * 浏览器统一走相对 /api/* 经 BFF 代理，禁直拼后端 URL；BFF 零改（自定义头自然透传）。
  * solution 形状以后者为准：geometry {microSlot:0–1559, behaviorSamples:[{t,x,y}]}（02:00 增量，替代契约 angleDeg）。
+ * v1.0.2：verify 成功原子签发一次性兑换凭证 redeemToken（绑定 captchaId+kind+ip+jti，TTL 300s），
+ * 凭 {redeemToken,kind} 调 POST /unlock 联邦兑换换 unlockToken（一证一兑）。
  */
 
 export type FederalKind = 'slider' | 'geometry' | 'pow';
@@ -79,6 +81,10 @@ export interface FederalVerifySuccess {
   success: true;
   captchaId: string;
   kind: FederalKind;
+  /** v1.0.2 一次性兑换凭证（typ=federal-redeem，绑定 captchaId+kind+ip+jti，TTL 300s；凭此+kind 调 /unlock 兑换）。 */
+  redeemToken: string;
+  redeemExpiresInSec: number;
+  redeemExpiresAt: string;
 }
 
 export class FederalIssueError extends Error {

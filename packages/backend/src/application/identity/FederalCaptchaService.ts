@@ -29,6 +29,7 @@ import {
   type BehaviorSample,
 } from '../../domain/identity/FederalGeometry'
 import { isValidNonce, verifyPowNonce, isValidChallengeHex } from '../../lib/federalPow'
+import { signFederalRedeem, federalRedeemStore } from '../../lib/federalRedeem'
 import { SvgCaptchaGenerator } from './SvgCaptchaGenerator'
 
 export type FederalKind = 'slider' | 'geometry' | 'pow'
@@ -210,12 +211,83 @@ export class FederalCaptchaService {
   }
 
   // ── 校验（原子消费，与滑块/发帖 consume 互斥先到先得；失败统一对外 ERR_VERIFICATION_FAILED）──
+  // 增量 v1.0.2：verify 成功时原子签发一次性兑换凭证（绑定 captchaId+kind+ip+jti，短 TTL 5 分钟）；
+  // verify 与删行/发凭证原子（先存凭证再删行，删行失败回滚凭证，仅一胜）；强度正交不变。
+
+  private async consumeAndIssueRedeem(params: {
+    id: string
+    kind: 'slider' | 'geometry' | 'pow'
+    strength: CaptchaStrength
+    ip: unknown
+  }): Promise<{
+    strength: CaptchaStrength
+    redeemToken: string
+    redeemExpiresAt: Date
+    redeemExpiresInSec: number
+    jti: string
+  }> {
+    const clientIp = typeof params.ip === 'string' && params.ip.length > 0 ? params.ip : 'unknown'
+    const signed = signFederalRedeem({
+      captchaId: params.id,
+      kind: params.kind,
+      ip: clientIp,
+      strength: params.strength,
+    })
+    try {
+      await federalRedeemStore.save(
+        signed.jti,
+        {
+          captchaId: params.id,
+          kind: params.kind,
+          ip: clientIp,
+          strength: params.strength,
+          jti: signed.jti,
+        },
+        signed.ttlSec,
+      )
+    } catch {
+      throw new Error('ERR_FEDERAL_REDEEM_STORE_FAILED')
+    }
+    try {
+      await this.opts.captchaChallengeRepository.delete(params.id)
+    } catch {
+      try {
+        await federalRedeemStore.delete(signed.jti)
+      } catch {
+        // ignore rollback failure
+      }
+      throw new Error('ERR_INVALID_CAPTCHA')
+    }
+    const after = await this.opts.captchaChallengeRepository.findById(params.id).catch(() => null)
+    if (after) {
+      try {
+        await federalRedeemStore.delete(signed.jti)
+      } catch {
+        // ignore
+      }
+      throw new Error('ERR_INVALID_CAPTCHA')
+    }
+    return {
+      strength: params.strength,
+      redeemToken: signed.token,
+      redeemExpiresAt: signed.expiresAt,
+      redeemExpiresInSec: signed.ttlSec,
+      jti: signed.jti,
+    }
+  }
 
   public async verifyGeometry(
     id: string,
     microSlot: unknown,
     behaviorSamples: unknown,
-  ): Promise<{ strength: CaptchaStrength }> {
+    ip?: string,
+  ): Promise<{
+    strength: CaptchaStrength
+    redeemToken: string
+    redeemExpiresAt: Date
+    redeemExpiresInSec: number
+    jti: string
+  }> {
     const challenge = await this.opts.captchaChallengeRepository.findById(id)
     if (!challenge) throw new Error('ERR_INVALID_CAPTCHA')
     if (challenge.challengeKind !== 'geometry') throw new Error('ERR_INVALID_CAPTCHA')
@@ -270,7 +342,7 @@ export class FederalCaptchaService {
       await fail('ERR_INVALID_MICRO_SLOT')
     }
     const micro = microSlot as number
-    // testFixed 行：拖拽豁免（跳行为 + 中心），仅语义命中，仍走原子消费
+    // testFixed 行：拖拽豁免（跳行为 + 中心），仅语义命中，仍走原子消费+发凭证
     if (isTestFixedRow) {
       try {
         verifyGeometryReading(perm as number[], targetHour as number, micro, 'low')
@@ -278,14 +350,7 @@ export class FederalCaptchaService {
         const msg = e instanceof Error ? e.message : 'ERR_INVALID_POSITION'
         await fail(msg)
       }
-      try {
-        await this.opts.captchaChallengeRepository.delete(id)
-      } catch {
-        throw new Error('ERR_INVALID_CAPTCHA')
-      }
-      const after = await this.opts.captchaChallengeRepository.findById(id).catch(() => null)
-      if (after) throw new Error('ERR_INVALID_CAPTCHA')
-      return { strength }
+      return await this.consumeAndIssueRedeem({ id, kind: 'geometry', strength, ip })
     }
 
     if (!isValidBehaviorSamples(behaviorSamples)) {
@@ -304,17 +369,19 @@ export class FederalCaptchaService {
       const msg = e instanceof Error ? e.message : 'ERR_AUTOMATION_DETECTED_INVALID_PATH'
       await fail(msg)
     }
-    try {
-      await this.opts.captchaChallengeRepository.delete(id)
-    } catch {
-      throw new Error('ERR_INVALID_CAPTCHA')
-    }
-    const after = await this.opts.captchaChallengeRepository.findById(id).catch(() => null)
-    if (after) throw new Error('ERR_INVALID_CAPTCHA')
-    return { strength }
+    return await this.consumeAndIssueRedeem({ id, kind: 'geometry', strength, ip })
   }
 
-  public async verifyPow(id: string, nonce: unknown): Promise<void> {
+  public async verifyPow(
+    id: string,
+    nonce: unknown,
+    ip?: string,
+  ): Promise<{
+    redeemToken: string
+    redeemExpiresAt: Date
+    redeemExpiresInSec: number
+    jti: string
+  }> {
     const challenge = await this.opts.captchaChallengeRepository.findById(id)
     if (!challenge) throw new Error('ERR_INVALID_CAPTCHA')
     if (challenge.challengeKind !== 'pow') throw new Error('ERR_INVALID_CAPTCHA')
@@ -336,13 +403,7 @@ export class FederalCaptchaService {
     }
     const ok = verifyPowNonce(challengeHex as string, nonce as string, bits as number)
     if (!ok) throw new Error('ERR_INVALID_NONCE')
-    try {
-      await this.opts.captchaChallengeRepository.delete(id)
-    } catch {
-      throw new Error('ERR_INVALID_CAPTCHA')
-    }
-    const after = await this.opts.captchaChallengeRepository.findById(id).catch(() => null)
-    if (after) throw new Error('ERR_INVALID_CAPTCHA')
+    return await this.consumeAndIssueRedeem({ id, kind: 'pow', strength: 'low', ip })
   }
 
   public async verifySliderFederal(
@@ -350,7 +411,14 @@ export class FederalCaptchaService {
     dragPath: unknown,
     totalDragTime: unknown,
     finalPosition: unknown,
-  ): Promise<{ strength: CaptchaStrength }> {
+    ip?: string,
+  ): Promise<{
+    strength: CaptchaStrength
+    redeemToken: string
+    redeemExpiresAt: Date
+    redeemExpiresInSec: number
+    jti: string
+  }> {
     const challenge = await this.opts.captchaChallengeRepository.findById(id)
     if (!challenge) throw new Error('ERR_INVALID_CAPTCHA')
     if (challenge.challengeKind !== 'slider') throw new Error('ERR_INVALID_CAPTCHA')
@@ -362,7 +430,7 @@ export class FederalCaptchaService {
       }
       throw new Error('ERR_CAPTCHA_EXPIRED')
     }
-    // testFixed 旁路（仅 test）：finalPosition 容差 ±1 + 最小轨迹豁免，仍原子消费（沿用旧 unlock 语义）
+    // testFixed 旁路（仅 test）：finalPosition 容差 ±1 + 最小轨迹豁免，仍原子消费+发凭证（沿用旧 unlock 语义）
     if (process.env.NODE_ENV === 'test') {
       const fixedTargetRaw = process.env.TEST_CAPTCHA_TARGET
       const fixedTarget = fixedTargetRaw ? Number(fixedTargetRaw) : 120
@@ -372,14 +440,12 @@ export class FederalCaptchaService {
         Math.abs((finalPosition as number) - fixedTarget) <= 1 &&
         challenge.targetPosition === fixedTarget
       ) {
-        try {
-          await this.opts.captchaChallengeRepository.delete(id)
-        } catch {
-          throw new Error('ERR_INVALID_CAPTCHA')
-        }
-        const still = await this.opts.captchaChallengeRepository.findById(id).catch(() => null)
-        if (still) throw new Error('ERR_INVALID_CAPTCHA')
-        return { strength: challenge.strength }
+        return await this.consumeAndIssueRedeem({
+          id,
+          kind: 'slider',
+          strength: challenge.strength,
+          ip,
+        })
       }
     }
     if (
@@ -409,13 +475,11 @@ export class FederalCaptchaService {
       }
       throw e
     }
-    try {
-      await this.opts.captchaChallengeRepository.delete(id)
-    } catch {
-      throw new Error('ERR_INVALID_CAPTCHA')
-    }
-    const after = await this.opts.captchaChallengeRepository.findById(id).catch(() => null)
-    if (after) throw new Error('ERR_INVALID_CAPTCHA')
-    return { strength: challenge.strength }
+    return await this.consumeAndIssueRedeem({
+      id,
+      kind: 'slider',
+      strength: challenge.strength,
+      ip,
+    })
   }
 }
