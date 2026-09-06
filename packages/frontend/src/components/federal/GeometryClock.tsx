@@ -279,11 +279,14 @@ export const GeometryClock = React.forwardRef<GeometryClockHandle, GeometryClock
         </svg>
         <dl className="readout min-w-[200px] flex-1 text-[13px]">
           <dt className="text-xs text-slate-400">{t('target', 'Target hour')}</dt>
-          {/* B3 目标行：Clock 挂载即显现（含有效 targetHour 值），回落/loading 未挂载即隐去 */}
-          <dd data-testid="geometry-target" className="mono mb-1 text-[15px]">{targetHour}</dd>
+          {/* B3 目标行：targetValue 完整句子为主（沿用字典键，中英），裸数保留为辅；挂载即显，回落/loading 未挂载隐 */}
+          <dd data-testid="geometry-target" className="mono mb-1 text-[15px]">
+            {t('targetValue', "Point to {target} o'clock").replace('{target}', String(targetHour))}
+            <span className="ml-1 text-xs text-slate-400">({targetHour})</span>
+          </dd>
           <dt className="text-xs text-slate-400">{t('idleCountdown', 'Idle countdown')}</dt>
-          {/* B3 倒计时：挂载即 1s 步进显现（role=status），卸载清理后隐去 */}
-          <dd data-testid="geometry-countdown" className="mono mb-1 text-[15px]" role="status">
+          {/* B3 倒计时：挂载即 1s 步进显现（role=status aria-live=polite），卸载清理后隐去；loading/degraded 未挂载除外（父给空态说明） */}
+          <dd data-testid="geometry-countdown" className="mono mb-1 text-[15px]" role="status" aria-live="polite">
             {idleLeft}s
           </dd>
         </dl>

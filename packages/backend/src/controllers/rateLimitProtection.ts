@@ -1,17 +1,24 @@
 /**
- * 控制器：RateLimitProtection（读限流与解锁配置，B4）
+ * 控制器：RateLimitProtection（读限流与解锁配置，B4 + B2 修复）
  *
  * - GET/PUT /api/admin/protection/rate-limit（ADMIN+：requireAuthHidden + adminLimiter + requireAbility('manage','all') 由路由层保证）
  * - 匿名 404（requireAuthHidden）；MODERATOR 读写 403（requireAbility）；ADMIN/SUPER_ADMIN 可读（casl manage all）
  * - PUT zod 严格模式（禁止 coerce；"30"→400、缺字段→400、未知字段→400、无 clamp）；越界 400 旧值不变、不部分更新
  * - PUT 成功显式 logAudit（操作者 userId、请求 IP、前后 diff、时间）；审计经 GET /api/admin/audit-logs 可查
  * - 持久化 SitePolicy key=rate_limit_unlock + 60s 读缓存（test 下 TTL=0 即时生效，由 Service 内部处理）
+ * - B2（19:00 帧，TAG v1.0.3）：GET 附顶层 effective{windowSec,max,source} 可观测（PUT 仍 7 字段 strict，
+ *   带 effective→400）；PUT 后双清限流器侧缓存 + 换 windowSec 清全部读桶（新窗从 0 计，计数归零为预期）。
  */
 import { Response } from 'express'
 import { AuthRequest } from '../middleware/auth'
 import { rateLimitProtectionService, auditApplicationService } from '../registry'
 import { rateLimitProtectionSchema } from '../lib/validation/schemas'
-import { getClientIp } from '../lib/rateLimit'
+import {
+  getClientIp,
+  getEffectiveRateLimitSnapshot,
+  clearRateLimitProtectionCache,
+  handleRateLimitWindowChange,
+} from '../lib/rateLimit'
 import type { RateLimitProtectionPolicy } from '../domain/system/RateLimitProtection'
 
 function diffPolicy(
@@ -39,7 +46,10 @@ function diffPolicy(
 export const getRateLimitProtection = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const policy = await rateLimitProtectionService.getPolicy()
-    res.json({ ...policy })
+    // B2(d)：顶层 effective 可观测（附加字段，不破坏 7 字段 strict；PUT 带 effective 仍 400）。
+    // source: 'policy'（生产恒此值）|'test-override'（test 下 TEST_READ_* 白名单覆盖生效时）。
+    const effective = await getEffectiveRateLimitSnapshot()
+    res.json({ ...policy, effective })
   } catch (error) {
     console.error('[rateLimitProtection] get failed:', error)
     res.status(500).json({ success: false, error: 'ERR_INTERNAL_SERVER_ERROR' })
@@ -79,6 +89,18 @@ export const updateRateLimitProtection = async (req: AuthRequest, res: Response)
 
   try {
     const policy = await rateLimitProtectionService.replacePolicy(next)
+    // B2(a)(b)：PUT 后双清限流器侧缓存（覆盖未注入回退路径；已注入共享实例时 replacePolicy 已刷新，双清幂等、无害）；
+    // 换 windowSec 清全部读桶（新窗从 0 计，计数归零为预期，旧窗残留一并丢弃；max 变更不清桶，同窗计数保留）。
+    try {
+      clearRateLimitProtectionCache()
+    } catch {
+      // ignore（缓存清理失败不阻断 PUT 成功语义）
+    }
+    try {
+      handleRateLimitWindowChange(before.windowSec, policy.windowSec)
+    } catch {
+      // ignore（清桶失败不阻断 PUT 成功语义；旧桶自然过期后自愈）
+    }
     // PUT 成功显式 logAudit（操作者/IP/前后 diff/时间）
     try {
       const operatorId = req.user?.userId ?? 'unknown'

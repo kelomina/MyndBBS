@@ -8,6 +8,14 @@
  *   - publicReadLimiter 动态化（管理 max/windowSec + TEST 覆盖）+ skip 豁免判定（AND 真值表）+ 定制 429 体
  *   - unlockLimiter 独立 10次/15分钟/IP（与 captchaLimiter 独立；不叠加 authLimiter 由路由挂载保证）
  *   - X-Test-Reset-RateLimit（test 清桶，生产 404）
+ *   B2 修复（channel-qa 19:00 帧，API-SPEC-TAG-CAPTCHA-NOTIFY v1.0.3）：
+ *   - a) 单例合一采用注入式（registry 将唯一实例注入本模块，优先使用注入实例；
+ *     未注入回退自建仅用于单测/未初始化；PUT 后双清兜底覆盖回退路径）。
+ *     未采用 rateLimit→registry 直接 import，避免 lib 依赖组合根、保持 DDD 分层。
+ *   - b) 换窗桶策略冻结为“换 windowSec 清全部读桶（丢弃底层实例，新窗从 0 计）”；
+ *     max 变更不清桶（同窗计数保留，新 max 下请求动态生效）。计数归零为预期行为，见 handleRateLimitWindowChange。
+ *   - c) 429 handler 回退读最后观测政策值（lastObservedWindowSec），不再恒 60。
+ *   - d) GET 可观测 effective 快照见 controllers/rateLimitProtection（本模块导出 getEffectiveRateLimitSnapshot）。
  * 禁区：写限流（post/upload/friend/report/login/register/2FA）与 searchLimiter 零变更（除 getClientIp 全局 F3 优先级）。
  */
 import { NextFunction, Request, Response } from 'express'
@@ -69,9 +77,33 @@ export const getClientIp = (req: Request): string => {
 }
 
 // ── 读配置安全读取（fail-closed 回默认；测试 TTL=0 由 Service 内部处理） ──
+// B2(a) 单例合一（注入式）：registry 启动后将唯一 RateLimitProtectionService 实例注入本模块，
+// 本模块优先使用注入实例；未注入时回退自建（单测/未初始化路径）。PUT 后控制器双清兜底覆盖回退路径。
 
 let protectionServiceSingleton: RateLimitProtectionService | null = null
+let sharedProtectionService: RateLimitProtectionService | null = null
+
+export function setSharedRateLimitProtectionService(
+  svc: RateLimitProtectionService | null,
+): void {
+  sharedProtectionService = svc
+}
+
+export function clearRateLimitProtectionCache(): void {
+  try {
+    sharedProtectionService?.clearCache()
+  } catch {
+    // ignore
+  }
+  try {
+    protectionServiceSingleton?.clearCache()
+  } catch {
+    // ignore
+  }
+}
+
 function getProtectionService(): RateLimitProtectionService {
+  if (sharedProtectionService) return sharedProtectionService
   if (!protectionServiceSingleton) {
     protectionServiceSingleton = new RateLimitProtectionService({
       sitePolicyRepository: new PrismaSitePolicyRepository(),
@@ -80,9 +112,28 @@ function getProtectionService(): RateLimitProtectionService {
   return protectionServiceSingleton
 }
 
+// B2(c) handler 回退用的最后观测政策值（同步缓存；生产下 handler 无法 await DB，故读此值，不再恒 60）。
+let lastObservedWindowSec: number = DEFAULT_RATE_LIMIT_PROTECTION_POLICY.windowSec
+let lastObservedMax: number = DEFAULT_RATE_LIMIT_PROTECTION_POLICY.publicReadMax
+
+export function getLastObservedRateLimitWindow(): { windowSec: number; max: number } {
+  return { windowSec: lastObservedWindowSec, max: lastObservedMax }
+}
+
 async function getPolicySafe(): Promise<RateLimitProtectionPolicy> {
   try {
-    return await getProtectionService().getPolicy()
+    const policy = await getProtectionService().getPolicy()
+    // 同步刷新 handler 回退缓存（仅合法值才更新，防脏写）
+    if (
+      typeof policy.windowSec === 'number' &&
+      Number.isInteger(policy.windowSec) &&
+      typeof policy.publicReadMax === 'number' &&
+      Number.isInteger(policy.publicReadMax)
+    ) {
+      lastObservedWindowSec = policy.windowSec
+      lastObservedMax = policy.publicReadMax
+    }
+    return policy
   } catch {
     return { ...DEFAULT_RATE_LIMIT_PROTECTION_POLICY }
   }
@@ -101,6 +152,26 @@ async function getEffectiveWindowSec(): Promise<number> {
   if (testWindow !== null && process.env.NODE_ENV === 'test') return testWindow
   const policy = await getPolicySafe()
   return policy.windowSec
+}
+
+// B2(d) GET 可观测 effective 快照（与 getEffectiveReadMax/WindowSec 同 TEST 语义，单次政策读）。
+export type RateLimitEffectiveSource = 'policy' | 'test-override'
+
+export async function getEffectiveRateLimitSnapshot(): Promise<{
+  windowSec: number
+  max: number
+  source: RateLimitEffectiveSource
+}> {
+  const isTest = process.env.NODE_ENV === 'test'
+  const policy = await getPolicySafe()
+  const testMax = isTest ? getTestReadMax() : null
+  const testWindow = isTest ? getTestReadWindowSec() : null
+  // TEST 语义与 getEffective* 一致：test 下白名单内覆盖有效，非法忽略回政策值；非 test 下 TEST_* 一律忽略。
+  const max = testMax ?? policy.publicReadMax
+  const windowSec = testWindow ?? policy.windowSec
+  const source: RateLimitEffectiveSource =
+    testMax !== null || testWindow !== null ? 'test-override' : 'policy'
+  return { windowSec, max, source }
 }
 
 // ── 写限流（零变更；仅 getClientIp 全局 F3 优先级影响 key） ──
@@ -180,9 +251,9 @@ function calcRetryAfterSec(req: Request, fallbackWindowSec: number): number {
 const UNLOCK_ENDPOINT = '/api/v1/auth/captcha/unlock'
 
 function publicReadExceededHandler(req: Request, res: Response): void {
-  // 同步读取可用窗口（TEST 覆盖同步；异步策略回退 60s，保证 handler 不抛）
+  // B2(c)：同步读取可用窗口（TEST 覆盖同步；异步政策值读最后观测缓存，保证 handler 不抛且不再恒 60）。
   const testWindow = process.env.NODE_ENV === 'test' ? getTestReadWindowSec() : null
-  const fallback = testWindow ?? 60
+  const fallback = testWindow ?? lastObservedWindowSec
   const retryAfterSec = calcRetryAfterSec(req, fallback)
   res.setHeader('Retry-After', String(retryAfterSec))
   res.status(429).json({
@@ -197,6 +268,21 @@ function publicReadExceededHandler(req: Request, res: Response): void {
 
 const READ_WINDOW_CHOICES = [10, 30, 60, 300, 600] as const
 const underlyingReadLimiters = new Map<number, RateLimitRequestHandler>()
+
+/**
+ * B2(b) 换窗桶策略冻结（显式，非静默）：
+ * - 冻结选择：换 windowSec 即清全部读桶（丢弃 5 底层实例，下请求重建，新窗计数从 0 计，旧窗残留一并丢弃）。
+ * - 计数归零为预期行为：管理员改时长后，所有 IP 在新窗内从 0 重新计数（旧窗剩余不继承）；
+ *   切回旧窗亦从当前残留丢弃后重建，不恢复旧计数。管理面板 toast/契约已声明“≤60s + 归零预期”。
+ * - max 变更不清桶：同窗计数保留，新 max 经 limit/max async 动态函数下请求即生效（无需清桶）。
+ * - TEST 覆盖换窗不清桶：测试隔离经 X-Test-Reset-RateLimit 显式清桶，本函数仅由管理 PUT 调用。
+ */
+export function handleRateLimitWindowChange(prevWindowSec: number, nextWindowSec: number): void {
+  if (prevWindowSec === nextWindowSec) return
+  underlyingReadLimiters.clear()
+  // handler 回退即时跟进新窗（下次 getPolicySafe 会再次确认，adr: B2(c)）
+  lastObservedWindowSec = nextWindowSec
+}
 
 function getUnderlyingReadLimiter(windowSec: number): RateLimitRequestHandler {
   const key = (READ_WINDOW_CHOICES as readonly number[]).includes(windowSec) ? windowSec : 60

@@ -147,6 +147,7 @@ import { ModerationCacheInvalidationHandler } from './infrastructure/events/hand
 import { AbilityCacheInvalidationHandler } from './infrastructure/events/handlers/AbilityCacheInvalidationHandler'
 import { AuditEventListener } from './infrastructure/events/handlers/AuditEventListener'
 import { identityQueryService } from './queries/identity/IdentityQueryService'
+import { setSharedRateLimitProtectionService } from './lib/rateLimit'
 
 const globalEventBus = getEventBus()
 
@@ -513,6 +514,10 @@ export const siteSettingsService = new SiteSettingsService(
 export const rateLimitProtectionService = new RateLimitProtectionService({
   sitePolicyRepository: container.resolve(T.ISitePolicyRepository),
 })
+
+// B2(a) 单例合一（注入式）：组合根将唯一实例注入限流器模块，限流器优先使用此实例；
+// 未注入回退自建仅用于单测/未初始化路径，PUT 后控制器双清兜底。lib 不反向依赖组合根，保持 DDD 分层。
+setSharedRateLimitProtectionService(rateLimitProtectionService)
 
 export const federalProtectionService = new FederalProtectionService({
   sitePolicyRepository: container.resolve(T.ISitePolicyRepository),

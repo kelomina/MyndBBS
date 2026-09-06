@@ -348,4 +348,17 @@ test('B3 几何目标与倒计时显隐：回包对接 + 回落门控 + 目标�
     assert.match(clockSrc, /idleLeft/);
     assert.match(clockSrc, /targetHour/);
   });
+
+  await t.test('B3 目标句子：targetValue完整句为主、裸数为辅（字典零新增）', () => {
+    // 根因20:00：targetValue零消费（只渲裸数）；修复沿用现存键，中英fallback，裸数保留为辅
+    assert.match(clockSrc, /targetValue/);
+    assert.match(clockSrc, /Point to \{target\} o'clock/);
+    // 模板插值 targetHour（句子含值）+ 裸数辅显（括号内 targetHour）
+    assert.match(clockSrc, /\.replace\(/);
+    assert.match(clockSrc, /\{target\}/);
+    assert.match(clockSrc, /String\(targetHour\)/);
+    // 倒计时挂载即显：role=status + aria-live，1s 步进；loading/degraded 未挂载除外（父 loading/cooldown role=status + fallbackSlider 为空态说明）
+    assert.match(clockSrc, /aria-live="polite"/);
+    assert.match(modalSrc, /role="status"/);
+  });
 });
