@@ -158,6 +158,9 @@ dev.db
 
 .trae/
 
+# Local Codex multi-agent coordination state
+.agents/
+
 .superpowers/
 
 docusaurus/

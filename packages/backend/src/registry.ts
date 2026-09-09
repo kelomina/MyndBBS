@@ -80,6 +80,9 @@ import { AuditApplicationService } from './application/system/AuditApplicationSe
 import { EmailConfigurationApplicationService } from './application/notification/EmailConfigurationApplicationService'
 import { WikiApplicationService } from './application/wiki/WikiApplicationService'
 import { WikiPageApplicationService } from './application/wiki/WikiPageApplicationService'
+import { SubmissionApplicationService } from './application/journal/SubmissionApplicationService'
+import { ReviewApplicationService } from './application/journal/ReviewApplicationService'
+import { EditorialDecisionApplicationService } from './application/journal/EditorialDecisionApplicationService'
 
 import { PrismaUserRepository } from './infrastructure/repositories/PrismaUserRepository'
 import { PrismaCaptchaChallengeRepository } from './infrastructure/repositories/PrismaCaptchaChallengeRepository'
@@ -118,6 +121,11 @@ import { PrismaAuditLogRepository } from './infrastructure/repositories/PrismaAu
 import { PrismaEmailTemplateRepository } from './infrastructure/repositories/PrismaEmailTemplateRepository'
 import { PrismaWikiRepository } from './infrastructure/repositories/PrismaWikiRepository'
 import { PrismaWikiPageRepository } from './infrastructure/repositories/PrismaWikiPageRepository'
+import { PrismaJournalRepository } from './infrastructure/repositories/PrismaJournalRepository'
+import { PrismaReviewRepository } from './infrastructure/repositories/PrismaReviewRepository'
+import { SubmissionFileApplicationService } from './application/journal/SubmissionFileApplicationService'
+import { LocalSubmissionStorageAdapter } from './infrastructure/services/system/LocalSubmissionStorageAdapter'
+import { PrismaSubmissionFileRepository } from './infrastructure/repositories/PrismaSubmissionFileRepository'
 import { PrismaWikiCollaboratorRepository } from './infrastructure/repositories/PrismaWikiCollaboratorRepository'
 
 import { Argon2PasswordHasher } from './infrastructure/services/Argon2PasswordHasher'
@@ -603,5 +611,19 @@ export const wikiPageApplicationService = new WikiPageApplicationService({
   pageRepository: container.resolve(T.IWikiPageRepository),
   collaboratorRepository: container.resolve(T.IWikiCollaboratorRepository),
 })
+
+const journalRepository = new PrismaJournalRepository()
+const reviewRepository = new PrismaReviewRepository()
+export const submissionApplicationService = new SubmissionApplicationService(journalRepository, unitOfWork)
+export const reviewApplicationService = new ReviewApplicationService(journalRepository, reviewRepository, unitOfWork)
+export const editorialDecisionApplicationService = new EditorialDecisionApplicationService(
+  journalRepository,
+  { saveDecision: async (input) => { const { prisma } = await import('./db'); await prisma.editorialDecision.create({ data: input }) } },
+  unitOfWork,
+)
+export const submissionStorage = new LocalSubmissionStorageAdapter()
+export const submissionFileRepository = new PrismaSubmissionFileRepository()
+export const submissionFileApplicationService = new SubmissionFileApplicationService(submissionStorage, submissionFileRepository)
+export const journalAccessRepository = journalRepository
 
 export { container, T as TOKENS }

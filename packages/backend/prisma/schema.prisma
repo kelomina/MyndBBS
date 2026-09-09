@@ -78,6 +78,60 @@ enum PostStatus {
   PENDING
 }
 
+enum JournalStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+enum JournalMemberRole {
+  OWNER
+  EDITOR
+  REVIEWER
+}
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  TECHNICAL_CHECK
+  EDITORIAL_SCREENING
+  UNDER_REVIEW
+  REVISION_REQUIRED
+  RESUBMITTED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  PUBLISHED
+  CORRECTED
+  RETRACTED
+}
+enum ReviewAssignmentStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+  CONFLICT_DECLARED
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+  CANCELLED
+}
+enum ReviewRecommendation {
+  ACCEPT
+  MINOR_REVISION
+  MAJOR_REVISION
+  REJECT
+}
+enum EditorialDecisionType {
+  DESK_REJECT
+  REJECT
+  MINOR_REVISION
+  MAJOR_REVISION
+  ACCEPT
+}
+enum SubmissionFileScanStatus {
+  PENDING
+  CLEAN
+  REJECTED
+}
+
 model User {
   id                 String     @id @default(uuid()) @db.Uuid
   email              String     @unique
@@ -129,6 +183,16 @@ model User {
   wikiPageEditors      WikiPage[]           @relation("WikiPageEditor")
   wikiPageHistoryEditors WikiPageHistory[]
   wikiCreationLimit    WikiCreationLimit?
+
+  ownedJournals        Journal[]             @relation("JournalOwner")
+  journalMemberships   JournalMember[]
+  submissions          Submission[]          @relation("SubmittingAuthor")
+  submissionAuthors    SubmissionAuthor[]
+  reviewerAssignments  ReviewerAssignment[]  @relation("ReviewerAssignments")
+  assignedReviews      Review[]               @relation("ReviewerReviews")
+  editorialDecisions   EditorialDecision[]   @relation("EditorDecisions")
+  submissionVersions   SubmissionVersion[]   @relation("SubmissionVersionCreator")
+  reviewerAssignmentsMade ReviewerAssignment[] @relation("AssignmentCreator")
 
   @@index([roleId])
   @@index([status])
@@ -224,6 +288,176 @@ model Post {
   @@index([categoryId])
   @@index([status])
   @@index([createdAt])
+}
+
+model Journal {
+  id          String        @id @default(uuid()) @db.Uuid
+  slug        String        @unique
+  name        String
+  description String?
+  status      JournalStatus @default(DRAFT)
+  ownerId     String        @db.Uuid
+  owner       User          @relation("JournalOwner", fields: [ownerId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  members     JournalMember[]
+  submissions Submission[]
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model JournalMember {
+  journalId String            @db.Uuid
+  userId    String            @db.Uuid
+  role      JournalMemberRole
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  journal   Journal           @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([journalId, userId])
+  @@index([userId])
+}
+
+model Submission {
+  id                  String           @id @default(uuid()) @db.Uuid
+  journalId           String           @db.Uuid
+  submittingAuthorId  String           @db.Uuid
+  title               String
+  abstract            String?          @db.Text
+  status              SubmissionStatus @default(DRAFT)
+  currentVersionId    String?          @db.Uuid
+  reviewRound         Int              @default(0)
+  submittedAt         DateTime?
+  decidedAt           DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  journal             Journal          @relation(fields: [journalId], references: [id], onDelete: Restrict)
+  submittingAuthor    User             @relation("SubmittingAuthor", fields: [submittingAuthorId], references: [id], onDelete: Restrict)
+  authors             SubmissionAuthor[]
+  versions            SubmissionVersion[]
+  assignments         ReviewerAssignment[]
+  decisions           EditorialDecision[]
+  statusHistory       SubmissionStatusHistory[]
+
+  @@index([journalId, status, updatedAt])
+  @@index([submittingAuthorId, status])
+}
+
+model SubmissionAuthor {
+  submissionId String @db.Uuid
+  userId       String @db.Uuid
+  authorOrder  Int
+  corresponding Boolean @default(false)
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  user         User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([submissionId, userId])
+  @@index([userId])
+}
+
+model SubmissionVersion {
+  id           String @id @default(uuid()) @db.Uuid
+  submissionId String @db.Uuid
+  versionNumber Int
+  title        String
+  abstract     String? @db.Text
+  createdById  String @db.Uuid
+  createdAt    DateTime @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  createdBy    User @relation("SubmissionVersionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  files        SubmissionFile[]
+  assignments  ReviewerAssignment[]
+  reviews      Review[]
+  decisions    EditorialDecision[]
+
+  @@unique([submissionId, versionNumber])
+  @@index([submissionId, createdAt])
+}
+
+model SubmissionFile {
+  id         String @id @default(uuid()) @db.Uuid
+  versionId  String @db.Uuid
+  storageKey String @unique
+  originalName String
+  mimeType   String
+  sizeBytes  Int
+  sha256     String
+  scanStatus SubmissionFileScanStatus @default(PENDING)
+  createdAt  DateTime @default(now())
+  version    SubmissionVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId, scanStatus])
+}
+
+model ReviewerAssignment {
+  id           String @id @default(uuid()) @db.Uuid
+  submissionId String @db.Uuid
+  versionId    String @db.Uuid
+  reviewerId   String @db.Uuid
+  assignedById String @db.Uuid
+  status       ReviewAssignmentStatus @default(INVITED)
+  dueAt        DateTime
+  conflictNote String? @db.Text
+  invitedAt    DateTime @default(now())
+  respondedAt  DateTime?
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  version      SubmissionVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  reviewer     User @relation("ReviewerAssignments", fields: [reviewerId], references: [id], onDelete: Restrict)
+  assignedBy   User @relation("AssignmentCreator", fields: [assignedById], references: [id], onDelete: Restrict)
+  review       Review?
+
+  @@unique([versionId, reviewerId])
+  @@index([reviewerId, status, dueAt])
+  @@index([submissionId, status])
+}
+
+model Review {
+  id             String @id @default(uuid()) @db.Uuid
+  assignmentId   String @unique @db.Uuid
+  versionId      String @db.Uuid
+  reviewerId     String @db.Uuid
+  recommendation ReviewRecommendation
+  publicComments String @db.Text
+  confidentialComments String? @db.Text
+  submittedAt    DateTime?
+  createdAt      DateTime @default(now())
+  assignment     ReviewerAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  version        SubmissionVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  reviewer       User @relation("ReviewerReviews", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([versionId, submittedAt])
+}
+
+model EditorialDecision {
+  id           String @id @default(uuid()) @db.Uuid
+  submissionId String @db.Uuid
+  versionId    String @db.Uuid
+  editorId     String @db.Uuid
+  decision     EditorialDecisionType
+  reason       String @db.Text
+  round        Int
+  createdAt    DateTime @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  version      SubmissionVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  editor       User @relation("EditorDecisions", fields: [editorId], references: [id], onDelete: Restrict)
+
+  @@unique([versionId, round])
+  @@index([submissionId, createdAt])
+}
+
+model SubmissionStatusHistory {
+  id           String @id @default(uuid()) @db.Uuid
+  submissionId String @db.Uuid
+  fromStatus   SubmissionStatus?
+  toStatus     SubmissionStatus
+  actorId      String? @db.Uuid
+  note         String? @db.Text
+  createdAt    DateTime @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, createdAt])
 }
 
 model Comment {

@@ -11,6 +11,7 @@ export function Sidebar({ dict }: { dict: Dictionary }) {
     { name: dict.nav.popular, href: '/popular', icon: TrendingUp },
     { name: dict.nav.recent, href: '/recent', icon: Clock },
     { name: dict.nav.wikis, href: '/wikis', icon: BookOpen },
+    { name: dict.common.journals, href: '/journals', icon: BookOpen },
   ];
 
   const { categories, loading } = useCategories();

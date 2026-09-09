@@ -321,6 +321,25 @@ export const createPostSchema = z.object({
   tags: z.array(z.string().max(40)).max(5).optional(),
 })
 
+export const createJournalSubmissionSchema = z.object({
+  title: z.string().min(1, 'ERR_TITLE_REQUIRED').max(200),
+  abstract: z.string().max(5000).nullable().optional(),
+})
+
+export const assignJournalReviewerSchema = z.object({
+  versionId: z.string().min(1),
+  reviewerId: z.string().min(1),
+  authorIds: z.array(z.string()).default([]),
+  dueAt: z.string().datetime(),
+})
+
+export const submitJournalReviewSchema = z.object({
+  versionId: z.string().min(1),
+  recommendation: z.enum(['ACCEPT', 'MINOR_REVISION', 'MAJOR_REVISION', 'REJECT']),
+  publicComments: z.string().min(1).max(20000),
+  confidentialComments: z.string().max(20000).nullable().optional(),
+})
+
 /** 更新帖子请求校验 */
 export const updatePostSchema = z.object({
   title: z.string().min(1, 'ERR_TITLE_REQUIRED').max(200),

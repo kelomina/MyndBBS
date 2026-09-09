@@ -49,6 +49,19 @@ export const OPEN_API_DOCS: ApiDocGroup[] = [
     ],
   },
   {
+    group: 'Journals',
+    endpoints: [
+      { method: 'GET', path: '/api/journals', auth: 'none', summary: 'List active journals.' },
+      { method: 'POST', path: '/api/journals/:journalId/submissions', auth: 'session', summary: 'Create a journal submission draft.' },
+      { method: 'POST', path: '/api/submissions/:id/submit', auth: 'session', summary: 'Submit a journal manuscript for review.' },
+      { method: 'POST', path: '/api/submissions/:id/withdraw', auth: 'session', summary: 'Withdraw own submission.' },
+      { method: 'GET', path: '/api/journals/:journalId/submissions/mine', auth: 'session', summary: 'List own submissions for a journal.' },
+      { method: 'POST', path: '/api/submissions/:id/reviewers', auth: 'session', summary: 'Assign a reviewer (editor only).' },
+      { method: 'GET', path: '/api/reviewer/assignments', auth: 'session', summary: 'List reviewer assignments.' },
+      { method: 'POST', path: '/api/reviewer/assignments/:id/review', auth: 'session', summary: 'Submit a blinded review.' },
+    ],
+  },
+  {
     group: 'Users',
     endpoints: [
       { method: 'GET', path: '/api/v1/user/public/:username', auth: 'none', summary: 'Public profile: avatar, bio, badges, join date, post count.' },
