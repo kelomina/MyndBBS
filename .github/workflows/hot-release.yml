@@ -1,0 +1,52 @@
+name: Hot Release Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Frontend artifact or backend plugin
+        required: true
+        default: frontend
+        type: choice
+        options: [frontend, plugin]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  frontend:
+    if: inputs.release_type == 'frontend'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.33.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+        env: { PUPPETEER_SKIP_DOWNLOAD: true }
+      - run: pnpm --filter frontend build
+      - name: Create release manifest
+        run: node scripts/frontend-release-manifest.mjs packages/frontend/.next/standalone "${GITHUB_SHA}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-release-${{ github.sha }}
+          path: |
+            packages/frontend/.next/standalone
+            packages/frontend/.next/static
+            packages/frontend/public
+
+  plugin:
+    if: inputs.release_type == 'plugin'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package allow-listed plugin directory
+        run: |
+          test -d packages/backend/plugins
+          tar -czf backend-plugin-${GITHUB_SHA}.tar.gz -C packages/backend/plugins .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-plugin-${{ github.sha }}
+          path: backend-plugin-${{ github.sha }}.tar.gz
