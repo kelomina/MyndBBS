@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Shield, Monitor, Bell, Settings } from 'lucide-react';
+import { User, Shield, Monitor, Bell, Settings, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { ProfileSettings } from '../../../components/ProfileSettings';
 import { SecuritySettings } from '../../../components/SecuritySettings';
@@ -13,7 +13,7 @@ import { fetchWithAuth } from '../../../lib/api/fetcher';
 
 export default function SettingsPage() {
   const dict = useTranslation();
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'sessions' | 'privacy' | 'notifications'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'sessions' | 'privacy' | 'notifications' | 'journals'>('profile');
   const [role, setRole] = useState<string>('USER');
 
   useEffect(() => {
@@ -34,11 +34,18 @@ export default function SettingsPage() {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Settings Nav */}
         <nav className="w-full md:w-64 flex flex-col gap-1 shrink-0">
-          <button 
+          <button
             onClick={() => setActiveTab('profile')}
             className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted hover:bg-card hover:text-foreground'}`}
           >
             <User className="h-4 w-4" /> {dict.profile.basicProfile}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('journals')}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${activeTab === 'journals' ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted hover:bg-card hover:text-foreground'}`}
+          >
+            <BookOpen className="h-4 w-4" /> 期刊中心
           </button>
           <button 
             onClick={() => setActiveTab('security')}
@@ -82,7 +89,16 @@ export default function SettingsPage() {
           {activeTab === 'security' && <SecuritySettings />}
           {activeTab === 'sessions' && <SessionManagement />}
           {activeTab === 'privacy' && <PrivacySettings />}
-            {activeTab === 'notifications' && <EmailNotificationsPanel />}
+          {activeTab === 'notifications' && <EmailNotificationsPanel />}
+          {activeTab === 'journals' && (
+            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+              <h2 className="text-xl font-semibold">期刊中心</h2>
+              <p className="text-sm text-muted">浏览期刊并进入投稿页面。</p>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/journals" className="rounded-lg bg-primary px-4 py-2 text-sm text-white">浏览期刊</Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

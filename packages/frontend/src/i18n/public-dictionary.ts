@@ -40,6 +40,7 @@ export const getPublicDictionary = async (locale: Locale): Promise<Dictionary> =
       'total',
       'previous',
       'next',
+      'journals',
     ]),
     nav: pick(dict.nav, ['home', 'popular', 'recent', 'wikis']),
     wiki: {},
