@@ -1,0 +1,16 @@
+# Install as an included OpenResty snippet. Keep only one color active.
+upstream myndbbs_frontend_blue { server 127.0.0.1:3211; }
+upstream myndbbs_frontend_green { server 127.0.0.1:3212; }
+upstream myndbbs_backend_blue { server 127.0.0.1:3201; }
+upstream myndbbs_backend_green { server 127.0.0.1:3202; }
+
+# The active color is changed by replacing this include atomically and running
+# nginx -t before reload. Never expose blue/green ports directly.
+include /etc/openresty/myndbbs-active-upstream.conf;
+
+server {
+  listen 443 ssl;
+  server_name kolobbs.kolostudio.fun;
+  location /api/ { proxy_pass http://$backend_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme; }
+  location / { proxy_pass http://$frontend_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme; }
+}
