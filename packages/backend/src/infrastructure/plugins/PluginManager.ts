@@ -11,10 +11,13 @@ export class PluginManager {
   public constructor(private readonly root: string, private readonly allowList: ReadonlySet<string>) {}
 
   public async activate(manifestPath: string): Promise<void> {
-    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as BackendPluginManifest
+    const rootPath = path.resolve(this.root)
+    const resolvedManifest = path.resolve(manifestPath)
+    if (!resolvedManifest.startsWith(rootPath + path.sep)) throw new Error('ERR_PLUGIN_PATH_TRAVERSAL')
+    const manifest = JSON.parse(await readFile(resolvedManifest, 'utf8')) as BackendPluginManifest
     validatePluginManifest(manifest)
     if (!this.allowList.has(manifest.id)) throw new Error('ERR_PLUGIN_NOT_ALLOWLISTED')
-    const pluginDir = path.dirname(manifestPath)
+    const pluginDir = path.dirname(resolvedManifest)
     const entryPath = path.resolve(pluginDir, manifest.entry)
     if (!entryPath.startsWith(path.resolve(pluginDir) + path.sep)) throw new Error('ERR_PLUGIN_PATH_TRAVERSAL')
     if (await sha256File(entryPath) !== manifest.sha256) throw new Error('ERR_PLUGIN_INTEGRITY_FAILED')
