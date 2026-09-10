@@ -19,5 +19,5 @@ const server = http.createServer((req, res) => {
   if (req.url === '/healthz') { res.writeHead(healthy ? 200 : 503, { 'content-type': 'application/json' }); res.end(JSON.stringify({ status: healthy ? 'ok' : 'unhealthy', plugin: manifest.id, version: manifest.version })); return }
   res.writeHead(404); res.end()
 })
-server.listen(Number(portText), '127.0.0.1', () => process.send?.({ type: 'ready', id: manifest.id, version: manifest.version }))
+server.listen(Number(portText), '127.0.0.1', () => process.send?.({ type: 'ready', id: manifest.id, version: manifest.version, port: server.address()?.port }))
 process.on('SIGTERM', async () => { await plugin.deactivate?.(); server.close(() => process.exit(0)) })

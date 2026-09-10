@@ -17,12 +17,14 @@ export class PluginSupervisor {
     }).catch(async (error) => { child.kill('SIGKILL'); throw error })
     const previous = this.#children.get(manifestPath)
     this.#children.set(manifestPath, child)
-    if (previous && previous.connected) previous.kill('SIGTERM')
+    if (previous) previous.kill('SIGTERM')
     return child.pid
   }
   async stop(manifestPath) {
     const child = this.#children.get(manifestPath)
     if (!child) return
     child.kill('SIGTERM'); this.#children.delete(manifestPath)
+    if (!child.killed) return
+    await new Promise((resolve) => child.once('exit', resolve)).catch(() => undefined)
   }
 }
