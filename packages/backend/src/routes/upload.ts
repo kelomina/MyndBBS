@@ -6,10 +6,11 @@
  *
  * 路由前缀 / Route prefix:
  *   /api/v1/messages/upload        — 私信图片（10MB）
- *   /api/v1/messages/upload/post-image — 帖子正文插图（5MB，requireAuth）
+ *   /api/v1/messages/upload/post-image — 帖子正文插图（10MB = 10485760 B，含边界，requireAuth）
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
+import { POST_ATTACHMENT_MAX_BYTES } from '@myndbbs/shared';
 import { requireAuthHidden, requireAuth } from '../middleware/auth';
 import { uploadLimiter } from '../lib/rateLimit';
 import { handleFileUpload } from '../controllers/upload';
@@ -85,10 +86,17 @@ const uploadMiddleware = multer({
   fileFilter,
 });
 
-// ── 帖子正文插图（5MB，认证用户）──
+// ── 帖子正文插图（10MB，认证用户）──
+/**
+ * 上限的 +1 是本文件唯一的收敛点（FREEZE R2），勿在他处重复此换算。
+ * 原因（非直觉）：busboy@1.6.0 在累计文件字节「恰好等于」fileSizeLimit 时就 emit('limit')
+ * （multipart.js:476-480），multer@2.2.0 无条件下抛 LIMIT_FILE_SIZE（make-middleware.js:219-221），
+ * 故 limits.fileSize 的真实语义是「最大接受 N-1 字节」。要放行恰好 10485760 字节必须写 MAX + 1。
+ * 超限响应体冻结为 {"error":"LIMIT_FILE_SIZE"}，不带 message，不新增 httpErrors 分支（FREEZE R4）。
+ */
 const postImageMiddleware = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: POST_ATTACHMENT_MAX_BYTES + 1 },
   fileFilter,
 });
 
@@ -107,10 +115,18 @@ router.post(
         return;
       }
       const dotIndex = file.originalname.toLowerCase().lastIndexOf('.');
-      const ext = dotIndex === -1 ? '' : file.originalname.slice(dotIndex + 1);
+      // 扩展名必须小写归一后再交给适配器：fileFilter 用小写比对放行，适配器白名单是小写，
+      // 原样切片会让 IMG_0001.JPG 这类文件在落盘阶段抛错（FREEZE R8 / M1）。
+      const ext = dotIndex === -1 ? '' : file.originalname.slice(dotIndex + 1).toLowerCase();
       const url = await storagePort.savePostImage(userId, file.buffer, ext);
       res.status(201).json({ url });
     } catch (err) {
+      // 由请求内容决定的失败（扩展名不被适配器接受等）一律 400 + 原始码，不得退化 500（FREEZE R8 / M2）；
+      // 回落写法与 controllers/upload.ts 的既有分支保持一致。真故障（磁盘/权限）仍走 500。
+      if (err instanceof Error && err.message.startsWith('ERR_')) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
       console.error('[upload] post image failed:', err);
       res.status(500).json({ error: 'ERR_INTERNAL_SERVER_ERROR' });
     }

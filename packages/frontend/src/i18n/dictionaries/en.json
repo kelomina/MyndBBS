@@ -315,7 +315,10 @@
     "confirmDeleteComment": "Are you sure you want to delete this comment?",
     "postDeletedSuccessfully": "Post deleted successfully",
     "math": "Formula",
-    "formulaPlaceholder": "formula"
+    "formulaPlaceholder": "formula",
+    "image": "Insert image (up to {maxMB}MB each)",
+    "imageTooLarge": "Image is over the {maxMB}MB limit (currently {size}). Please compress it and try again.",
+    "imageUploading": "Uploading image..."
   },
   "profile": {
     "joined": "Joined",
@@ -962,7 +965,12 @@
     "ERR_RATE_LIMITED_NEEDS_CAPTCHA": "Too many requests — verify to continue",
     "ERR_RATE_LIMITED": "Too many requests, please try again later",
     "ERR_INVALID_RATE_LIMIT_POLICY": "Invalid rate-limit policy, please check inputs",
-    "ERR_INVALID_FEDERAL_POLICY": "Invalid federal captcha policy, please check inputs"
+    "ERR_INVALID_FEDERAL_POLICY": "Invalid federal captcha policy, please check inputs",
+    "LIMIT_FILE_SIZE": "The file is larger than the upload limit. Please choose a smaller file and try again.",
+    "ERR_FILE_TYPE_NOT_ALLOWED": "Only image files (JPG, PNG, GIF, WebP) can be inserted.",
+    "ERR_FILE_CONTENT_TYPE_MISMATCH": "The image content does not match its file type. Please choose a JPG, PNG, GIF or WebP image.",
+    "ERR_NO_FILE": "No image file was received. Please choose an image and try again.",
+    "ERR_UPLOAD_FAILED": "Image upload failed. Please try again."
   },
   "tags": {
     "title": "Topics",

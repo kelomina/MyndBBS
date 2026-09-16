@@ -11,6 +11,8 @@ include /etc/openresty/myndbbs-active-upstream.conf;
 server {
   listen 443 ssl;
   server_name kolobbs.kolostudio.fun;
+  # nginx caps the whole request body incl. multipart framing; app file limit is 10485760 B, so keep this strictly greater.
+  client_max_body_size 12m;
   location /api/ { proxy_pass http://$backend_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme; }
   location / { proxy_pass http://$frontend_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme; }
 }

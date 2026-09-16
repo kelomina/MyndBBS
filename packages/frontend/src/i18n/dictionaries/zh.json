@@ -315,7 +315,10 @@
     "confirmDeleteComment": "您确定要删除这条评论吗？",
     "postDeletedSuccessfully": "帖子删除成功",
     "math": "公式",
-    "formulaPlaceholder": "公式"
+    "formulaPlaceholder": "公式",
+    "image": "插入图片（单张不超过 {maxMB}MB）",
+    "imageTooLarge": "图片超过 {maxMB}MB 上限（当前 {size}），请压缩后再上传。",
+    "imageUploading": "图片上传中..."
   },
   "profile": {
     "joined": "加入于",
@@ -962,7 +965,12 @@
     "ERR_RATE_LIMITED_NEEDS_CAPTCHA": "请求过于频繁，请验证后继续",
     "ERR_RATE_LIMITED": "请求过于频繁，请稍后再试",
     "ERR_INVALID_RATE_LIMIT_POLICY": "限流配置非法，请检查输入",
-    "ERR_INVALID_FEDERAL_POLICY": "联邦验证配置非法，请检查输入"
+    "ERR_INVALID_FEDERAL_POLICY": "联邦验证配置非法，请检查输入",
+    "LIMIT_FILE_SIZE": "文件体积超出上传上限，请改用更小的文件后重试。",
+    "ERR_FILE_TYPE_NOT_ALLOWED": "只能插入图片文件（JPG、PNG、GIF、WebP）。",
+    "ERR_FILE_CONTENT_TYPE_MISMATCH": "图片内容与文件类型不一致，请重新选择 JPG、PNG、GIF 或 WebP 图片。",
+    "ERR_NO_FILE": "未收到图片文件，请重新选择图片后重试。",
+    "ERR_UPLOAD_FAILED": "图片上传失败，请稍后重试。"
   },
   "tags": {
     "title": "话题标签",
