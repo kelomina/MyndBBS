@@ -1,7 +1,23 @@
-import { access, readFile, rename, writeFile } from 'node:fs/promises'
+import { access, lstat, readFile, readlink, rename, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('RELEASE_HEALTH_TIMEOUT')), ms))
+
+async function readPointer(file) {
+  try {
+    const stat = await lstat(file)
+    return stat.isSymbolicLink() ? await readlink(file) : (await readFile(file, 'utf8')).trim()
+  } catch {
+    return null
+  }
+}
+
+async function replacePointer(file, target) {
+  const temp = `${file}.next-${process.pid}`
+  await unlink(temp).catch(() => undefined)
+  await writeFile(temp, `${target}\n`, 'utf8')
+  await rename(temp, file)
+}
 
 /** Atomic release state machine. The switch is committed only after the new target passes health. */
 export async function switchRelease({ root, version, healthCheck, graceMs = 5000 }) {
@@ -12,18 +28,18 @@ export async function switchRelease({ root, version, healthCheck, graceMs = 5000
   await Promise.race([healthCheck(release, manifest), timeout(graceMs)])
   const current = path.resolve(root, 'current')
   const previous = path.resolve(root, '.previous')
-  let old = null
-  try { old = await readFile(current, 'utf8') } catch {}
-  if (old) await writeFile(previous, old, 'utf8')
-  await writeFile(current, release, 'utf8')
+  const old = await readPointer(current)
+  if (old) await replacePointer(previous, old)
+  await replacePointer(current, release)
   return { version, previous: old }
 }
 
 export async function rollback(root) {
   const previous = path.resolve(root, '.previous')
-  const target = (await readFile(previous, 'utf8')).trim()
+  const target = await readPointer(previous)
+  if (!target) throw new Error('ERR_RELEASE_PREVIOUS_MISSING')
   await access(path.join(target, 'manifest.json'))
-  await writeFile(path.resolve(root, 'current'), target, 'utf8')
+  await replacePointer(path.resolve(root, 'current'), target)
   return target
 }
 

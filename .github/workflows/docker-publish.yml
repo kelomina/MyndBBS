@@ -30,6 +30,8 @@ jobs:
             dockerfile: packages/backend/Dockerfile
           - name: myndbbs-frontend
             dockerfile: packages/frontend/Dockerfile
+          - name: myndbbs-plugin-runtime
+            dockerfile: packages/backend/plugin-runtime/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
@@ -50,7 +52,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=sha-
+            type=sha,prefix=sha-,format=long
 
       - name: Build and push
         uses: docker/build-push-action@v6

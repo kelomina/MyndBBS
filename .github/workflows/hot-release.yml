@@ -1,21 +1,60 @@
-name: Hot Release Artifacts
+name: Hot Release
 
 on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: Frontend artifact or backend plugin
+        description: Release artifact to build
         required: true
         default: frontend
         type: choice
-        options: [frontend, plugin]
+        options: [frontend, plugin, core]
+      deploy:
+        description: Install the artifact on production after the GitHub build
+        required: true
+        default: false
+        type: boolean
+      version:
+        description: Semver or immutable release label (defaults to commit SHA)
+        required: false
+        type: string
+      plugin_id:
+        description: Reviewed plugin directory under packages/backend/plugins
+        required: false
+        type: string
+      plugin_version:
+        description: Plugin manifest version (used for deployment metadata)
+        required: false
+        type: string
+      core_image_tag:
+        description: Immutable GHCR tag for core images (defaults to sha-<commit>)
+        required: false
+        type: string
+      core_color:
+        description: Candidate blue/green color (must differ from active upstream)
+        required: false
+        default: green
+        type: choice
+        options: [blue, green]
 
 permissions:
   contents: read
+  packages: read
   actions: write
 
+concurrency:
+  group: hot-release-production
+  cancel-in-progress: false
+
+env:
+  SSH_HOST: ${{ vars.DEPLOY_SSH_HOST || '8.148.210.186' }}
+  SSH_PORT: ${{ vars.DEPLOY_SSH_PORT || '2207' }}
+  SSH_USER: ${{ vars.DEPLOY_USER || 'myndops' }}
+  DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/myndbbs' }}
+  PUBLIC_URL: ${{ vars.DEPLOY_PUBLIC_URL || 'https://kolobbs.kolostudio.fun' }}
+
 jobs:
-  frontend:
+  frontend-build:
     if: inputs.release_type == 'frontend'
     runs-on: ubuntu-latest
     steps:
@@ -27,26 +66,293 @@ jobs:
       - run: pnpm install --frozen-lockfile
         env: { PUPPETEER_SKIP_DOWNLOAD: true }
       - run: pnpm --filter frontend build
-      - name: Create release manifest
-        run: node scripts/frontend-release-manifest.mjs packages/frontend/.next/standalone "${GITHUB_SHA}"
+      - name: Assemble standalone release
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version || github.sha }}
+        run: |
+          set -euo pipefail
+          rm -rf release-staging
+          cp -R packages/frontend/.next/standalone/. release-staging/
+          if [ -f release-staging/server.js ]; then
+            mkdir -p release-staging/.next
+            cp -R packages/frontend/.next/static release-staging/.next/static
+            cp -R packages/frontend/public release-staging/public
+          elif [ -f release-staging/packages/frontend/server.js ]; then
+            mkdir -p release-staging/packages/frontend/.next
+            cp -R packages/frontend/.next/static release-staging/packages/frontend/.next/static
+            cp -R packages/frontend/public release-staging/packages/frontend/public
+          else
+            echo 'standalone server.js is missing from release' >&2
+            exit 1
+          fi
+          node scripts/frontend-release-manifest.mjs release-staging "$RELEASE_VERSION"
+          tar -czf "frontend-release-${GITHUB_SHA}.tar.gz" -C release-staging .
+          sha256sum "frontend-release-${GITHUB_SHA}.tar.gz" > "frontend-release-${GITHUB_SHA}.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: frontend-release-${{ github.sha }}
           path: |
-            packages/frontend/.next/standalone
-            packages/frontend/.next/static
-            packages/frontend/public
+            frontend-release-${{ github.sha }}.tar.gz
+            frontend-release-${{ github.sha }}.sha256
 
-  plugin:
+  plugin-build:
     if: inputs.release_type == 'plugin'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Package allow-listed plugin directory
+      - name: Validate and package reviewed plugin
+        shell: bash
+        env:
+          PLUGIN_ID: ${{ inputs.plugin_id }}
         run: |
-          test -d packages/backend/plugins
-          tar -czf backend-plugin-${GITHUB_SHA}.tar.gz -C packages/backend/plugins .
+          set -euo pipefail
+          test -n "$PLUGIN_ID"
+          test -d "packages/backend/plugins/$PLUGIN_ID"
+          test -f "packages/backend/plugins/$PLUGIN_ID/manifest.json"
+          node - <<'NODE'
+          const fs = require('fs')
+          const crypto = require('crypto')
+          const path = require('path')
+          const id = process.env.PLUGIN_ID
+          const root = path.resolve('packages/backend/plugins', id)
+          const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'))
+          if (manifest.id !== id || manifest.apiVersion !== 1 || !/^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$/.test(manifest.version)) throw new Error('invalid plugin manifest')
+          if (path.isAbsolute(manifest.entry) || manifest.entry.includes('\\') || manifest.entry.includes(':') || manifest.entry.split('/').some(p => !p || p === '.' || p === '..')) throw new Error('invalid plugin entry')
+          const entry = path.resolve(root, manifest.entry)
+          if (!entry.startsWith(root + path.sep)) throw new Error('plugin entry escapes root')
+          if (crypto.createHash('sha256').update(fs.readFileSync(entry)).digest('hex') !== manifest.sha256) throw new Error('plugin sha256 mismatch')
+          NODE
+          tar -czf "backend-plugin-${GITHUB_SHA}.tar.gz" -C "packages/backend/plugins/$PLUGIN_ID" .
+          sha256sum "backend-plugin-${GITHUB_SHA}.tar.gz" > "backend-plugin-${GITHUB_SHA}.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: backend-plugin-${{ github.sha }}
-          path: backend-plugin-${{ github.sha }}.tar.gz
+          path: |
+            backend-plugin-${{ github.sha }}.tar.gz
+            backend-plugin-${{ github.sha }}.sha256
+
+  core-prepare:
+    if: inputs.release_type == 'core'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record immutable core image tag
+        shell: bash
+        env:
+          CORE_IMAGE_TAG: ${{ inputs.core_image_tag || format('sha-{0}', github.sha) }}
+        run: printf '%s\n' "$CORE_IMAGE_TAG" > core-image-tag.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: core-release-${{ github.sha }}
+          path: core-image-tag.txt
+
+  deploy-frontend:
+    if: inputs.release_type == 'frontend' && inputs.deploy == true
+    needs: frontend-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-release-${{ github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/ensure-openresty-hot-update.sh
+            scripts/install-frontend-release.sh
+            scripts/rollback-frontend-release.sh
+            scripts/finalize-frontend-release.sh
+          sparse-checkout-cone-mode: false
+      - name: Create immutable deployment bundle
+        shell: bash
+        run: tar -czf frontend-deploy-bundle.tar.gz frontend-release-${{ github.sha }}.tar.gz frontend-release-${{ github.sha }}.sha256 scripts/ensure-openresty-hot-update.sh scripts/install-frontend-release.sh scripts/rollback-frontend-release.sh scripts/finalize-frontend-release.sh
+      - uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: frontend-deploy-bundle.tar.gz
+          target: /home/myndops/hot-release/${{ github.run_id }}
+      - uses: appleboy/ssh-action@v1
+        env:
+          RELEASE_VERSION: ${{ inputs.version || github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+          PUBLIC_URL: ${{ env.PUBLIC_URL }}
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: RELEASE_VERSION,RUN_ID,COMMIT_SHA,DEPLOY_DIR,PUBLIC_URL
+          script_stop: true
+          script: |
+            set -euo pipefail
+            WORK=/home/myndops/hot-release/$RUN_ID
+            cd "$WORK"
+            tar -xzf frontend-deploy-bundle.tar.gz
+            sudo -n bash scripts/ensure-openresty-hot-update.sh /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf 1Panel-openresty-az9A
+            sudo -n bash scripts/install-frontend-release.sh "$DEPLOY_DIR" "frontend-release-$COMMIT_SHA.tar.gz" "$RELEASE_VERSION" auto /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf 1Panel-openresty-az9A myndbbs_default ghcr.io/kelomina/myndbbs-frontend:sha-$COMMIT_SHA "$PUBLIC_URL"
+            if ! curl -fsS --max-time 15 "$PUBLIC_URL/" >/dev/null || ! curl -fsS --max-time 15 "$PUBLIC_URL/api/health" >/dev/null; then
+              sudo -n bash scripts/rollback-frontend-release.sh "$DEPLOY_DIR" /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf 1Panel-openresty-az9A
+              exit 1
+            fi
+            sudo -n bash scripts/finalize-frontend-release.sh "$DEPLOY_DIR"
+            echo "hot-frontend-deploy=$RUN_ID version=$RELEASE_VERSION"
+
+  deploy-plugin:
+    if: inputs.release_type == 'plugin' && inputs.deploy == true
+    needs: plugin-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-plugin-${{ github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/install-plugin-release.sh
+            scripts/ensure-hot-update-base.sh
+          sparse-checkout-cone-mode: false
+      - name: Create immutable deployment bundle
+        shell: bash
+        run: tar -czf plugin-deploy-bundle.tar.gz backend-plugin-${{ github.sha }}.tar.gz backend-plugin-${{ github.sha }}.sha256 scripts/install-plugin-release.sh scripts/ensure-hot-update-base.sh
+      - uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: plugin-deploy-bundle.tar.gz
+          target: /home/myndops/hot-release/${{ github.run_id }}
+      - uses: appleboy/ssh-action@v1
+        env:
+          PLUGIN_ID: ${{ inputs.plugin_id }}
+          PLUGIN_VERSION: ${{ inputs.plugin_version }}
+          PLUGIN_ADMIN_TOKEN: ${{ secrets.PLUGIN_ADMIN_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: PLUGIN_ID,PLUGIN_VERSION,PLUGIN_ADMIN_TOKEN,RUN_ID,COMMIT_SHA,DEPLOY_DIR
+          script_stop: true
+          script: |
+            set -eu
+            test -n "$PLUGIN_VERSION"
+            test -n "$PLUGIN_ADMIN_TOKEN"
+            WORK=/home/myndops/hot-release/$RUN_ID
+            cd "$WORK"
+            tar -xzf plugin-deploy-bundle.tar.gz
+            sudo -n bash scripts/ensure-hot-update-base.sh "$DEPLOY_DIR"
+            sudo -n env PLUGIN_DIR="$DEPLOY_DIR/plugins" docker compose --env-file "$DEPLOY_DIR/.env" -f "$DEPLOY_DIR/docker-compose.yml" -f "$DEPLOY_DIR/docker-compose.hot-update.yml" up -d backend
+            for i in $(seq 1 30); do
+              sudo -n docker inspect -f '{{.State.Health.Status}}' myndbbs-backend 2>/dev/null | grep -q '^healthy$' && break
+              sleep 2
+            done
+            sudo -n docker inspect -f '{{.State.Health.Status}}' myndbbs-backend | grep -q '^healthy$'
+            sudo -n bash scripts/install-plugin-release.sh "$DEPLOY_DIR/plugins" "backend-plugin-$COMMIT_SHA.tar.gz" "$PLUGIN_ID" "$PLUGIN_VERSION" ghcr.io/kelomina/myndbbs-plugin-runtime:latest myndbbs_default "$PLUGIN_ADMIN_TOKEN"
+            echo "hot-plugin-deploy=$RUN_ID plugin=$PLUGIN_ID@$PLUGIN_VERSION"
+
+  deploy-core:
+    if: inputs.release_type == 'core' && inputs.deploy == true
+    needs: core-prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: core-release-${{ github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            docker-compose.rolling.example.yml
+            scripts/switch-openresty-release.sh
+            scripts/ensure-openresty-hot-update.sh
+          sparse-checkout-cone-mode: false
+      - name: Create core deployment bundle
+        shell: bash
+        run: tar -czf core-deploy-bundle.tar.gz docker-compose.rolling.example.yml scripts/switch-openresty-release.sh scripts/ensure-openresty-hot-update.sh
+      - uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: core-deploy-bundle.tar.gz
+          target: /home/myndops/hot-release/${{ github.run_id }}
+      - name: Deploy immutable GHCR core images with backup and rollback
+        uses: appleboy/ssh-action@v1
+        env:
+          CORE_IMAGE_TAG: ${{ inputs.core_image_tag || format('sha-{0}', github.sha) }}
+          CORE_COLOR: ${{ inputs.core_color }}
+          RUN_ID: ${{ github.run_id }}
+          DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+          PUBLIC_URL: ${{ env.PUBLIC_URL }}
+        with:
+          host: ${{ env.SSH_HOST }}
+          port: ${{ env.SSH_PORT }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: CORE_IMAGE_TAG,CORE_COLOR,RUN_ID,DEPLOY_DIR,PUBLIC_URL
+          command_timeout: 30m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            WORK=/home/myndops/hot-release/$RUN_ID
+            cd "$WORK"
+            tar -xzf core-deploy-bundle.tar.gz
+            case "$CORE_COLOR" in
+              blue) CORE_FRONT=3311; CORE_BACK=3301; CORE_SERVICE=blue ;;
+              green) CORE_FRONT=3312; CORE_BACK=3302; CORE_SERVICE=green ;;
+              *) echo "invalid core color" >&2; exit 2 ;;
+            esac
+            FRONT_ACTIVE=/opt/1panel/apps/openresty/openresty/conf/conf.d/myndbbs-frontend-active-upstream.inc
+            BACK_ACTIVE=/opt/1panel/apps/openresty/openresty/conf/conf.d/myndbbs-backend-active-upstream.inc
+            if sudo -n grep -Eq "^[[:space:]]*server[[:space:]]+127\\.0\\.0\\.1:${CORE_BACK};" "$BACK_ACTIVE" 2>/dev/null || sudo -n grep -Eq "^[[:space:]]*server[[:space:]]+127\\.0\\.0\\.1:${CORE_FRONT};" "$FRONT_ACTIVE" 2>/dev/null; then
+              echo "candidate color $CORE_COLOR is already active" >&2
+              exit 2
+            fi
+            test -n "$CORE_IMAGE_TAG"
+            if ! printf '%s' "$CORE_IMAGE_TAG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$'; then echo "invalid core image tag" >&2; exit 2; fi
+            cd "$DEPLOY_DIR"
+            BK="$DEPLOY_DIR/backup/hot-core-$RUN_ID"
+            sudo -n mkdir -p "$BK"
+            sudo -n docker compose exec -T postgres pg_dump -U myndbbs myndbbs | gzip | sudo -n tee "$BK/db_dump.sql.gz" >/dev/null
+            test -s "$BK/db_dump.sql.gz"
+            sudo -n cp docker-compose.yml "$BK/docker-compose.yml"
+            sudo -n cp "$DEPLOY_DIR/.env" "$BK/.env"
+            sudo -n cp /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf "$BK/kolobbs.kolostudio.fun.conf"
+            sudo -n cp "$FRONT_ACTIVE" "$BK/frontend-active.inc" 2>/dev/null || true
+            sudo -n cp "$BACK_ACTIVE" "$BK/backend-active.inc" 2>/dev/null || true
+            sudo -n docker image inspect ghcr.io/kelomina/myndbbs-backend:latest --format '{{.Id}}' | sudo -n tee "$BK/backend_image_id" >/dev/null
+            sudo -n docker image inspect ghcr.io/kelomina/myndbbs-frontend:latest --format '{{.Id}}' | sudo -n tee "$BK/frontend_image_id" >/dev/null
+            test -s "$BK/backend_image_id"
+            test -s "$BK/frontend_image_id"
+            export CORE_IMAGE_TAG
+            sudo -n bash "$WORK/scripts/ensure-openresty-hot-update.sh" /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf 1Panel-openresty-az9A
+            if sudo -n grep -Eq "^[[:space:]]*server[[:space:]]+127\\.0\\.0\\.1:${CORE_BACK};" "$BACK_ACTIVE" 2>/dev/null || sudo -n grep -Eq "^[[:space:]]*server[[:space:]]+127\\.0\\.0\\.1:${CORE_FRONT};" "$FRONT_ACTIVE" 2>/dev/null; then
+              echo "candidate color $CORE_COLOR is already active" >&2
+              exit 2
+            fi
+            sudo -n env CORE_IMAGE_TAG="$CORE_IMAGE_TAG" PLUGIN_DIR="$DEPLOY_DIR/plugins" BACKEND_ENV_FILE="$DEPLOY_DIR/.env" docker compose --env-file "$DEPLOY_DIR/.env" -f "$WORK/docker-compose.rolling.example.yml" --project-name myndbbs-hot-core pull "backend-$CORE_SERVICE" "frontend-$CORE_SERVICE"
+            sudo -n env CORE_IMAGE_TAG="$CORE_IMAGE_TAG" PLUGIN_DIR="$DEPLOY_DIR/plugins" BACKEND_ENV_FILE="$DEPLOY_DIR/.env" docker compose --env-file "$DEPLOY_DIR/.env" -f "$WORK/docker-compose.rolling.example.yml" --project-name myndbbs-hot-core up -d "backend-$CORE_SERVICE" "frontend-$CORE_SERVICE"
+            for i in $(seq 1 30); do curl -fsS "http://127.0.0.1:$CORE_BACK/api/health" >/dev/null && curl -fsS "http://127.0.0.1:$CORE_FRONT/" >/dev/null && break; sleep 2; done
+            curl -fsS "http://127.0.0.1:$CORE_BACK/api/health" >/dev/null
+            curl -fsS "http://127.0.0.1:$CORE_FRONT/" >/dev/null
+            curl -fsS --max-time 15 "$PUBLIC_URL/" >/dev/null
+            curl -fsS --max-time 15 "$PUBLIC_URL/api/health" >/dev/null
+            sudo -n bash "$WORK/scripts/switch-openresty-release.sh" "$CORE_COLOR" /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf 1Panel-openresty-az9A
+            if ! curl -fsS --max-time 15 "$PUBLIC_URL/" >/dev/null || ! curl -fsS --max-time 15 "$PUBLIC_URL/api/health" >/dev/null; then
+              sudo -n cp "$BK/kolobbs.kolostudio.fun.conf" /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf 2>/dev/null || true
+              sudo -n cp "$BK/frontend-active.inc" "$FRONT_ACTIVE" 2>/dev/null || true
+              sudo -n cp "$BK/backend-active.inc" "$BACK_ACTIVE" 2>/dev/null || true
+              sudo -n docker exec 1Panel-openresty-az9A /usr/local/openresty/bin/openresty -t
+              sudo -n docker exec 1Panel-openresty-az9A /usr/local/openresty/bin/openresty -s reload
+              sudo -n env CORE_IMAGE_TAG="$CORE_IMAGE_TAG" PLUGIN_DIR="$DEPLOY_DIR/plugins" BACKEND_ENV_FILE="$DEPLOY_DIR/.env" docker compose --env-file "$DEPLOY_DIR/.env" -f "$WORK/docker-compose.rolling.example.yml" --project-name myndbbs-hot-core rm -sf "backend-$CORE_SERVICE" "frontend-$CORE_SERVICE" || true
+              exit 1
+            fi
+            echo "hot-core-deploy=$RUN_ID tag=$CORE_IMAGE_TAG backup=$BK"

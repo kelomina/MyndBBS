@@ -1,12 +1,16 @@
 import { fork } from 'node:child_process'
-import { access } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 export class FrontendSupervisor {
   #active = null
   async switchTo(releaseDir, port, probe = async () => {}) {
-    await access(path.join(releaseDir, 'manifest.json'))
-    const server = path.join(releaseDir, 'server.js')
+    const manifest = JSON.parse(await readFile(path.join(releaseDir, 'manifest.json'), 'utf8'))
+    if (!manifest || typeof manifest.server !== 'string' || !manifest.server || manifest.server.includes('\\') || manifest.server.includes(':') || manifest.server.split('/').some((part) => !part || part === '.' || part === '..')) {
+      throw new Error('ERR_FRONTEND_MANIFEST_INVALID')
+    }
+    const server = path.resolve(releaseDir, manifest.server)
+    if (!server.startsWith(`${path.resolve(releaseDir)}${path.sep}`)) throw new Error('ERR_FRONTEND_PATH_TRAVERSAL')
     await access(server)
     const child = fork(server, [], { env: { ...process.env, PORT: String(port), HOSTNAME: '127.0.0.1', NODE_ENV: 'production' }, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] })
     try {
