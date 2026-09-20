@@ -249,6 +249,7 @@ jobs:
           if-no-files-found: warn
           path: |
             captcha-e2e.log
+            backend-e2e.log
             packages/frontend/test-results/**
             packages/frontend/reports/playwright-artifacts/**
             packages/frontend/reports/playwright-html/**
