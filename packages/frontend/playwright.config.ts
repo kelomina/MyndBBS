@@ -47,7 +47,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm --filter backend start > ../../backend-e2e.log 2>&1',
+      command: 'pnpm --filter backend start > backend-e2e.log 2>&1',
       url: 'http://127.0.0.1:3001/api/health',
       reuseExistingServer: true,
       timeout: 120_000,
