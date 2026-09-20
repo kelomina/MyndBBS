@@ -8,6 +8,7 @@ const USER = { email: 'captcha-e2e-user@example.test', password: 'CaptchaE2E!123
 const POST_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const TARGET_POSITION = 120
 const WRITE_HEADERS = { 'X-Requested-With': 'XMLHttpRequest', Origin: 'http://127.0.0.1:3101' }
+const ADMIN_TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
 
 const repoRoot = path.basename(process.cwd()) === 'frontend' ? path.resolve(process.cwd(), '../..') : process.cwd()
 const backendRoot = path.join(repoRoot, 'packages', 'backend')
@@ -15,6 +16,7 @@ const backendRequire = createRequire(path.join(backendRoot, 'package.json'))
 const { PrismaClient } = backendRequire(path.join(backendRoot, 'dist', 'generated', 'prisma', 'client.js'))
 const { PrismaPg } = backendRequire('@prisma/adapter-pg')
 const { Pool } = backendRequire('pg')
+const { OTP } = backendRequire('otplib')
 
 function dragPath() {
   return [
@@ -31,7 +33,16 @@ function dragPath() {
 
 async function login(request: APIRequestContext, credentials: typeof ADMIN) {
   const response = await request.post('/api/v1/auth/login', { data: credentials, headers: WRITE_HEADERS })
-  expect(response.status(), `login ${credentials.email}: ${await response.text()}`).toBe(200)
+  const body = await response.json() as { requires2FA?: boolean; error?: string }
+  expect(response.status(), `login ${credentials.email}: ${JSON.stringify(body)}`).toBe(200)
+  if (credentials.email === ADMIN.email && body.requires2FA) {
+    const otp = new OTP({ strategy: 'totp' }).generate(ADMIN_TOTP_SECRET)
+    const verified = await request.post('/api/v1/auth/totp/login-verify', {
+      data: { code: otp },
+      headers: WRITE_HEADERS,
+    })
+    expect(verified.status(), `TOTP login ${credentials.email}: ${await verified.text()}`).toBe(200)
+  }
 }
 
 async function issueAndVerify(request: APIRequestContext) {

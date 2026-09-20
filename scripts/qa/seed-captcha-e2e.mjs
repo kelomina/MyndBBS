@@ -31,6 +31,7 @@ const ADMIN_USERNAME = 'captcha_e2e_admin'
 const USER_EMAIL = 'captcha-e2e-user@example.test'
 const USER_USERNAME = 'captcha_e2e_user'
 const PASSWORD = 'CaptchaE2E!123456'
+const ADMIN_TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
 const CATEGORY_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
 try {
@@ -52,8 +53,8 @@ try {
   const password = await argon2.hash(PASSWORD)
   const admin = await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
-    update: { username: ADMIN_USERNAME, password, roleId: adminRole.id, status: 'ACTIVE', level: 4 },
-    create: { email: ADMIN_EMAIL, username: ADMIN_USERNAME, password, roleId: adminRole.id, status: 'ACTIVE', level: 4 },
+    update: { username: ADMIN_USERNAME, password, roleId: adminRole.id, status: 'ACTIVE', level: 4, totpSecret: ADMIN_TOTP_SECRET, isTotpEnabled: true },
+    create: { email: ADMIN_EMAIL, username: ADMIN_USERNAME, password, roleId: adminRole.id, status: 'ACTIVE', level: 4, totpSecret: ADMIN_TOTP_SECRET, isTotpEnabled: true },
   })
   const user = await prisma.user.upsert({
     where: { email: USER_EMAIL },
