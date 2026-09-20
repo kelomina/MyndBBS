@@ -31,19 +31,20 @@ function dragPath() {
 
 async function login(request: APIRequestContext, credentials: typeof ADMIN) {
   const response = await request.post('/api/v1/auth/login', { data: credentials, headers: WRITE_HEADERS })
-  expect(response.status(), await response.text()).toBe(200)
+  expect(response.status(), `login ${credentials.email}: ${await response.text()}`).toBe(200)
 }
 
 async function issueAndVerify(request: APIRequestContext) {
   const issue = await request.get('/api/v1/auth/captcha?testFixed=1')
-  expect(issue.status(), await issue.text()).toBe(200)
-  const { captchaId } = await issue.json() as { captchaId: string }
+  const issueBody = await issue.json() as { captchaId?: string }
+  expect(issue.status()).toBe(200)
+  const { captchaId } = issueBody
   expect(captchaId).toMatch(/^[0-9a-f-]{36}$/i)
   const verify = await request.post('/api/v1/auth/captcha/verify', {
     data: { captchaId, dragPath: dragPath(), totalDragTime: 780, finalPosition: TARGET_POSITION },
     headers: WRITE_HEADERS,
   })
-  expect(verify.status(), await verify.text()).toBe(200)
+  expect(verify.status(), `verify: ${await verify.text()}`).toBe(200)
   return captchaId
 }
 
@@ -144,8 +145,9 @@ test.describe('real CAPTCHA protection stack', () => {
     await login(request, USER)
 
     const categories = await request.get('/api/categories')
-    expect(categories.status(), await categories.text()).toBe(200)
-    const category = (await categories.json() as Array<{ id: string; name: string }>).find((item) => item.name === 'captcha-e2e')
+    const categoryList = await categories.json() as Array<{ id: string; name: string }>
+    expect(categories.status()).toBe(200)
+    const category = categoryList.find((item) => item.name === 'captcha-e2e')
     expect(category).toBeTruthy()
 
     const postCaptcha = await issueAndVerify(request)
@@ -153,13 +155,13 @@ test.describe('real CAPTCHA protection stack', () => {
       data: { title: `captcha-e2e-${Date.now()}`, content: 'real HTTP CAPTCHA post', categoryId: category!.id, captchaId: postCaptcha },
       headers: WRITE_HEADERS,
     })
-    expect(post.status(), await post.text()).toBe(201)
+    expect(post.status(), `post: ${await post.text()}`).toBe(201)
     await assertCaptchaDeleted(postCaptcha)
     await expectReplayFailure(request, postCaptcha, { title: 'replay', content: 'replay', categoryId: category!.id }, '/api/posts')
 
     const commentCaptcha = await issueAndVerify(request)
     const comment = await request.post(`/api/posts/${POST_ID}/comments`, { data: { content: 'real HTTP CAPTCHA comment', captchaId: commentCaptcha }, headers: WRITE_HEADERS })
-    expect(comment.status(), await comment.text()).toBe(201)
+    expect(comment.status(), `comment: ${await comment.text()}`).toBe(201)
     await assertCaptchaDeleted(commentCaptcha)
     await expectReplayFailure(request, commentCaptcha, { content: 'replay' }, `/api/posts/${POST_ID}/comments`)
 
@@ -169,7 +171,7 @@ test.describe('real CAPTCHA protection stack', () => {
     const addresseeId = targetBody.user?.id
     expect(addresseeId).toBeTruthy()
     const friend = await request.post('/api/v1/friends/request', { data: { addresseeId, captchaId: friendCaptcha }, headers: WRITE_HEADERS })
-    expect(friend.status(), await friend.text()).toBe(200)
+    expect(friend.status(), `friend: ${await friend.text()}`).toBe(200)
     await assertCaptchaDeleted(friendCaptcha)
     await expectReplayFailure(request, friendCaptcha, { addresseeId }, '/api/v1/friends/request')
     await saveNetwork('captcha-business-network')
