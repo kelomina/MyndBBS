@@ -59,6 +59,7 @@ function bodyForRequest(req: Request): string | undefined {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return undefined
   if (req.body === undefined) return undefined
   const body = JSON.stringify(req.body)
+  if (body === undefined) return undefined
   if (Buffer.byteLength(body, 'utf8') > MAX_BODY_BYTES) throw new Error('ERR_PLUGIN_REQUEST_TOO_LARGE')
   return body
 }
@@ -124,12 +125,13 @@ export async function proxyPluginRequest(req: AuthRequest, res: Response): Promi
       res.status(503).json({ error: 'ERR_PLUGIN_HOST_UNHEALTHY' })
       return
     }
-    const upstream = await fetch(url, {
+    const requestInit: RequestInit = {
       method: req.method,
       headers,
-      body,
       signal: AbortSignal.timeout(TIMEOUT_MS),
-    })
+    }
+    if (body !== undefined) requestInit.body = body
+    const upstream = await fetch(url, requestInit)
     res.status(upstream.status)
     const contentType = upstream.headers.get('content-type')
     if (contentType) res.setHeader('content-type', contentType)
