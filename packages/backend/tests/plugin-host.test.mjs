@@ -12,7 +12,7 @@ test('plugin host starts in a separate process', { timeout: 10000 }, async () =>
   const code = 'module.exports={activate(){}}'
   await writeFile(path.join(root, 'entry.cjs'), code)
   const manifest = path.join(root, 'manifest.json')
-  await writeFile(manifest, JSON.stringify({ id: 'demo', version: '1.0.0', entry: 'entry.cjs', sha256: createHash('sha256').update(code).digest('hex') }))
+  await writeFile(manifest, JSON.stringify({ id: 'demo', version: '1.0.0', apiVersion: 1, entry: 'entry.cjs', sha256: createHash('sha256').update(code).digest('hex') }))
   const child = fork(fileURLToPath(new URL('../../../scripts/plugin-host.mjs', import.meta.url)), [manifest, '0'], { stdio: ['ignore', 'ignore', 'inherit', 'ipc'] })
   try {
     const ready = await new Promise((resolve, reject) => {

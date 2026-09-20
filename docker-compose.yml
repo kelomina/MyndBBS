@@ -60,9 +60,12 @@ services:
       MEILISEARCH_KEY: ${MEILISEARCH_KEY:?MEILISEARCH_KEY is required}
       NODE_ENV: production
       COOKIE_SECURE: "true"
+      PLUGIN_ALLOWLIST_FILE: /app/plugin-releases/allowlist.json
+      PLUGIN_GATEWAY_DNS_PREFIX: http://myndbbs-plugin-
     volumes:
       - uploads-data:/app/packages/backend/uploads
       - ${BACKEND_ENV_FILE:-./.env}:/app/packages/backend/.env:ro
+      - ${PLUGIN_DIR:-./plugins}:/app/plugin-releases:ro
     ports:
       - "127.0.0.1:3001:3001"
     healthcheck:

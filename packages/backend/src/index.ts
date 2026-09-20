@@ -160,6 +160,7 @@ const publicRoutes = require('./routes/public').default;
   const notificationRoutes = require('./routes/notification').default;
   const journalRoutes = require('./routes/journal').default;
   const journalQueryRoutes = require('./routes/journalQuery').default;
+  const pluginRoutes = require('./routes/plugins').default;
 
   // Initialize Domain Event Subscribers
   const { bootstrapDomainSubscribers } = require('./startup/bootstrapDomainSubscribers');
@@ -212,6 +213,7 @@ const publicRoutes = require('./routes/public').default;
   app.use('/api/search', searchRoutes);
   app.use('/api/wikis', wikiRoutes);
   app.use('/api/v1/events', eventsRoutes);
+  app.use('/api/plugins', pluginRoutes);
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/tags', tagRoutes);
   app.use('/api/v1/drafts', draftsRoutes);
