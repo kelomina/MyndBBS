@@ -181,7 +181,12 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
         ? error.message
         : 'ERR_BAD_REQUEST';
-      res.status(400).json({ error: errorCode });
+      res.status(400).json({
+        error: errorCode,
+        ...(process.env.NODE_ENV === 'test' && {
+          debug: error instanceof Error ? error.message : String(error),
+        }),
+      });
       return;
     }
   } catch (error) {
