@@ -34,6 +34,13 @@ export const registerSchema = z.object({
   captchaId: z.string().min(1, 'ERR_CAPTCHA_REQUIRED'),
 })
 
+/** 注册请求按当前业务策略允许省略 captchaId；服务层仍决定是否消费验证码。 */
+export const registerSchemaWithOptionalCaptcha = registerSchema.extend({
+  captchaId: z.string().min(1, 'ERR_CAPTCHA_REQUIRED').optional(),
+})
+
+export const registerSchemaRequiredCaptcha = registerSchema
+
 /** 登录请求校验：邮箱/用户名、密码 */
 export const loginSchema = z.object({
   email: z.string().min(1, 'ERR_EMAIL_REQUIRED'),
@@ -321,6 +328,11 @@ export const createPostSchema = z.object({
   tags: z.array(z.string().max(40)).max(5).optional(),
 })
 
+/** 发帖业务策略关闭时使用；保留 createPostSchema 的严格旧契约供其他调用者/测试使用。 */
+export const createPostSchemaWithOptionalCaptcha = createPostSchema.extend({
+  captchaId: z.string().min(1, 'ERR_CAPTCHA_REQUIRED').optional(),
+})
+
 export const createJournalSubmissionSchema = z.object({
   title: z.string().min(1, 'ERR_TITLE_REQUIRED').max(200),
   abstract: z.string().max(5000).nullable().optional(),
@@ -354,6 +366,26 @@ export const createCommentSchema = z.object({
   parentId: z.string().min(1).max(128).nullable().optional(),
   captchaId: z.string().min(1, 'ERR_CAPTCHA_REQUIRED'),
 })
+
+/** 评论业务策略关闭时使用；保留 createCommentSchema 的严格旧契约供其他调用者/测试使用。 */
+export const createCommentSchemaWithOptionalCaptcha = createCommentSchema.extend({
+  captchaId: z.string().min(1, 'ERR_CAPTCHA_REQUIRED').optional(),
+})
+
+/** /admin/protection/captcha 的全量严格写入契约。 */
+export const captchaProtectionSchema = z
+  .object({
+    enabled: z.boolean(),
+    surfaces: z
+      .object({
+        registration: z.boolean(),
+        post: z.boolean(),
+        comment: z.boolean(),
+        friendRequest: z.boolean(),
+      })
+      .strict(),
+  })
+  .strict()
 
 /** 更新评论请求校验 */
 export const updateCommentSchema = z.object({

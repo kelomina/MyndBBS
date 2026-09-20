@@ -8,12 +8,14 @@ import { useTranslation } from '../../../components/TranslationProvider';
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
 import { useToast } from '../../../components/ui/Toast';
 import { fetchWithAuth } from '../../../lib/api/fetcher';
+import { useCaptchaRequirement } from '../../../lib/captcha/requirements';
 
 export function OwnerSettingsButton({ username }: { username: string }) {
   const [currentUser, setCurrentUser] = useState<{ username: string; level?: number } | null>(null);
   const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted' | 'self'>('none');
   const [friendLoading, setFriendLoading] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
+  const captchaRequired = useCaptchaRequirement('friendRequest');
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dict = useTranslation();
@@ -99,10 +101,11 @@ export function OwnerSettingsButton({ username }: { username: string }) {
   }, [username]);
 
   const handleAddFriend = () => {
-    setShowCaptcha(true);
+    if (captchaRequired) setShowCaptcha(true);
+    else void submitFriendRequest();
   };
 
-  const handleCaptchaSuccess = async (captchaId: string) => {
+  const submitFriendRequest = async (captchaId?: string) => {
     setShowCaptcha(false);
     setFriendLoading(true);
     try {
@@ -113,7 +116,10 @@ export function OwnerSettingsButton({ username }: { username: string }) {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify({ addresseeUsername: username, captchaId })
+        body: JSON.stringify({
+          addresseeUsername: username,
+          ...(captchaRequired && captchaId ? { captchaId } : {}),
+        })
       });
       if (res.ok) {
         setFriendStatus('pending');
@@ -152,12 +158,16 @@ export function OwnerSettingsButton({ username }: { username: string }) {
     }
   };
 
+  const handleCaptchaSuccess = async (captchaId: string) => {
+    await submitFriendRequest(captchaId);
+  };
+
   if (!currentUser) return null;
   const isOwner = currentUser.username === username;
 
   return (
     <div className="flex gap-2">
-      {showCaptcha && (
+      {showCaptcha && captchaRequired && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-card p-6 rounded-2xl shadow-xl relative">
             <button

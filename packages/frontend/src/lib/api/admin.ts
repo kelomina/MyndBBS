@@ -7,6 +7,8 @@ import type {
   RateLimitProtectionUpdateResult,
   FederalProtectionConfig,
   FederalProtectionUpdateResult,
+  CaptchaProtectionPolicy,
+  CaptchaProtectionUpdateResult,
 } from '../../types/protection';
 
 export interface AuditLogEntry {
@@ -318,6 +320,19 @@ export const updateFederalPolicy = (
   policy: FederalProtectionConfig,
 ): Promise<FederalProtectionUpdateResult> =>
   fetcher('/api/admin/protection/federal', {
+    method: 'PUT',
+    body: JSON.stringify(policy),
+  });
+
+// ── Business CAPTCHA protection policy ──
+
+export const getCaptchaProtectionPolicy = (): Promise<CaptchaProtectionPolicy> =>
+  fetcher('/api/admin/protection/captcha');
+
+export const updateCaptchaProtectionPolicy = (
+  policy: CaptchaProtectionPolicy,
+): Promise<CaptchaProtectionUpdateResult> =>
+  fetcher('/api/admin/protection/captcha', {
     method: 'PUT',
     body: JSON.stringify(policy),
   });

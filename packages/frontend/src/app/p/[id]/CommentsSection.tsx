@@ -9,6 +9,7 @@ import { useToast } from '../../../components/ui/Toast'
 import { Avatar } from '../../../components/Avatar'
 import { BadgeChip } from '../../../components/BadgeChip'
 import { fetcher } from '../../../lib/api/fetcher'
+import { useCaptchaRequirement } from '../../../lib/captcha/requirements'
 import type { Dictionary, PostComment } from '../../../types'
 
 const MAX_DEPTH = 2
@@ -60,6 +61,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null)
   const { user: currentUser } = useCurrentUser()
   const [showCaptcha, setShowCaptcha] = useState(false)
+  const captchaRequired = useCaptchaRequirement('comment')
   const [loadingKeys, setLoadingKeys] = useState<Set<string>>(new Set())
 
   const [rootPage, setRootPage] = useState(1)
@@ -285,7 +287,11 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
 
   const handlePreSubmit = () => {
     if (!newComment.trim()) return
-    setShowCaptcha(true)
+    if (captchaRequired) {
+      setShowCaptcha(true)
+    } else {
+      void handleSubmit()
+    }
   }
 
   const incrementReplyCount = (comment: PostComment): PostComment => ({
@@ -358,14 +364,18 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
     })
   }
 
-  const handleSubmit = async (captchaId: string) => {
+  const handleSubmit = async (captchaId?: string) => {
     setShowCaptcha(false)
     setLoading(true)
     try {
       const data = await fetcher(`/api/posts/${postId}/comments`, {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify({ content: newComment, parentId: replyTo?.id, captchaId }),
+        body: JSON.stringify({
+          content: newComment,
+          parentId: replyTo?.id,
+          ...(captchaRequired && captchaId ? { captchaId } : {}),
+        }),
       })
 
       if (data.message === 'ERR_PENDING_MODERATION') {
@@ -724,7 +734,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
         {dict.post?.comments || 'Comments'} ({count})
       </h3>
 
-      {showCaptcha && (
+      {showCaptcha && captchaRequired && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-card p-6 rounded-2xl shadow-xl relative">
             <button onClick={() => setShowCaptcha(false)} className="absolute top-2 right-2 text-muted hover:text-foreground">

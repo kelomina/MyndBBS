@@ -26,6 +26,9 @@ export interface MessagingApplicationServiceOptions {
   identityIntegrationPort: IIdentityIntegrationPort
   unitOfWork: IUnitOfWork
   eventBus: IEventBus
+  /** 业务 CAPTCHA 策略与消费端口；未注入时保持强制验证安全默认。 */
+  captchaProtection?: { requires(surface: 'registration' | 'post' | 'comment' | 'friendRequest'): Promise<boolean> }
+  captchaValidator?: { consumeCaptcha(captchaId: string): Promise<boolean> }
 }
 export class MessagingApplicationService {
   constructor(private readonly opts: MessagingApplicationServiceOptions) {}
@@ -38,7 +41,24 @@ export class MessagingApplicationService {
    * Description: Validates user profiles before sending a friend request. Sends a system message if applicable within a transaction.
    * Keywords: validate, friend, request, messaging
    */
-  public async sendFriendRequestWithValidation(requesterId: string, addresseeId: string): Promise<void> {
+  public async sendFriendRequestWithValidation(
+    requesterId: string,
+    addresseeId: string,
+    captchaId?: string,
+  ): Promise<void> {
+    let captchaRequired = true
+    try {
+      captchaRequired = this.opts.captchaProtection
+        ? await this.opts.captchaProtection.requires('friendRequest')
+        : true
+    } catch {
+      captchaRequired = true
+    }
+    if (captchaRequired) {
+      if (!captchaId || !this.opts.captchaValidator) throw new Error('ERR_CAPTCHA_IS_REQUIRED')
+      const isCaptchaValid = await this.opts.captchaValidator.consumeCaptcha(captchaId)
+      if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA')
+    }
     const requester = await this.opts.identityIntegrationPort.getUserProfile(requesterId);
     if (!requester) throw new Error('ERR_USER_NOT_FOUND');
 

@@ -8,6 +8,7 @@ import { Button } from '../../../components/ui/Button'
 import { Modal } from '../../../components/ui/Modal'
 import { RateLimitPolicySection } from '../../../components/RateLimitPolicySection'
 import { FederalCaptchaSection } from '../../../components/FederalCaptchaSection'
+import { CaptchaProtectionSection } from '../../../components/CaptchaProtectionSection'
 import {
   getIpBans,
   createIpBan,
@@ -214,6 +215,9 @@ export default function ProtectionPage() {
 
       {/* ── 联邦验证题型与难度（第五节进站：沿 RateLimitPolicySection，6 字段 strict） ── */}
       <FederalCaptchaSection />
+
+      {/* ── 业务入口人机验证（注册/发帖/评论/好友请求） ── */}
+      <CaptchaProtectionSection />
 
       {/* ── 站点设置 ── */}
       <div className="rounded-xl border border-border bg-card p-6 space-y-4">

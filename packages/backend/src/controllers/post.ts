@@ -154,11 +154,6 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    if (!captchaId) {
-      res.status(400).json({ error: 'ERR_CAPTCHA_IS_REQUIRED' });
-      return;
-    }
-
     const userLevel = req.user!.effectiveLevel ?? (await communityQueryService.getUserLevel(req.user!.userId));
     
     try {
@@ -503,11 +498,6 @@ export const createComment = async (req: AuthRequest, res: Response): Promise<vo
 
     if (!content) {
       res.status(400).json({ error: 'ERR_COMMENT_CONTENT_IS_REQUIRED' });
-      return;
-    }
-
-    if (!captchaId) {
-      res.status(400).json({ error: 'ERR_CAPTCHA_IS_REQUIRED' });
       return;
     }
 

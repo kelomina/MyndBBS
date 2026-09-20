@@ -35,7 +35,9 @@ if (!fs.existsSync(envPath)) {
   }
   fs.writeFileSync(envPath, '');
 }
-dotenv.config({ path: envPath, override: true });
+// E2E launches the server with an isolated test environment. Preserve those
+// injected secrets while keeping the existing .env precedence for dev/prod.
+dotenv.config({ path: envPath, override: process.env.NODE_ENV !== 'test' });
 validateRuntimeSecurityConfig();
 
 const app = express();

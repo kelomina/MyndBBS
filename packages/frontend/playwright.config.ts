@@ -9,6 +9,8 @@ const backendEnv = {
   JWT_SECRET: process.env.JWT_SECRET || 'e2e-only-jwt-secret-0123456789abcdef0123456789abcdef',
   JWT_REFRESH_SECRET:
     process.env.JWT_REFRESH_SECRET || 'e2e-only-refresh-secret-0123456789abcdef0123456789',
+  NODE_ENV: 'test',
+  REDIS_URL: '',
   INSTALL_LOCKED: 'true',
 };
 

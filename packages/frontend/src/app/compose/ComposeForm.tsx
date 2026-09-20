@@ -7,6 +7,7 @@ import { fetcher } from '@/lib/api/fetcher';
 import { PostEditor } from '../../components/PostEditor';
 import { SliderCaptcha } from '../../components/SliderCaptcha';
 import { useToast } from '../../components/ui/Toast';
+import { useCaptchaRequirement } from '../../lib/captcha/requirements';
 import type { Dictionary } from '../../types';
 
 interface DraftData {
@@ -28,6 +29,7 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
   const { categories } = useCategories();
   const [loading, setLoading] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
+  const captchaRequired = useCaptchaRequirement('post');
 
   // ── 草稿状态 ──
   const [draftBanner, setDraftBanner] = useState<DraftData | null>(null);
@@ -122,10 +124,14 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
       toast(dict.apiErrors?.ERR_PLEASE_FILL_ALL || 'Please fill out all fields', 'error');
       return;
     }
-    setShowCaptcha(true);
+    if (captchaRequired) {
+      setShowCaptcha(true);
+    } else {
+      void handlePublish();
+    }
   };
 
-      const handlePublish = async (captchaId: string) => {
+      const handlePublish = async (captchaId?: string) => {
     setShowCaptcha(false);
     setLoading(true);
     try {
@@ -139,7 +145,13 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
         headers: {
           'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify({ title, content, categoryId, captchaId, ...(tags.length ? { tags } : {}) })
+        body: JSON.stringify({
+          title,
+          content,
+          categoryId,
+          ...(captchaRequired && captchaId ? { captchaId } : {}),
+          ...(tags.length ? { tags } : {}),
+        })
       });
 
       void clearDraft();

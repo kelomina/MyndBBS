@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { isValidPassword } from '@myndbbs/shared';
 
 import { SliderCaptcha } from '../../../components/SliderCaptcha';
+import { useCaptchaRequirement } from '../../../lib/captcha/requirements';
 import { TwoFactorSetup } from '../../../components/TwoFactorSetup';
 import {
   resendEmailRegistration,
@@ -31,6 +32,7 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [captchaId, setCaptchaId] = useState<string | null>(null);
+  const captchaRequired = useCaptchaRequirement('registration');
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -160,7 +162,7 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
     setError('');
     setStatusMessage('');
 
-    if (!captchaId) {
+    if (captchaRequired && !captchaId) {
       setError(dict.auth.completeSecurityVerificationFirst);
       return;
     }
@@ -181,7 +183,7 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
         email,
         username,
         password,
-        captchaId,
+        ...(captchaRequired && captchaId ? { captchaId } : {}),
       });
 
       setPendingRegistrationEmail(response.email);
@@ -400,21 +402,21 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
           <p className="mt-1 text-xs text-muted">{dict.auth.passwordHint}</p>
         </div>
 
-        {!captchaId ? (
+        {captchaRequired && !captchaId ? (
           <SliderCaptcha onSuccess={(nextCaptchaId) => setCaptchaId(nextCaptchaId)} />
-        ) : (
+        ) : captchaRequired ? (
           <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-50 px-4 py-3.5 text-sm font-medium text-emerald-700 shadow-[0_0_15px_rgba(52,211,153,0.1)] dark:bg-emerald-500/15 dark:text-emerald-300">
             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs text-white shadow-[0_0_10px_rgba(52,211,153,0.5)]">
               OK
             </div>
             <span>{dict.auth.securityVerificationPassed}</span>
           </div>
-        )}
+        ) : null}
 
         <div>
           <button
             type="submit"
-            disabled={loading || !captchaId}
+            disabled={loading || (captchaRequired && !captchaId)}
             className="flex w-full justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? dict.auth.creating : dict.auth.createAccount}
