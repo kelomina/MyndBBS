@@ -31,7 +31,7 @@ const ADMIN_USERNAME = 'captcha_e2e_admin'
 const USER_EMAIL = 'captcha-e2e-user@example.test'
 const USER_USERNAME = 'captcha_e2e_user'
 const PASSWORD = 'CaptchaE2E!123456'
-const ADMIN_TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
+const ADMIN_TOTP_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP'
 const CATEGORY_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
 try {

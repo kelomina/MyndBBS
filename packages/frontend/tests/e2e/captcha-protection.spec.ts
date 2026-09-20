@@ -8,7 +8,7 @@ const USER = { email: 'captcha-e2e-user@example.test', password: 'CaptchaE2E!123
 const POST_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const TARGET_POSITION = 120
 const WRITE_HEADERS = { 'X-Requested-With': 'XMLHttpRequest', Origin: 'http://127.0.0.1:3101' }
-const ADMIN_TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
+const ADMIN_TOTP_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP'
 
 const repoRoot = path.basename(process.cwd()) === 'frontend' ? path.resolve(process.cwd(), '../..') : process.cwd()
 const backendRoot = path.join(repoRoot, 'packages', 'backend')
