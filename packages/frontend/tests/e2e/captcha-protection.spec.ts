@@ -61,6 +61,25 @@ async function assertCaptchaDeleted(captchaId: string) {
   }
 }
 
+async function clearFriendFixture() {
+  const databaseUrl = process.env.E2E_DATABASE_URL || process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error('E2E_DATABASE_URL or DATABASE_URL is required')
+  const pool = new Pool({ connectionString: databaseUrl })
+  const prisma = new PrismaClient({ adapter: new PrismaPg(pool) })
+  try {
+    const [requester, addressee] = await Promise.all([
+      prisma.user.findUnique({ where: { email: USER.email }, select: { id: true } }),
+      prisma.user.findUnique({ where: { email: ADMIN.email }, select: { id: true } }),
+    ])
+    if (requester && addressee) {
+      await prisma.friendship.deleteMany({ where: { requesterId: requester.id, addresseeId: addressee.id } })
+    }
+  } finally {
+    await prisma.$disconnect()
+    await pool.end()
+  }
+}
+
 async function expectReplayFailure(request: APIRequestContext, captchaId: string, data: Record<string, unknown>, endpoint: string) {
   const replay = await request.post(endpoint, { data: { ...data, captchaId }, headers: WRITE_HEADERS })
   expect(replay.status()).toBeGreaterThanOrEqual(400)
@@ -166,12 +185,15 @@ test.describe('real CAPTCHA protection stack', () => {
     await expectReplayFailure(request, commentCaptcha, { content: 'replay' }, `/api/posts/${POST_ID}/comments`)
 
     const friendCaptcha = await issueAndVerify(request)
+    await clearFriendFixture()
     const target = await request.get('/api/v1/user/public/captcha_e2e_admin')
     const targetBody = await target.json() as { user?: { id?: string } }
     const addresseeId = targetBody.user?.id
     if (!addresseeId) throw new Error('captcha-e2e admin fixture missing')
     const friend = await request.post('/api/v1/friends/request', { data: { addresseeId, captchaId: friendCaptcha }, headers: WRITE_HEADERS })
-    expect(friend.status(), `friend: ${await friend.text()}`).toBe(200)
+    const friendText = await friend.text()
+    await test.info().attach('friend-request-response', { body: JSON.stringify({ status: friend.status(), body: friendText }), contentType: 'application/json' })
+    expect(friend.status(), `friend: ${friendText}`).toBe(200)
     await assertCaptchaDeleted(friendCaptcha)
     await expectReplayFailure(request, friendCaptcha, { addresseeId }, '/api/v1/friends/request')
     await saveNetwork('captcha-business-network')
