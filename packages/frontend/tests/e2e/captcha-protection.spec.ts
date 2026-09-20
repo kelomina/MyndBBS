@@ -186,16 +186,13 @@ test.describe('real CAPTCHA protection stack', () => {
 
     const friendCaptcha = await issueAndVerify(request)
     await clearFriendFixture()
-    const target = await request.get('/api/v1/user/public/captcha_e2e_admin')
-    const targetBody = await target.json() as { user?: { id?: string } }
-    const addresseeId = targetBody.user?.id
-    if (!addresseeId) throw new Error('captcha-e2e admin fixture missing')
-    const friend = await request.post('/api/v1/friends/request', { data: { addresseeId, captchaId: friendCaptcha }, headers: WRITE_HEADERS })
+    const friendData = { addresseeUsername: 'captcha_e2e_admin', captchaId: friendCaptcha }
+    const friend = await request.post('/api/v1/friends/request', { data: friendData, headers: WRITE_HEADERS })
     const friendText = await friend.text()
     await test.info().attach('friend-request-response', { body: JSON.stringify({ status: friend.status(), body: friendText }), contentType: 'application/json' })
     expect(friend.status(), `friend: ${friendText}`).toBe(200)
     await assertCaptchaDeleted(friendCaptcha)
-    await expectReplayFailure(request, friendCaptcha, { addresseeId }, '/api/v1/friends/request')
+    await expectReplayFailure(request, friendCaptcha, { addresseeUsername: 'captcha_e2e_admin' }, '/api/v1/friends/request')
     await saveNetwork('captcha-business-network')
   })
 

@@ -228,8 +228,8 @@ jobs:
             while IFS= read -r file; do
               summary=$(tr '\n' ' ' < "$file" | cut -c1-1500)
               echo "::error file=$file::$summary"
-            done < <(find packages/frontend/test-results -name error-context.md -type f 2>/dev/null)
-            tail -n 80 captcha-e2e.log | while IFS= read -r line; do echo "::error::$line"; done
+            done < <(find packages/frontend -name error-context.md -type f 2>/dev/null)
+            tail -n 200 captcha-e2e.log | while IFS= read -r line; do echo "::error::$line"; done
           fi
           exit "$status"
         env:
