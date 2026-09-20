@@ -148,16 +148,16 @@ test.describe('real CAPTCHA protection stack', () => {
     const categoryList = await categories.json() as Array<{ id: string; name: string }>
     expect(categories.status()).toBe(200)
     const category = categoryList.find((item) => item.name === 'captcha-e2e')
-    expect(category).toBeTruthy()
+    if (!category) throw new Error('captcha-e2e category fixture missing')
 
     const postCaptcha = await issueAndVerify(request)
     const post = await request.post('/api/posts', {
-      data: { title: `captcha-e2e-${Date.now()}`, content: 'real HTTP CAPTCHA post', categoryId: category!.id, captchaId: postCaptcha },
+      data: { title: `captcha-e2e-${Date.now()}`, content: 'real HTTP CAPTCHA post', categoryId: category.id, captchaId: postCaptcha },
       headers: WRITE_HEADERS,
     })
     expect(post.status(), `post: ${await post.text()}`).toBe(201)
     await assertCaptchaDeleted(postCaptcha)
-    await expectReplayFailure(request, postCaptcha, { title: 'replay', content: 'replay', categoryId: category!.id }, '/api/posts')
+    await expectReplayFailure(request, postCaptcha, { title: 'replay', content: 'replay', categoryId: category.id }, '/api/posts')
 
     const commentCaptcha = await issueAndVerify(request)
     const comment = await request.post(`/api/posts/${POST_ID}/comments`, { data: { content: 'real HTTP CAPTCHA comment', captchaId: commentCaptcha }, headers: WRITE_HEADERS })
@@ -169,7 +169,7 @@ test.describe('real CAPTCHA protection stack', () => {
     const target = await request.get('/api/v1/user/public/captcha_e2e_admin')
     const targetBody = await target.json() as { user?: { id?: string } }
     const addresseeId = targetBody.user?.id
-    expect(addresseeId).toBeTruthy()
+    if (!addresseeId) throw new Error('captcha-e2e admin fixture missing')
     const friend = await request.post('/api/v1/friends/request', { data: { addresseeId, captchaId: friendCaptcha }, headers: WRITE_HEADERS })
     expect(friend.status(), `friend: ${await friend.text()}`).toBe(200)
     await assertCaptchaDeleted(friendCaptcha)
