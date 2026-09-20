@@ -230,9 +230,9 @@ jobs:
               echo "::error file=$file::$summary"
             done < <(find packages/frontend -name error-context.md -type f 2>/dev/null)
             tail -n 200 captcha-e2e.log | while IFS= read -r line; do echo "::error::$line"; done
-            if [ -f backend-e2e.log ]; then
-              tail -n 200 backend-e2e.log | while IFS= read -r line; do echo "::error::$line"; done
-            fi
+            while IFS= read -r file; do
+              tail -n 200 "$file" | while IFS= read -r line; do echo "::error::$line"; done
+            done < <(find . -name backend-e2e.log -type f 2>/dev/null)
           fi
           exit "$status"
         env:
@@ -252,7 +252,7 @@ jobs:
           if-no-files-found: warn
           path: |
             captcha-e2e.log
-            backend-e2e.log
+            **/backend-e2e.log
             packages/frontend/test-results/**
             packages/frontend/reports/playwright-artifacts/**
             packages/frontend/reports/playwright-html/**
