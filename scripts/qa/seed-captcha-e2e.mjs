@@ -74,8 +74,8 @@ try {
   })
 
   console.log(JSON.stringify({
-    admin: { email: ADMIN_EMAIL, username: ADMIN_USERNAME, password: PASSWORD, id: admin.id },
-    user: { email: USER_EMAIL, username: USER_USERNAME, password: PASSWORD, id: user.id },
+    admin: { email: ADMIN_EMAIL, username: ADMIN_USERNAME, id: admin.id },
+    user: { email: USER_EMAIL, username: USER_USERNAME, id: user.id },
     category: { id: category.id, name: category.name },
     post: { id: post.id },
     friendTarget: { id: admin.id, username: ADMIN_USERNAME },
