@@ -39,7 +39,7 @@ async function issueAndVerify(request: APIRequestContext) {
   const issueBody = await issue.json() as { captchaId?: string }
   expect(issue.status()).toBe(200)
   const { captchaId } = issueBody
-  expect(captchaId).toMatch(/^[0-9a-f-]{36}$/i)
+  if (!captchaId || !/^[0-9a-f-]{36}$/i.test(captchaId)) throw new Error('invalid CAPTCHA fixture response')
   const verify = await request.post('/api/v1/auth/captcha/verify', {
     data: { captchaId, dragPath: dragPath(), totalDragTime: 780, finalPosition: TARGET_POSITION },
     headers: WRITE_HEADERS,
