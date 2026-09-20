@@ -72,6 +72,11 @@ try {
     update: { title: 'CAPTCHA E2E target', content: 'CAPTCHA E2E target post', authorId: admin.id, categoryId: category.id, status: 'PUBLISHED' },
     create: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'CAPTCHA E2E target', content: 'CAPTCHA E2E target post', authorId: admin.id, categoryId: category.id, status: 'PUBLISHED' },
   })
+  await prisma.sitePolicy.upsert({
+    where: { key: 'captcha_protection' },
+    update: { value: { enabled: true, surfaces: { registration: true, post: true, comment: true, friendRequest: true } } },
+    create: { key: 'captcha_protection', value: { enabled: true, surfaces: { registration: true, post: true, comment: true, friendRequest: true } } },
+  })
 
   console.log(JSON.stringify({
     admin: { email: ADMIN_EMAIL, username: ADMIN_USERNAME, id: admin.id },

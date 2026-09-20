@@ -72,6 +72,32 @@ async function assertCaptchaDeleted(captchaId: string) {
   }
 }
 
+async function assertCaptchaPresent(captchaId: string) {
+  const databaseUrl = process.env.E2E_DATABASE_URL || process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error('E2E_DATABASE_URL or DATABASE_URL is required')
+  const pool = new Pool({ connectionString: databaseUrl })
+  const prisma = new PrismaClient({ adapter: new PrismaPg(pool) })
+  try {
+    expect(await prisma.captchaChallenge.findUnique({ where: { id: captchaId } })).not.toBeNull()
+  } finally {
+    await prisma.$disconnect()
+    await pool.end()
+  }
+}
+
+async function deleteCaptcha(captchaId: string) {
+  const databaseUrl = process.env.E2E_DATABASE_URL || process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error('E2E_DATABASE_URL or DATABASE_URL is required')
+  const pool = new Pool({ connectionString: databaseUrl })
+  const prisma = new PrismaClient({ adapter: new PrismaPg(pool) })
+  try {
+    await prisma.captchaChallenge.deleteMany({ where: { id: captchaId } })
+  } finally {
+    await prisma.$disconnect()
+    await pool.end()
+  }
+}
+
 async function clearFriendFixture() {
   const databaseUrl = process.env.E2E_DATABASE_URL || process.env.DATABASE_URL
   if (!databaseUrl) throw new Error('E2E_DATABASE_URL or DATABASE_URL is required')
@@ -205,6 +231,76 @@ test.describe('real CAPTCHA protection stack', () => {
     await assertCaptchaDeleted(friendCaptcha)
     await expectReplayFailure(request, friendCaptcha, { addresseeUsername: 'captcha_e2e_admin' }, '/api/v1/friends/request')
     await saveNetwork('captcha-business-network')
+  })
+
+  test('disabled policy allows the business request without consuming a verified challenge', async ({ page }) => {
+    const saveNetwork = trackNetwork(page)
+    const request = page.request
+    await login(request, ADMIN)
+    const initial = await request.get('/api/admin/protection/captcha')
+    expect(initial.status()).toBe(200)
+    const policy = await initial.json()
+
+    try {
+      const updated = await request.put('/api/admin/protection/captcha', {
+        data: { ...policy, surfaces: { ...policy.surfaces, post: false } },
+        headers: WRITE_HEADERS,
+      })
+      expect(updated.status()).toBe(200)
+
+      await request.post('/api/v1/auth/logout', { headers: WRITE_HEADERS })
+      await login(request, USER)
+      const categories = await request.get('/api/categories')
+      expect(categories.status()).toBe(200)
+      const category = (await categories.json() as Array<{ id: string; name: string }>).find((item) => item.name === 'captcha-e2e')
+      if (!category) throw new Error('captcha-e2e category fixture missing')
+
+      const noCaptchaPost = await request.post('/api/posts', {
+        data: { title: `captcha-disabled-${Date.now()}`, content: 'policy disabled without captcha', categoryId: category.id },
+        headers: WRITE_HEADERS,
+      })
+      expect(noCaptchaPost.status(), await noCaptchaPost.text()).toBe(201)
+
+      const retainedCaptcha = await issueAndVerify(request)
+      const withCaptchaPost = await request.post('/api/posts', {
+        data: { title: `captcha-disabled-with-id-${Date.now()}`, content: 'verified challenge is retained', categoryId: category.id, captchaId: retainedCaptcha },
+        headers: WRITE_HEADERS,
+      })
+      expect(withCaptchaPost.status(), await withCaptchaPost.text()).toBe(201)
+      await assertCaptchaPresent(retainedCaptcha)
+      await deleteCaptcha(retainedCaptcha)
+    } finally {
+      await request.post('/api/v1/auth/logout', { headers: WRITE_HEADERS }).catch(() => undefined)
+      await login(request, ADMIN)
+      const restored = await request.put('/api/admin/protection/captcha', { data: policy, headers: WRITE_HEADERS })
+      expect(restored.status(), await restored.text()).toBe(200)
+    }
+
+    await saveNetwork('captcha-disabled-policy-network')
+  })
+
+  test('registration consumes a verified CAPTCHA before accepting the email flow', async ({ page }) => {
+    const saveNetwork = trackNetwork(page)
+    const request = page.request
+    const captchaId = await issueAndVerify(request)
+    const suffix = Date.now()
+    const response = await request.post('/api/v1/auth/register', {
+      data: {
+        email: `captcha-valid-${suffix}@example.test`,
+        username: `captcha_valid_${suffix}`,
+        password: 'CaptchaE2E!123456',
+        captchaId,
+      },
+      headers: WRITE_HEADERS,
+    })
+    const responseText = await response.text()
+    await test.info().attach('registration-valid-response', {
+      body: JSON.stringify({ status: response.status(), body: responseText }),
+      contentType: 'application/json',
+    })
+    expect(response.status(), responseText).toBe(202)
+    await assertCaptchaDeleted(captchaId)
+    await saveNetwork('captcha-registration-valid-network')
   })
 
   test('registration fails closed on a missing CAPTCHA without entering SMTP flow', async ({ page }) => {
