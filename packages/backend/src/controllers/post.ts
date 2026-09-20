@@ -173,6 +173,11 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       }
       res.status(201).json({ post: postDto, isModerated: result.isModerated });
     } catch (error: any) {
+      console.error('[Post] create failed', {
+        error: error instanceof Error ? error.message : String(error),
+        userId: req.user?.userId,
+        categoryId,
+      });
       const errorCode = typeof error?.message === 'string' && error.message.startsWith('ERR_')
         ? error.message
         : 'ERR_BAD_REQUEST';
