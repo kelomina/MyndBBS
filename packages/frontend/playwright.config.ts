@@ -10,7 +10,11 @@ const backendEnv = {
   JWT_REFRESH_SECRET:
     process.env.JWT_REFRESH_SECRET || 'e2e-only-refresh-secret-0123456789abcdef0123456789',
   NODE_ENV: 'test',
-  REDIS_URL: '',
+  REDIS_URL: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+  E2E_USE_REAL_REDIS: process.env.E2E_USE_REAL_REDIS || 'true',
+  FRONTEND_URL: 'http://127.0.0.1:3101',
+  TEMP_TOKEN_SECRET:
+    process.env.TEMP_TOKEN_SECRET || 'e2e-only-temp-token-secret-0123456789abcdef0123456789',
   INSTALL_LOCKED: 'true',
 };
 
@@ -26,6 +30,10 @@ export default defineConfig({
   outputDir: './reports/playwright-artifacts',
   use: {
     baseURL: 'http://127.0.0.1:3101',
+    extraHTTPHeaders: {
+      'X-Requested-With': 'XMLHttpRequest',
+      Origin: 'http://127.0.0.1:3101',
+    },
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

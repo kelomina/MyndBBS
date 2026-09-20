@@ -198,6 +198,17 @@ jobs:
         env:
           DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
 
+      - name: Apply isolated E2E migrations
+        run: pnpm --filter backend exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
+
+      - name: Seed isolated CAPTCHA E2E fixtures
+        run: node scripts/qa/seed-captcha-e2e.mjs
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
+
       - name: Compile shared package to CJS (runtime requires resolvable main)
         run: |
           pnpm run build:shared
@@ -210,6 +221,20 @@ jobs:
         run: pnpm --filter frontend test:e2e
         env:
           DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
+          E2E_DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
           REDIS_URL: redis://localhost:6379
+          E2E_USE_REAL_REDIS: 'true'
           JWT_SECRET: test-jwt-secret-e2e-0123456789abcdef0123456789abcdef
           JWT_REFRESH_SECRET: test-jwt-refresh-secret-e2e-0123456789abcdef
+          TEMP_TOKEN_SECRET: test-temp-token-secret-e2e-0123456789abcdef0123456789
+
+      - name: Upload CAPTCHA E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: captcha-e2e-evidence
+          if-no-files-found: warn
+          path: |
+            packages/frontend/test-results/**
+            packages/frontend/reports/playwright-artifacts/**
+            packages/frontend/reports/playwright-html/**

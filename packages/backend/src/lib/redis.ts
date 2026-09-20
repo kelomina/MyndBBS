@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 
-const redisUrl = process.env.NODE_ENV === 'test' ? undefined : process.env.REDIS_URL;
+const useRealRedis = process.env.E2E_USE_REAL_REDIS === 'true';
+const redisUrl = process.env.NODE_ENV === 'test' && !useRealRedis ? undefined : process.env.REDIS_URL;
 
 class MockRedis {
   private data = new Map<string, string>();
