@@ -36,7 +36,7 @@ async function login(request: APIRequestContext, credentials: typeof ADMIN) {
   const body = await response.json() as { requires2FA?: boolean; error?: string }
   expect(response.status(), `login ${credentials.email}: ${JSON.stringify(body)}`).toBe(200)
   if (credentials.email === ADMIN.email && body.requires2FA) {
-    const otp = new OTP({ strategy: 'totp' }).generate(ADMIN_TOTP_SECRET)
+    const otp = await new OTP({ strategy: 'totp' }).generate({ secret: ADMIN_TOTP_SECRET })
     const verified = await request.post('/api/v1/auth/totp/login-verify', {
       data: { code: otp },
       headers: WRITE_HEADERS,
