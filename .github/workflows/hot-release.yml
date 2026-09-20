@@ -73,10 +73,19 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf release-staging
-          mkdir -p release-staging/packages/frontend/.next
           cp -R packages/frontend/.next/standalone/. release-staging/
-          cp -R packages/frontend/.next/static release-staging/packages/frontend/.next/static
-          cp -R packages/frontend/public release-staging/packages/frontend/public
+          if [ -f release-staging/server.js ]; then
+            mkdir -p release-staging/.next
+            cp -R packages/frontend/.next/static release-staging/.next/static
+            cp -R packages/frontend/public release-staging/public
+          elif [ -f release-staging/packages/frontend/server.js ]; then
+            mkdir -p release-staging/packages/frontend/.next
+            cp -R packages/frontend/.next/static release-staging/packages/frontend/.next/static
+            cp -R packages/frontend/public release-staging/packages/frontend/public
+          else
+            echo 'standalone server.js is missing from release' >&2
+            exit 1
+          fi
           node scripts/frontend-release-manifest.mjs release-staging "$RELEASE_VERSION"
           tar -czf "frontend-release-${GITHUB_SHA}.tar.gz" -C release-staging .
           sha256sum "frontend-release-${GITHUB_SHA}.tar.gz" > "frontend-release-${GITHUB_SHA}.sha256"
@@ -179,7 +188,7 @@ jobs:
           envs: RELEASE_VERSION,RUN_ID,COMMIT_SHA,DEPLOY_DIR,PUBLIC_URL
           script_stop: true
           script: |
-            set -eu
+            set -euo pipefail
             WORK=/home/myndops/hot-release/$RUN_ID
             cd "$WORK"
             tar -xzf frontend-deploy-bundle.tar.gz
@@ -292,7 +301,7 @@ jobs:
           command_timeout: 30m
           script_stop: true
           script: |
-            set -eu
+            set -euo pipefail
             WORK=/home/myndops/hot-release/$RUN_ID
             cd "$WORK"
             tar -xzf core-deploy-bundle.tar.gz
@@ -313,6 +322,7 @@ jobs:
             BK="$DEPLOY_DIR/backup/hot-core-$RUN_ID"
             sudo -n mkdir -p "$BK"
             sudo -n docker compose exec -T postgres pg_dump -U myndbbs myndbbs | gzip | sudo -n tee "$BK/db_dump.sql.gz" >/dev/null
+            test -s "$BK/db_dump.sql.gz"
             sudo -n cp docker-compose.yml "$BK/docker-compose.yml"
             sudo -n cp "$DEPLOY_DIR/.env" "$BK/.env"
             sudo -n cp /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf "$BK/kolobbs.kolostudio.fun.conf"
@@ -320,6 +330,8 @@ jobs:
             sudo -n cp "$BACK_ACTIVE" "$BK/backend-active.inc" 2>/dev/null || true
             sudo -n docker image inspect ghcr.io/kelomina/myndbbs-backend:latest --format '{{.Id}}' | sudo -n tee "$BK/backend_image_id" >/dev/null
             sudo -n docker image inspect ghcr.io/kelomina/myndbbs-frontend:latest --format '{{.Id}}' | sudo -n tee "$BK/frontend_image_id" >/dev/null
+            test -s "$BK/backend_image_id"
+            test -s "$BK/frontend_image_id"
             export CORE_IMAGE_TAG
             sudo -n bash "$WORK/scripts/ensure-openresty-hot-update.sh" /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf 1Panel-openresty-az9A
             if sudo -n grep -Eq "^[[:space:]]*server[[:space:]]+127\\.0\\.0\\.1:${CORE_BACK};" "$BACK_ACTIVE" 2>/dev/null || sudo -n grep -Eq "^[[:space:]]*server[[:space:]]+127\\.0\\.0\\.1:${CORE_FRONT};" "$FRONT_ACTIVE" 2>/dev/null; then
