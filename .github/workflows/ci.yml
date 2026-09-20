@@ -222,13 +222,14 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          pnpm --filter frontend test:e2e
-          status=$?
+          pnpm --filter frontend test:e2e 2>&1 | tee captcha-e2e.log
+          status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
             while IFS= read -r file; do
               summary=$(tr '\n' ' ' < "$file" | cut -c1-1500)
               echo "::error file=$file::$summary"
             done < <(find packages/frontend/test-results -name error-context.md -type f 2>/dev/null)
+            tail -n 80 captcha-e2e.log | while IFS= read -r line; do echo "::error::$line"; done
           fi
           exit "$status"
         env:
@@ -247,6 +248,7 @@ jobs:
           name: captcha-e2e-evidence
           if-no-files-found: warn
           path: |
+            captcha-e2e.log
             packages/frontend/test-results/**
             packages/frontend/reports/playwright-artifacts/**
             packages/frontend/reports/playwright-html/**
