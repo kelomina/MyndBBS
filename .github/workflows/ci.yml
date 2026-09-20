@@ -218,7 +218,19 @@ jobs:
         run: cd packages/frontend && pnpm exec playwright install --with-deps chromium
 
       - name: Run E2E tests
-        run: pnpm --filter frontend test:e2e
+        id: e2e
+        continue-on-error: true
+        run: |
+          set +e
+          pnpm --filter frontend test:e2e
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r file; do
+              summary=$(tr '\n' ' ' < "$file" | cut -c1-1500)
+              echo "::error file=$file::$summary"
+            done < <(find packages/frontend/test-results -name error-context.md -type f 2>/dev/null)
+          fi
+          exit "$status"
         env:
           DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
           E2E_DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
@@ -238,3 +250,7 @@ jobs:
             packages/frontend/test-results/**
             packages/frontend/reports/playwright-artifacts/**
             packages/frontend/reports/playwright-html/**
+
+      - name: Enforce E2E gate
+        if: always()
+        run: test "${{ steps.e2e.outcome }}" = success
