@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from 'express'
 import { requireAuth, type AuthRequest } from '../middleware/auth'
 import { proxyPluginRequest } from '../infrastructure/plugins/PluginGateway'
 
-const router = Router()
+const router: Router = Router()
 const pluginAuth: RequestHandler = requireAuth as RequestHandler
 
 // Mounted at /api/plugins. The parameterized middleware preserves arbitrary plugin route suffixes.
