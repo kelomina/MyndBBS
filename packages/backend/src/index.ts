@@ -124,12 +124,14 @@ if (!isInstalled) {
     if (!safeMethods.includes(req.method)) {
       const origin = req.headers.origin;
       if (origin && !allowedOrigins.includes(origin)) {
-        return res.status(403).json({ error: 'ERR_CSRF_ORIGIN_MISMATCH' });
+        res.status(403).json({ error: 'ERR_CSRF_ORIGIN_MISMATCH' });
+        return;
       }
 
       const requestedWith = req.headers['x-requested-with'];
       if (requestedWith !== 'XMLHttpRequest') {
-        return res.status(403).json({ error: 'ERR_CSRF_TOKEN_MISSING_OR_INVALID' });
+        res.status(403).json({ error: 'ERR_CSRF_TOKEN_MISSING_OR_INVALID' });
+        return;
       }
     }
     next();
