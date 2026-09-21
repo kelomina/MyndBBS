@@ -151,10 +151,6 @@ jobs:
     needs: frontend-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: frontend-release-${{ github.sha }}
-          path: frontend-artifact
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -163,6 +159,10 @@ jobs:
             scripts/rollback-frontend-release.sh
             scripts/finalize-frontend-release.sh
           sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-release-${{ github.sha }}
+          path: frontend-artifact
       - name: Create immutable deployment bundle
         shell: bash
         run: |
@@ -230,15 +230,15 @@ jobs:
     needs: plugin-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: backend-plugin-${{ github.sha }}
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
             scripts/install-plugin-release.sh
             scripts/ensure-hot-update-base.sh
           sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-plugin-${{ github.sha }}
       - name: Create immutable deployment bundle
         shell: bash
         run: tar -czf plugin-deploy-bundle.tar.gz backend-plugin-${{ github.sha }}.tar.gz backend-plugin-${{ github.sha }}.sha256 scripts/install-plugin-release.sh scripts/ensure-hot-update-base.sh
@@ -287,9 +287,6 @@ jobs:
     needs: core-prepare
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: core-release-${{ github.sha }}
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -297,6 +294,9 @@ jobs:
             scripts/switch-openresty-release.sh
             scripts/ensure-openresty-hot-update.sh
           sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: core-release-${{ github.sha }}
       - name: Create core deployment bundle
         shell: bash
         run: tar -czf core-deploy-bundle.tar.gz docker-compose.rolling.example.yml scripts/switch-openresty-release.sh scripts/ensure-openresty-hot-update.sh
