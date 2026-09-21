@@ -11,6 +11,10 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   const installer = fs.readFileSync(path.join(root, 'scripts/install-frontend-release.sh'), 'utf8')
   assert.match(workflow, /workflow_dispatch:/)
   assert.match(workflow, /pnpm --filter frontend build/)
+  assert.match(
+    workflow,
+    /- run: pnpm --filter frontend build\r?\n\s+env:\r?\n\s+API_URL: http:\/\/myndbbs-backend:3001/,
+  )
   assert.match(workflow, /inputs\.deploy == true/)
   assert.match(workflow, /appleboy\/scp-action/)
   assert.match(workflow, /ensure-openresty-hot-update\.sh/)
@@ -24,6 +28,13 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   assert.match(workflow, /find release-smoke -type l/)
   assert.match(workflow, /NODE_PATH="\$PWD\/release-smoke\/node_modules\/\.pnpm\/node_modules"/)
   assert.match(workflow, /curl -fsS --max-time 2 http:\/\/127\.0\.0\.1:3119\/robots\.txt/)
+  assert.match(workflow, /request\.url !== '\/uploads\/hot-release-probe\.txt'/)
+  assert.match(workflow, /127\.0\.0\.2 myndbbs-backend/)
+  assert.match(workflow, /\.listen\(3001, '127\.0\.0\.2'\)/)
+  assert.match(
+    workflow,
+    /curl -fsS --max-time 2 http:\/\/127\.0\.0\.1:3119\/uploads\/hot-release-probe\.txt/,
+  )
   assert.match(workflow, /sha256sum "frontend-release-\$\{GITHUB_SHA\}\.tar\.gz" > "frontend-release-\$\{GITHUB_SHA\}\.sha256"/)
   assert.match(workflow, /hot-frontend-\$RUN_ID/)
   assert.match(workflow, /pg_dump -U myndbbs myndbbs/)
