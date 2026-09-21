@@ -39,7 +39,7 @@ fi
 ARCHIVE=$(readlink -f -- "$ARCHIVE")
 ARCHIVE_DIR=$(dirname -- "$ARCHIVE")
 ARCHIVE_FILE=$(basename -- "$ARCHIVE")
-CHECKSUM_FILE="$ARCHIVE.sha256"
+CHECKSUM_FILE="${ARCHIVE%.tar.gz}.sha256"
 if [ ! -f "$CHECKSUM_FILE" ] || [ -L "$CHECKSUM_FILE" ]; then
   echo 'frontend artifact checksum is required' >&2
   exit 2

@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 
 test('hot release workflow builds on GitHub and deploys only when explicitly requested', () => {
   const workflow = fs.readFileSync(path.join(root, '.github/workflows/hot-release.yml'), 'utf8')
+  const installer = fs.readFileSync(path.join(root, 'scripts/install-frontend-release.sh'), 'utf8')
   assert.match(workflow, /workflow_dispatch:/)
   assert.match(workflow, /pnpm --filter frontend build/)
   assert.match(workflow, /inputs\.deploy == true/)
@@ -27,6 +28,7 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   assert.equal((workflow.match(/GHCR_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/g) ?? []).length, 3)
   assert.equal((workflow.match(/docker login ghcr\.io --username "\$GHCR_USER" --password-stdin/g) ?? []).length, 3)
   assert.doesNotMatch(workflow, /script_stop:/)
+  assert.match(installer, /CHECKSUM_FILE="\$\{ARCHIVE%\.tar\.gz\}\.sha256"/)
 })
 
 test('core Docker publish includes the isolated plugin runtime image', () => {
