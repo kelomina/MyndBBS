@@ -189,9 +189,9 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           COMMIT_SHA: ${{ github.sha }}
           DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
-          PUBLIC_URL: ${{ env.PUBLIC_URL }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLIC_URL: ${{ env.PUBLIC_URL }}
         with:
           host: ${{ env.SSH_HOST }}
           port: ${{ env.SSH_PORT }}
@@ -263,12 +263,14 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           COMMIT_SHA: ${{ github.sha }}
           DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ env.SSH_HOST }}
           port: ${{ env.SSH_PORT }}
           username: ${{ env.SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: PLUGIN_ID,PLUGIN_VERSION,PLUGIN_ADMIN_TOKEN,RUN_ID,COMMIT_SHA,DEPLOY_DIR
+          envs: PLUGIN_ID,PLUGIN_VERSION,PLUGIN_ADMIN_TOKEN,RUN_ID,COMMIT_SHA,DEPLOY_DIR,GHCR_USER,GHCR_TOKEN
           script: |
             set -eu
             test -n "$PLUGIN_VERSION"
@@ -276,6 +278,8 @@ jobs:
             WORK=/home/myndops/hot-release/$RUN_ID
             cd "$WORK"
             tar -xzf plugin-deploy-bundle.tar.gz
+            printf '%s' "$GHCR_TOKEN" | sudo -n docker login ghcr.io --username "$GHCR_USER" --password-stdin >/dev/null
+            trap 'sudo -n docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             sudo -n bash scripts/ensure-hot-update-base.sh "$DEPLOY_DIR"
             sudo -n env PLUGIN_DIR="$DEPLOY_DIR/plugins" docker compose --env-file "$DEPLOY_DIR/.env" -f "$DEPLOY_DIR/docker-compose.yml" -f "$DEPLOY_DIR/docker-compose.hot-update.yml" up -d backend
             for i in $(seq 1 30); do
@@ -320,18 +324,22 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
           PUBLIC_URL: ${{ env.PUBLIC_URL }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ env.SSH_HOST }}
           port: ${{ env.SSH_PORT }}
           username: ${{ env.SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: CORE_IMAGE_TAG,CORE_COLOR,RUN_ID,DEPLOY_DIR,PUBLIC_URL
+          envs: CORE_IMAGE_TAG,CORE_COLOR,RUN_ID,DEPLOY_DIR,PUBLIC_URL,GHCR_USER,GHCR_TOKEN
           command_timeout: 30m
           script: |
             set -euo pipefail
             WORK=/home/myndops/hot-release/$RUN_ID
             cd "$WORK"
             tar -xzf core-deploy-bundle.tar.gz
+            printf '%s' "$GHCR_TOKEN" | sudo -n docker login ghcr.io --username "$GHCR_USER" --password-stdin >/dev/null
+            trap 'sudo -n docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             case "$CORE_COLOR" in
               blue) CORE_FRONT=3311; CORE_BACK=3301; CORE_SERVICE=blue ;;
               green) CORE_FRONT=3312; CORE_BACK=3302; CORE_SERVICE=green ;;
