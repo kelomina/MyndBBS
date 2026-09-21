@@ -14,6 +14,11 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   assert.match(workflow, /appleboy\/scp-action/)
   assert.match(workflow, /ensure-openresty-hot-update\.sh/)
   assert.match(workflow, /install-frontend-release\.sh/)
+  assert.match(workflow, /hot-frontend-\$RUN_ID/)
+  assert.match(workflow, /pg_dump -U myndbbs myndbbs/)
+  assert.match(workflow, /uploads-data\.tar/)
+  assert.match(workflow, /docker save "\$BACKEND_IMAGE_ID"/)
+  assert.match(workflow, /docker save "\$FRONTEND_IMAGE_ID"/)
 })
 
 test('core Docker publish includes the isolated plugin runtime image', () => {

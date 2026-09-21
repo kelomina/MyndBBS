@@ -367,6 +367,9 @@ test('B3 几何目标与倒计时显隐：回包对接 + 回落门控 + 目标�
     assert.match(clockSrc, /role="status"/);
     assert.match(clockSrc, /idleLeft/);
     assert.match(clockSrc, /targetHour/);
+    assert.match(clockSrc, /text-slate-100/);
+    assert.match(clockSrc, /text-slate-300/);
+    assert.match(clockSrc, /text-sky-200/);
   });
 
   await t.test('B3 目标句子：targetValue完整句为主、裸数为辅（字典零新增）', () => {
