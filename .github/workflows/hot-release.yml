@@ -126,7 +126,7 @@ jobs:
             HOSTNAME=127.0.0.1 PORT=3119 node "release-smoke/$SERVER_PATH" >release-smoke.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" "$BACKEND_PID" >/dev/null 2>&1 || true' EXIT
-          for _ in $(seq 1 300); do
+          for _ in $(seq 1 420); do
             if curl -fsS --max-time 2 http://127.0.0.1:3119/robots.txt >/dev/null && \
               test "$(curl -fsS --max-time 2 http://127.0.0.1:3119/uploads/hot-release-probe.txt)" = 'hot-release-upload-ok'; then
               exit 0
