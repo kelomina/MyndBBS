@@ -253,6 +253,35 @@ jobs:
             packages/frontend/reports/playwright-artifacts/**
             packages/frontend/reports/playwright-html/**
 
+      - name: Publish CAPTCHA E2E evidence summary
+        if: always()
+        run: |
+          {
+            echo '## CAPTCHA E2E evidence'
+            echo
+            echo '- Commit: `${GITHUB_SHA}`'
+            echo '- Job: `E2E Tests (Playwright)`'
+            echo '- Test command: `pnpm --filter frontend test:e2e`'
+            if [ -f packages/frontend/reports/playwright-artifacts/results.json ]; then
+              node - <<'NODE'
+              const fs = require('node:fs')
+              const report = JSON.parse(fs.readFileSync('packages/frontend/reports/playwright-artifacts/results.json', 'utf8'))
+              const suites = report.suites || []
+              const tests = []
+              for (const suite of suites) {
+                for (const spec of suite.specs || []) tests.push({ title: spec.title, ok: (spec.tests || []).every((t) => (t.results || []).some((r) => r.status === 'passed')) })
+              }
+              console.log(`- Playwright JSON: ${tests.length} specs; ${tests.filter((t) => t.ok).length} passed`)
+              for (const test of tests) console.log(`  - ${test.ok ? 'PASS' : 'FAIL'}: ${test.title}`)
+              NODE
+            else
+              echo '- Playwright JSON: missing'
+            fi
+            echo
+            echo '### Evidence files'
+            find packages/frontend/reports/playwright-artifacts packages/frontend/reports/playwright-html packages/frontend/test-results -type f 2>/dev/null | sort | sed 's/^/- `/' | sed 's/$/`/' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Enforce E2E gate
         if: always()
         run: test "${{ steps.e2e.outcome }}" = success
