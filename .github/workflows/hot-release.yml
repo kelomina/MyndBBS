@@ -66,6 +66,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
         env: { PUPPETEER_SKIP_DOWNLOAD: true }
       - run: pnpm --filter frontend build
+        env:
+          API_URL: http://myndbbs-backend:3001
+          NODE_ENV: production
+          SECURITY_HEADERS_OWNER: proxy
       - name: Assemble standalone release
         shell: bash
         env:
@@ -103,22 +107,39 @@ jobs:
           SERVER_PATH=$(node -e "const fs=require('node:fs'); const manifest=JSON.parse(fs.readFileSync('release-smoke/manifest.json')); process.stdout.write(manifest.server)")
           test -f "release-smoke/$SERVER_PATH"
           test -d release-smoke/node_modules/.pnpm/node_modules
+          printf '127.0.0.2 myndbbs-backend\n' | sudo tee -a /etc/hosts >/dev/null
+          node - <<'NODE' >release-smoke-backend.log 2>&1 &
+          const http = require('node:http')
+          http.createServer((request, response) => {
+            if (request.url !== '/uploads/hot-release-probe.txt') {
+              response.writeHead(404)
+              response.end('not found')
+              return
+            }
+            response.writeHead(200, { 'content-type': 'text/plain' })
+            response.end('hot-release-upload-ok')
+          }).listen(3001, '127.0.0.2')
+          NODE
+          BACKEND_PID=$!
           export NODE_PATH="$PWD/release-smoke/node_modules/.pnpm/node_modules"
-          API_URL=http://127.0.0.1:9 NODE_ENV=production COOKIE_SECURE=true \
+          API_URL=http://myndbbs-backend:3001 NODE_ENV=production COOKIE_SECURE=true \
             HOSTNAME=127.0.0.1 PORT=3119 node "release-smoke/$SERVER_PATH" >release-smoke.log 2>&1 &
           SERVER_PID=$!
-          trap 'kill "$SERVER_PID" >/dev/null 2>&1 || true' EXIT
+          trap 'kill "$SERVER_PID" "$BACKEND_PID" >/dev/null 2>&1 || true' EXIT
           for _ in $(seq 1 30); do
-            if curl -fsS --max-time 2 http://127.0.0.1:3119/robots.txt >/dev/null; then
+            if curl -fsS --max-time 2 http://127.0.0.1:3119/robots.txt >/dev/null && \
+              test "$(curl -fsS --max-time 2 http://127.0.0.1:3119/uploads/hot-release-probe.txt)" = 'hot-release-upload-ok'; then
               exit 0
             fi
             if ! kill -0 "$SERVER_PID" >/dev/null 2>&1; then
               cat release-smoke.log >&2
+              cat release-smoke-backend.log >&2
               exit 1
             fi
             sleep 1
           done
           cat release-smoke.log >&2
+          cat release-smoke-backend.log >&2
           exit 1
       - uses: actions/upload-artifact@v4
         with:
