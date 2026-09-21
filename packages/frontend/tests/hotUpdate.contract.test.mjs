@@ -247,6 +247,8 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
     workflow,
     /curl -fsS --max-time 2 http:\/\/127\.0\.0\.1:3119\/uploads\/hot-release-probe\.txt/,
   )
+  assert.match(workflow, /for _ in \$\(seq 1 90\); do[\s\S]*?sleep 1\r?\n\s+done/)
+  assert.doesNotMatch(workflow, /for _ in \$\(seq 1 30\); do/)
   assert.match(workflow, /sha256sum "frontend-release-\$\{GITHUB_SHA\}\.tar\.gz" > "frontend-release-\$\{GITHUB_SHA\}\.sha256"/)
   assert.match(workflow, /hot-frontend-\$RUN_ID/)
   assert.match(workflow, /pg_dump -U myndbbs myndbbs/)
