@@ -19,6 +19,7 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   assert.match(workflow, /ARTIFACT_TAR=.*find frontend-artifact -type f -name 'frontend-release-\*\.tar\.gz'/)
   assert.match(workflow, /ARTIFACT_SHA=.*\.sha256/)
   assert.match(workflow, /sha256sum --check/)
+  assert.match(workflow, /tar --dereference -czf "frontend-release-\$\{GITHUB_SHA\}\.tar\.gz"/)
   assert.match(workflow, /sha256sum "frontend-release-\$\{GITHUB_SHA\}\.tar\.gz" > "frontend-release-\$\{GITHUB_SHA\}\.sha256"/)
   assert.match(workflow, /hot-frontend-\$RUN_ID/)
   assert.match(workflow, /pg_dump -U myndbbs myndbbs/)

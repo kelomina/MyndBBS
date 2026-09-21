@@ -87,7 +87,7 @@ jobs:
             exit 1
           fi
           node scripts/frontend-release-manifest.mjs release-staging "$RELEASE_VERSION"
-          tar -czf "frontend-release-${GITHUB_SHA}.tar.gz" -C release-staging .
+          tar --dereference -czf "frontend-release-${GITHUB_SHA}.tar.gz" -C release-staging .
           sha256sum "frontend-release-${GITHUB_SHA}.tar.gz" > "frontend-release-${GITHUB_SHA}.sha256"
       - uses: actions/upload-artifact@v4
         with:
