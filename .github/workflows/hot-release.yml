@@ -171,8 +171,9 @@ jobs:
           test -n "$ARTIFACT_TAR" -a -f "$ARTIFACT_TAR"
           ARTIFACT_SHA="${ARTIFACT_TAR%.tar.gz}.sha256"
           test -f "$ARTIFACT_SHA"
+          (cd "$(dirname "$ARTIFACT_TAR")" && sha256sum --check "$(basename "$ARTIFACT_SHA")")
           cp "$ARTIFACT_TAR" "frontend-release-${GITHUB_SHA}.tar.gz"
-          cp "$ARTIFACT_SHA" "frontend-release-${GITHUB_SHA}.sha256"
+          sha256sum "frontend-release-${GITHUB_SHA}.tar.gz" > "frontend-release-${GITHUB_SHA}.sha256"
           tar -czf frontend-deploy-bundle.tar.gz frontend-release-${{ github.sha }}.tar.gz frontend-release-${{ github.sha }}.sha256 scripts/ensure-openresty-hot-update.sh scripts/install-frontend-release.sh scripts/rollback-frontend-release.sh scripts/finalize-frontend-release.sh
       - uses: appleboy/scp-action@v0.1.7
         with:
