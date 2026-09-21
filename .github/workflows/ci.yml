@@ -263,17 +263,7 @@ jobs:
             echo '- Job: `E2E Tests (Playwright)`'
             echo '- Test command: `pnpm --filter frontend test:e2e`'
             if [ -f packages/frontend/reports/playwright-artifacts/results.json ]; then
-              node - <<'NODE'
-              const fs = require('node:fs')
-              const report = JSON.parse(fs.readFileSync('packages/frontend/reports/playwright-artifacts/results.json', 'utf8'))
-              const suites = report.suites || []
-              const tests = []
-              for (const suite of suites) {
-                for (const spec of suite.specs || []) tests.push({ title: spec.title, ok: (spec.tests || []).every((t) => (t.results || []).some((r) => r.status === 'passed')) })
-              }
-              console.log(`- Playwright JSON: ${tests.length} specs; ${tests.filter((t) => t.ok).length} passed`)
-              for (const test of tests) console.log(`  - ${test.ok ? 'PASS' : 'FAIL'}: ${test.title}`)
-              NODE
+              node -e "const fs=require('node:fs');const r=JSON.parse(fs.readFileSync('packages/frontend/reports/playwright-artifacts/results.json','utf8'));const t=(r.suites||[]).flatMap(s=>s.specs||[]).map(s=>({title:s.title,ok:(s.tests||[]).some(x=>(x.results||[]).some(y=>y.status==='passed'))}));console.log('- Playwright JSON: '+t.length+' specs; '+t.filter(x=>x.ok).length+' passed');for(const x of t)console.log('  - '+(x.ok?'PASS':'FAIL')+': '+x.title)"
             else
               echo '- Playwright JSON: missing'
             fi
