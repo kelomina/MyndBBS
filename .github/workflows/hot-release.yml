@@ -190,19 +190,22 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
           DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
           PUBLIC_URL: ${{ env.PUBLIC_URL }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ env.SSH_HOST }}
           port: ${{ env.SSH_PORT }}
           username: ${{ env.SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: RELEASE_VERSION,RUN_ID,COMMIT_SHA,DEPLOY_DIR,PUBLIC_URL
-          script_stop: true
+          envs: RELEASE_VERSION,RUN_ID,COMMIT_SHA,DEPLOY_DIR,PUBLIC_URL,GHCR_USER,GHCR_TOKEN
           script: |
             set -euo pipefail
             WORK=/home/myndops/hot-release/$RUN_ID
             cd "$WORK"
             tar -xzf frontend-deploy-bundle.tar.gz
             cd "$DEPLOY_DIR"
+            printf '%s' "$GHCR_TOKEN" | sudo -n docker login ghcr.io --username "$GHCR_USER" --password-stdin >/dev/null
+            trap 'sudo -n docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             BACKUP="$DEPLOY_DIR/backup/hot-frontend-$RUN_ID"
             sudo -n mkdir -p "$BACKUP"
             sudo -n cp docker-compose.yml "$BACKUP/docker-compose.yml"
@@ -266,7 +269,6 @@ jobs:
           username: ${{ env.SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           envs: PLUGIN_ID,PLUGIN_VERSION,PLUGIN_ADMIN_TOKEN,RUN_ID,COMMIT_SHA,DEPLOY_DIR
-          script_stop: true
           script: |
             set -eu
             test -n "$PLUGIN_VERSION"
@@ -325,7 +327,6 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           envs: CORE_IMAGE_TAG,CORE_COLOR,RUN_ID,DEPLOY_DIR,PUBLIC_URL
           command_timeout: 30m
-          script_stop: true
           script: |
             set -euo pipefail
             WORK=/home/myndops/hot-release/$RUN_ID

@@ -24,6 +24,9 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   assert.match(workflow, /uploads-data\.tar/)
   assert.match(workflow, /docker save "\$BACKEND_IMAGE_ID"/)
   assert.match(workflow, /docker save "\$FRONTEND_IMAGE_ID"/)
+  assert.match(workflow, /GHCR_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/)
+  assert.match(workflow, /docker login ghcr\.io --username "\$GHCR_USER" --password-stdin/)
+  assert.doesNotMatch(workflow, /script_stop:/)
 })
 
 test('core Docker publish includes the isolated plugin runtime image', () => {
