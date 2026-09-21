@@ -13,6 +13,60 @@ PUBLIC_URL=${9:-}
 RELEASE="$ROOT/releases/$VERSION"
 STATE="$ROOT/hot-state-frontend.json"
 FRONT_ACTIVE=$(dirname "$CONF")/myndbbs-frontend-active-upstream.inc
+PREVIOUS='null'
+STATE_EXISTS=0
+if [ -L "$STATE" ] || { [ -e "$STATE" ] && [ ! -f "$STATE" ]; }; then
+  echo 'invalid frontend hot state file' >&2
+  exit 1
+fi
+if [ -f "$STATE" ] && [ -s "$STATE" ]; then
+  PREVIOUS=$(python3 - "$STATE" <<'PY'
+import json
+from pathlib import Path
+import re
+import sys
+
+VERSION_PATTERN = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z')
+CONTAINER_PATTERN = re.compile(r'myndbbs-frontend-hot-[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z')
+SHA256_PATTERN = re.compile(r'[0-9a-fA-F]{64}\Z')
+
+def reject_constant(value):
+    raise ValueError(f'invalid JSON constant: {value}')
+
+def validate_state(state, depth=0):
+    if type(state) is not dict or depth > 32:
+        raise ValueError('state must be an object')
+    version = state.get('version')
+    container = state.get('container')
+    port = state.get('port')
+    artifact_sha256 = state.get('artifactSha256')
+    if type(version) is not str or not VERSION_PATTERN.fullmatch(version):
+        raise ValueError('invalid version')
+    if (
+        type(container) is not str
+        or not CONTAINER_PATTERN.fullmatch(container)
+        or container != f'myndbbs-frontend-hot-{version}'
+    ):
+        raise ValueError('invalid container')
+    if type(port) is not int or not 1 <= port <= 65535:
+        raise ValueError('invalid port')
+    if type(artifact_sha256) is not str or not SHA256_PATTERN.fullmatch(artifact_sha256):
+        raise ValueError('invalid artifact sha256')
+    if 'previous' not in state:
+        raise ValueError('missing previous state')
+    previous = state['previous']
+    if previous is not None:
+        validate_state(previous, depth + 1)
+
+state = json.loads(Path(sys.argv[1]).read_text(), parse_constant=reject_constant)
+validate_state(state)
+print(json.dumps(state, separators=(',', ':'), allow_nan=False))
+PY
+)
+  STATE_EXISTS=1
+elif [ -f "$STATE" ]; then
+  rm -f "$STATE"
+fi
 if [ "$PORT" = "auto" ]; then
   ACTIVE_PORT=$(sed -nE 's/^[[:space:]]*server[[:space:]]+127\.0\.0\.1:([0-9]+);[[:space:]]*$/\1/p' "$FRONT_ACTIVE" 2>/dev/null | head -n 1 || true)
   PORT=''
@@ -91,9 +145,6 @@ RUNTIME_NODE_PATH="$RELEASE/node_modules/.pnpm/node_modules"
 
 SAFE_VERSION=$(printf '%s' "$VERSION" | tr -c 'A-Za-z0-9_.-' '_')
 NAME="myndbbs-frontend-hot-$SAFE_VERSION"
-PREVIOUS='null'
-STATE_EXISTS=0
-if [ -f "$STATE" ]; then PREVIOUS=$(cat "$STATE"); STATE_EXISTS=1; fi
 CONF_BACKUP=''
 ACTIVE_BACKUP=''
 FRONT_EXISTS=0
@@ -110,7 +161,11 @@ cleanup() {
       sudo -n docker exec "$CONTAINER" /usr/local/openresty/bin/openresty -s reload >/dev/null 2>&1 || true
     fi
     docker rm -f "$NAME" >/dev/null 2>&1 || true
-    if [ "$STATE_EXISTS" = "1" ]; then printf '%s\n' "$PREVIOUS" > "$STATE"; else rm -f "$STATE"; fi
+    if [ "$STATE_EXISTS" = "1" ]; then
+      printf '%s\n' "$PREVIOUS" > "$STATE.next" && mv -f "$STATE.next" "$STATE" || true
+    else
+      rm -f "$STATE"
+    fi
     rm -rf "$RELEASE"
   fi
   exit "$status"
