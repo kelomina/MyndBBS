@@ -154,6 +154,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: frontend-release-${{ github.sha }}
+          path: frontend-artifact
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -164,7 +165,14 @@ jobs:
           sparse-checkout-cone-mode: false
       - name: Create immutable deployment bundle
         shell: bash
-        run: tar -czf frontend-deploy-bundle.tar.gz frontend-release-${{ github.sha }}.tar.gz frontend-release-${{ github.sha }}.sha256 scripts/ensure-openresty-hot-update.sh scripts/install-frontend-release.sh scripts/rollback-frontend-release.sh scripts/finalize-frontend-release.sh
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR=$(dirname "$(find frontend-artifact -type f -name 'frontend-release-${GITHUB_SHA}.tar.gz' -print -quit)")
+          test -n "$ARTIFACT_DIR" -a -f "$ARTIFACT_DIR/frontend-release-${GITHUB_SHA}.tar.gz"
+          test -f "$ARTIFACT_DIR/frontend-release-${GITHUB_SHA}.sha256"
+          cp "$ARTIFACT_DIR/frontend-release-${GITHUB_SHA}.tar.gz" .
+          cp "$ARTIFACT_DIR/frontend-release-${GITHUB_SHA}.sha256" .
+          tar -czf frontend-deploy-bundle.tar.gz frontend-release-${{ github.sha }}.tar.gz frontend-release-${{ github.sha }}.sha256 scripts/ensure-openresty-hot-update.sh scripts/install-frontend-release.sh scripts/rollback-frontend-release.sh scripts/finalize-frontend-release.sh
       - uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.SSH_HOST }}
