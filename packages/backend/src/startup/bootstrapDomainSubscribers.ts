@@ -7,24 +7,30 @@ import { PrismaUserDeliveryInfoAdapter } from '../infrastructure/services/Prisma
 import { QueuedEmailSender } from '../infrastructure/services/identity/QueuedEmailSender';
 import { SmtpEmailSender } from '../infrastructure/services/identity/SmtpEmailSender';
 import { PrismaEmailTemplateRepository } from '../infrastructure/repositories/PrismaEmailTemplateRepository';
+import { PrivateMessageEmailNotifier } from '../application/notification/PrivateMessageEmailNotifier';
 import { badgeApplicationService, unitOfWork } from '../registry';
 
 export function bootstrapDomainSubscribers(): void {
+  const emailSender = new QueuedEmailSender(new SmtpEmailSender());
+  const userDeliveryInfo = new PrismaUserDeliveryInfoAdapter();
+
   new NotificationApplicationService(
     new PrismaNotificationRepository(),
     getEventBus(),
     new PrismaModeratorReadModel(),
     unitOfWork,
     {
-      emailSender: new QueuedEmailSender(new SmtpEmailSender()),
+      emailSender,
       emailTemplateRepository: new PrismaEmailTemplateRepository() as unknown as {
         findByType(type: string): Promise<{
           render(variables: Record<string, string>): { subject: string; textBody: string; htmlBody: string };
         } | null>;
       },
-      userDeliveryInfo: new PrismaUserDeliveryInfoAdapter(),
+      userDeliveryInfo,
     }
   );
+
+  new PrivateMessageEmailNotifier({ emailSender, userDeliveryInfo }).register(getEventBus());
 
   new BadgeEventListener(getEventBus(), badgeApplicationService);
 }
