@@ -20,6 +20,10 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   assert.match(workflow, /ARTIFACT_SHA=.*\.sha256/)
   assert.match(workflow, /sha256sum --check/)
   assert.match(workflow, /tar --dereference -czf "frontend-release-\$\{GITHUB_SHA\}\.tar\.gz"/)
+  assert.match(workflow, /Smoke test immutable frontend release/)
+  assert.match(workflow, /find release-smoke -type l/)
+  assert.match(workflow, /NODE_PATH="\$PWD\/release-smoke\/node_modules\/\.pnpm\/node_modules"/)
+  assert.match(workflow, /curl -fsS --max-time 2 http:\/\/127\.0\.0\.1:3119\/robots\.txt/)
   assert.match(workflow, /sha256sum "frontend-release-\$\{GITHUB_SHA\}\.tar\.gz" > "frontend-release-\$\{GITHUB_SHA\}\.sha256"/)
   assert.match(workflow, /hot-frontend-\$RUN_ID/)
   assert.match(workflow, /pg_dump -U myndbbs myndbbs/)
@@ -30,6 +34,12 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   assert.equal((workflow.match(/docker login ghcr\.io --username "\$GHCR_USER" --password-stdin/g) ?? []).length, 3)
   assert.doesNotMatch(workflow, /script_stop:/)
   assert.match(installer, /CHECKSUM_FILE="\$\{ARCHIVE%\.tar\.gz\}\.sha256"/)
+  assert.match(installer, /RUNTIME_NODE_PATH="\$RELEASE\/node_modules\/\.pnpm\/node_modules"/)
+  assert.match(installer, /NODE_PATH=\/app\/node_modules\/\.pnpm\/node_modules/)
+  assert.ok(
+    installer.indexOf('trap cleanup EXIT') <
+      installer.indexOf("if [ ! -d \"$RUNTIME_NODE_PATH\" ]"),
+  )
 })
 
 test('core Docker publish includes the isolated plugin runtime image', () => {
