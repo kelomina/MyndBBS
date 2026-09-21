@@ -192,6 +192,22 @@ jobs:
             WORK=/home/myndops/hot-release/$RUN_ID
             cd "$WORK"
             tar -xzf frontend-deploy-bundle.tar.gz
+            cd "$DEPLOY_DIR"
+            BACKUP="$DEPLOY_DIR/backup/hot-frontend-$RUN_ID"
+            sudo -n mkdir -p "$BACKUP"
+            sudo -n cp docker-compose.yml "$BACKUP/docker-compose.yml"
+            sudo -n cp .env "$BACKUP/env.backup"
+            BACKEND_IMAGE_ID=$(sudo -n docker inspect -f '{{.Image}}' myndbbs-backend)
+            FRONTEND_IMAGE_ID=$(sudo -n docker inspect -f '{{.Image}}' myndbbs-frontend)
+            printf '%s\n' "$BACKEND_IMAGE_ID" | sudo -n tee "$BACKUP/backend_image_id" >/dev/null
+            printf '%s\n' "$FRONTEND_IMAGE_ID" | sudo -n tee "$BACKUP/frontend_image_id" >/dev/null
+            sudo -n docker save "$BACKEND_IMAGE_ID" -o "$BACKUP/backend-image.tar"
+            sudo -n docker save "$FRONTEND_IMAGE_ID" -o "$BACKUP/frontend-image.tar"
+            sudo -n docker compose exec -T postgres pg_dump -U myndbbs myndbbs | gzip | sudo -n tee "$BACKUP/postgres.sql.gz" >/dev/null
+            UPLOADS_VOLUME=$(sudo -n docker inspect -f '{{range .Mounts}}{{if eq .Destination "/app/packages/backend/uploads"}}{{.Name}}{{end}}{{end}}' myndbbs-backend)
+            test -n "$UPLOADS_VOLUME"
+            sudo -n docker run --rm -v "$UPLOADS_VOLUME:/data" -v "$BACKUP:/backup" alpine sh -c 'tar -cf /backup/uploads-data.tar -C /data .'
+            cd "$WORK"
             sudo -n bash scripts/ensure-openresty-hot-update.sh /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf 1Panel-openresty-az9A
             sudo -n bash scripts/install-frontend-release.sh "$DEPLOY_DIR" "frontend-release-$COMMIT_SHA.tar.gz" "$RELEASE_VERSION" auto /opt/1panel/apps/openresty/openresty/conf/conf.d/kolobbs.kolostudio.fun.conf 1Panel-openresty-az9A myndbbs_default ghcr.io/kelomina/myndbbs-frontend:sha-$COMMIT_SHA "$PUBLIC_URL"
             if ! curl -fsS --max-time 15 "$PUBLIC_URL/" >/dev/null || ! curl -fsS --max-time 15 "$PUBLIC_URL/api/health" >/dev/null; then

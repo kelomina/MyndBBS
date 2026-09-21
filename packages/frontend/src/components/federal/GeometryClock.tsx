@@ -277,21 +277,21 @@ export const GeometryClock = React.forwardRef<GeometryClockHandle, GeometryClock
           </g>
           <circle cx="100" cy="100" r="9" fill="#e2e8f0" stroke="#0ea5e9" strokeWidth="3" />
         </svg>
-        <dl className="readout min-w-[200px] flex-1 text-[13px]">
-          <dt className="text-xs text-slate-400">{t('target', 'Target hour')}</dt>
+        <dl className="readout min-w-[200px] flex-1 text-[13px] text-slate-100">
+          <dt className="text-xs text-slate-300">{t('target', 'Target hour')}</dt>
           {/* B3 目标行：targetValue 完整句子为主（沿用字典键，中英），裸数保留为辅；挂载即显，回落/loading 未挂载隐 */}
-          <dd data-testid="geometry-target" className="mono mb-1 text-[15px]">
+          <dd data-testid="geometry-target" className="mono mb-1 text-[15px] font-medium text-slate-100">
             {t('targetValue', "Point to {target} o'clock").replace('{target}', String(targetHour))}
-            <span className="ml-1 text-xs text-slate-400">({targetHour})</span>
+            <span className="ml-1 text-xs text-slate-300">({targetHour})</span>
           </dd>
-          <dt className="text-xs text-slate-400">{t('idleCountdown', 'Idle countdown')}</dt>
+          <dt className="text-xs text-slate-300">{t('idleCountdown', 'Idle countdown')}</dt>
           {/* B3 倒计时：挂载即 1s 步进显现（role=status aria-live=polite），卸载清理后隐去；loading/degraded 未挂载除外（父给空态说明） */}
-          <dd data-testid="geometry-countdown" className="mono mb-1 text-[15px]" role="status" aria-live="polite">
+          <dd data-testid="geometry-countdown" className="mono mb-1 text-[15px] font-semibold text-sky-200" role="status" aria-live="polite">
             {idleLeft}s
           </dd>
         </dl>
       </div>
-      <p className="hint mt-2 text-xs text-slate-400">{t('dragHint', 'Drag the hand with your mouse (no slider or keyboard operation).')}</p>
+      <p className="hint mt-2 text-xs text-slate-300">{t('dragHint', 'Drag the hand with your mouse (no slider or keyboard operation).')}</p>
       <style>{`.clock-num{font-size:15px;font-weight:700;fill:#e2e8f0;text-anchor:middle;dominant-baseline:central;user-select:none;pointer-events:none}`}</style>
     </div>
   );
