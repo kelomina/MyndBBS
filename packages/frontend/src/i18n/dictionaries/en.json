@@ -412,7 +412,7 @@
     "emailPrefSaved": "Notification preferences saved",
     "emailPrefFailed": "Failed to save notification preferences",
     "emailNotifications": "Email notifications",
-    "emailNotificationsDesc": "Receive an email when someone replies to your posts or comments, or mentions you."
+    "emailNotificationsDesc": "Receive an email when someone replies to your posts or comments, mentions you, or sends you a private message."
   },
   "admin": {
     "categoryManagement": "Category Management",

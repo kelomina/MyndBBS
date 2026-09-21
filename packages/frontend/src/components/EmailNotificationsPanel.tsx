@@ -6,7 +6,7 @@ import { useToast } from './ui/Toast';
 import { fetchWithAuth } from '../lib/api/fetcher';
 
 /**
- * 邮件通知开关面板（Phase 3 G8）：控制被回复/被提及等事件的邮件提醒。
+ * 邮件通知开关面板：控制回复、提及和未读私信的邮件提醒。
  */
 export function EmailNotificationsPanel() {
   const dict = useTranslation();
@@ -57,7 +57,7 @@ export function EmailNotificationsPanel() {
       </h2>
       <p className="text-sm text-muted">
         {dict.settings?.emailNotificationsDesc ||
-          'Receive an email when someone replies to your posts or comments, or mentions you.'}
+          'Receive an email when someone replies to your posts or comments, mentions you, or sends you a private message.'}
       </p>
 
       <button

@@ -410,7 +410,7 @@
     "emailPrefSaved": "通知偏好已保存",
     "emailPrefFailed": "保存通知偏好失败",
     "emailNotifications": "邮件通知",
-    "emailNotificationsDesc": "当有人回复你的帖子或评论、或提及你时，接收邮件提醒。",
+    "emailNotificationsDesc": "有人回复你的帖子或评论、提及你，或向你发送未读私信时，接收邮件提醒。",
     "passkeyDevice": "设备类型",
     "passkeyBackedUp": "已备份"
   },
