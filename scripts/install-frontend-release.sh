@@ -87,6 +87,7 @@ if not server.is_file() or sha256(server.read_bytes()).hexdigest() != manifest.g
 print(server.relative_to(root).as_posix())
 PY
 )
+RUNTIME_NODE_PATH="$RELEASE/node_modules/.pnpm/node_modules"
 
 SAFE_VERSION=$(printf '%s' "$VERSION" | tr -c 'A-Za-z0-9_.-' '_')
 NAME="myndbbs-frontend-hot-$SAFE_VERSION"
@@ -115,11 +116,16 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
+if [ ! -d "$RUNTIME_NODE_PATH" ]; then
+  echo 'frontend runtime node_modules path is missing' >&2
+  exit 1
+fi
 docker pull "$IMAGE"
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 docker run -d --name "$NAME" --network "$NETWORK" -p "127.0.0.1:$PORT:3100" \
   -e API_URL=http://myndbbs-backend:3001 -e NODE_ENV=production -e COOKIE_SECURE=true \
-  -e HOSTNAME=0.0.0.0 -e PORT=3100 -w /app -v "$RELEASE:/app:ro" "$IMAGE" node "/app/$SERVER_PATH" > /tmp/myndbbs-frontend-hot-container
+  -e HOSTNAME=0.0.0.0 -e PORT=3100 -e NODE_PATH=/app/node_modules/.pnpm/node_modules \
+  -w /app -v "$RELEASE:/app:ro" "$IMAGE" node "/app/$SERVER_PATH" > /tmp/myndbbs-frontend-hot-container
 
 for _ in $(seq 1 60); do
   if curl -fsS --max-time 2 "http://127.0.0.1:$PORT/" >/dev/null; then break; fi

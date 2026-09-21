@@ -89,6 +89,37 @@ jobs:
           node scripts/frontend-release-manifest.mjs release-staging "$RELEASE_VERSION"
           tar --dereference -czf "frontend-release-${GITHUB_SHA}.tar.gz" -C release-staging .
           sha256sum "frontend-release-${GITHUB_SHA}.tar.gz" > "frontend-release-${GITHUB_SHA}.sha256"
+      - name: Smoke test immutable frontend release
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf release-smoke
+          mkdir release-smoke
+          tar -xzf "frontend-release-${GITHUB_SHA}.tar.gz" -C release-smoke
+          if find release-smoke -type l -print -quit | grep -q .; then
+            echo 'frontend release smoke fixture contains symlinks' >&2
+            exit 1
+          fi
+          SERVER_PATH=$(node -e "const fs=require('node:fs'); const manifest=JSON.parse(fs.readFileSync('release-smoke/manifest.json')); process.stdout.write(manifest.server)")
+          test -f "release-smoke/$SERVER_PATH"
+          test -d release-smoke/node_modules/.pnpm/node_modules
+          export NODE_PATH="$PWD/release-smoke/node_modules/.pnpm/node_modules"
+          API_URL=http://127.0.0.1:9 NODE_ENV=production COOKIE_SECURE=true \
+            HOSTNAME=127.0.0.1 PORT=3119 node "release-smoke/$SERVER_PATH" >release-smoke.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" >/dev/null 2>&1 || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl -fsS --max-time 2 http://127.0.0.1:3119/robots.txt >/dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$SERVER_PID" >/dev/null 2>&1; then
+              cat release-smoke.log >&2
+              exit 1
+            fi
+            sleep 1
+          done
+          cat release-smoke.log >&2
+          exit 1
       - uses: actions/upload-artifact@v4
         with:
           name: frontend-release-${{ github.sha }}
