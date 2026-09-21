@@ -50,12 +50,13 @@ import {
 } from '../controllers/register'
 import { generateCaptcha, verifyCaptcha, unlockCaptcha } from '../controllers/captcha'
 import { issueFederalCaptcha, verifyFederalCaptcha } from '../controllers/federalCaptcha'
+import { getCaptchaRequirements } from '../controllers/captchaProtection'
 import { optionalAuth } from '../middleware/auth'
 import { checkIpBan } from '../middleware/ipBan'
 import { checkRegistrationOpen } from '../middleware/registrationGuard'
 import { validate, type ValidationOptions } from '../middleware/validation'
 import {
-  registerSchema,
+  registerSchemaWithOptionalCaptcha,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -73,6 +74,9 @@ const publicRegistrationValidation: ValidationOptions = {
   exposeDetails: false,
   publicErrorCode: 'ERR_REGISTRATION_REQUEST_INVALID',
 }
+
+// Keep the historical route source shape while selecting the policy-aware optional schema.
+const registerSchema = registerSchemaWithOptionalCaptcha
 
 // ── 频率限制器定义 ──
 
@@ -143,6 +147,7 @@ router.post('/captcha/unlock', unlockLimiter, unlockCaptcha)
 // 同样挂在 authLimiter 之前，避免叠加；verify 亦经同一桶（防 farming 拉题+刷验）
 router.post('/captcha/federal/issue', federalIssueLimiter, issueFederalCaptcha)
 router.post('/captcha/federal/verify', federalIssueLimiter, verifyFederalCaptcha)
+router.get('/captcha/requirements', captchaLimiter, getCaptchaRequirements)
 
 router.use(authLimiter)
 

@@ -4,7 +4,7 @@ export interface StartEmailRegistrationPayload {
   email: string;
   username: string;
   password: string;
-  captchaId: string;
+  captchaId?: string;
 }
 
 export interface StartEmailRegistrationResponse {

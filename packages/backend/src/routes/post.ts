@@ -28,8 +28,8 @@ import { requireAuth, requireAbility, optionalAuth } from '../middleware/auth';
 import { postLimiter, publicReadLimiter } from '../lib/rateLimit';
 import { validate } from '../middleware/validation';
 import {
-  createCommentSchema,
-  createPostSchema,
+  createCommentSchemaWithOptionalCaptcha,
+  createPostSchemaWithOptionalCaptcha,
   updateCommentSchema,
   updatePostSchema,
 } from '../lib/validation/schemas';
@@ -68,7 +68,7 @@ function requireUuidParam(paramName: string) {
 
 // ── 帖子 ──
 router.get('/', publicReadLimiter, optionalAuth, getPostsList);
-router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), validate(createPostSchema), createPost);
+router.post('/', requireAuth, postLimiter, requireAbility('create', 'Post'), validate(createPostSchemaWithOptionalCaptcha), createPost);
 
 router.get('/:id', publicReadLimiter, requireUuidParam('id'), optionalAuth, getPostDetails);
 router.get('/:id/interactions', requireUuidParam('id'), requireAuth, getPostInteractions);
@@ -77,7 +77,7 @@ router.post('/:id/bookmark', requireUuidParam('id'), requireAuth, toggleBookmark
 
 // ── 评论 ──
 router.get('/:id/comments', publicReadLimiter, requireUuidParam('id'), optionalAuth, getComments);
-router.post('/:id/comments', requireUuidParam('id'), requireAuth, postLimiter, validate(createCommentSchema), createComment);
+router.post('/:id/comments', requireUuidParam('id'), requireAuth, postLimiter, validate(createCommentSchemaWithOptionalCaptcha), createComment);
 
 // ── 帖子修改/删除 ──
 router.put('/:id', requireUuidParam('id'), requireAuth, requireAbility('update', 'Post'), validate(updatePostSchema), updatePost);

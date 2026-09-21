@@ -14,6 +14,7 @@ export const requestFriend = async (req: AuthRequest, res: Response): Promise<vo
   const requesterId = req.user?.userId;
   let { addresseeId } = req.body;
   const { addresseeUsername } = req.body;
+  const { captchaId } = req.body;
   if (!requesterId || (!addresseeId && !addresseeUsername)) { res.status(400).json({ error: 'ERR_BAD_REQUEST' }); return; }
 
   try {
@@ -25,7 +26,8 @@ export const requestFriend = async (req: AuthRequest, res: Response): Promise<vo
 
     await messagingApplicationService.sendFriendRequestWithValidation(
       requesterId,
-      addresseeId
+      addresseeId,
+      typeof captchaId === 'string' ? captchaId : undefined,
     );
     res.json({ success: true });
   } catch (error: any) {

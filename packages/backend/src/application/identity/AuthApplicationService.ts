@@ -112,6 +112,8 @@ export interface AuthApplicationServiceOptions {
   emailSender: IEmailSender
   emailTemplateRepository: IEmailTemplateRepository | null
   unitOfWork: IUnitOfWork
+  /** 业务 CAPTCHA 策略；未注入时保持旧的强制验证安全默认。 */
+  captchaProtection?: { requires(surface: 'registration' | 'post' | 'comment' | 'friendRequest'): Promise<boolean> }
 }
 export class AuthApplicationService {
   /**
@@ -452,16 +454,28 @@ export class AuthApplicationService {
     email: string,
     username: string,
     password: string,
-    captchaId: string,
+    captchaId?: string,
   ): Promise<RegistrationRequestAcceptedResult> {
     const normalizedEmail = EmailAddress.create(email.trim().toLowerCase()).value
     const normalizedUsername = username.trim()
 
     Password.validatePolicy(password)
 
-    const isCaptchaValid = await this.consumeCaptcha(captchaId)
-    if (!isCaptchaValid) {
-      throw new Error('ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA')
+    let captchaRequired = true
+    try {
+      captchaRequired = this.opts.captchaProtection
+        ? await this.opts.captchaProtection.requires('registration')
+        : true
+    } catch {
+      // A policy-store outage must not turn into a CAPTCHA bypass.
+      captchaRequired = true
+    }
+    if (captchaRequired) {
+      if (!captchaId) throw new Error('ERR_CAPTCHA_IS_REQUIRED')
+      const isCaptchaValid = await this.consumeCaptcha(captchaId)
+      if (!isCaptchaValid) {
+        throw new Error('ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA')
+      }
     }
 
     await this.assertRegistrationIdentityAvailable(normalizedEmail, normalizedUsername)

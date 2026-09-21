@@ -198,6 +198,17 @@ jobs:
         env:
           DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
 
+      - name: Apply isolated E2E migrations
+        run: pnpm --filter backend exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
+
+      - name: Seed isolated CAPTCHA E2E fixtures
+        run: node scripts/qa/seed-captcha-e2e.mjs
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
+
       - name: Compile shared package to CJS (runtime requires resolvable main)
         run: |
           pnpm run build:shared
@@ -207,9 +218,60 @@ jobs:
         run: cd packages/frontend && pnpm exec playwright install --with-deps chromium
 
       - name: Run E2E tests
-        run: pnpm --filter frontend test:e2e
+        id: e2e
+        continue-on-error: true
+        run: |
+          set +e
+          pnpm --filter frontend test:e2e 2>&1 | tee captcha-e2e.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r file; do
+              summary=$(tr '\n' ' ' < "$file" | cut -c1-1500)
+              echo "::error file=$file::$summary"
+            done < <(find packages/frontend -name error-context.md -type f 2>/dev/null)
+            tail -n 200 captcha-e2e.log | while IFS= read -r line; do echo "::error::$line"; done
+          fi
+          exit "$status"
         env:
           DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
+          E2E_DATABASE_URL: postgresql://myndbbs:myndbbs_test@localhost:5432/myndbbs_test?schema=public
           REDIS_URL: redis://localhost:6379
+          E2E_USE_REAL_REDIS: 'true'
           JWT_SECRET: test-jwt-secret-e2e-0123456789abcdef0123456789abcdef
           JWT_REFRESH_SECRET: test-jwt-refresh-secret-e2e-0123456789abcdef
+          TEMP_TOKEN_SECRET: test-temp-token-secret-e2e-0123456789abcdef0123456789
+
+      - name: Upload CAPTCHA E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: captcha-e2e-evidence
+          if-no-files-found: warn
+          path: |
+            captcha-e2e.log
+            packages/frontend/test-results/**
+            packages/frontend/reports/playwright-artifacts/**
+            packages/frontend/reports/playwright-html/**
+
+      - name: Publish CAPTCHA E2E evidence summary
+        if: always()
+        run: |
+          {
+            echo '## CAPTCHA E2E evidence'
+            echo
+            echo '- Commit: `${GITHUB_SHA}`'
+            echo '- Job: `E2E Tests (Playwright)`'
+            echo '- Test command: `pnpm --filter frontend test:e2e`'
+            if [ -f packages/frontend/reports/playwright-artifacts/results.json ]; then
+              node -e "const fs=require('node:fs');const r=JSON.parse(fs.readFileSync('packages/frontend/reports/playwright-artifacts/results.json','utf8'));const t=(r.suites||[]).flatMap(s=>s.specs||[]).map(s=>({title:s.title,ok:(s.tests||[]).some(x=>(x.results||[]).some(y=>y.status==='passed'))}));console.log('- Playwright JSON: '+t.length+' specs; '+t.filter(x=>x.ok).length+' passed');for(const x of t)console.log('  - '+(x.ok?'PASS':'FAIL')+': '+x.title)"
+            else
+              echo '- Playwright JSON: missing'
+            fi
+            echo
+            echo '### Evidence files'
+            find packages/frontend/reports/playwright-artifacts packages/frontend/reports/playwright-html packages/frontend/test-results -type f 2>/dev/null | sort | sed 's/^/- `/' | sed 's/$/`/' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce E2E gate
+        if: always()
+        run: test "${{ steps.e2e.outcome }}" = success

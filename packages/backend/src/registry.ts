@@ -69,6 +69,7 @@ import { IpBanApplicationService } from './application/system/IpBanApplicationSe
 import { AntiSpamService } from './application/system/AntiSpamService'
 import { RateLimitProtectionService } from './application/system/RateLimitProtectionService'
 import { FederalProtectionService } from './application/system/FederalProtectionService'
+import { CaptchaProtectionService } from './application/system/CaptchaProtectionService'
 import { PrismaAntiSpamAdapter } from './infrastructure/services/PrismaAntiSpamAdapter'
 import { MentionNotifier } from './application/notification/MentionNotifier'
 import { SiteSettingsService } from './application/system/SiteSettingsService'
@@ -422,6 +423,10 @@ export const adminUserManagementApplicationService = new AdminUserManagementAppl
   storagePort: container.resolve(T.IStoragePort),
 })
 
+export const captchaProtectionService = new CaptchaProtectionService({
+  sitePolicyRepository: container.resolve(T.ISitePolicyRepository),
+})
+
 export const authApplicationService = new AuthApplicationService({
   captchaChallengeRepository: container.resolve(T.ICaptchaChallengeRepository),
   passkeyRepository: container.resolve(T.IPasskeyRepository),
@@ -439,6 +444,7 @@ export const authApplicationService = new AuthApplicationService({
   emailSender: container.resolve(T.IEmailSender),
   emailTemplateRepository: container.resolve(T.IEmailTemplateRepository),
   unitOfWork: container.resolve(T.IUnitOfWork),
+  captchaProtection: captchaProtectionService,
 })
 
 export const federalCaptchaService = new FederalCaptchaService({
@@ -546,6 +552,7 @@ export const communityApplicationService = new CommunityApplicationService({
   identityIntegrationPort: container.resolve(T.CommunityIdentityIntegrationPort),
   moderationPolicy: container.resolve(T.IModerationPolicy),
   captchaValidator: authApplicationService,
+  captchaProtection: captchaProtectionService,
   eventBus: container.resolve(T.IEventBus),
   auditApplicationService: auditApplicationService,
   unitOfWork: container.resolve(T.IUnitOfWork),
@@ -562,6 +569,8 @@ export const messagingApplicationService = new MessagingApplicationService({
   identityIntegrationPort: container.resolve(T.MessagingIdentityIntegrationPort),
   unitOfWork: container.resolve(T.IUnitOfWork),
   eventBus: container.resolve(T.IEventBus),
+  captchaProtection: captchaProtectionService,
+  captchaValidator: authApplicationService,
 })
 
 export const roleApplicationService = new RoleApplicationService({

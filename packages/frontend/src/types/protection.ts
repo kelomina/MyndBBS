@@ -110,3 +110,36 @@ export const FEDERAL_POLICY_DEFAULTS: FederalProtectionConfig = {
   geometryLevel: 1,
   timeoutSec: 10,
 };
+
+/**
+ * 业务入口 CAPTCHA 策略。读接口解锁与联邦题型仍由各自的策略管理，
+ * 这里仅控制注册、发帖、评论和好友请求四个业务入口。
+ */
+export type CaptchaProtectionSurface = 'registration' | 'post' | 'comment' | 'friendRequest';
+
+export interface CaptchaProtectionSurfaces {
+  registration: boolean;
+  post: boolean;
+  comment: boolean;
+  friendRequest: boolean;
+}
+
+export interface CaptchaProtectionPolicy {
+  enabled: boolean;
+  surfaces: CaptchaProtectionSurfaces;
+}
+
+export interface CaptchaProtectionUpdateResult {
+  message: 'CAPTCHA_POLICY_UPDATED';
+  policy: CaptchaProtectionPolicy;
+}
+
+export const CAPTCHA_PROTECTION_POLICY_DEFAULTS: CaptchaProtectionPolicy = {
+  enabled: true,
+  surfaces: {
+    registration: true,
+    post: true,
+    comment: true,
+    friendRequest: true,
+  },
+};

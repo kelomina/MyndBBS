@@ -79,6 +79,8 @@ export interface CommunityApplicationServiceOptions {
       postAuthorId?: string | null
     }): Promise<void>
   }
+  /** 业务 CAPTCHA 策略；未注入时保持旧的强制验证安全默认。 */
+  captchaProtection?: { requires(surface: 'registration' | 'post' | 'comment' | 'friendRequest'): Promise<boolean> }
 }
 export class CommunityApplicationService {
   /**
@@ -523,13 +525,24 @@ export class CommunityApplicationService {
     categoryId: string,
     authorId: string,
     userLevel: number,
-    captchaId: string,
+    captchaId?: string,
     tags?: string[],
   ): Promise<{ postId: string; isModerated: boolean; status: string; message?: string }> {
     await this.opts.newContentGuard?.assertAllowed(authorId)
 
-    const isCaptchaValid = await this.opts.captchaValidator.consumeCaptcha(captchaId)
-    if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA')
+    let captchaRequired = true
+    try {
+      captchaRequired = this.opts.captchaProtection
+        ? await this.opts.captchaProtection.requires('post')
+        : true
+    } catch {
+      captchaRequired = true
+    }
+    if (captchaRequired) {
+      if (!captchaId) throw new Error('ERR_CAPTCHA_IS_REQUIRED')
+      const isCaptchaValid = await this.opts.captchaValidator.consumeCaptcha(captchaId)
+      if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA')
+    }
 
     const category = await this.opts.categoryRepository.findById(categoryId)
     if (!category) throw new Error('ERR_CATEGORY_NOT_FOUND')
@@ -777,13 +790,24 @@ export class CommunityApplicationService {
     content: string,
     postId: string,
     authorId: string,
-    captchaId: string,
+    captchaId?: string,
     parentId?: string,
   ): Promise<{ commentId: string }> {
     await this.opts.newContentGuard?.assertAllowed(authorId)
 
-    const isCaptchaValid = await this.opts.captchaValidator.consumeCaptcha(captchaId)
-    if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA')
+    let captchaRequired = true
+    try {
+      captchaRequired = this.opts.captchaProtection
+        ? await this.opts.captchaProtection.requires('comment')
+        : true
+    } catch {
+      captchaRequired = true
+    }
+    if (captchaRequired) {
+      if (!captchaId) throw new Error('ERR_CAPTCHA_IS_REQUIRED')
+      const isCaptchaValid = await this.opts.captchaValidator.consumeCaptcha(captchaId)
+      if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA')
+    }
 
     const post = await this.opts.postRepository.findById(postId)
     if (!post) throw new Error('ERR_POST_NOT_FOUND')

@@ -70,7 +70,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
   try {
     const { email, username, password, captchaId } = req.body;
 
-    if (!email || !username || !password || !captchaId) {
+    if (!email || !username || !password) {
       res.status(400).json({ error: 'ERR_MISSING_REQUIRED_FIELDS' });
       return;
     }

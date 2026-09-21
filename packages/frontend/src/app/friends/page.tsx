@@ -7,6 +7,7 @@ import { useToast } from '../../components/ui/Toast';
 import { SliderCaptcha } from '../../components/SliderCaptcha';
 import type { Friendship } from '../../types';
 import { fetchWithAuth } from '../../lib/api/fetcher';
+import { useCaptchaRequirement } from '../../lib/captcha/requirements';
 
 export default function FriendsPage() {
   const dict = useTranslation();
@@ -15,6 +16,7 @@ export default function FriendsPage() {
   const [myId, setMyId] = useState('');
   const [showRequests, setShowRequests] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
+  const captchaRequired = useCaptchaRequirement('friendRequest');
   const [pendingAddresseeId, setPendingAddresseeId] = useState('');
   const { toast } = useToast();
 
@@ -60,14 +62,16 @@ export default function FriendsPage() {
       const uRes = await fetchWithAuth(`/api/v1/messages/keys/${targetUsername}`);
       if (!uRes.ok) return toast(dict.messages?.userNotFound || 'User not found or has not initialized messaging.', 'error');
       const uData = await uRes.json();
-      setPendingAddresseeId(uData.userId);
-      setShowCaptcha(true);
+      const addresseeId = String(uData.userId);
+      setPendingAddresseeId(addresseeId);
+      if (captchaRequired) setShowCaptcha(true);
+      else void submitFriendRequest(addresseeId);
     } catch {
       toast(dict.messages?.errorSendingRequest || 'Error sending request', 'error');
     }
   };
 
-  const handleCaptchaSuccess = async (captchaId: string) => {
+  const submitFriendRequest = async (addresseeId: string, captchaId?: string) => {
     setShowCaptcha(false);
     try {
       const reqRes = await fetchWithAuth('/api/v1/friends/request', {
@@ -75,7 +79,10 @@ export default function FriendsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ addresseeId: pendingAddresseeId, captchaId })
+        body: JSON.stringify({
+          addresseeId,
+          ...(captchaRequired && captchaId ? { captchaId } : {}),
+        })
       });
       if (reqRes.ok) {
         setTargetUsername('');
@@ -88,6 +95,10 @@ export default function FriendsPage() {
     } catch {
       toast(dict.messages?.errorSendingRequest || 'Error sending request', 'error');
     }
+  };
+
+  const handleCaptchaSuccess = async (captchaId: string) => {
+    if (pendingAddresseeId) await submitFriendRequest(pendingAddresseeId, captchaId);
   };
 
       /**
@@ -153,7 +164,7 @@ export default function FriendsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      {showCaptcha && (
+      {showCaptcha && captchaRequired && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-card p-6 rounded-2xl shadow-xl relative">
             <button
