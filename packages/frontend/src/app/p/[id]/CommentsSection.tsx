@@ -735,8 +735,8 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
       </h3>
 
       {showCaptcha && captchaRequired && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card p-6 rounded-2xl shadow-xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-card p-6 rounded-2xl shadow-xl relative w-full max-w-[398px] min-w-0">
             <button onClick={() => setShowCaptcha(false)} className="absolute top-2 right-2 text-muted hover:text-foreground">
               &times;
             </button>
