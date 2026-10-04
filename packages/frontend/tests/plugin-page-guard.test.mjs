@@ -36,3 +36,16 @@ test('generic redirect guard delegates only plugin administration to server auth
  const {guardRouteAccess}=load('../src/middleware/authGuard.ts',{'next/server':{NextResponse:{redirect:()=>{throw Error('unexpected redirect')}}},'../lib/routingGuard':{matchRoute(){throw Error('unexpected whitelist')}},'./routeWhitelist':{getWhitelist(){throw Error('unexpected whitelist')}}})
  for(const pathname of ['/admin/plugins','/admin/plugins/example'])assert.equal(await guardRouteAccess({}, {pathname}),null)
 })
+
+test('proxy retains opaque sandbox CSP on plugin HTML but not core pages',()=>{
+ const {applyCspHeaders}=load('../src/middleware/csp.ts',{})
+ const ctx={pathname:'/api/plugins/demo/__ui/ui/sidebar.html',nonce:'core-test',response:{headers:new Headers()}}
+ applyCspHeaders({},ctx)
+ const pluginCsp=ctx.response.headers.get('content-security-policy')
+ assert.match(pluginCsp,/^sandbox allow-scripts;/)
+ assert.ok(pluginCsp.includes("connect-src 'none'"))
+ assert.ok(!pluginCsp.includes('allow-same-origin')&&!pluginCsp.includes('nonce-'))
+ ctx.pathname='/admin/plugins';applyCspHeaders({},ctx)
+ const coreCsp=ctx.response.headers.get('content-security-policy')
+ assert.ok(coreCsp.includes('nonce-core-test')&&!coreCsp.includes('sandbox'))
+})

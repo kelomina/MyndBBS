@@ -8,6 +8,11 @@ const isDev = process.env.NODE_ENV !== 'production';
 // `style-src-attr`; everywhere else inline style attributes stay blocked.
 const MATH_RENDERING_ROUTE_PREFIX = '/p/';
 
+// Middleware response headers can replace Route Handler/BFF headers. Plugin HTML
+// must retain an opaque-origin sandbox even when opened directly via the BFF URL.
+const PLUGIN_UI_RESPONSE_CSP = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; frame-ancestors 'self'";
+const PLUGIN_UI_PATH = /^\/api\/plugins\/[^/]+\/__ui(?:\/|$)/;
+
 function buildCsp(nonce: string | null, allowInlineStyleAttrs: boolean): string {
   const scriptSrc = nonce
     ? `script-src 'self' 'nonce-${nonce}'`
@@ -42,7 +47,9 @@ function buildCsp(nonce: string | null, allowInlineStyleAttrs: boolean): string 
 export function applyCspHeaders(_request: NextRequest, ctx: MiddlewareContext): MiddlewareResult {
   if (!ctx.pathname.startsWith('/install')) {
     const allowInlineStyleAttrs = ctx.pathname.startsWith(MATH_RENDERING_ROUTE_PREFIX);
-    ctx.response.headers.set('Content-Security-Policy', buildCsp(ctx.nonce, allowInlineStyleAttrs));
+    ctx.response.headers.set('Content-Security-Policy', PLUGIN_UI_PATH.test(ctx.pathname)
+      ? PLUGIN_UI_RESPONSE_CSP
+      : buildCsp(ctx.nonce, allowInlineStyleAttrs));
     ctx.response.headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
     ctx.response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
     ctx.response.headers.set('X-XSS-Protection', '0');
