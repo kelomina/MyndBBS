@@ -30,3 +30,55 @@ test('signed UI is standalone, bounded and parses; core has no solver',()=>{
  assert.doesNotMatch(html,/verificationToken|unlockToken|fetch\(|localStorage|document\.cookie/)
  for(const p of ['components/SliderCaptcha.tsx','components/federal/FederalCaptchaModal.tsx','components/federal/GeometryClock.tsx','components/federal/PowCollector.tsx','lib/federal/sha256.ts'])assert.equal(fs.existsSync(path.join(root,'src',p)),false,p)
 })
+
+test('public verification UI opts into opaque-origin embedding without weakening its sandbox', () => {
+  const { applyCspHeaders } = load('src/middleware/csp.ts')
+  for (const pathname of [
+    '/api/human-verification/ui',
+    '/api/human-verification/ui/',
+    '/api/%68uman-verification/%75i',
+    '/api/human-verification%2fui',
+    '/api/unused%2f..%2fhuman-verification/ui',
+    '/api/unused%2f%252e%252e%2fhuman-verification/ui',
+    '/API/HUMAN-VERIFICATION/UI/',
+  ]) {
+    const headers = new Headers({ 'Cross-Origin-Resource-Policy': 'same-origin' })
+    applyCspHeaders({}, { pathname, nonce: 'fixture', response: { headers } })
+    assert.equal(headers.get('Cross-Origin-Resource-Policy'), 'cross-origin', pathname)
+    assert.equal(headers.get('Cross-Origin-Embedder-Policy'), 'credentialless', pathname)
+    const policy = headers.get('Content-Security-Policy')
+    assert.match(policy, /(?:^|;\s*)sandbox allow-scripts(?:;|$)/)
+    assert.doesNotMatch(policy, /allow-same-origin/)
+    assert.match(policy, /frame-ancestors 'self'/)
+    assert.match(policy, /connect-src 'none'/)
+    assert.equal(headers.get('Cache-Control'), 'no-store')
+    assert.equal(headers.get('X-Content-Type-Options'), 'nosniff')
+    assert.equal(headers.get('Access-Control-Allow-Origin'), null)
+    assert.equal(headers.get('Access-Control-Allow-Credentials'), null)
+  }
+})
+
+test('verification UI CORP exception does not expose core pages, private APIs or lookalike paths', () => {
+  const { applyCspHeaders } = load('src/middleware/csp.ts')
+  for (const pathname of [
+    '/',
+    '/compose',
+    '/register',
+    '/api/human-verification/requirements',
+    '/api/human-verification/challenge',
+    '/api/human-verification/verify',
+    '/api/human-verification/unlock',
+    '/api/human-verification/ui-extra',
+    '/api/human-verification/ui/child',
+    '/api/human-verification/%2575i',
+    '/api/%ZZ',
+    '/api/admin/plugins',
+    '/api/plugins/example/__ui',
+  ]) {
+    const headers = new Headers()
+    applyCspHeaders({}, { pathname, nonce: 'fixture', response: { headers } })
+    assert.equal(headers.get('Cross-Origin-Resource-Policy'), 'same-site', pathname)
+    assert.equal(headers.get('Cross-Origin-Embedder-Policy'), 'credentialless', pathname)
+    assert.equal(headers.get('Access-Control-Allow-Origin'), null)
+  }
+})

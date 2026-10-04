@@ -61,15 +61,20 @@ function buildCsp(nonce: string | null, allowInlineStyleAttrs: boolean): string 
 export function applyCspHeaders(_request: NextRequest, ctx: MiddlewareContext): MiddlewareResult {
   if (!ctx.pathname.startsWith('/install')) {
     const allowInlineStyleAttrs = ctx.pathname.startsWith(MATH_RENDERING_ROUTE_PREFIX);
-    ctx.response.headers.set('Content-Security-Policy', (isPluginUiPath(ctx.pathname) || isHumanVerificationUiPath(ctx.pathname))
+    const isVerificationUi = isHumanVerificationUiPath(ctx.pathname);
+    ctx.response.headers.set('Content-Security-Policy', (isPluginUiPath(ctx.pathname) || isVerificationUi)
       ? PLUGIN_UI_RESPONSE_CSP
       : buildCsp(ctx.nonce, allowInlineStyleAttrs));
-    if (isHumanVerificationUiPath(ctx.pathname)) {
+    ctx.response.headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
+    ctx.response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
+    if (isVerificationUi) {
+      // The public provider document runs in an opaque-origin sandbox. Explicitly
+      // allow its resource load without granting same-origin access or relaxing
+      // CSP frame-ancestors; challenge, proof and private APIs retain same-site.
+      ctx.response.headers.set('Cross-Origin-Resource-Policy', 'cross-origin')
       ctx.response.headers.set('Cache-Control', 'no-store')
       ctx.response.headers.set('X-Content-Type-Options', 'nosniff')
     }
-    ctx.response.headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
-    ctx.response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
     ctx.response.headers.set('X-XSS-Protection', '0');
   }
   return null;
