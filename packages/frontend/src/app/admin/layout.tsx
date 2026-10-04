@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { getDictionary } from '../../i18n/get-dictionary'
 import { defaultLocale, Locale } from '../../i18n/config'
 import { headers, cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import {
   ShieldCheck,
   ShieldAlert,
@@ -24,6 +24,8 @@ import { TranslationProvider } from '../../components/TranslationProvider'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
+  const pathname = headersList.get('x-mynd-pathname') || ''
+  const isPluginPage = pathname === '/admin/plugins' || pathname.startsWith('/admin/plugins/')
   const locale = (headersList.get('x-locale') || defaultLocale) as Locale
   const dict = await getDictionary(locale)
 
@@ -42,10 +44,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       },
     })
   } catch {
+    if (isPluginPage) notFound()
     redirect('/')
   }
 
   if (!response.ok) {
+    if (isPluginPage) notFound()
     redirect('/login')
   }
 
@@ -53,6 +57,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     user?: {
       role?: 'SUPER_ADMIN' | 'ADMIN' | 'MODERATOR' | string
     }
+  }
+
+  if (isPluginPage && data.user?.role !== 'SUPER_ADMIN' && data.user?.role !== 'ADMIN') {
+    notFound()
   }
 
   if (
