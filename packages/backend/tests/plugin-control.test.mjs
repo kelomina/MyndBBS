@@ -6,7 +6,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { fork } from 'node:child_process'
-import { PluginControl, createControlServer } from '../../../scripts/plugin-control.mjs'
+import { DockerPluginRuntime, PluginControl, createControlServer } from '../../../scripts/plugin-control.mjs'
 import { inspectArchive } from '../../../scripts/plugin-archive.mjs'
 import { sha256, signingPayload } from '../../../scripts/plugin-v2.mjs'
 const { privateKey, publicKey } = generateKeyPairSync('ed25519')
@@ -302,4 +302,38 @@ test('actual isolated host receives config, strips credentials, and deduplicates
     },
   })
   assert.deepEqual(await response.json(), { config: { token: 'runtime-only' }, n: 1 })
+})
+
+// Real-server regression: crash-loop candidate DNS must not poison the old worker's health probe.
+test('Docker runtime resolves current isolated IP without container DNS or stale address cache', async (t) => {
+  let ip = '172.30.1.2'
+  const commands = [], urls = []
+  const runtime = new DockerPluginRuntime({ network: 'isolated', docker: async (args) => {
+    commands.push(args)
+    return { stdout: JSON.stringify({ running: true, networks: { isolated: { IPAddress: ip } } }) }
+  } })
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    urls.push(url)
+    return new Response(JSON.stringify({ status: 'ok', version: '1.0.0' }), { status: 200 })
+  })
+  assert.deepEqual(await runtime.health('old-worker'), { healthy: true, version: '1.0.0' })
+  ip = '172.30.1.3'
+  await runtime.request('old-worker', '/counter', { method: 'GET' })
+  assert.deepEqual(urls, ['http://172.30.1.2:3500/healthz', 'http://172.30.1.3:3500/counter'])
+  assert.equal(commands.length, 2)
+  assert.ok(commands.every(args => args[0] === 'inspect' && args.at(-1) === 'old-worker'))
+})
+
+test('Docker runtime rejects stopped, extra-network and non-IP endpoints before HTTP', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('must not fetch') })
+  for (const state of [
+    { running: false, networks: { isolated: { IPAddress: '172.30.1.2' } } },
+    { running: true, networks: { isolated: { IPAddress: '172.30.1.2' }, core: { IPAddress: '172.20.1.2' } } },
+    { running: true, networks: { core: { IPAddress: '172.20.1.2' } } },
+    { running: true, networks: { isolated: { IPAddress: 'localhost@127.0.0.1' } } },
+  ]) {
+    const runtime = new DockerPluginRuntime({ network: 'isolated', docker: async () => ({ stdout: JSON.stringify(state) }) })
+    await assert.rejects(() => runtime.health('candidate'), /ERR_PLUGIN_HOST_UNAVAILABLE/)
+  }
+  assert.equal(fetch.mock.callCount(), 0)
 })

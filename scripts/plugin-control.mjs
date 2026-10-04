@@ -1,4 +1,5 @@
 import http from 'node:http'
+import { isIP } from 'node:net'
 import { createHmac, randomUUID } from 'node:crypto'
 import {
   mkdir,
@@ -136,8 +137,27 @@ export class DockerPluginRuntime {
       this.image,
     ])
   }
+  async endpoint(name) {
+    // Resolve through the daemon, not container DNS. Aborted getaddrinfo calls for
+    // a crash-looping candidate can exhaust Node's DNS worker pool and make a
+    // healthy previous instance appear unavailable immediately after rollback.
+    // Re-inspect every request: do not reuse an IP after a container is replaced.
+    const result = await this.docker([
+      'inspect',
+      '--format',
+      '{"running":{{json .State.Running}},"networks":{{json .NetworkSettings.Networks}}}',
+      name,
+    ])
+    let state
+    try { state = JSON.parse(result.stdout) } catch { throw new Error('ERR_PLUGIN_HOST_UNAVAILABLE') }
+    const networks = state?.networks
+    const address = networks?.[this.network]?.IPAddress
+    if (!state?.running || !isObject(networks) || Object.keys(networks).length !== 1 || typeof address !== 'string' || isIP(address) !== 4)
+      throw new Error('ERR_PLUGIN_HOST_UNAVAILABLE')
+    return 'http://' + address + ':3500'
+  }
   async health(name) {
-    const response = await fetch('http://' + name + ':3500/healthz', {
+    const response = await fetch((await this.endpoint(name)) + '/healthz', {
       signal: AbortSignal.timeout(1500),
       redirect: 'error',
     })
@@ -154,7 +174,7 @@ export class DockerPluginRuntime {
     }
   }
   async request(name, pathname, init) {
-    return fetch('http://' + name + ':3500' + pathname, {
+    return fetch((await this.endpoint(name)) + pathname, {
       ...init,
       redirect: 'error',
       signal: AbortSignal.timeout(5000),
