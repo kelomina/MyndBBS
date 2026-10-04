@@ -6,6 +6,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const rollbackScript = path.join(root, 'scripts', 'rollback-frontend-release.sh')
 const installerScript = path.join(root, 'scripts', 'install-frontend-release.sh')
@@ -255,8 +256,20 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   assert.match(workflow, /uploads-data\.tar/)
   assert.match(workflow, /docker save "\$BACKEND_IMAGE_ID"/)
   assert.match(workflow, /docker save "\$FRONTEND_IMAGE_ID"/)
-  assert.equal((workflow.match(/GHCR_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/g) ?? []).length, 3)
-  assert.equal((workflow.match(/docker login ghcr\.io --username "\$GHCR_USER" --password-stdin/g) ?? []).length, 3)
+  assert.equal((workflow.match(/GHCR_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/g) ?? []).length, 2)
+  assert.equal((workflow.match(/docker login ghcr\.io --username "\$GHCR_USER" --password-stdin/g) ?? []).length, 2)
+  // v2 plugin CI signs an artifact only: it must never receive a deploy job,
+  // SSH/control credentials or a Docker-login path, even with deploy=true.
+  assert.doesNotMatch(workflow, /^  deploy-plugin:/m)
+  const pluginJob = workflow.match(/^  plugin-build:\r?\n([\s\S]*?)(?=^  [\w-]+:)/m)?.[1]
+  assert.ok(pluginJob, 'Plugin artifact job must exist')
+  assert.match(pluginJob, /environment: plugin-signing/)
+  assert.match(pluginJob, /package-plugin-release\.mjs/)
+  assert.match(pluginJob, /PLUGIN_SIGNING_KEY/)
+  assert.doesNotMatch(pluginJob, /appleboy|DEPLOY_SSH_KEY|PLUGIN_CONTROL_TOKEN|PLUGIN_RUNTIME_SECRET|docker login|install-plugin-release/)
+  for (const type of ['frontend', 'core']) {
+    assert.ok(workflow.includes("  deploy-" + type + ":\n    if: inputs.release_type == '" + type + "' && inputs.deploy == true") || workflow.includes("  deploy-" + type + ":\r\n    if: inputs.release_type == '" + type + "' && inputs.deploy == true"))
+  }
   assert.doesNotMatch(workflow, /script_stop:/)
   assert.match(installer, /CHECKSUM_FILE="\$\{ARCHIVE%\.tar\.gz\}\.sha256"/)
   assert.match(installer, /RUNTIME_NODE_PATH="\$RELEASE\/node_modules\/\.pnpm\/node_modules"/)
