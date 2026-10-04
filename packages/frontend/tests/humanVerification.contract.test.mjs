@@ -5,7 +5,7 @@ import path from 'node:path'
 import vm from 'node:vm'
 import {createRequire} from 'node:module'
 const require=createRequire(import.meta.url),ts=require('typescript'),root=path.resolve(import.meta.dirname,'..')
-function load(file){const filename=path.join(root,file),module={exports:{}};const code=ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;new Function('require','module','exports',code)((p)=>p.startsWith('.')?load(path.relative(root,path.resolve(path.dirname(filename),p+'.ts'))):require(p),module,module.exports);return module.exports}
+function load(file){const filename=path.join(root,file),loadedModule={exports:{}};const code=ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;new Function('require','module','exports',code)((p)=>p.startsWith('.')?load(path.relative(root,path.resolve(path.dirname(filename),p+'.ts'))):require(p),loadedModule,loadedModule.exports);return loadedModule.exports}
 const channel=load('src/lib/human-verification/channel.ts'),client=load('src/lib/human-verification/client.ts'),csp=load('src/lib/bff/isolated-ui.ts')
 test('bridge accepts only bounded current nonce/challenge operation envelopes',()=>{
  const envelope={type:'answer',nonce:'n',challengeId:'c',solution:{nonce:'42'}}
