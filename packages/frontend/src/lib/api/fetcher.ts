@@ -10,7 +10,7 @@ function buildFullUrl(url: string): string {
 }
 
 function isUnlockEndpoint(url: string): boolean {
-  return url === UNLOCK_ENDPOINT || url.endsWith('/captcha/unlock');
+  return url.split('?')[0] === UNLOCK_ENDPOINT;
 }
 
 /** 读请求自动附带 X-RateLimit-Unlock（唯一冻结载体，不引入 Cookie）。 */

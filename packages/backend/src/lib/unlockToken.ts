@@ -8,7 +8,7 @@
 import jwt from 'jsonwebtoken'
 import { randomUUID as uuidv4 } from 'crypto'
 import { getTempTokenSecret } from './securityConfig'
-import type { CaptchaStrength } from '../domain/identity/CaptchaChallenge'
+import type { VerificationAssurance } from '../domain/shared/ports/IHumanVerification'
 
 export const UNLOCK_TOKEN_TYP = 'ratelimit-unlock'
 export const UNLOCK_HEADER_NAME = 'x-ratelimit-unlock'
@@ -17,7 +17,7 @@ export interface UnlockTokenPayload {
   typ: typeof UNLOCK_TOKEN_TYP
   ip: string
   jti: string
-  strength: CaptchaStrength
+  strength: VerificationAssurance
   iat: number
   exp: number
 }
@@ -41,7 +41,7 @@ export function getExemptTtlSec(exemptionMinutes: number): number {
 export function signUnlockToken(params: {
   ip: string
   exemptionMinutes: number
-  strength: CaptchaStrength
+  strength: VerificationAssurance
 }): {
   token: string
   jti: string

@@ -1,3 +1,5 @@
+import { humanVerificationService } from './infrastructure/plugins/HumanVerificationAdapter'
+export { humanVerificationService }
 import { container, token, type ServiceToken } from './lib/container'
 import type { IEventBus } from './domain/shared/events/IEventBus'
 import type { IUnitOfWork } from './domain/shared/IUnitOfWork'
@@ -9,7 +11,6 @@ import type { ISessionRepository } from './domain/identity/ISessionRepository'
 import type { IRoleRepository } from './domain/identity/IRoleRepository'
 import type { IPermissionRepository } from './domain/identity/IPermissionRepository'
 import type { IAuthChallengeRepository } from './domain/identity/IAuthChallengeRepository'
-import type { ICaptchaChallengeRepository } from './domain/identity/ICaptchaChallengeRepository'
 import type { IEmailRegistrationTicketRepository } from './domain/identity/IEmailRegistrationTicketRepository'
 import type { IPasswordResetTicketRepository } from './domain/identity/IPasswordResetTicketRepository'
 import type { IEmailSender } from './domain/identity/ports/IEmailSender'
@@ -26,7 +27,6 @@ import type { IEngagementRepository } from './domain/community/IEngagementReposi
 import type { IModeratedWordRepository } from './domain/community/IModeratedWordRepository'
 import type { IModerationPolicy } from './domain/community/IModerationPolicy'
 import type { IModeratedWordsCache } from './domain/community/IModeratedWordsCache'
-import type { ICaptchaValidator } from './domain/community/ICaptchaValidator'
 import type { IIdentityIntegrationPort as CommunityIdentityIntegrationPort } from './domain/community/IIdentityIntegrationPort'
 import type { IBadgeRepository } from './domain/badge/IBadgeRepository'
 import type { IUserBadgeRepository } from './domain/badge/IUserBadgeRepository'
@@ -56,7 +56,6 @@ import type { IModeratorReadModel } from './application/notification/ports/IMode
 
 import { UserApplicationService } from './application/identity/UserApplicationService'
 import { AuthApplicationService } from './application/identity/AuthApplicationService'
-import { FederalCaptchaService } from './application/identity/FederalCaptchaService'
 import { OidcLoginService } from './application/identity/OidcLoginService'
 import { SystemApplicationService } from './application/system/SystemApplicationService'
 import { IdentityBootstrapApplicationService } from './application/identity/IdentityBootstrapApplicationService'
@@ -68,8 +67,6 @@ import { ReportApplicationService } from './application/report/ReportApplication
 import { IpBanApplicationService } from './application/system/IpBanApplicationService'
 import { AntiSpamService } from './application/system/AntiSpamService'
 import { RateLimitProtectionService } from './application/system/RateLimitProtectionService'
-import { FederalProtectionService } from './application/system/FederalProtectionService'
-import { CaptchaProtectionService } from './application/system/CaptchaProtectionService'
 import { PrismaAntiSpamAdapter } from './infrastructure/services/PrismaAntiSpamAdapter'
 import { MentionNotifier } from './application/notification/MentionNotifier'
 import { SiteSettingsService } from './application/system/SiteSettingsService'
@@ -86,7 +83,6 @@ import { ReviewApplicationService } from './application/journal/ReviewApplicatio
 import { EditorialDecisionApplicationService } from './application/journal/EditorialDecisionApplicationService'
 
 import { PrismaUserRepository } from './infrastructure/repositories/PrismaUserRepository'
-import { PrismaCaptchaChallengeRepository } from './infrastructure/repositories/PrismaCaptchaChallengeRepository'
 import { PrismaPasskeyRepository } from './infrastructure/repositories/PrismaPasskeyRepository'
 import { PrismaSessionRepository } from './infrastructure/repositories/PrismaSessionRepository'
 import { PrismaAuthChallengeRepository } from './infrastructure/repositories/PrismaAuthChallengeRepository'
@@ -171,7 +167,6 @@ const T = {
   IRoleRepository: token<IRoleRepository>('IRoleRepository'),
   IPermissionRepository: token<IPermissionRepository>('IPermissionRepository'),
   IAuthChallengeRepository: token<IAuthChallengeRepository>('IAuthChallengeRepository'),
-  ICaptchaChallengeRepository: token<ICaptchaChallengeRepository>('ICaptchaChallengeRepository'),
   IEmailRegistrationTicketRepository: token<IEmailRegistrationTicketRepository>(
     'IEmailRegistrationTicketRepository',
   ),
@@ -192,7 +187,6 @@ const T = {
   IModeratedWordRepository: token<IModeratedWordRepository>('IModeratedWordRepository'),
   IModerationPolicy: token<IModerationPolicy>('IModerationPolicy'),
   IModeratedWordsCache: token<IModeratedWordsCache>('IModeratedWordsCache'),
-  ICaptchaValidator: token<ICaptchaValidator>('ICaptchaValidator'),
   CommunityIdentityIntegrationPort: token<CommunityIdentityIntegrationPort>(
     'CommunityIdentityIntegrationPort',
   ),
@@ -245,7 +239,6 @@ function registerServices(): void {
   container.register(T.IRoleRepository, () => new PrismaRoleRepository())
   container.register(T.IPermissionRepository, () => new PrismaPermissionRepository())
   container.register(T.IAuthChallengeRepository, () => new PrismaAuthChallengeRepository())
-  container.register(T.ICaptchaChallengeRepository, () => new PrismaCaptchaChallengeRepository())
   container.register(
     T.IEmailRegistrationTicketRepository,
     () => new RedisEmailRegistrationTicketRepository(),
@@ -423,12 +416,7 @@ export const adminUserManagementApplicationService = new AdminUserManagementAppl
   storagePort: container.resolve(T.IStoragePort),
 })
 
-export const captchaProtectionService = new CaptchaProtectionService({
-  sitePolicyRepository: container.resolve(T.ISitePolicyRepository),
-})
-
 export const authApplicationService = new AuthApplicationService({
-  captchaChallengeRepository: container.resolve(T.ICaptchaChallengeRepository),
   passkeyRepository: container.resolve(T.IPasskeyRepository),
   sessionRepository: container.resolve(T.ISessionRepository),
   authChallengeRepository: container.resolve(T.IAuthChallengeRepository),
@@ -444,11 +432,7 @@ export const authApplicationService = new AuthApplicationService({
   emailSender: container.resolve(T.IEmailSender),
   emailTemplateRepository: container.resolve(T.IEmailTemplateRepository),
   unitOfWork: container.resolve(T.IUnitOfWork),
-  captchaProtection: captchaProtectionService,
-})
-
-export const federalCaptchaService = new FederalCaptchaService({
-  captchaChallengeRepository: container.resolve(T.ICaptchaChallengeRepository),
+  humanVerification: humanVerificationService,
 })
 
 export const oidcLoginService = new OidcLoginService({
@@ -533,10 +517,6 @@ export const rateLimitProtectionService = new RateLimitProtectionService({
 // 未注入回退自建仅用于单测/未初始化路径，PUT 后控制器双清兜底。lib 不反向依赖组合根，保持 DDD 分层。
 setSharedRateLimitProtectionService(rateLimitProtectionService)
 
-export const federalProtectionService = new FederalProtectionService({
-  sitePolicyRepository: container.resolve(T.ISitePolicyRepository),
-})
-
 export const tagRepository = new PrismaTagRepository()
 const postTagRepository = new PrismaPostTagRepository()
 export { postTagRepository }
@@ -551,8 +531,7 @@ export const communityApplicationService = new CommunityApplicationService({
   engagementRepository: container.resolve(T.IEngagementRepository),
   identityIntegrationPort: container.resolve(T.CommunityIdentityIntegrationPort),
   moderationPolicy: container.resolve(T.IModerationPolicy),
-  captchaValidator: authApplicationService,
-  captchaProtection: captchaProtectionService,
+  humanVerification: humanVerificationService,
   eventBus: container.resolve(T.IEventBus),
   auditApplicationService: auditApplicationService,
   unitOfWork: container.resolve(T.IUnitOfWork),
@@ -569,8 +548,7 @@ export const messagingApplicationService = new MessagingApplicationService({
   identityIntegrationPort: container.resolve(T.MessagingIdentityIntegrationPort),
   unitOfWork: container.resolve(T.IUnitOfWork),
   eventBus: container.resolve(T.IEventBus),
-  captchaProtection: captchaProtectionService,
-  captchaValidator: authApplicationService,
+  humanVerification: humanVerificationService,
 })
 
 export const roleApplicationService = new RoleApplicationService({

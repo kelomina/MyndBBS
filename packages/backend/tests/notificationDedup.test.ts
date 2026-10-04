@@ -11,7 +11,7 @@ describe('notification dedup (postAuthorId emission-side)', () => {
     const commentRepository = { findById: jest.fn(), save: jest.fn() }
     const engagementRepository = {}
     const moderationPolicy = { containsModeratedWord: jest.fn().mockResolvedValue(false) }
-    const captchaValidator = { consumeCaptcha: jest.fn().mockResolvedValue(true) }
+    const humanVerification = { requires: jest.fn().mockResolvedValue(true), consumeProof: jest.fn().mockResolvedValue(true) }
     const eventBus = { publish: jest.fn().mockResolvedValue(undefined) }
     const service = new CommunityApplicationService({
       categoryRepository: categoryRepository as never,
@@ -20,7 +20,7 @@ describe('notification dedup (postAuthorId emission-side)', () => {
       engagementRepository: engagementRepository as never,
       identityIntegrationPort: {} as never,
       moderationPolicy: moderationPolicy as never,
-      captchaValidator: captchaValidator as never,
+      humanVerification: humanVerification as never,
       eventBus: eventBus as never,
       auditApplicationService: { logAudit: jest.fn() } as never,
       unitOfWork: { execute: jest.fn((w: () => unknown) => w()) } as never,

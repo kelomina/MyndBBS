@@ -101,6 +101,19 @@ async function redisDelByIp(ip: string): Promise<void> {
 export const rateLimitExemptionStore = {
   buildKey,
 
+  /** New capability proofs require durable confirmation; never authorize via a memory fallback. */
+  async saveStrict(ip: string, jti: string, ttlSec: number): Promise<void> {
+    if (!process.env.REDIS_URL || redis.status !== 'ready') throw new Error('ERR_HUMAN_VERIFICATION_UNAVAILABLE')
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      const result = await Promise.race([
+        redis.set(buildKey(ip, jti), '1', 'EX', Math.max(1, Math.floor(ttlSec))),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('ERR_HUMAN_VERIFICATION_UNAVAILABLE')), 5000) }),
+      ])
+      if (result !== 'OK') throw new Error('ERR_HUMAN_VERIFICATION_UNAVAILABLE')
+    } finally { if (timer) clearTimeout(timer) }
+  },
+
   async save(ip: string, jti: string, ttlSec: number): Promise<void> {
     const key = buildKey(ip, jti)
     const ttl = Math.max(1, Math.floor(ttlSec))

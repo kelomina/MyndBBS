@@ -159,7 +159,7 @@ describe('publicReadLimiter', () => {
     expect(res.statusCode).toBe(429)
     expect(res.body.error).toBe('ERR_RATE_LIMITED_NEEDS_CAPTCHA')
     expect(res.body.unlockRequired).toBe(true)
-    expect(res.body.unlockEndpoint).toBe('/api/v1/auth/captcha/unlock')
+    expect(res.body.unlockEndpoint).toBe('/api/human-verification/unlock')
     expect(typeof res.body.retryAfterSec).toBe('number')
     expect(res.headers['Retry-After']).toBeDefined()
   })

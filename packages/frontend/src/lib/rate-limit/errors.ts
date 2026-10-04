@@ -6,7 +6,7 @@
  * 必须走普通 Error 分支，避免误入解锁循环。
  */
 
-export const UNLOCK_ENDPOINT = '/api/v1/auth/captcha/unlock';
+export const UNLOCK_ENDPOINT = '/api/human-verification/unlock';
 export const UNLOCK_REQUIRED_CODE = 'ERR_RATE_LIMITED_NEEDS_CAPTCHA';
 
 export interface RateLimitErrorDetails {

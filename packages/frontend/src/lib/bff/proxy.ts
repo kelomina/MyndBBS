@@ -1,3 +1,4 @@
+import { isHumanVerificationUiPath } from './isolated-ui'
 import type { NextRequest } from 'next/server'
 import { buildBackendUrl } from './backend'
 
@@ -153,7 +154,7 @@ export async function proxyToBackend(request: NextRequest, backendPathname: stri
 
   const responseHeaders = copyResponseHeaders(response)
   responseHeaders.delete('set-cookie')
-  for (const cookie of getSetCookieHeaders(response)) {
+  for (const cookie of isHumanVerificationUiPath(url.pathname) ? [] : getSetCookieHeaders(response)) {
     responseHeaders.append('set-cookie', cookie)
   }
 

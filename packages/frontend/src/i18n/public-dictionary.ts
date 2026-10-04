@@ -47,49 +47,7 @@ export const getPublicDictionary = async (locale: Locale): Promise<Dictionary> =
     auth: pick(dict.auth, ['networkError', 'pleaseLogin']),
     home: pick(dict.home, ['recentDesc', 'popularDesc']),
     twoFactor: {},
-    captcha: {
-      ...pick(dict.captcha, [
-        'securityVerification',
-        'verified',
-        'networkError',
-        'verificationFailed',
-        'serverError',
-      ]),
-      // 联邦验证公开子键（匿名解题必需；沿 21:30 门禁精确白名单思想，仅公开解题渲染所需键）
-      // COPY-CHANGE-1 v1.1：几何删 8 保留 11（静默化卡面，问题行与倒计时保留）
-      geometry: pick(
-        (dict.captcha as unknown as Record<string, Record<string, string>[]>)
-          .geometry as unknown as Record<string, string>,
-        [
-          'target',
-          'idleCountdown',
-          'dragHint',
-          'verify',
-          'newChallenge',
-          'solving',
-          'success',
-          'failed',
-          'timeout',
-          'retry',
-          'targetValue',
-        ] as const,
-      ),
-      federal: pick(
-        (dict.captcha as unknown as Record<string, Record<string, string>>)
-          .federal as unknown as Record<string, string>,
-        [
-          'modalTitle',
-          'switchKind',
-          'switchDisabledTip',
-          'kindSlider',
-          'kindGeometry',
-          'kindPow',
-          'strengthHint',
-          'loading',
-          'verifying',
-        ] as const,
-      ),
-    },
+    humanVerification: dict.humanVerification,
     rateLimitUnlock: pick(dict.rateLimitUnlock, [
       'cardTitle',
       'cardDesc',
@@ -137,7 +95,7 @@ export const getPublicDictionary = async (locale: Locale): Promise<Dictionary> =
     // as unknown 兼容 Dictionary 全量类型。
     apiErrors: pick(
       dict.apiErrors as unknown as Record<string, string>,
-      ['ERR_VERIFICATION_FAILED', 'ERR_RATE_LIMITED_NEEDS_CAPTCHA', 'ERR_RATE_LIMITED'] as const,
+      ['ERR_VERIFICATION_FAILED', 'ERR_RATE_LIMITED_NEEDS_CAPTCHA', 'ERR_RATE_LIMITED', 'ERR_HUMAN_VERIFICATION_UNAVAILABLE', 'ERR_HUMAN_VERIFICATION_INVALID'] as const,
     ) as unknown as Dictionary['apiErrors'],
     category: pick(dict.category, [
       'postsTitle',

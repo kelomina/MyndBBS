@@ -1,6 +1,5 @@
 import { AuthApplicationService } from '../../src/application/identity/AuthApplicationService';
 import { AuthChallenge } from '../../src/domain/identity/AuthChallenge';
-import { CaptchaChallenge } from '../../src/domain/identity/CaptchaChallenge';
 import { Passkey } from '../../src/domain/identity/Passkey';
 import { Session } from '../../src/domain/identity/Session';
 import { User } from '../../src/domain/identity/User';
@@ -12,10 +11,9 @@ describe('AuthApplicationService', () => {
 
   beforeEach(() => {
     mocks = {
-      captchaChallengeRepository: {
-        findById: jest.fn(),
-        save: jest.fn(),
-        delete: jest.fn(),
+      humanVerification: {
+        requires: jest.fn().mockResolvedValue(true),
+        consumeProof: jest.fn().mockResolvedValue(true),
       },
       passkeyRepository: {
         findByUserId: jest.fn(),
@@ -95,7 +93,7 @@ describe('AuthApplicationService', () => {
     };
 
     service = new AuthApplicationService({
-      captchaChallengeRepository: mocks.captchaChallengeRepository,
+      humanVerification: mocks.humanVerification,
       passkeyRepository: mocks.passkeyRepository,
       sessionRepository: mocks.sessionRepository,
       authChallengeRepository: mocks.authChallengeRepository,
@@ -172,103 +170,6 @@ describe('AuthApplicationService', () => {
 
       expect(mocks.passwordHasher.verify).not.toHaveBeenCalled();
       expect(mocks.userRepository.save).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('generateCaptcha', () => {
-    it('should generate a captcha with random position between 80-240', async () => {
-      mocks.captchaChallengeRepository.save.mockResolvedValue();
-
-      const result = await service.generateCaptcha();
-
-      expect(result.id).toBeDefined();
-      expect(result.image).toContain('data:image/png;base64,');
-      expect(result.image).not.toContain('<path');
-      expect(result.image).not.toContain('svg+xml');
-      expect(mocks.captchaChallengeRepository.save).toHaveBeenCalled();
-    });
-  });
-
-  describe('verifyCaptcha', () => {
-    it('should verify captcha successfully', async () => {
-      const challenge = CaptchaChallenge.reconstitute({
-        id: 'captcha-1',
-        targetPosition: 150,
-        verified: false,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-      });
-      mocks.captchaChallengeRepository.findById.mockResolvedValue(challenge);
-      jest.spyOn(challenge, 'verifyTrajectory').mockReturnValue();
-
-      await service.verifyCaptcha('captcha-1', [], 1000, 150);
-
-      expect(challenge.verifyTrajectory).toHaveBeenCalled();
-      expect(mocks.captchaChallengeRepository.save).toHaveBeenCalledWith(challenge);
-    });
-
-    it('should throw error when captcha not found', async () => {
-      mocks.captchaChallengeRepository.findById.mockResolvedValue(null);
-
-      await expect(service.verifyCaptcha('captcha-1', [], 1000, 150)).rejects.toThrow('ERR_INVALID_CAPTCHA');
-    });
-
-    it('should delete expired captcha and throw error', async () => {
-      const challenge = CaptchaChallenge.reconstitute({
-        id: 'captcha-1',
-        targetPosition: 150,
-        verified: false,
-        expiresAt: new Date(Date.now() - 1000),
-      });
-      mocks.captchaChallengeRepository.findById.mockResolvedValue(challenge);
-      jest.spyOn(challenge, 'verifyTrajectory').mockImplementation(() => {
-        throw new Error('ERR_CAPTCHA_EXPIRED');
-      });
-
-      await expect(service.verifyCaptcha('captcha-1', [], 1000, 150)).rejects.toThrow('ERR_CAPTCHA_EXPIRED');
-      expect(mocks.captchaChallengeRepository.delete).toHaveBeenCalledWith('captcha-1');
-    });
-  });
-
-  describe('consumeCaptcha', () => {
-    it('should consume valid captcha successfully', async () => {
-      const challenge = CaptchaChallenge.reconstitute({
-        id: 'captcha-1',
-        targetPosition: 150,
-        verified: true,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-      });
-      mocks.captchaChallengeRepository.findById.mockResolvedValue(challenge);
-      jest.spyOn(challenge, 'validateForConsumption').mockReturnValue();
-
-      const result = await service.consumeCaptcha('captcha-1');
-
-      expect(result).toBe(true);
-      expect(mocks.captchaChallengeRepository.delete).toHaveBeenCalledWith('captcha-1');
-    });
-
-    it('should return false when captcha not found', async () => {
-      mocks.captchaChallengeRepository.findById.mockResolvedValue(null);
-
-      const result = await service.consumeCaptcha('captcha-1');
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false when captcha validation fails', async () => {
-      const challenge = CaptchaChallenge.reconstitute({
-        id: 'captcha-1',
-        targetPosition: 150,
-        verified: false,
-        expiresAt: new Date(Date.now() - 1000),
-      });
-      mocks.captchaChallengeRepository.findById.mockResolvedValue(challenge);
-      jest.spyOn(challenge, 'validateForConsumption').mockImplementation(() => {
-        throw new Error('ERR_CAPTCHA_EXPIRED');
-      });
-
-      const result = await service.consumeCaptcha('captcha-1');
-
-      expect(result).toBe(false);
     });
   });
 

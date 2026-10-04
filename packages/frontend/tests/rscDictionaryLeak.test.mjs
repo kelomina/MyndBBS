@@ -31,18 +31,11 @@ test('public translation dictionary omits privileged dictionary branches', async
   const apiErrorKeys = [...apiErrorsPick[1].matchAll(/'(ERR_[A-Z_]+)'/g)].map((m) => m[1])
   assert.deepEqual(
     [...apiErrorKeys].sort(),
-    ['ERR_RATE_LIMITED', 'ERR_RATE_LIMITED_NEEDS_CAPTCHA', 'ERR_VERIFICATION_FAILED'].sort(),
+    ['ERR_RATE_LIMITED', 'ERR_RATE_LIMITED_NEEDS_CAPTCHA', 'ERR_VERIFICATION_FAILED', 'ERR_HUMAN_VERIFICATION_UNAVAILABLE', 'ERR_HUMAN_VERIFICATION_INVALID'].sort(),
   )
   assert.match(publicDictionary, /messages:\s*pick\(dict\.messages,\s*\['title'\]\)/)
-  // 联邦验证公开子键（匿名解题必需）：captcha.geometry/federal 精确 pick，不透 admin.federal（管理页需 ADMIN，经完整字典走 BFF，不进公开字典）
-  // COPY-CHANGE-1 v1.1：pow 17 键全删，pick 删整段（不留空对象）
-  assert.match(publicDictionary, /geometry:\s*pick\(/)
-  assert.match(publicDictionary, /federal:\s*pick\(/)
-  assert.doesNotMatch(publicDictionary, /pow:\s*pick\(/)
-  assert.match(publicDictionary, /switchKind/)
-  assert.doesNotMatch(publicDictionary, /fallbackToSlider/)
-  assert.doesNotMatch(publicDictionary, /timeoutNote/)
-  assert.doesNotMatch(publicDictionary, /faceValue/)
+  assert.match(publicDictionary, /humanVerification: dict\.humanVerification/)
+  assert.doesNotMatch(publicDictionary, /geometry:|federal:|switchKind/)
   // 通知徽标合计公开键（UserNav 求和 tooltip/aria-label 所需）
   assert.match(publicDictionary, /notifications:\s*pick\(dict\.notifications/)
   assert.match(publicDictionary, /badgeAria/)

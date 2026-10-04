@@ -117,10 +117,10 @@
     "password": "密码",
     "rememberMe": "记住我",
     "forgotPassword": "忘记密码？",
-   "signIn": "登录",
+    "signIn": "登录",
     "signInWithKoloSso": "使用 KoloStudio 账号登录",
     "ssoLoginFailed": "统一登录失败，请重试或使用其他方式登录。",
-   "orContinueWith": "或其他登录方式",
+    "orContinueWith": "或其他登录方式",
     "signInWithPasskey": "使用 Passkey 快捷登录",
     "dontHaveAccount": "还没有账号？",
     "signUpNow": "立即注册",
@@ -237,37 +237,6 @@
     "passkeySetupFailed": "Passkey 设置失败",
     "failedGenerateTotp": "生成 TOTP 设置失败",
     "invalidTotpCode": "无效的 TOTP 验证码"
-  },
-  "captcha": {
-    "securityVerification": "安全验证",
-    "verified": "已验证",
-    "networkError": "网络错误。请重试。",
-    "verificationFailed": "验证失败",
-    "serverError": "服务器错误",
-    "geometry": {
-      "target": "目标小时",
-      "idleCountdown": "无操作倒计时",
-      "dragHint": "请用鼠标拖动时针（不支持滑杆与键盘操作）。",
-      "verify": "验证对齐",
-      "newChallenge": "换一题",
-      "solving": "校验中…",
-      "success": "指对成功！用时 {sec}s，指向盘面数字 {face}（目标 {target}）。",
-      "failed": "验证未通过，已换新题，请再试一次。",
-      "timeout": "交互超时，请重试。",
-      "retry": "重试",
-      "targetValue": "请将指针指向 {target} 点"
-    },
-    "federal": {
-      "modalTitle": "人机验证",
-      "switchKind": "换一种",
-      "switchDisabledTip": "该题型已关闭",
-      "kindSlider": "滑块",
-      "kindGeometry": "几何",
-      "kindPow": "工作量证明",
-      "strengthHint": "{kind} · 复杂度 {level} · 强度 {strength}",
-      "loading": "加载题目中…",
-      "verifying": "校验中…"
-    }
   },
   "rateLimitUnlock": {
     "cardTitle": "请求过于频繁——验证后继续",
@@ -432,7 +401,7 @@
     "upload": "上传",
     "uploaded": "插件已上传到隔离区。",
     "uploadFailed": "插件上传失败。",
-    "approve": "审批",
+    "approve": "通过",
     "activate": "激活",
     "deactivate": "停用",
     "reload": "重载",
@@ -454,7 +423,6 @@
     "name": "名称",
     "description": "描述",
     "moderators": "版主",
-    "actions": "操作",
     "sortOrder": "排序权重",
     "create": "创建",
     "selectUser": "选择用户",
@@ -536,7 +504,6 @@
     "noPendingPosts": "暂无待审帖子",
     "noPendingComments": "暂无待审评论",
     "inPost": "所属帖子",
-    "approve": "通过",
     "reject": "拒绝 (删除)",
     "failedToAddWord": "添加审核词失败",
     "routingWhitelist": "路由白名单",
@@ -688,7 +655,6 @@
     "ipBanTitle": "IP 封禁列表",
     "addIpBan": "添加封禁",
     "noIpBans": "暂无封禁记录",
-    "ipAddress": "IP 地址",
     "banScope": "封禁范围",
     "scopeAll": "全站（注册 + 登录）",
     "scopeRegistration": "仅禁止注册",
@@ -710,7 +676,7 @@
     "settingsSaved": "站点设置已保存",
     "failedToSaveSettings": "保存站点设置失败",
     "rateLimitTitle": "读接口限流与解锁",
-    "rateLimitDesc": "公开读阈值、窗口、验证强度与豁免时长，60 秒内生效。",
+    "rateLimitDesc": "配置公开读取限流与临时豁免；验证设置请在插件管理中配置。",
     "readUnlockEnabled": "启用验证解锁",
     "readUnlockEnabledHint": "关闭 = 回到仅等待的 429，不弹验证",
     "publicReadMax": "阈值（次）",
@@ -735,16 +701,10 @@
     "resetDefaults": "重置为默认值",
     "rateLimitSaved": "限流配置已保存（60 秒内生效）",
     "failedToSaveRateLimit": "保存限流配置失败",
-    "captchaProtectionTitle": "业务人机验证",
-    "captchaProtectionDesc": "选择哪些业务入口需要滑块验证；读接口解锁和联邦题型仍由下方现有区块管理。",
-    "captchaProtectionManagementHint": "读接口限流解锁和联邦验证题型仍由下方现有区块管理。",
     "captchaRegistration": "注册",
     "captchaPost": "发帖",
     "captchaComment": "评论与回复",
     "captchaFriendRequest": "好友请求",
-    "captchaProtectionSaved": "业务人机验证策略已保存",
-    "captchaProtectionLoadFailed": "加载业务人机验证策略失败",
-    "captchaProtectionSaveFailed": "保存业务人机验证策略失败",
     "confirmRiskyTitle": "确认危险操作？",
     "confirmDisableUnlock": "关闭后 60 秒内不再弹验证，用户仅见等待态。",
     "confirmLowThreshold": "阈值过低会导致频繁弹窗，确认保存？",
@@ -755,46 +715,7 @@
     "invalidExemption": "豁免时长须为 1–120 的整数",
     "invalidWindow": "窗口须为 10 / 30 / 60 / 300 / 600 之一",
     "rateLimitNoPermission": "无权限：仅管理员可配置读限流",
-    "rateLimitNoPermissionHint": "当前账号无管理权限，配置表单已隐藏。如需调整请联系管理员。",
-    "federal": {
-      "title": "联邦验证题型与难度",
-      "desc": "开关滑块/几何/PoW、默认题型、PoW 难度与几何复杂度，60 秒内生效。",
-      "enabled": "启用联邦验证",
-      "enabledHint": "关闭 = 全回落滑块低强度，不弹新题型",
-      "kindsTitle": "题型开关（至少保留 1 种）",
-      "sliderEnabled": "滑块",
-      "geometryEnabled": "几何与空间操作",
-      "powEnabled": "工作量证明",
-      "defaultKind": "默认题型",
-      "defaultKindHint": "不传 kind 按此签发；若其被关则按滑块→几何→PoW 回落",
-      "kindSlider": "滑块",
-      "kindGeometry": "几何",
-      "kindPow": "工作量证明",
-      "powBits": "PoW 难度 bits",
-      "powBitsHint": "整数 8–24，默认 16；调低至 8 将削弱防刷",
-      "powBitsDanger": "bits 过低（≤8）将使脚本极易通过，确认保存？",
-      "powBitsHighWarn": "bits 拉满（24）低端机可能分钟级，确认保存？",
-      "geometryLevel": "几何复杂度",
-      "geometryLevelHint": "1–3 档，默认 1；只管题目复杂度，不管强度容差",
-      "level1": "简单",
-      "level2": "标准",
-      "level3": "严格",
-      "timeoutSec": "解题超时（秒）",
-      "timeoutSecHint": "整数 5–60，默认 10；超限自动回落滑块",
-      "strictTimeoutHint": "几何无操作超时：默认 60s，严格档 15s；PoW 统一 10s 超时",
-      "saved": "联邦配置已保存（60 秒内生效）",
-      "failedToSave": "保存联邦配置失败",
-      "effectiveHint": "60 秒内生效 · 上次保存 {time}",
-      "notSavedYet": "尚未保存，修改后 60 秒内全站生效",
-      "confirmDisable": "关闭联邦后新题型不再签发，用户仅见滑块。确认保存？",
-      "confirmAllOff": "至少保留 1 种题型，当前全关不可保存。",
-      "confirmDefaultKindOff": "默认题型指向已关类型，不可保存。",
-      "confirmReset": "确认重置为默认值？当前修改将被覆盖。",
-      "invalidPowBits": "PoW 难度须为 8–24 的整数",
-      "invalidLevel": "几何复杂度须为 1–3 的整数",
-      "invalidTimeout": "解题超时须为 5–60 的整数",
-      "invalidDefaultKind": "默认题型须为已启用的题型"
-    }
+    "rateLimitNoPermissionHint": "当前账号无管理权限，配置表单已隐藏。如需调整请联系管理员。"
   },
   "report": {
     "postTitle": "举报这篇帖子",
@@ -820,12 +741,30 @@
         "name": "KoloStudio 官方",
         "desc": "由 KoloStudio 团队授予的官方认证徽章。"
       },
-      "level_1": { "name": "Level 1", "desc": "账号安全等级达到 1 级。" },
-      "level_2": { "name": "Level 2", "desc": "账号安全等级达到 2 级。" },
-      "level_3": { "name": "Level 3", "desc": "账号安全等级达到 3 级。" },
-      "level_4": { "name": "Level 4", "desc": "账号安全等级达到 4 级。" },
-      "level_5": { "name": "Level 5", "desc": "账号安全等级达到 5 级。" },
-      "level_6": { "name": "Level 6", "desc": "账号安全等级达到 6 级。" },
+      "level_1": {
+        "name": "Level 1",
+        "desc": "账号安全等级达到 1 级。"
+      },
+      "level_2": {
+        "name": "Level 2",
+        "desc": "账号安全等级达到 2 级。"
+      },
+      "level_3": {
+        "name": "Level 3",
+        "desc": "账号安全等级达到 3 级。"
+      },
+      "level_4": {
+        "name": "Level 4",
+        "desc": "账号安全等级达到 4 级。"
+      },
+      "level_5": {
+        "name": "Level 5",
+        "desc": "账号安全等级达到 5 级。"
+      },
+      "level_6": {
+        "name": "Level 6",
+        "desc": "账号安全等级达到 6 级。"
+      },
       "anti_drug_guardian": {
         "name": "缉毒卫士",
         "desc": "授予协助维护社区纯净环境的守护者。"
@@ -841,11 +780,11 @@
     }
   },
   "apiErrors": {
-    "ERR_USER_NOT_FOUND": "用户未找到",
+    "ERR_USER_NOT_FOUND": "用户不存在",
     "ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6": "等级必须在 1 到 6 之间",
     "ERR_INVALID_ROLE": "无效角色",
     "ERR_ROLE_NOT_FOUND_IN_DATABASE": "数据库中未找到角色",
-    "ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE": "权限不足：不能管理同级或更高级别的用户",
+    "ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE": "权限不足：不能管理同级或更高权限的用户",
     "ERR_FORBIDDEN_CANNOT_GRANT_A_ROLE_HIGHER_THAN_YOUR_OWN": "权限不足：不能授予高于自身的角色",
     "ERR_INVALID_STATUS": "无效状态",
     "ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR": "用户未找到或不是版主",
@@ -907,9 +846,7 @@
     "ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED": "会话未找到或未授权",
     "ERR_UNAUTHORIZED_MISSING_TOKEN": "未授权: missing token",
     "ERR_USER_BANNED": "User banned",
-    "ERR_USER_NOT_FOUND": "用户不存在",
     "ERR_FORBIDDEN_CANNOT_DELETE_SELF": "不能删除当前登录的账号",
-    "ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE": "权限不足：不能管理同级或更高权限的用户",
     "ERR_INVALID_TOKEN": "Invalid token",
     "ERR_UNAUTHORIZED_MISSING_ABILITY": "未授权: missing ability",
     "ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS": "权限不足，拒绝访问。",
@@ -1012,7 +949,9 @@
     "ERR_FILE_TYPE_NOT_ALLOWED": "只能插入图片文件（JPG、PNG、GIF、WebP）。",
     "ERR_FILE_CONTENT_TYPE_MISMATCH": "图片内容与文件类型不一致，请重新选择 JPG、PNG、GIF 或 WebP 图片。",
     "ERR_NO_FILE": "未收到图片文件，请重新选择图片后重试。",
-    "ERR_UPLOAD_FAILED": "图片上传失败，请稍后重试。"
+    "ERR_UPLOAD_FAILED": "图片上传失败，请稍后重试。",
+    "ERR_HUMAN_VERIFICATION_UNAVAILABLE": "验证服务暂时不可用，请稍后重试。",
+    "ERR_HUMAN_VERIFICATION_INVALID": "验证失败或已过期，请重新开始验证。"
   },
   "tags": {
     "title": "话题标签",
@@ -1050,11 +989,11 @@
     "verificationFailed": "验证失败"
   },
   "forbidden": {
-    "lockIconAlt": "访问被拒绝",
-    "title": "403 - 访问被拒绝",
-    "description": "抱歉，您没有权限访问此页面。该区域仅限超级管理员访问。",
+    "title": "403 - 访问受限",
+    "description": "抱歉，您没有访问此页面的权限。此区域仅限超级管理员 (SUPER_ADMIN) 访问。",
     "backToHome": "返回首页",
-    "goToLogin": "重新登录"
+    "goToLogin": "重新登录",
+    "lockIconAlt": "权限受限"
   },
   "notifications": {
     "title": "通知",
@@ -1123,7 +1062,6 @@
     "accept": "接受",
     "reject": "拒绝",
     "chat": "聊天",
-    "systemNotification": "系统通知",
     "friendRequestReceived": "{username} 请求添加您为好友。",
     "friendRequests": "好友申请",
     "friendList": "好友列表",
@@ -1161,13 +1099,6 @@
     "userNotInitialized": "用户 {username} 尚未初始化安全消息。",
     "systemUserNotFound": "未找到系统用户。",
     "failedToLoadChat": "加载聊天数据失败"
-  },
-  "forbidden": {
-    "title": "403 - 访问受限",
-    "description": "抱歉，您没有访问此页面的权限。此区域仅限超级管理员 (SUPER_ADMIN) 访问。",
-    "backToHome": "返回首页",
-    "goToLogin": "重新登录",
-    "lockIconAlt": "权限受限"
   },
   "search": {
     "resultsFor": "搜索结果：{q}",
@@ -1228,5 +1159,25 @@
     "saveError": "保存失败，已保留你的修改。",
     "configError": "配置加载失败，请重试后再编辑。",
     "invalid": "请检查必填项、字段类型及 schema 限制。"
+  },
+  "humanVerification": {
+    "locale": "zh",
+    "title": "人机验证",
+    "loading": "正在加载验证…",
+    "verifying": "正在验证…",
+    "verified": "验证已完成",
+    "unavailable": "验证服务暂时不可用，请稍后重试。",
+    "invalid": "验证失败或已过期，请重新开始验证。",
+    "retry": "重试",
+    "cancel": "取消",
+    "expired": "验证已过期，请重试。",
+    "cooldown": "请等待 {seconds} 秒后重试。",
+    "registration": "完成验证以创建账号。",
+    "post": "完成验证以发布帖子。",
+    "comment": "完成验证以提交评论或回复。",
+    "friendRequest": "完成验证以发送好友请求。",
+    "rateLimitUnlock": "完成验证以申请临时读限流豁免。",
+    "frameTitle": "人机验证题目",
+    "binding": "正在加载验证设置…"
   }
 }

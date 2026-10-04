@@ -26,6 +26,7 @@ import { i18next, i18nextMiddleware } from './i18n';
 import { i18nErrorTranslationMiddleware } from './middleware/i18nErrorTranslation';
 import { validateRuntimeSecurityConfig } from './lib/securityConfig';
 import { getErrorCodeFromUnknown, getStatusCodeForErrorCode } from './lib/httpErrors';
+import { humanVerificationContext } from './middleware/humanVerificationContext';
 
 // 强制从后端目录加载 .env 文件，确保路径独立于 cwd
 const envPath = path.resolve(__dirname, '../.env');
@@ -46,9 +47,21 @@ const port = process.env.PORT || 3001;
 const listenPort = typeof port === 'string' ? Number.parseInt(port, 10) : port;
 
 // ── 全局中间件 ──
+app.use('/api/human-verification', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method) && !req.is('application/json')) {
+    res.status(415).json({ error: 'ERR_HUMAN_VERIFICATION_INVALID' }); return;
+  }
+  next();
+}, express.json({ limit: 32 * 1024 }));
+app.use('/api/human-verification', (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // Do not log parser bodies: they can contain private challenge answers.
+  const tooLarge = typeof err === 'object' && err !== null && 'type' in err && err.type === 'entity.too.large';
+  res.status(tooLarge ? 413 : 400).json({ error: tooLarge ? 'ERR_HUMAN_VERIFICATION_TOO_LARGE' : 'ERR_HUMAN_VERIFICATION_INVALID' });
+});
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ limit: '100kb', extended: true }));
 app.use(cookieParser());
+app.use(humanVerificationContext);
 app.use(i18nextMiddleware.handle(i18next));
 app.use(i18nErrorTranslationMiddleware);
 
@@ -165,6 +178,7 @@ const publicRoutes = require('./routes/public').default;
   const journalRoutes = require('./routes/journal').default;
   const journalQueryRoutes = require('./routes/journalQuery').default;
   const pluginRoutes = require('./routes/plugins').default;
+  const humanVerificationRoutes = require('./routes/humanVerification').default;
 
   // Initialize Domain Event Subscribers
   const { bootstrapDomainSubscribers } = require('./startup/bootstrapDomainSubscribers');
@@ -218,6 +232,7 @@ const publicRoutes = require('./routes/public').default;
   app.use('/api/wikis', wikiRoutes);
   app.use('/api/v1/events', eventsRoutes);
   app.use('/api/plugins', pluginRoutes);
+  app.use('/api/human-verification', humanVerificationRoutes);
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/tags', tagRoutes);
   app.use('/api/v1/drafts', draftsRoutes);

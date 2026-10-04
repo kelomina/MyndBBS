@@ -25,7 +25,9 @@ await fs.writeFile(path.join(fixture, 'src/app/page.tsx'), 'export default funct
 const upstreamPaths = []
 const backend = http.createServer((req, res) => {
   upstreamPaths.push(req.url)
-  if (/^\/api\/plugins\/demo\/__ui\/ui\/sidebar\.html$/i.test(req.url)) {
+  if (/^\/api\/human-verification\/ui\/?$/i.test(req.url)) {
+    res.writeHead(200, {'content-type':'text/html','set-cookie':'must_not_leak=1','content-security-policy':"sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'"}); res.end('<!doctype html><output>neutral</output>')
+  } else if (/^\/api\/plugins\/demo\/__ui\/ui\/sidebar\.html$/i.test(req.url)) {
     res.writeHead(200, { 'content-type': 'text/html', 'content-security-policy': "sandbox allow-scripts; default-src 'none'; connect-src 'none'; form-action 'none'" })
     res.end('<!doctype html><output>42</output>')
   } else if (req.url === '/api/public/install-status') {
@@ -68,10 +70,24 @@ try {
     assert.ok(csp.includes("connect-src 'none'") && csp.includes("form-action 'none'"), pathname)
     assert.ok(!csp.includes('allow-same-origin') && !csp.includes('nonce-'), pathname)
   }
+  const neutralVariants = ['/api/human-verification/ui','/api/%68uman-verification/%75i','/api/human-verification%2fui','/api/unused%2f..%2fhuman-verification/ui','/api/unused%2f%252e%252e%2fhuman-verification/ui','/api/HUMAN-VERIFICATION/UI']
+  for (const pathname of neutralVariants) {
+    const response=await fetch(base+pathname,{redirect:'manual',signal:AbortSignal.timeout(90000)})
+    assert.equal(response.status,200,pathname)
+    assert.equal(await response.text(),'<!doctype html><output>neutral</output>',pathname)
+    const csp=response.headers.get('content-security-policy')
+    assert.match(csp,/^sandbox allow-scripts;/,pathname)
+    assert.ok(csp.includes("script-src 'unsafe-inline'")&&!csp.includes('nonce-')&&!csp.includes('allow-same-origin'),pathname)
+    assert.equal(response.headers.get('set-cookie'),null,pathname)
+    assert.equal(response.headers.get('cache-control'),'no-store',pathname)
+  }
+  const near=await fetch(base+'/api/human-verification/ui-extra')
+  assert.equal(near.status,404)
+  assert.ok(!near.headers.get('content-security-policy').includes('sandbox'))
   const core = await fetch(base + '/', { signal: AbortSignal.timeout(90000) })
   assert.equal(core.status, 200)
   assert.ok(!core.headers.get('content-security-policy').includes('sandbox'))
-  console.log(JSON.stringify({ suite: 'real-next-encoded-plugin-csp', ok: true, htmlVariants: variants.length, corePolicyPreserved: true, source: 'copied unmodified shipping proxy/BFF modules', backend: 'synthetic HTML fixture', browser: false, upstreamRequests: upstreamPaths.length }))
+  console.log(JSON.stringify({ suite: 'real-next-encoded-plugin-csp', ok: true, htmlVariants: variants.length, neutralVariants:neutralVariants.length, corePolicyPreserved: true, source: 'copied unmodified shipping proxy/BFF modules', backend: 'synthetic HTML fixture', browser: false, upstreamRequests: upstreamPaths.length }))
 } catch (error) {
   console.error(error)
   exitCode = 1

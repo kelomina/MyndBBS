@@ -83,7 +83,7 @@ test('categories page does not fail the whole view when user list is forbidden',
 test('security-sensitive UI avoids inline style attributes blocked by production CSP', async () => {
   const files = [
     'src/components/Avatar.tsx',
-    'src/components/SliderCaptcha.tsx',
+    'src/components/human-verification/HumanVerification.tsx',
     'src/app/403/page.tsx',
   ];
 

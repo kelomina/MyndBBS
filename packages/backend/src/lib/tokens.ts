@@ -9,7 +9,6 @@ import type { ISessionRepository } from '../domain/identity/ISessionRepository';
 import type { IRoleRepository } from '../domain/identity/IRoleRepository';
 import type { IPermissionRepository } from '../domain/identity/IPermissionRepository';
 import type { IAuthChallengeRepository } from '../domain/identity/IAuthChallengeRepository';
-import type { ICaptchaChallengeRepository } from '../domain/identity/ICaptchaChallengeRepository';
 import type { IEmailRegistrationTicketRepository } from '../domain/identity/IEmailRegistrationTicketRepository';
 import type { IPasswordResetTicketRepository } from '../domain/identity/IPasswordResetTicketRepository';
 import type { IEmailSender } from '../domain/identity/ports/IEmailSender';
@@ -26,7 +25,6 @@ import type { IEngagementRepository } from '../domain/community/IEngagementRepos
 import type { IModeratedWordRepository } from '../domain/community/IModeratedWordRepository';
 import type { IModerationPolicy } from '../domain/community/IModerationPolicy';
 import type { IModeratedWordsCache } from '../domain/community/IModeratedWordsCache';
-import type { ICaptchaValidator } from '../domain/community/ICaptchaValidator';
 import type { IIdentityIntegrationPort as CommunityIdentityIntegrationPort } from '../domain/community/IIdentityIntegrationPort';
 import type { IFriendshipRepository } from '../domain/messaging/IFriendshipRepository';
 import type { IPrivateMessageRepository } from '../domain/messaging/IPrivateMessageRepository';
@@ -63,7 +61,6 @@ export const TOKENS = {
   IRoleRepository: token<IRoleRepository>('IRoleRepository'),
   IPermissionRepository: token<IPermissionRepository>('IPermissionRepository'),
   IAuthChallengeRepository: token<IAuthChallengeRepository>('IAuthChallengeRepository'),
-  ICaptchaChallengeRepository: token<ICaptchaChallengeRepository>('ICaptchaChallengeRepository'),
   IEmailRegistrationTicketRepository: token<IEmailRegistrationTicketRepository>('IEmailRegistrationTicketRepository'),
   IPasswordResetTicketRepository: token<IPasswordResetTicketRepository>('IPasswordResetTicketRepository'),
   IEmailSender: token<IEmailSender>('IEmailSender'),
@@ -81,7 +78,6 @@ export const TOKENS = {
   IModeratedWordRepository: token<IModeratedWordRepository>('IModeratedWordRepository'),
   IModerationPolicy: token<IModerationPolicy>('IModerationPolicy'),
   IModeratedWordsCache: token<IModeratedWordsCache>('IModeratedWordsCache'),
-  ICaptchaValidator: token<ICaptchaValidator>('ICaptchaValidator'),
   CommunityIdentityIntegrationPort: token<CommunityIdentityIntegrationPort>('CommunityIdentityIntegrationPort'),
 
   IFriendshipRepository: token<IFriendshipRepository>('IFriendshipRepository'),

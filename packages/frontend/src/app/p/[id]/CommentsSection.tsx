@@ -4,12 +4,12 @@ import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 
 import { useCurrentUser } from '../../../lib/hooks'
 import { CommentItem } from './CommentItem'
-import { SliderCaptcha } from '../../../components/SliderCaptcha'
+import { HumanVerificationDialog } from '../../../components/human-verification/HumanVerificationDialog'
 import { useToast } from '../../../components/ui/Toast'
 import { Avatar } from '../../../components/Avatar'
 import { BadgeChip } from '../../../components/BadgeChip'
 import { fetcher } from '../../../lib/api/fetcher'
-import { useCaptchaRequirement } from '../../../lib/captcha/requirements'
+import { useHumanVerificationRequirement } from '../../../lib/human-verification/requirements'
 import type { Dictionary, PostComment } from '../../../types'
 
 const MAX_DEPTH = 2
@@ -61,7 +61,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null)
   const { user: currentUser } = useCurrentUser()
   const [showCaptcha, setShowCaptcha] = useState(false)
-  const captchaRequired = useCaptchaRequirement('comment')
+  const captchaRequired = useHumanVerificationRequirement('comment')
   const [loadingKeys, setLoadingKeys] = useState<Set<string>>(new Set())
 
   const [rootPage, setRootPage] = useState(1)
@@ -734,19 +734,7 @@ export function CommentsSection({ postId, dict, initialCount }: { postId: string
         {dict.post?.comments || 'Comments'} ({count})
       </h3>
 
-      {showCaptcha && captchaRequired && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-card p-6 rounded-2xl shadow-xl relative w-full max-w-[398px] min-w-0">
-            <button onClick={() => setShowCaptcha(false)} className="absolute top-2 right-2 text-muted hover:text-foreground">
-              &times;
-            </button>
-            <h3 className="text-lg font-bold mb-4 text-center">
-              {dict.post?.verifyToPostComment || 'Verify to Post Comment'}
-            </h3>
-            <SliderCaptcha onSuccess={handleSubmit} apiUrl={`/api/v1/auth`} />
-          </div>
-        </div>
-      )}
+      <HumanVerificationDialog isOpen={showCaptcha} onClose={() => setShowCaptcha(false)} purpose="comment" onVerified={handleSubmit} />
 
       <div className="rounded-xl bg-card p-4 shadow-sm border border-border/50 flex gap-4 flex-col">
         {replyTo && (

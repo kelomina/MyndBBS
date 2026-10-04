@@ -13,7 +13,7 @@ describe('CommunityApplicationService', () => {
   let engagementRepository: any;
   let identityIntegrationPort: any;
   let moderationPolicy: any;
-  let captchaValidator: any;
+  let humanVerification: any;
   let eventBus: any;
   let auditApplicationService: any;
   let unitOfWork: any;
@@ -58,8 +58,8 @@ describe('CommunityApplicationService', () => {
     moderationPolicy = {
       containsModeratedWord: jest.fn().mockResolvedValue(false),
     };
-    captchaValidator = {
-      consumeCaptcha: jest.fn().mockResolvedValue(true),
+    humanVerification = {
+      requires: jest.fn().mockResolvedValue(true), consumeProof: jest.fn().mockResolvedValue(true),
     };
     eventBus = {
       publish: jest.fn().mockResolvedValue(undefined),
@@ -78,7 +78,7 @@ describe('CommunityApplicationService', () => {
       engagementRepository,
       identityIntegrationPort,
       moderationPolicy,
-      captchaValidator,
+      humanVerification,
       eventBus,
       auditApplicationService,
       unitOfWork,
@@ -168,7 +168,7 @@ describe('CommunityApplicationService', () => {
       categoryRepository.findById.mockResolvedValue(mockCategory);
 
       const result = await service.createPost('Title', 'Content', 'cat-1', 'user-123', 2, 'captcha-1');
-      expect(captchaValidator.consumeCaptcha).toHaveBeenCalledWith('captcha-1');
+      expect(humanVerification.consumeProof).toHaveBeenCalledWith('captcha-1', 'post');
       expect(moderationPolicy.containsModeratedWord).toHaveBeenCalledWith('Title Content', 'cat-1');
       expect(postRepository.save).toHaveBeenCalled();
       expect(result).toHaveProperty('postId');
@@ -189,7 +189,7 @@ describe('CommunityApplicationService', () => {
     });
 
     it('should throw on invalid captcha when creating post', async () => {
-      captchaValidator.consumeCaptcha.mockResolvedValue(false);
+      humanVerification.consumeProof.mockResolvedValue(false);
       await expect(service.createPost('Title', 'Content', 'cat-1', 'user-123', 2, 'captcha-bad')).rejects.toThrow('ERR_INVALID_OR_EXPIRED_CAPTCHA');
     });
 

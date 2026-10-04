@@ -5,17 +5,17 @@ import Link from 'next/link';
 import { Settings, LogOut, UserPlus, UserCheck, Clock, Mail } from 'lucide-react';
 
 import { useTranslation } from '../../../components/TranslationProvider';
-import { SliderCaptcha } from '../../../components/SliderCaptcha';
+import { HumanVerificationDialog } from '../../../components/human-verification/HumanVerificationDialog'
 import { useToast } from '../../../components/ui/Toast';
 import { fetchWithAuth } from '../../../lib/api/fetcher';
-import { useCaptchaRequirement } from '../../../lib/captcha/requirements';
+import { useHumanVerificationRequirement } from '../../../lib/human-verification/requirements';
 
 export function OwnerSettingsButton({ username }: { username: string }) {
   const [currentUser, setCurrentUser] = useState<{ username: string; level?: number } | null>(null);
   const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted' | 'self'>('none');
   const [friendLoading, setFriendLoading] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
-  const captchaRequired = useCaptchaRequirement('friendRequest');
+  const captchaRequired = useHumanVerificationRequirement('friendRequest');
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dict = useTranslation();
@@ -167,23 +167,7 @@ export function OwnerSettingsButton({ username }: { username: string }) {
 
   return (
     <div className="flex gap-2">
-      {showCaptcha && captchaRequired && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card p-6 rounded-2xl shadow-xl relative">
-            <button
-              onClick={() => setShowCaptcha(false)}
-              className="absolute top-2 right-2 text-muted hover:text-foreground"
-            >
-              &times;
-            </button>
-            <h3 className="text-lg font-bold mb-4 text-center">{dict.messages?.verifyToAddFriend || 'Verify to Add Friend'}</h3>
-            <SliderCaptcha
-              onSuccess={handleCaptchaSuccess}
-              apiUrl={`/api/v1/auth`}
-            />
-          </div>
-        </div>
-      )}
+      <HumanVerificationDialog isOpen={showCaptcha} onClose={() => setShowCaptcha(false)} purpose="friendRequest" onVerified={handleCaptchaSuccess} />
       {!isOwner && (currentUser.level ?? 0) >= 2 && (
         <>
           {friendStatus === 'none' && (

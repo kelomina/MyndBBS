@@ -6,8 +6,8 @@ import { useSearchParams } from 'next/navigation';
 
 import { isValidPassword } from '@myndbbs/shared';
 
-import { SliderCaptcha } from '../../../components/SliderCaptcha';
-import { useCaptchaRequirement } from '../../../lib/captcha/requirements';
+import { HumanVerification } from '../../../components/human-verification/HumanVerification'
+import { useHumanVerificationRequirement } from '../../../lib/human-verification/requirements';
 import { TwoFactorSetup } from '../../../components/TwoFactorSetup';
 import {
   resendEmailRegistration,
@@ -32,7 +32,8 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [captchaId, setCaptchaId] = useState<string | null>(null);
-  const captchaRequired = useCaptchaRequirement('registration');
+  const [verificationAttempt, setVerificationAttempt] = useState(0)
+  const captchaRequired = useHumanVerificationRequirement('registration');
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -191,6 +192,7 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
     } catch (err: unknown) {
       setError(toTranslatedApiError(err));
       setCaptchaId(null);
+      setVerificationAttempt(value => value + 1)
     } finally {
       setLoading(false);
     }
@@ -402,16 +404,7 @@ export function RegisterClient({ dict }: { dict: Dictionary }) {
           <p className="mt-1 text-xs text-muted">{dict.auth.passwordHint}</p>
         </div>
 
-        {captchaRequired && !captchaId ? (
-          <SliderCaptcha onSuccess={(nextCaptchaId) => setCaptchaId(nextCaptchaId)} />
-        ) : captchaRequired ? (
-          <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-50 px-4 py-3.5 text-sm font-medium text-emerald-700 shadow-[0_0_15px_rgba(52,211,153,0.1)] dark:bg-emerald-500/15 dark:text-emerald-300">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs text-white shadow-[0_0_10px_rgba(52,211,153,0.5)]">
-              OK
-            </div>
-            <span>{dict.auth.securityVerificationPassed}</span>
-          </div>
-        ) : null}
+        {captchaRequired && <HumanVerification key={verificationAttempt} purpose="registration" onVerified={token => setCaptchaId(token)} onInvalidated={() => setCaptchaId(null)} />}
 
         <div>
           <button

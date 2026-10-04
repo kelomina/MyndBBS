@@ -1,93 +1,26 @@
-'use client';
-
-/**
- * POST /api/v1/auth/captcha/unlock 兑换助手（F1 + v1.0.2 联邦兑换）。
- * 冻结契约 API-SPEC.yaml v1.0.2 + API-SPEC-TAG-CAPTCHA-NOTIFY.yaml v1.0.2 双模式：
- * - 旧滑块直兑兼容：{ captchaId, dragPath, totalDragTime, finalPosition }（kind 显式非 slider→400）；
- * - 联邦兑换：{ redeemToken, kind }（凭 federal verify 签发的一次性凭证+kind 换 unlockToken，一证一兑）。
- * 成功 { unlockToken, exemptMinutes, expiresAt }；失败统一 400 ERR_VERIFICATION_FAILED；
- * 自身超限 429 为通用体 { error: ERR_RATE_LIMITED }（无 unlockRequired，不进解锁循环）。
- * 浏览器统一走相对 /api/* 经 BFF 代理，禁止直拼后端 URL。
- */
-
-export interface UnlockDragPoint {
-  x: number;
-  y: number;
-  t: number;
-}
-
-export interface UnlockRequest {
-  captchaId: string;
-  dragPath: UnlockDragPoint[];
-  totalDragTime: number;
-  finalPosition: number;
-}
-
-export interface UnlockRedeemRequest {
-  redeemToken: string;
-  kind: 'slider' | 'geometry' | 'pow';
-}
-
-export type UnlockPayload = UnlockRequest | UnlockRedeemRequest;
-
+'use client'
+import { verificationRequest, isRecord, VerificationError } from '../human-verification/client'
 export interface UnlockSuccess {
-  unlockToken: string;
-  exemptMinutes: number;
-  expiresAt: string;
+  unlockToken: string
+  exemptMinutes: number
+  expiresAt: string
 }
-
-export class UnlockFailedError extends Error {
-  constructor(message = 'ERR_VERIFICATION_FAILED') {
-    super(message);
-    this.name = 'UnlockFailedError';
-  }
-}
-
-export class UnlockCooldownError extends Error {
-  readonly retryAfterSec: number;
-  constructor(retryAfterSec: number) {
-    super('ERR_RATE_LIMITED');
-    this.name = 'UnlockCooldownError';
-    this.retryAfterSec = retryAfterSec;
-  }
-}
-
-function readRetryAfter(res: Response): number {
-  const v = res.headers.get('Retry-After');
-  const n = v !== null ? Number(v) : NaN;
-  if (Number.isFinite(n) && (n as number) >= 0) return Math.floor(n as number);
-  return 60;
-}
-
-export async function postUnlock(payload: UnlockPayload): Promise<UnlockSuccess> {
-  const res = await fetch('/api/v1/auth/captcha/unlock', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-    credentials: 'include',
-    body: JSON.stringify(payload),
-  });
-  if (res.ok) {
-    const data = (await res.json().catch(() => ({}))) as Partial<UnlockSuccess>;
-    if (
-      typeof data.unlockToken === 'string' &&
-      typeof data.expiresAt === 'string' &&
-      typeof data.exemptMinutes === 'number'
-    ) {
-      return {
-        unlockToken: data.unlockToken,
-        exemptMinutes: data.exemptMinutes,
-        expiresAt: data.expiresAt,
-      };
-    }
-    throw new UnlockFailedError('ERR_VERIFICATION_FAILED');
-  }
-  if (res.status === 429) {
-    // 兑换端点自身超限：通用限流体，不含 unlockRequired，进入 cooldown 态
-    throw new UnlockCooldownError(readRetryAfter(res));
-  }
-  const body = (await res.json().catch(() => ({}))) as { error?: string };
-  throw new UnlockFailedError(typeof body.error === 'string' ? body.error : 'ERR_VERIFICATION_FAILED');
+/** Proof is consumed once by core; the iframe never receives the exemption token. */
+export async function postUnlock(
+  payload: { verificationToken: string },
+  signal?: AbortSignal,
+): Promise<UnlockSuccess> {
+  const data = await verificationRequest('/unlock', payload, signal)
+  if (
+    !isRecord(data) ||
+    typeof data.unlockToken !== 'string' ||
+    !data.unlockToken ||
+    typeof data.exemptMinutes !== 'number' ||
+    !Number.isFinite(data.exemptMinutes) ||
+    data.exemptMinutes <= 0 ||
+    typeof data.expiresAt !== 'string' ||
+    !Number.isFinite(Date.parse(data.expiresAt))
+  )
+    throw new VerificationError('ERR_HUMAN_VERIFICATION_INVALID', 400)
+  return data as unknown as UnlockSuccess
 }

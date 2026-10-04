@@ -3,28 +3,18 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 describe('auth route rate-limit ordering', () => {
-  it('keeps captcha routes outside the global auth limiter', async () => {
-    const routePath = path.join(process.cwd(), 'src', 'routes', 'auth.ts');
-    const raw = await fs.readFile(routePath, 'utf-8');
-    // Prettier 可能折行；去空白后断言排序（B2 unlock 亦须在 authLimiter 之前，避免叠加）
-    const source = raw.replace(/\s+/g, '');
-
-    const captchaGenerateIndex = source.indexOf("router.get('/captcha'".replace(/\s+/g, ''));
-    const captchaVerifyIndex = source.indexOf("router.post('/captcha/verify'".replace(/\s+/g, ''));
-    const captchaUnlockIndex = source.indexOf("router.post('/captcha/unlock'".replace(/\s+/g, ''));
-    const authLimiterIndex = source.indexOf('router.use(authLimiter)'.replace(/\s+/g, ''));
-    const loginIndex = source.indexOf("router.post('/login'".replace(/\s+/g, ''));
-
-    assert.ok(captchaGenerateIndex >= 0, 'captcha generation route should exist');
-    assert.ok(captchaVerifyIndex >= 0, 'captcha verification route should exist');
-    assert.ok(captchaUnlockIndex >= 0, 'captcha unlock route should exist');
-    assert.ok(authLimiterIndex >= 0, 'global auth limiter should still protect sensitive auth routes');
-    assert.ok(loginIndex >= 0, 'login route should exist');
-    assert.ok(captchaGenerateIndex < authLimiterIndex);
-    assert.ok(captchaVerifyIndex < authLimiterIndex);
-    assert.ok(captchaUnlockIndex < authLimiterIndex);
-    assert.ok(loginIndex > authLimiterIndex);
-  });
+  it('retires algorithm routes without weakening sensitive auth or the neutral bridge limiter', async () => {
+    const source = (await fs.readFile(path.join(process.cwd(), 'src/routes/auth.ts'), 'utf8')).replace(/\s+/g, '')
+    for (const retired of ["router.get('/captcha'", "router.post('/captcha/verify'", "router.post('/captcha/unlock'"])
+      assert.equal(source.includes(retired), false)
+    const limiter = source.indexOf('router.use(authLimiter)')
+    assert.ok(limiter >= 0)
+    assert.ok(source.indexOf("router.post('/login'") > limiter)
+    const bridge = await fs.readFile(path.join(process.cwd(), 'src/routes/humanVerification.ts'), 'utf8')
+    assert.doesNotMatch(bridge, /authLimiter/)
+    for (const operation of ['challenge', 'verify', 'unlock'])
+      assert.ok(bridge.includes("router.post('/" + operation + "', attempts,"))
+  })
 
   it('uses generic validation responses on public auth entry points', async () => {
     const routePath = path.join(process.cwd(), 'src', 'routes', 'auth.ts');

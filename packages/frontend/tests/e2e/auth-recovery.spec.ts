@@ -19,16 +19,8 @@ test('register page can resend a verification email after the original link expi
     });
   });
 
-  await page.route('**/api/v1/auth/captcha', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        captchaId: 'e2e-captcha-id',
-        image: null,
-        puzzle: { targetX: 120, targetY: 0 },
-      }),
-    });
+  await page.route('**/api/human-verification/requirements', async route => {
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ enabled: true, available: false, providerId: 'human-verification', surfaces: { registration: true, post: true, comment: true, friendRequest: true } }) })
   });
 
   await page.route('**/api/v1/auth/register/verify-email', async (route) => {

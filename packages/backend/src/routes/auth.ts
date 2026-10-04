@@ -27,7 +27,7 @@
  */
 import { Router } from 'express'
 import { rateLimit } from 'express-rate-limit'
-import { getClientIp, unlockLimiter, federalIssueLimiter } from '../lib/rateLimit'
+import { getClientIp } from '../lib/rateLimit'
 import {
   generateTotp,
   verifyTotpRegistration,
@@ -48,9 +48,6 @@ import {
   checkSession,
   logoutUser,
 } from '../controllers/register'
-import { generateCaptcha, verifyCaptcha, unlockCaptcha } from '../controllers/captcha'
-import { issueFederalCaptcha, verifyFederalCaptcha } from '../controllers/federalCaptcha'
-import { getCaptchaRequirements } from '../controllers/captchaProtection'
 import { optionalAuth } from '../middleware/auth'
 import { checkIpBan } from '../middleware/ipBan'
 import { checkRegistrationOpen } from '../middleware/registrationGuard'
@@ -127,27 +124,6 @@ const refreshLimiter = rateLimit({
   validate: { ip: false, xForwardedForHeader: false },
   message: { error: 'ERR_TOO_MANY_REFRESH_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' },
 })
-
-/** 验证码限制：30次/15分钟，避免无限获取和脚本化试探 */
-const captchaLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  keyGenerator: getClientIp,
-  validate: { ip: false, xForwardedForHeader: false },
-  message: { error: 'ERR_TOO_MANY_CAPTCHA_ATTEMPTS_FROM_THIS_IP_PLEASE_TRY_AGAIN_LATER' },
-})
-
-// ── 验证码 ──
-router.get('/captcha', captchaLimiter, generateCaptcha)
-router.post('/captcha/verify', captchaLimiter, verifyCaptcha)
-// B2 解锁兑换：独立 unlockLimiter（10次/15分钟/IP，与 captchaLimiter 独立）；
-// 挂在 authLimiter 之前，避免被 authLimiter（100次/15分钟）叠加限流
-router.post('/captcha/unlock', unlockLimiter, unlockCaptcha)
-// 联邦验证：独立 federalIssueLimiter（30次/15分钟/IP，与 captchaLimiter/unlockLimiter 独立）；
-// 同样挂在 authLimiter 之前，避免叠加；verify 亦经同一桶（防 farming 拉题+刷验）
-router.post('/captcha/federal/issue', federalIssueLimiter, issueFederalCaptcha)
-router.post('/captcha/federal/verify', federalIssueLimiter, verifyFederalCaptcha)
-router.get('/captcha/requirements', captchaLimiter, getCaptchaRequirements)
 
 router.use(authLimiter)
 

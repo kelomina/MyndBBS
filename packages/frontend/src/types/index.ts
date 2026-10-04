@@ -11,10 +11,6 @@ export type {
   IpBanScope,
   BannedIpItem,
   AntiSpamPolicy,
-  CaptchaProtectionSurface,
-  CaptchaProtectionSurfaces,
-  CaptchaProtectionPolicy,
-  CaptchaProtectionUpdateResult,
 } from './protection';
 export type { ModerationPost, ModerationComment, ModerationWord, RecyclePost, RecycleComment } from './admin';
 export type { MessageThread, InboxMessage, ChatMessage } from './messages';

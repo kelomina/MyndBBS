@@ -12,7 +12,7 @@ import { CommentUpvote, CommentBookmark } from '../../domain/community/CommentEn
 import { randomUUID as uuidv4 } from 'crypto'
 import { IModerationPolicy } from '../../domain/community/IModerationPolicy'
 
-import { ICaptchaValidator } from '../../domain/community/ICaptchaValidator'
+import type { IHumanVerification } from '../../domain/shared/ports/IHumanVerification'
 import { IEventBus } from '../../domain/shared/events/IEventBus'
 import {
   PostRepliedEvent,
@@ -42,10 +42,10 @@ import { AuditApplicationService } from '../system/AuditApplicationService'
  * Called by: [AdminController, PostController]
  *
  * Callees: [ICategoryRepository, IPostRepository, ICommentRepository, IEngagementRepository,
- *           IIdentityIntegrationPort, IModerationPolicy, ICaptchaValidator, IEventBus,
+ *           IIdentityIntegrationPort, IModerationPolicy, IHumanVerification, IEventBus,
  *           IUnitOfWork, AuditApplicationService]
  * Calls: [ICategoryRepository, IPostRepository, ICommentRepository, IEngagementRepository,
- *         IIdentityIntegrationPort, IModerationPolicy, ICaptchaValidator, IEventBus,
+ *         IIdentityIntegrationPort, IModerationPolicy, IHumanVerification, IEventBus,
  *         IUnitOfWork, AuditApplicationService]
  *
  * Keywords: community, service, application, orchestration, category, post, comment,
@@ -58,7 +58,7 @@ export interface CommunityApplicationServiceOptions {
   engagementRepository: IEngagementRepository
   identityIntegrationPort: IIdentityIntegrationPort
   moderationPolicy: IModerationPolicy
-  captchaValidator: ICaptchaValidator
+  humanVerification: IHumanVerification
   eventBus: IEventBus
   auditApplicationService: AuditApplicationService
   unitOfWork: IUnitOfWork
@@ -79,8 +79,6 @@ export interface CommunityApplicationServiceOptions {
       postAuthorId?: string | null
     }): Promise<void>
   }
-  /** 业务 CAPTCHA 策略；未注入时保持旧的强制验证安全默认。 */
-  captchaProtection?: { requires(surface: 'registration' | 'post' | 'comment' | 'friendRequest'): Promise<boolean> }
 }
 export class CommunityApplicationService {
   /**
@@ -97,7 +95,7 @@ export class CommunityApplicationService {
    * - engagementRepository: IEngagementRepository, 互动仓储（点赞/收藏）/ engagement repository (upvote/bookmark)
    * - identityIntegrationPort: IIdentityIntegrationPort, 身份集成端口 / identity integration port
    * - moderationPolicy: IModerationPolicy, 内容审核策略 / content moderation policy
-   * - captchaValidator: ICaptchaValidator, 验证码校验器 / captcha validator
+   * - humanVerification: IHumanVerification, 中立人机验证端口 / neutral human verification port
    * - eventBus: IEventBus, 事件总线 / event bus
    * - auditApplicationService: AuditApplicationService, 审计应用服务 / audit application service
    * - unitOfWork: IUnitOfWork, 工作单元 / unit of work
@@ -487,9 +485,9 @@ export class CommunityApplicationService {
    * Callers: [PostController.createPost]
    * Called by: [PostController.createPost]
    *
-   * Callees: [ICaptchaValidator.consumeCaptcha, ICategoryRepository.findById, Category.isLevelSufficient,
+   * Callees: [IHumanVerification.consumeProof, ICategoryRepository.findById, Category.isLevelSufficient,
    *           IModerationPolicy.containsModeratedWord, Post.create, IPostRepository.save]
-   * Calls: [ICaptchaValidator.consumeCaptcha, ICategoryRepository.findById, Category.isLevelSufficient,
+   * Calls: [IHumanVerification.consumeProof, ICategoryRepository.findById, Category.isLevelSufficient,
    *         IModerationPolicy.containsModeratedWord, Post.create, IPostRepository.save]
    *
    * Parameters:
@@ -530,17 +528,11 @@ export class CommunityApplicationService {
   ): Promise<{ postId: string; isModerated: boolean; status: string; message?: string }> {
     await this.opts.newContentGuard?.assertAllowed(authorId)
 
-    let captchaRequired = true
-    try {
-      captchaRequired = this.opts.captchaProtection
-        ? await this.opts.captchaProtection.requires('post')
-        : true
-    } catch {
-      captchaRequired = true
-    }
-    if (captchaRequired) {
+    // captchaId is the compatibility alias for a purpose-bound opaque proof.
+    const verificationRequired = await this.opts.humanVerification.requires('post')
+    if (verificationRequired) {
       if (!captchaId) throw new Error('ERR_CAPTCHA_IS_REQUIRED')
-      const isCaptchaValid = await this.opts.captchaValidator.consumeCaptcha(captchaId)
+      const isCaptchaValid = await this.opts.humanVerification.consumeProof(captchaId, 'post')
       if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA')
     }
 
@@ -752,10 +744,10 @@ export class CommunityApplicationService {
    * Callers: [PostController.createComment]
    * Called by: [PostController.createComment]
    *
-   * Callees: [ICaptchaValidator.consumeCaptcha, IPostRepository.findById, ICommentRepository.findById,
+   * Callees: [IHumanVerification.consumeProof, IPostRepository.findById, ICommentRepository.findById,
    *           IModerationPolicy.containsModeratedWord, Comment.create, ICommentRepository.save,
    *           IEventBus.publish]
-   * Calls: [ICaptchaValidator.consumeCaptcha, IPostRepository.findById, ICommentRepository.findById,
+   * Calls: [IHumanVerification.consumeProof, IPostRepository.findById, ICommentRepository.findById,
    *         IModerationPolicy.containsModeratedWord, Comment.create, ICommentRepository.save,
    *         IEventBus.publish]
    *
@@ -795,17 +787,11 @@ export class CommunityApplicationService {
   ): Promise<{ commentId: string }> {
     await this.opts.newContentGuard?.assertAllowed(authorId)
 
-    let captchaRequired = true
-    try {
-      captchaRequired = this.opts.captchaProtection
-        ? await this.opts.captchaProtection.requires('comment')
-        : true
-    } catch {
-      captchaRequired = true
-    }
-    if (captchaRequired) {
+    // captchaId is the compatibility alias for a purpose-bound opaque proof.
+    const verificationRequired = await this.opts.humanVerification.requires('comment')
+    if (verificationRequired) {
       if (!captchaId) throw new Error('ERR_CAPTCHA_IS_REQUIRED')
-      const isCaptchaValid = await this.opts.captchaValidator.consumeCaptcha(captchaId)
+      const isCaptchaValid = await this.opts.humanVerification.consumeProof(captchaId, 'comment')
       if (!isCaptchaValid) throw new Error('ERR_INVALID_OR_EXPIRED_CAPTCHA')
     }
 

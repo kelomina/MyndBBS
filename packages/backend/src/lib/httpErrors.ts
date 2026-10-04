@@ -17,6 +17,8 @@ export function getErrorCodeFromUnknown(err: unknown): string {
 }
 
 export function getStatusCodeForErrorCode(errorCode: string): number {
+  if (errorCode === 'ERR_HUMAN_VERIFICATION_UNAVAILABLE') return 503;
+  if (errorCode === 'ERR_HUMAN_VERIFICATION_RATE_LIMITED') return 429;
   if (errorCode === 'ERR_CORS_NOT_ALLOWED') {
     return 403;
   }

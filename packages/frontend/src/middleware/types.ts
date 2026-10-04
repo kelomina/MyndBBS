@@ -1,3 +1,4 @@
+import { isHumanVerificationUiPath } from '../lib/bff/isolated-ui'
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { defaultLocale, locales, type Locale } from '../i18n/config';
@@ -42,7 +43,7 @@ export function initMiddlewareContext(request: NextRequest): MiddlewareContext {
   requestHeaders.set('x-mynd-pathname', pathname);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {
+  if (!isHumanVerificationUiPath(pathname) && request.cookies.get('NEXT_LOCALE')?.value !== locale) {
     response.cookies.set('NEXT_LOCALE', locale, { path: '/' });
   }
   response.headers.set('x-locale', locale);

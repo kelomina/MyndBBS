@@ -5,9 +5,9 @@ import { useCategories } from '../../lib/hooks';
 import { useRouter } from 'next/navigation';
 import { fetcher } from '@/lib/api/fetcher';
 import { PostEditor } from '../../components/PostEditor';
-import { SliderCaptcha } from '../../components/SliderCaptcha';
+import { HumanVerificationDialog } from '../../components/human-verification/HumanVerificationDialog'
 import { useToast } from '../../components/ui/Toast';
-import { useCaptchaRequirement } from '../../lib/captcha/requirements';
+import { useHumanVerificationRequirement } from '../../lib/human-verification/requirements';
 import type { Dictionary } from '../../types';
 
 interface DraftData {
@@ -29,7 +29,7 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
   const { categories } = useCategories();
   const [loading, setLoading] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
-  const captchaRequired = useCaptchaRequirement('post');
+  const captchaRequired = useHumanVerificationRequirement('post');
 
   // ── 草稿状态 ──
   const [draftBanner, setDraftBanner] = useState<DraftData | null>(null);
@@ -209,23 +209,7 @@ export function ComposeForm({ dict }: { dict: Dictionary }) {
         </button>
       </div>
 
-      {showCaptcha && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-card p-6 rounded-2xl shadow-xl relative w-full max-w-[398px] min-w-0">
-            <button 
-              onClick={() => setShowCaptcha(false)}
-              className="absolute top-2 right-2 text-muted hover:text-foreground"
-            >
-              &times;
-            </button>
-            <h3 className="text-lg font-bold mb-4 text-center">{dict.post?.verifyToPublish || "Verify to Publish"}</h3>
-            <SliderCaptcha 
-              onSuccess={handlePublish} 
-              apiUrl={`/api/v1/auth`}
-            />
-          </div>
-        </div>
-      )}
+      <HumanVerificationDialog isOpen={showCaptcha} onClose={() => setShowCaptcha(false)} purpose="post" onVerified={handlePublish} />
 
       <PostEditor dict={dict} title={title} setTitle={setTitle} content={content} setContent={setContent} categoryId={categoryId} setCategoryId={setCategoryId} categories={categories} />
 

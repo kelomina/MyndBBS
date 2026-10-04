@@ -119,8 +119,6 @@ import {
   getRateLimitProtection,
   updateRateLimitProtection,
 } from '../controllers/rateLimitProtection'
-import { getFederalProtection, updateFederalProtection } from '../controllers/federalProtection'
-import { getCaptchaProtection, updateCaptchaProtection } from '../controllers/captchaProtection'
 import { getSiteSettings, updateSiteSettings } from '../controllers/siteSettings'
 import {
   listPlugins,
@@ -335,10 +333,6 @@ router.put(
 router.get('/protection/rate-limit', requireAbility('manage', 'all'), getRateLimitProtection)
 router.put('/protection/rate-limit', requireAbility('manage', 'all'), updateRateLimitProtection)
 // 联邦验证管理配置（ADMIN+：匿名 404，MODERATOR 读写 403；PUT zod 严格由控制器内 400，旧值不变）
-router.get('/protection/federal', requireAbility('manage', 'all'), getFederalProtection)
-router.put('/protection/federal', requireAbility('manage', 'all'), updateFederalProtection)
-router.get('/protection/captcha', requireAbility('manage', 'all'), getCaptchaProtection)
-router.put('/protection/captcha', requireAbility('manage', 'all'), updateCaptchaProtection)
 
 // ── 站点设置与统计（仅 ADMIN+）──
 router.get('/site-settings', requireAbility('manage', 'all'), getSiteSettings)

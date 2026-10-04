@@ -174,7 +174,10 @@
   "ERR_IP_ALREADY_BANNED": "该 IP 已被封禁",
   "ERR_IP_BAN_NOT_FOUND": "封禁记录不存在",
   "ERR_NEW_ACCOUNT_COOLDOWN": "账号注册时间过短，暂时无法发布内容，请稍后再试",
-  "ERR_NEW_ACCOUNT_RATE_LIMITED": "新账号每小时发布数量已达上限，请稍后再试"
-,
-  "ERR_REGISTRATION_DISABLED": "管理员已暂时关闭开放注册"
+  "ERR_NEW_ACCOUNT_RATE_LIMITED": "新账号每小时发布数量已达上限，请稍后再试",
+  "ERR_REGISTRATION_DISABLED": "管理员已暂时关闭开放注册",
+  "ERR_HUMAN_VERIFICATION_UNAVAILABLE": "人机验证插件暂不可用，请稍后再试或联系管理员。",
+  "ERR_HUMAN_VERIFICATION_INVALID": "验证无效或已过期，请重新验证。",
+  "ERR_HUMAN_VERIFICATION_RATE_LIMITED": "验证请求过于频繁，请稍后重试。",
+  "ERR_HUMAN_VERIFICATION_TOO_LARGE": "验证请求过大。"
 }

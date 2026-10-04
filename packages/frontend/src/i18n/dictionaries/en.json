@@ -117,10 +117,10 @@
     "password": "Password",
     "rememberMe": "Remember me",
     "forgotPassword": "Forgot password?",
-   "signIn": "Sign in",
+    "signIn": "Sign in",
     "signInWithKoloSso": "Sign in with KoloStudio Account",
     "ssoLoginFailed": "SSO login failed. Please try again or use another method.",
-   "orContinueWith": "Or continue with",
+    "orContinueWith": "Or continue with",
     "signInWithPasskey": "Sign in with Passkey",
     "dontHaveAccount": "Don't have an account?",
     "signUpNow": "Sign up now",
@@ -237,37 +237,6 @@
     "passkeySetupFailed": "Passkey setup failed",
     "failedGenerateTotp": "Failed to generate TOTP setup",
     "invalidTotpCode": "Invalid TOTP code"
-  },
-  "captcha": {
-    "securityVerification": "SECURITY VERIFICATION",
-    "verified": "VERIFIED",
-    "networkError": "Network error. Please try again.",
-    "verificationFailed": "Verification failed",
-    "serverError": "Server error",
-    "geometry": {
-      "target": "Target hour",
-      "idleCountdown": "Idle countdown",
-      "dragHint": "Drag the hand with your mouse (no slider or keyboard operation).",
-      "verify": "Verify pointing",
-      "newChallenge": "New challenge",
-      "solving": "Checking…",
-      "success": "Correct! Took {sec}s, pointing at face number {face} (target {target}).",
-      "failed": "Verification failed — a new challenge is ready, please try again.",
-      "timeout": "Timed out — please retry.",
-      "retry": "Retry",
-      "targetValue": "Point to {target} o'clock"
-    },
-    "federal": {
-      "modalTitle": "Human verification",
-      "switchKind": "Try another",
-      "switchDisabledTip": "This type is disabled",
-      "kindSlider": "Slider",
-      "kindGeometry": "Geometry",
-      "kindPow": "Proof-of-work",
-      "strengthHint": "{kind} · level {level} · strength {strength}",
-      "loading": "Loading challenge…",
-      "verifying": "Verifying…"
-    }
   },
   "rateLimitUnlock": {
     "cardTitle": "Too many requests — verify to continue",
@@ -480,7 +449,6 @@
     "title": "Title",
     "author": "Author",
     "category": "Category (Optional)",
-    "actions": "Actions",
     "content": "Content",
     "post": "Post",
     "categoryDesc": "Create and manage forum categories and moderators.",
@@ -536,7 +504,6 @@
     "noPendingPosts": "No pending posts",
     "noPendingComments": "No pending comments",
     "inPost": "In Post",
-    "approve": "Approve",
     "reject": "Reject",
     "failedToAddWord": "Failed to add word",
     "routingWhitelist": "Routing Whitelist",
@@ -581,7 +548,7 @@
     "operationType": "Operation Type",
     "target": "Target",
     "requestPath": "Request Path",
-    "ipAddress": "IP Address",
+    "ipAddress": "IP address",
     "timestamp": "Timestamp",
     "payload": "Payload",
     "noAuditLogs": "No audit logs found.",
@@ -688,7 +655,6 @@
     "ipBanTitle": "Banned IPs",
     "addIpBan": "Add ban",
     "noIpBans": "No banned IPs",
-    "ipAddress": "IP address",
     "banScope": "Scope",
     "scopeAll": "Site-wide (register + login)",
     "scopeRegistration": "Registration only",
@@ -710,7 +676,7 @@
     "settingsSaved": "Site settings saved",
     "failedToSaveSettings": "Failed to save site settings",
     "rateLimitTitle": "Read rate limit & unlock",
-    "rateLimitDesc": "Public read threshold, window, challenge strength and exemption. Takes effect within 60s.",
+    "rateLimitDesc": "Configure public read limits and temporary exemptions. Verification settings are managed in Plugins.",
     "readUnlockEnabled": "Enable verify-to-unlock",
     "readUnlockEnabledHint": "Off = classic wait-only 429, no popup",
     "publicReadMax": "Threshold (requests)",
@@ -735,16 +701,10 @@
     "resetDefaults": "Reset to defaults",
     "rateLimitSaved": "Rate-limit config saved (effective ≤60s)",
     "failedToSaveRateLimit": "Failed to save rate-limit config",
-    "captchaProtectionTitle": "Business human verification",
-    "captchaProtectionDesc": "Choose which business entry points require the slider challenge. Read-limit unlock and federal challenge types remain managed below.",
-    "captchaProtectionManagementHint": "Read-limit unlock and federal challenge types remain managed by the existing sections below.",
     "captchaRegistration": "Registration",
     "captchaPost": "New posts",
     "captchaComment": "Comments and replies",
     "captchaFriendRequest": "Friend requests",
-    "captchaProtectionSaved": "Business CAPTCHA policy saved",
-    "captchaProtectionLoadFailed": "Failed to load business CAPTCHA policy",
-    "captchaProtectionSaveFailed": "Failed to save business CAPTCHA policy",
     "confirmRiskyTitle": "Confirm risky change?",
     "confirmDisableUnlock": "Off = no verify popup for 60s+; users only see wait state.",
     "confirmLowThreshold": "Low threshold will pop up very often. Save anyway?",
@@ -755,46 +715,7 @@
     "invalidExemption": "Exemption must be an integer 1–120",
     "invalidWindow": "Window must be one of 10 / 30 / 60 / 300 / 600",
     "rateLimitNoPermission": "No permission: only admins can configure read rate limit",
-    "rateLimitNoPermissionHint": "Current account lacks admin permission; the form is hidden. Contact an admin for changes.",
-    "federal": {
-      "title": "Federal challenge types & difficulty",
-      "desc": "Toggle slider/geometry/PoW, default type, PoW difficulty and geometry complexity. Takes effect within 60s.",
-      "enabled": "Enable federal challenges",
-      "enabledHint": "Off = all fall back to slider-low, no new types",
-      "kindsTitle": "Challenge switches (keep at least 1)",
-      "sliderEnabled": "Slider",
-      "geometryEnabled": "Geometry & spatial",
-      "powEnabled": "Proof-of-work",
-      "defaultKind": "Default challenge",
-      "defaultKindHint": "Issued when kind omitted; falls back slider→geometry→PoW if disabled",
-      "kindSlider": "Slider",
-      "kindGeometry": "Geometry",
-      "kindPow": "Proof-of-work",
-      "powBits": "PoW difficulty bits",
-      "powBitsHint": "Integer 8–24, default 16; lowering to 8 weakens bot defense",
-      "powBitsDanger": "Very low bits (≤8) make scripts pass easily. Save anyway?",
-      "powBitsHighWarn": "Max bits (24) may take minutes on low-end devices. Save anyway?",
-      "geometryLevel": "Geometry complexity",
-      "geometryLevelHint": "Levels 1–3, default 1; complexity only, not tolerance",
-      "level1": "Easy",
-      "level2": "Normal",
-      "level3": "Strict",
-      "timeoutSec": "Solve timeout (sec)",
-      "timeoutSecHint": "Integer 5–60, default 10; exceeded falls back to slider",
-      "strictTimeoutHint": "Geometry idle timeout: 60s default, 15s strict; PoW always 10s",
-      "saved": "Federal config saved (effective ≤60s)",
-      "failedToSave": "Failed to save federal config",
-      "effectiveHint": "Effective within 60s · last saved {time}",
-      "notSavedYet": "Not saved yet; changes take effect within 60s",
-      "confirmDisable": "Disabling federal stops new types; users only see slider. Save anyway?",
-      "confirmAllOff": "Keep at least 1 type enabled; all-off cannot be saved.",
-      "confirmDefaultKindOff": "Default type points to a disabled type and cannot be saved.",
-      "confirmReset": "Reset to defaults? Current edits will be overwritten.",
-      "invalidPowBits": "PoW difficulty must be an integer 8–24",
-      "invalidLevel": "Geometry complexity must be an integer 1–3",
-      "invalidTimeout": "Solve timeout must be an integer 5–60",
-      "invalidDefaultKind": "Default type must be an enabled type"
-    }
+    "rateLimitNoPermissionHint": "Current account lacks admin permission; the form is hidden. Contact an admin for changes."
   },
   "report": {
     "postTitle": "Report this post",
@@ -820,12 +741,30 @@
         "name": "KoloStudio Official",
         "desc": "Official badge granted by the KoloStudio team."
       },
-      "level_1": { "name": "Level 1", "desc": "Account security level reached 1." },
-      "level_2": { "name": "Level 2", "desc": "Account security level reached 2." },
-      "level_3": { "name": "Level 3", "desc": "Account security level reached 3." },
-      "level_4": { "name": "Level 4", "desc": "Account security level reached 4." },
-      "level_5": { "name": "Level 5", "desc": "Account security level reached 5." },
-      "level_6": { "name": "Level 6", "desc": "Account security level reached 6." },
+      "level_1": {
+        "name": "Level 1",
+        "desc": "Account security level reached 1."
+      },
+      "level_2": {
+        "name": "Level 2",
+        "desc": "Account security level reached 2."
+      },
+      "level_3": {
+        "name": "Level 3",
+        "desc": "Account security level reached 3."
+      },
+      "level_4": {
+        "name": "Level 4",
+        "desc": "Account security level reached 4."
+      },
+      "level_5": {
+        "name": "Level 5",
+        "desc": "Account security level reached 5."
+      },
+      "level_6": {
+        "name": "Level 6",
+        "desc": "Account security level reached 6."
+      },
       "anti_drug_guardian": {
         "name": "Anti-Drug Guardian",
         "desc": "Awarded to guardians who help keep the community clean."
@@ -845,7 +784,7 @@
     "ERR_LEVEL_MUST_BE_BETWEEN_1_AND_6": "Level must be between 1 and 6",
     "ERR_INVALID_ROLE": "Invalid role",
     "ERR_ROLE_NOT_FOUND_IN_DATABASE": "Role not found in database",
-    "ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE": "Forbidden: Cannot manage user with equal or higher role",
+    "ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE": "Insufficient permissions to manage a user with an equal or higher role",
     "ERR_FORBIDDEN_CANNOT_GRANT_A_ROLE_HIGHER_THAN_YOUR_OWN": "Forbidden: Cannot grant a role higher than your own",
     "ERR_INVALID_STATUS": "Invalid status",
     "ERR_USER_NOT_FOUND_OR_IS_NOT_A_MODERATOR": "User not found or is not a MODERATOR",
@@ -907,9 +846,7 @@
     "ERR_SESSION_NOT_FOUND_OR_UNAUTHORIZED": "Session not found or unauthorized",
     "ERR_UNAUTHORIZED_MISSING_TOKEN": "Unauthorized: missing token",
     "ERR_USER_BANNED": "User banned",
-    "ERR_USER_NOT_FOUND": "User not found",
     "ERR_FORBIDDEN_CANNOT_DELETE_SELF": "You cannot delete the account you are currently using",
-    "ERR_FORBIDDEN_CANNOT_MANAGE_USER_WITH_EQUAL_OR_HIGHER_ROLE": "Insufficient permissions to manage a user with an equal or higher role",
     "ERR_INVALID_TOKEN": "Invalid token",
     "ERR_UNAUTHORIZED_MISSING_ABILITY": "Unauthorized: missing ability",
     "ERR_FORBIDDEN_INSUFFICIENT_PERMISSIONS": "Insufficient permissions.",
@@ -1012,7 +949,9 @@
     "ERR_FILE_TYPE_NOT_ALLOWED": "Only image files (JPG, PNG, GIF, WebP) can be inserted.",
     "ERR_FILE_CONTENT_TYPE_MISMATCH": "The image content does not match its file type. Please choose a JPG, PNG, GIF or WebP image.",
     "ERR_NO_FILE": "No image file was received. Please choose an image and try again.",
-    "ERR_UPLOAD_FAILED": "Image upload failed. Please try again."
+    "ERR_UPLOAD_FAILED": "Image upload failed. Please try again.",
+    "ERR_HUMAN_VERIFICATION_UNAVAILABLE": "Verification is temporarily unavailable. Please try again later.",
+    "ERR_HUMAN_VERIFICATION_INVALID": "Verification failed or expired. Please start a new challenge."
   },
   "tags": {
     "title": "Topics",
@@ -1050,11 +989,11 @@
     "verificationFailed": "Verification failed"
   },
   "forbidden": {
-    "lockIconAlt": "Access Denied",
     "title": "403 - Access Denied",
     "description": "Sorry, you don't have permission to access this page. This area is restricted to Super Admins.",
     "backToHome": "Back to Home",
-    "goToLogin": "Login Again"
+    "goToLogin": "Login Again",
+    "lockIconAlt": "Access Denied"
   },
   "notifications": {
     "title": "Notifications",
@@ -1123,7 +1062,6 @@
     "accept": "Accept",
     "reject": "Reject",
     "chat": "Chat",
-    "systemNotification": "System Notification",
     "friendRequestReceived": "{username} wants to be your friend.",
     "friendRequests": "Friend Requests",
     "friendList": "Friend List",
@@ -1147,7 +1085,6 @@
     "postRejectedDesc": "Your post \"{title}\" has been rejected. Reason: {reason}",
     "systemAlertDesc": "A new post \"{title}\" has been submitted for moderation. Please review it.",
     "viewPost": "View Post",
-    "friendRequestReceived": "{username} wants to be your friend.",
     "unblock": "Unblock",
     "blacklist": "Blacklist",
     "block": "Block",
@@ -1162,13 +1099,6 @@
     "userNotInitialized": "User {username} has not initialized secure messaging.",
     "systemUserNotFound": "System user not found.",
     "failedToLoadChat": "Failed to load chat data"
-  },
-  "forbidden": {
-    "title": "403 - Access Denied",
-    "description": "Sorry, you don't have permission to access this page. This area is restricted to Super Admins.",
-    "backToHome": "Back to Home",
-    "goToLogin": "Login Again",
-    "lockIconAlt": "Access Denied"
   },
   "search": {
     "resultsFor": "Search Results for: {q}",
@@ -1229,5 +1159,25 @@
     "saveError": "Could not save configuration. Your edits are preserved.",
     "configError": "Could not load configuration. Retry before editing.",
     "invalid": "Check required fields, types and schema limits."
+  },
+  "humanVerification": {
+    "locale": "en",
+    "title": "Human verification",
+    "loading": "Loading verification…",
+    "verifying": "Verifying…",
+    "verified": "Verification complete",
+    "unavailable": "Verification is temporarily unavailable. Please try again later.",
+    "invalid": "Verification failed or expired. Please start a new challenge.",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "expired": "Verification expired. Please try again.",
+    "cooldown": "Please wait {seconds}s before trying again.",
+    "registration": "Verify to create your account.",
+    "post": "Verify to publish your post.",
+    "comment": "Verify to submit your comment or reply.",
+    "friendRequest": "Verify to send this friend request.",
+    "rateLimitUnlock": "Verify to request a temporary read-limit exemption.",
+    "frameTitle": "Human verification challenge",
+    "binding": "Loading verification settings…"
   }
 }

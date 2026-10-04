@@ -277,7 +277,7 @@ export function RateLimitPolicySection() {
     <div className="rounded-xl border border-border bg-card p-6 space-y-4">
       <div>
         <h2 className="font-semibold">{admin.rateLimitTitle || 'Read rate limit & unlock'}</h2>
-        <p className="text-sm text-muted">{admin.rateLimitDesc || 'Public read threshold, window, challenge strength and exemption. Takes effect within 60s.'}</p>
+        <p className="text-sm text-muted">{admin.rateLimitDesc || 'Public read limits and exemptions. Verification settings are managed in Plugins.'}</p>
       </div>
 
       {/* Row1：总开关 + 豁免时长 */}
@@ -396,46 +396,6 @@ export function RateLimitPolicySection() {
             </p>
           )}
         </div>
-      </div>
-
-      {/* Row3：强度 segmented */}
-      <div className="space-y-2">
-        <span className="text-sm font-medium" id="ratelimit-strength-label">
-          {admin.captchaStrength || 'Challenge strength'}
-        </span>
-        <div role="radiogroup" aria-labelledby="ratelimit-strength-label" className="flex rounded-lg bg-muted/40 p-1 gap-1">
-          {(['low', 'normal', 'strict'] as const).map((level) => {
-            const selected = strength === level;
-            const label =
-              level === 'low' ? admin.strengthEasy || 'Easy'
-              : level === 'normal' ? admin.strengthNormal || 'Normal'
-              : admin.strengthStrict || 'Strict';
-            return (
-              <button
-                key={level}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                disabled={saveState === 'saving'}
-                onClick={() => setStrength(level)}
-                className={
-                  selected
-                    ? 'flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow'
-                    : 'flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50'
-                }
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-muted" aria-live="polite">
-          {strength === 'low'
-            ? admin.strengthEasyHint || 'Fewest false blocks'
-            : strength === 'normal'
-              ? admin.strengthNormalHint || 'Current live params'
-              : admin.strengthStrictHint || 'Strongest bot defense'}
-        </p>
       </div>
 
       {/* Row4：search 只读占位 */}

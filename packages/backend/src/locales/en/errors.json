@@ -175,5 +175,9 @@
   "ERR_IP_BAN_NOT_FOUND": "IP ban record not found",
   "ERR_NEW_ACCOUNT_COOLDOWN": "Your account is too new to post. Please wait a moment.",
   "ERR_NEW_ACCOUNT_RATE_LIMITED": "New accounts can only publish a limited number of posts per hour",
-  "ERR_REGISTRATION_DISABLED": "Registration is currently disabled by the administrators"
+  "ERR_REGISTRATION_DISABLED": "Registration is currently disabled by the administrators",
+  "ERR_HUMAN_VERIFICATION_UNAVAILABLE": "The verification provider is unavailable. Please retry later or contact an administrator.",
+  "ERR_HUMAN_VERIFICATION_INVALID": "Verification is invalid or expired. Please start a new challenge.",
+  "ERR_HUMAN_VERIFICATION_RATE_LIMITED": "Too many verification requests. Please retry later.",
+  "ERR_HUMAN_VERIFICATION_TOO_LARGE": "The verification request is too large."
 }

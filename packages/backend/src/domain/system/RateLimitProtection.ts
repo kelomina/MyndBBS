@@ -13,6 +13,7 @@ export interface RateLimitProtectionPolicy {
   enabled: boolean
   publicReadMax: number
   windowSec: number
+  /** @deprecated Ignored compatibility metadata; only the plugin selects verification algorithms. */
   captchaStrength: CaptchaStrength
   exemptionMinutes: number
   exemptionScope: 'ip'

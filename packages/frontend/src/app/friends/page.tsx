@@ -4,10 +4,10 @@ import { UserPlus, Check, X, ArrowLeft, ChevronDown, ChevronRight, UserMinus, Ba
 import Link from 'next/link';
 import { useTranslation } from '../../components/TranslationProvider';
 import { useToast } from '../../components/ui/Toast';
-import { SliderCaptcha } from '../../components/SliderCaptcha';
+import { HumanVerificationDialog } from '../../components/human-verification/HumanVerificationDialog'
 import type { Friendship } from '../../types';
 import { fetchWithAuth } from '../../lib/api/fetcher';
-import { useCaptchaRequirement } from '../../lib/captcha/requirements';
+import { useHumanVerificationRequirement } from '../../lib/human-verification/requirements';
 
 export default function FriendsPage() {
   const dict = useTranslation();
@@ -16,7 +16,7 @@ export default function FriendsPage() {
   const [myId, setMyId] = useState('');
   const [showRequests, setShowRequests] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
-  const captchaRequired = useCaptchaRequirement('friendRequest');
+  const captchaRequired = useHumanVerificationRequirement('friendRequest');
   const [pendingAddresseeId, setPendingAddresseeId] = useState('');
   const { toast } = useToast();
 
@@ -164,23 +164,7 @@ export default function FriendsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      {showCaptcha && captchaRequired && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card p-6 rounded-2xl shadow-xl relative">
-            <button
-              onClick={() => setShowCaptcha(false)}
-              className="absolute top-2 right-2 text-muted hover:text-foreground"
-            >
-              &times;
-            </button>
-            <h3 className="text-lg font-bold mb-4 text-center">{dict.messages?.verifyToAddFriend || 'Verify to Add Friend'}</h3>
-            <SliderCaptcha
-              onSuccess={handleCaptchaSuccess}
-              apiUrl={`/api/v1/auth`}
-            />
-          </div>
-        </div>
-      )}
+      <HumanVerificationDialog isOpen={showCaptcha} onClose={() => setShowCaptcha(false)} purpose="friendRequest" onVerified={handleCaptchaSuccess} />
       <div className="flex items-center gap-4 mb-6">
         <Link href="/messages" className="p-2 rounded-full hover:bg-accent/50 text-muted transition-colors">
           <ArrowLeft className="h-5 w-5" />

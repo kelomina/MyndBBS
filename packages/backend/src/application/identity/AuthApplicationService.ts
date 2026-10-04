@@ -1,4 +1,4 @@
-﻿import { ICaptchaChallengeRepository } from '../../domain/identity/ICaptchaChallengeRepository'
+﻿import type { IHumanVerification } from '../../domain/shared/ports/IHumanVerification'
 import { IPasskeyRepository } from '../../domain/identity/IPasskeyRepository'
 import { ISessionRepository } from '../../domain/identity/ISessionRepository'
 import { IAuthChallengeRepository } from '../../domain/identity/IAuthChallengeRepository'
@@ -7,11 +7,6 @@ import { IRoleRepository } from '../../domain/identity/IRoleRepository'
 import { IEmailRegistrationTicketRepository } from '../../domain/identity/IEmailRegistrationTicketRepository'
 import { IPasswordResetTicketRepository } from '../../domain/identity/IPasswordResetTicketRepository'
 import { ISessionCache } from './ports/ISessionCache'
-import {
-  CaptchaChallenge,
-  CAPTCHA_TARGET_RANGE,
-  type CaptchaStrength,
-} from '../../domain/identity/CaptchaChallenge'
 import { Passkey } from '../../domain/identity/Passkey'
 import { Session } from '../../domain/identity/Session'
 import { AuthChallenge } from '../../domain/identity/AuthChallenge'
@@ -33,7 +28,6 @@ import { EmailTemplateType } from '../../domain/notification/EmailTemplate'
 import { IUnitOfWork } from '../../domain/shared/IUnitOfWork'
 import { getTempTokenSecret } from '../../lib/securityConfig'
 
-import { SvgCaptchaGenerator } from './SvgCaptchaGenerator'
 
 const rpName = APP_NAME
 const BACKOFFICE_ROLE_NAMES = new Set(['MODERATOR', 'ADMIN', 'SUPER_ADMIN'])
@@ -83,12 +77,12 @@ export interface PasswordResetRequestAcceptedResult {
  * the domain layer and the interface layer, responsible for calling domain entities and repositories
  * in the correct order and managing transaction boundaries.
  *
- * Callers: [CaptchaController, RegisterController, AuthController, UserController, AdminController, SudoController]
- * Callees: [ICaptchaChallengeRepository, IPasskeyRepository, ISessionRepository, IAuthChallengeRepository,
+ * Callers: [RegisterController, AuthController, UserController, AdminController, SudoController]
+ * Callees: [IHumanVerification, IPasskeyRepository, ISessionRepository, IAuthChallengeRepository,
  *           IUserRepository, IPasswordHasher, IRoleRepository, IEmailRegistrationTicketRepository,
  *           IPasswordResetTicketRepository, ISessionCache, ITotpPort, IPasskeyPort, ITokenPort,
  *           IEmailSender, IEmailTemplateRepository, IUnitOfWork]
- * Calls: [ICaptchaChallengeRepository, IPasskeyRepository, ISessionRepository, IAuthChallengeRepository,
+ * Calls: [IHumanVerification, IPasskeyRepository, ISessionRepository, IAuthChallengeRepository,
  *         IUserRepository, IPasswordHasher, IRoleRepository, IEmailRegistrationTicketRepository,
  *         IPasswordResetTicketRepository, ISessionCache, ITotpPort, IPasskeyPort, ITokenPort,
  *         IEmailSender, IEmailTemplateRepository, IUnitOfWork]
@@ -96,7 +90,7 @@ export interface PasswordResetRequestAcceptedResult {
  *           身份, 认证, 应用服务, 编排, 注册, 会话, 挑战, 验证码, 通行密钥
  */
 export interface AuthApplicationServiceOptions {
-  captchaChallengeRepository: ICaptchaChallengeRepository
+  humanVerification: IHumanVerification
   passkeyRepository: IPasskeyRepository
   sessionRepository: ISessionRepository
   authChallengeRepository: IAuthChallengeRepository
@@ -112,8 +106,6 @@ export interface AuthApplicationServiceOptions {
   emailSender: IEmailSender
   emailTemplateRepository: IEmailTemplateRepository | null
   unitOfWork: IUnitOfWork
-  /** 业务 CAPTCHA 策略；未注入时保持旧的强制验证安全默认。 */
-  captchaProtection?: { requires(surface: 'registration' | 'post' | 'comment' | 'friendRequest'): Promise<boolean> }
 }
 export class AuthApplicationService {
   /**
@@ -131,7 +123,7 @@ export class AuthApplicationService {
    * Calls: [] (仅赋值 / assignments only)
    *
    * Parameters:
-   * - captchaChallengeRepository: ICaptchaChallengeRepository, 验证码挑战仓储 / captcha challenge repository
+   * - humanVerification: IHumanVerification, 中立人机验证端口 / neutral human verification port
    * - passkeyRepository: IPasskeyRepository, 通行密钥仓储 / passkey repository
    * - sessionRepository: ISessionRepository, 会话仓储 / session repository
    * - authChallengeRepository: IAuthChallengeRepository, 认证挑战仓储 / auth challenge repository
@@ -163,287 +155,13 @@ export class AuthApplicationService {
    */
   constructor(private readonly opts: AuthApplicationServiceOptions) {}
 
-  // --- Captcha Orchestration ---
-
-  /**
-   * Function: generateCaptcha
-   * --------------------------
-   * 生成新的验证码挑战。创建一个随机目标位置（80-240 范围），设置 5 分钟过期时间，保存验证码挑战，
-   * 并调用 SvgCaptchaGenerator 生成对应的 SVG 图像。
-   *
-   * Generates a new captcha challenge. Creates a random target position (range 80-240), sets a 5-minute
-   * expiration, persists the captcha challenge, and calls SvgCaptchaGenerator to produce the corresponding SVG image.
-   *
-   * Callers: [CaptchaController.generate]
-   * Called by: [CaptchaController.generate]
-   *
-   * Callees: [CaptchaChallenge.create, ICaptchaChallengeRepository.save, SvgCaptchaGenerator.generateImage]
-   * Calls: [CaptchaChallenge.create, ICaptchaChallengeRepository.save, SvgCaptchaGenerator.generateImage]
-   *
-   * Parameters:
-   * - 无参数 / no parameters
-   *
-   * Returns:
-   * - Promise<{ id: string, image: string }>, 包含验证码 ID 和 base64 SVG 图像的对象
-   *   an object containing the captcha ID and the base64 SVG image
-   *
-   * Error Handling / 错误处理:
-   * - 无显式业务异常；仓储保存失败时抛出基础设施异常
-   *   No explicit business exceptions; repository save failures propagate infrastructure exceptions
-   *
-   * Side Effects / 副作用:
-   * - 写入数据库（通过 ICaptchaChallengeRepository）/ writes to database (via ICaptchaChallengeRepository)
-   *
-   * Transaction / 事务:
-   * - 无事务边界，仅单次写入 / no transaction boundary, single write
-   *
-   * 中文关键词: 验证码生成, SVG图形, 随机位置, 挑战创建, 人机验证, 机器人防护, 图形验证码
-   * English keywords: captcha generation, SVG image, random position, challenge creation, human verification, bot protection, image captcha
-   */
-  public async generateCaptcha(strength?: CaptchaStrength): Promise<{ id: string; image: string }> {
-    // B1 强度快照：生成时冻结 strength（默认 low，Q2 拍板）；strict 目标范围扩大 60–260，其余 80–240
-    const snapshot: CaptchaStrength =
-      strength === 'low' || strength === 'normal' || strength === 'strict' ? strength : 'low'
-    const range = CAPTCHA_TARGET_RANGE[snapshot]
-    // B5 测试钩子：NODE_ENV=test 且显式固定目标时由调用方传入 targetOverride（见 controllers/captcha）
-    const targetPosition = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min
-
-    const challenge = CaptchaChallenge.create({
-      id: uuidv4(),
-      targetPosition,
-      verified: false,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
-      strength: snapshot,
-    })
-
-    await this.opts.captchaChallengeRepository.save(challenge)
-
-    const image = SvgCaptchaGenerator.generateImage(targetPosition)
-    return { id: challenge.id, image }
-  }
-
-  /**
-   * B1 测试/固定目标专用：生成确定性挑战（仅 NODE_ENV=test 调用方使用）。
-   * Callers: [CaptchaController.generate(testFixed)]
-   */
-  public async generateFixedCaptcha(
-    targetPosition: number,
-  ): Promise<{ id: string; image: string }> {
-    const challenge = CaptchaChallenge.create({
-      id: uuidv4(),
-      targetPosition,
-      verified: false,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-      strength: 'low',
-    })
-    await this.opts.captchaChallengeRepository.save(challenge)
-    const image = SvgCaptchaGenerator.generateImage(targetPosition)
-    return { id: challenge.id, image }
-  }
-
-  /**
-   * B2 解锁兑换原子消费（verify+consume 一次完成，不依赖外部 /verify 标记）。
-   * - 按生成时 strength 快照校验轨迹（防切档 farming）
-   * - 成功即删除挑战行（复用 consume 语义），与发帖/评论/注册 consume 互斥、先到先得；
-   *   二次/并发双兑仅一胜（首删成功，其余 find null 或 delete 丢失 → false），调用方统一 400
-   * - 兑换后再 verify 亦 400（行已删）
-   * Returns: { strength } 快照（供签发 unlockToken 观测/日志，不改变豁免效力）
-   */
-  public async verifyAndConsumeForUnlock(
-    id: string,
-    dragPath: any[],
-    totalDragTime: number,
-    finalPosition: number,
-  ): Promise<{ strength: CaptchaStrength }> {
-    const challenge = await this.opts.captchaChallengeRepository.findById(id)
-    if (!challenge) {
-      throw new Error('ERR_INVALID_CAPTCHA')
-    }
-    // 联邦互斥：旧 unlock 仅接受 slider 种挑战（geometry/pow 一律 400，防旧滑块绕过）
-    if (challenge.challengeKind !== 'slider') {
-      throw new Error('ERR_INVALID_CAPTCHA')
-    }
-    // B5 固定解旁路（仅 test）：finalPosition 容差 ±1 + 最小轨迹豁免，仍走原子消费
-    if (process.env.NODE_ENV === 'test') {
-      const fixedTargetRaw = process.env.TEST_CAPTCHA_TARGET
-      const fixedTarget = fixedTargetRaw ? Number(fixedTargetRaw) : 120
-      if (
-        Number.isInteger(fixedTarget) &&
-        typeof finalPosition === 'number' &&
-        Math.abs(finalPosition - fixedTarget) <= 1 &&
-        challenge.targetPosition === fixedTarget
-      ) {
-        try {
-          await this.opts.captchaChallengeRepository.delete(id)
-        } catch {
-          throw new Error('ERR_INVALID_CAPTCHA')
-        }
-        // 确认删除生效（并发双兑落败：行仍存在说明删失败？Prisma delete 不存在抛错已转 400；此处复查一次）
-        const still = await this.opts.captchaChallengeRepository.findById(id).catch(() => null)
-        if (still) {
-          throw new Error('ERR_INVALID_CAPTCHA')
-        }
-        return { strength: challenge.strength }
-      }
-    }
-    try {
-      challenge.verifyTrajectoryForUnlock(dragPath, totalDragTime, finalPosition)
-    } catch (error: any) {
-      if (error?.message === 'ERR_CAPTCHA_EXPIRED') {
-        try {
-          await this.opts.captchaChallengeRepository.delete(id)
-        } catch {
-          // ignore
-        }
-      }
-      throw error
-    }
-    // 原子消费：删除争用仅一胜；删除抛错（已删/不存在）→ 400
-    try {
-      await this.opts.captchaChallengeRepository.delete(id)
-    } catch {
-      throw new Error('ERR_INVALID_CAPTCHA')
-    }
-    // 防 TOCTOU 复查：删后仍能查到（极端竞态）则视为落败
-    const after = await this.opts.captchaChallengeRepository.findById(id).catch(() => null)
-    if (after) {
-      throw new Error('ERR_INVALID_CAPTCHA')
-    }
-    return { strength: challenge.strength }
-  }
-
-  /**
-   * Function: verifyCaptcha
-   * ------------------------
-   * 验证用户拖拽轨迹与验证码挑战是否匹配。如果验证码已过期，则删除它并抛出异常。
-   * 验证成功后保存已验证状态。
-   *
-   * Verifies whether the user's drag trajectory matches the captcha challenge. Deletes the challenge
-   * if it has expired and throws an exception. Persists the verified state on success.
-   *
-   * Callers: [CaptchaController.verify]
-   * Called by: [CaptchaController.verify]
-   *
-   * Callees: [ICaptchaChallengeRepository.findById, ICaptchaChallengeRepository.delete,
-   *           CaptchaChallenge.verifyTrajectory, ICaptchaChallengeRepository.save]
-   * Calls: [ICaptchaChallengeRepository.findById, ICaptchaChallengeRepository.delete,
-   *         CaptchaChallenge.verifyTrajectory, ICaptchaChallengeRepository.save]
-   *
-   * Parameters:
-   * - id: string, 验证码挑战 ID / the captcha challenge ID
-   * - dragPath: any[], 用户拖拽轨迹点数组 / the user's drag trajectory point array
-   * - totalDragTime: number, 拖拽总耗时（毫秒）/ total drag duration (milliseconds)
-   * - finalPosition: number, 最终拖拽位置 / the final drag position
-   *
-   * Returns:
-   * - Promise<void>, 无返回值 / no return value
-   *
-   * Error Handling / 错误处理:
-   * - ERR_INVALID_CAPTCHA: 验证码 ID 不存在 / captcha ID not found
-   * - ERR_CAPTCHA_EXPIRED: 验证码已过期（会删除该验证码）/ captcha has expired (deletes the challenge)
-   * - 其他验证失败异常由 CaptchaChallenge.verifyTrajectory 抛出
-   *   Other verification failures are thrown by CaptchaChallenge.verifyTrajectory
-   *
-   * Side Effects / 副作用:
-   * - 更新数据库（保存验证状态）/ updates database (persists verification status)
-   * - 验证码过期时删除数据库记录 / deletes database record on expiration
-   *
-   * Transaction / 事务:
-   * - 无事务边界，最多两次写入 / no transaction boundary, at most two writes
-   *
-   * 中文关键词: 验证码验证, 拖拽轨迹, 滑块验证, 人机验证, 过期清理, 轨迹校验, 安全验证
-   * English keywords: captcha verification, drag trajectory, slider captcha, human verification, expiration cleanup, trajectory validation, security check
-   */
-  public async verifyCaptcha(
-    id: string,
-    dragPath: any[],
-    totalDragTime: number,
-    finalPosition: number,
-  ): Promise<void> {
-    const challenge = await this.opts.captchaChallengeRepository.findById(id)
-    if (!challenge) {
-      throw new Error('ERR_INVALID_CAPTCHA')
-    }
-    // 联邦互斥：旧 verify 仅接受 slider（geometry/pow 走联邦 verify，kind 不一致一律 400）
-    if (challenge.challengeKind !== 'slider') {
-      throw new Error('ERR_INVALID_CAPTCHA')
-    }
-
-    try {
-      challenge.verifyTrajectory(dragPath, totalDragTime, finalPosition)
-      await this.opts.captchaChallengeRepository.save(challenge)
-    } catch (error: any) {
-      if (error.message === 'ERR_CAPTCHA_EXPIRED') {
-        await this.opts.captchaChallengeRepository.delete(id)
-      }
-      throw error
-    }
-  }
-
-  /**
-   * Function: consumeCaptcha
-   * -------------------------
-   * 消费已验证的验证码挑战。检查验证码是否已验证且未过期，然后删除它以阻止重复使用。
-   * 用于需要在操作前进行人机验证的场景（如注册、发帖、评论）。
-   *
-   * Consumes a verified captcha challenge. Checks that the captcha has been verified and has not expired,
-   * then deletes it to prevent reuse. Used in scenarios that require human verification before an action
-   * (e.g., registration, posting, commenting).
-   *
-   * Callers: [RegisterController.registerUser, PostController.createPost, PostController.createComment]
-   * Called by: [RegisterController.registerUser, PostController.createPost, PostController.createComment]
-   *
-   * Callees: [ICaptchaChallengeRepository.findById, CaptchaChallenge.validateForConsumption,
-   *           ICaptchaChallengeRepository.delete]
-   * Calls: [ICaptchaChallengeRepository.findById, CaptchaChallenge.validateForConsumption,
-   *         ICaptchaChallengeRepository.delete]
-   *
-   * Parameters:
-   * - captchaId: string, 要消费的验证码挑战 ID / the captcha challenge ID to consume
-   *
-   * Returns:
-   * - Promise<boolean>, 成功消费返回 true；验证码不存在或未通过验证返回 false
-   *   Returns true on successful consumption; false if the captcha does not exist or has not been verified
-   *
-   * Error Handling / 错误处理:
-   * - 验证码不存在时返回 false（不抛异常）/ returns false (no exception) when the captcha is not found
-   * - CaptchaChallenge.validateForConsumption 抛出的异常被捕获，返回 false
-   *   Exceptions from CaptchaChallenge.validateForConsumption are caught and return false
-   *
-   * Side Effects / 副作用:
-   * - 删除数据库中的验证码记录 / deletes the captcha record from the database
-   *
-   * Transaction / 事务:
-   * - 无事务边界，单次删除操作 / no transaction boundary, single delete operation
-   *
-   * 中文关键词: 验证码消费, 人机验证, 防滥用, 验证码删除, 操作保护, 验证通过检查
-   * English keywords: captcha consumption, human verification, abuse prevention, captcha deletion, action protection, verification check
-   */
-  public async consumeCaptcha(captchaId: string): Promise<boolean> {
-    const challenge = await this.opts.captchaChallengeRepository.findById(captchaId)
-    if (!challenge) {
-      return false
-    }
-    // 联邦互斥：发帖/评论/注册 consume 仅接受 slider（联邦 geometry/pow 不得绕过 kind 校验）
-    if (challenge.challengeKind !== 'slider') {
-      return false
-    }
-    try {
-      challenge.validateForConsumption()
-      await this.opts.captchaChallengeRepository.delete(captchaId)
-      return true
-    } catch (error) {
-      return false
-    }
-  }
-
   /**
    * Callers: [RegisterController.registerUser]
-   * Callees: [EmailAddress.create, Password.validatePolicy, AuthApplicationService.consumeCaptcha, AuthApplicationService.assertRegistrationIdentityAvailable, IPasswordHasher.hash, AuthApplicationService.deleteReusablePendingRegistration, EmailRegistrationTicket.create, IEmailRegistrationTicketRepository.save, AuthApplicationService.sendRegistrationVerificationEmail]
+   * Callees: [EmailAddress.create, Password.validatePolicy, IHumanVerification.consumeProof, AuthApplicationService.assertRegistrationIdentityAvailable, IPasswordHasher.hash, AuthApplicationService.deleteReusablePendingRegistration, EmailRegistrationTicket.create, IEmailRegistrationTicketRepository.save, AuthApplicationService.sendRegistrationVerificationEmail]
    * Description: Starts the email-registration flow by validating the submitted identity, persisting a pending registration ticket, and sending a verification email instead of creating the user immediately.
    * 描述：发起邮箱注册流程，先校验提交的身份信息并保存待验证注册票据，然后发送验证邮件，而不是立即创建用户。
-   * Variables: `email` and `username` are normalized identity inputs; `password` is validated then hashed; `captchaId` identifies the verified anti-bot challenge.
-   * 变量：`email` 与 `username` 是规范化后的身份输入；`password` 会先校验再哈希；`captchaId` 指向通过验证的人机校验挑战。
+   * Variables: `email` and `username` are normalized identity inputs; `password` is validated then hashed; `captchaId` is the compatibility alias for a purpose-bound opaque verification proof.
+   * 变量：`email` 与 `username` 是规范化后的身份输入；`password` 会先校验再哈希；`captchaId` 为按用途绑定的中立证明令牌兼容字段。
    * Integration: Keep the existing `/auth/register` entry point wired to this method so the frontend can remain on the same endpoint while the server behavior changes to email verification.
    * 接入方式：保持 `/auth/register` 入口继续调用本方法，让前端沿用原接口路径，同时把服务端行为切换为邮箱验证。
    * Error Handling: Throws explicit error codes for invalid captcha, duplicate identity claims, invalid email/password, or email delivery failures.
@@ -461,18 +179,11 @@ export class AuthApplicationService {
 
     Password.validatePolicy(password)
 
-    let captchaRequired = true
-    try {
-      captchaRequired = this.opts.captchaProtection
-        ? await this.opts.captchaProtection.requires('registration')
-        : true
-    } catch {
-      // A policy-store outage must not turn into a CAPTCHA bypass.
-      captchaRequired = true
-    }
-    if (captchaRequired) {
+    // captchaId is the compatibility alias for a purpose-bound opaque proof.
+    const verificationRequired = await this.opts.humanVerification.requires('registration')
+    if (verificationRequired) {
       if (!captchaId) throw new Error('ERR_CAPTCHA_IS_REQUIRED')
-      const isCaptchaValid = await this.consumeCaptcha(captchaId)
+      const isCaptchaValid = await this.opts.humanVerification.consumeProof(captchaId, 'registration')
       if (!isCaptchaValid) {
         throw new Error('ERR_INVALID_EXPIRED_OR_UNVERIFIED_CAPTCHA')
       }
