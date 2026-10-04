@@ -1,106 +1,149 @@
 import { proxyPluginRequest } from '../src/infrastructure/plugins/PluginGateway'
-
-describe('PluginGateway', () => {
-  const response = () => {
-    const result: { status?: number; headers: Record<string, string>; body?: unknown } = { headers: {} }
-    return {
-      result,
-      status(code: number) { result.status = code; return this },
-      setHeader(name: string, value: string) { result.headers[name] = value; return this },
-      json(body: unknown) { result.body = body; return this },
-      send(body: unknown) { result.body = body; return this },
-    }
+const manifest = {
+  id: 'demo',
+  version: '1.0.0',
+  apiVersion: 2,
+  entry: 'index.mjs',
+  entrySha256: 'a'.repeat(64),
+  signatureKeyId: 'test',
+  capabilities: {
+    routes: [
+      { path: '/echo', methods: ['GET', 'POST'], auth: 'authenticated' },
+      { path: '/admin', methods: ['GET'], auth: 'admin' },
+    ],
+    events: [],
+    ui: [{ slot: 'admin.detail', path: 'ui/index.html' }],
+  },
+}
+const user = { userId: 'u1', role: 'USER', sessionId: 's1' }
+function response() {
+  const result: { status?: number; body?: unknown; headers: Record<string, string> } = {
+    headers: {},
   }
-
+  return {
+    result,
+    status(value: number) {
+      result.status = value
+      return this
+    },
+    json(value: unknown) {
+      result.body = value
+      return this
+    },
+    send(value: unknown) {
+      result.body = value
+      return this
+    },
+    setHeader(k: string, v: string) {
+      result.headers[k] = v
+      return this
+    },
+  }
+}
+async function request(path = '/echo', overrides: Record<string, unknown> = {}) {
+  const res = response()
+  await proxyPluginRequest(
+    {
+      params: { pluginId: 'demo' },
+      path,
+      url: path,
+      method: 'GET',
+      user,
+      headers: { cookie: 'raw-cookie', authorization: 'Bearer raw-token' },
+      ...overrides,
+    } as never,
+    res as never,
+  )
+  return res.result
+}
+describe('v2 gateway', () => {
+  beforeEach(() => {
+    process.env.PLUGIN_CONTROL_URL = 'http://plugin-control:3600'
+    process.env.PLUGIN_CONTROL_TOKEN = 'c'.repeat(32)
+  })
   afterEach(() => {
-    delete process.env.PLUGIN_ALLOWLIST
-    delete process.env.PLUGIN_GATEWAY_MAP
-    delete process.env.PLUGIN_GATEWAY_DNS_PREFIX
     jest.restoreAllMocks()
+    delete process.env.PLUGIN_CONTROL_URL
+    delete process.env.PLUGIN_CONTROL_TOKEN
+    delete process.env.PLUGIN_ALLOWLIST
   })
-
-  test('rejects plugins outside the server allow-list', async () => {
-    process.env.PLUGIN_ALLOWLIST = 'safe-plugin'
-    const res = response()
-    await proxyPluginRequest({ params: { pluginId: 'unsafe-plugin' }, path: '/', url: '/', method: 'GET', headers: {} } as never, res as never)
-    expect(res.result.status).toBe(404)
-    expect(res.result.body).toEqual({ error: 'ERR_PLUGIN_NOT_ALLOWLISTED' })
+  const current = () =>
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
+  test('requires authentication before network', async () => {
+    const fetch = jest.spyOn(global, 'fetch')
+    expect((await request('/echo', { user: undefined })).status).toBe(401)
+    expect(fetch).not.toHaveBeenCalled()
   })
-
-  test('forwards authenticated context only to the configured internal target', async () => {
-    process.env.PLUGIN_ALLOWLIST = 'safe-plugin'
-    process.env.PLUGIN_GATEWAY_MAP = JSON.stringify({ 'safe-plugin': 'http://myndbbs-plugin-safe-plugin:3500' })
-    const fetchMock = jest.spyOn(global, 'fetch')
-      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } }))
-    const res = response()
-    await proxyPluginRequest({ params: { pluginId: 'safe-plugin' }, path: '/echo', url: '/echo?x=1', originalUrl: '/api/plugins/safe-plugin/echo?x=1', method: 'POST', headers: { 'content-type': 'application/json' }, body: { hello: 'world' }, user: { userId: 'u1', role: 'USER', sessionId: 's1', trustedExternalAuth: false, effectiveLevel: 1 } } as never, res as never)
-    expect(fetchMock).toHaveBeenCalledWith('http://myndbbs-plugin-safe-plugin:3500/echo?x=1', expect.objectContaining({ method: 'POST', body: '{"hello":"world"}', headers: expect.objectContaining({ 'x-mynd-user-id': 'u1', 'x-mynd-role': 'USER', 'x-mynd-session-id': 's1' }) }))
-    expect(res.result.status).toBe(200)
+  test('has no legacy allowlist fallback', async () => {
+    delete process.env.PLUGIN_CONTROL_URL
+    process.env.PLUGIN_ALLOWLIST = 'demo'
+    const fetch = jest.spyOn(global, 'fetch')
+    expect((await request()).body).toEqual({ error: 'ERR_PLUGIN_CONTROL_UNAVAILABLE' })
+    expect(fetch).not.toHaveBeenCalled()
   })
-
-  test('rejects public or literal IP gateway mappings before network access', async () => {
-    process.env.PLUGIN_ALLOWLIST = 'safe-plugin'
-    process.env.PLUGIN_GATEWAY_MAP = JSON.stringify({ 'safe-plugin': 'https://example.com:3500' })
-    const fetchMock = jest.spyOn(global, 'fetch')
-    const res = response()
-    await proxyPluginRequest({ params: { pluginId: 'safe-plugin' }, path: '/', url: '/', method: 'GET', headers: {} } as never, res as never)
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(res.result.status).toBe(404)
-    expect(res.result.body).toEqual({ error: 'ERR_PLUGIN_TARGET_NOT_ALLOWED' })
+  test('only forwards sanitized identity and JSON to the supervisor', async () => {
+    const fetch = current().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ status: 200, bodyBase64: Buffer.from('{}').toString('base64') }),
+      ),
+    )
+    expect((await request('/echo', { method: 'POST', body: { hello: 'world' } })).status).toBe(200)
+    const call = fetch.mock.calls[1]!
+    expect(call[0]).toBe('http://plugin-control:3600/v1/plugins/demo/proxy')
+    const payload = JSON.parse(String(call[1]?.body))
+    expect(payload).toEqual({
+      method: 'POST',
+      path: '/echo',
+      user: { id: 'u1', role: 'USER' },
+      body: { hello: 'world' },
+    })
+    expect(JSON.stringify(call)).not.toMatch(/raw-cookie|raw-token|s1/)
   })
-
-  test('rejects an internal mapping for a different plugin service', async () => {
-    process.env.PLUGIN_ALLOWLIST = 'safe-plugin'
-    process.env.PLUGIN_GATEWAY_MAP = JSON.stringify({ 'safe-plugin': 'http://myndbbs-plugin-other-plugin:3500' })
-    const fetchMock = jest.spyOn(global, 'fetch')
-    const res = response()
-    await proxyPluginRequest({ params: { pluginId: 'safe-plugin' }, path: '/', url: '/', method: 'GET', headers: {} } as never, res as never)
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(res.result.status).toBe(404)
-    expect(res.result.body).toEqual({ error: 'ERR_PLUGIN_TARGET_NOT_ALLOWED' })
+  test('does not route an undeclared method/path or insufficient role', async () => {
+    current()
+    expect((await request('/missing')).status).toBe(404)
+    jest.restoreAllMocks()
+    current()
+    expect((await request('/echo', { method: 'DELETE' })).status).toBe(404)
+    jest.restoreAllMocks()
+    current()
+    expect((await request('/admin')).status).toBe(403)
   })
-
-  test('returns 503 when the allow-listed plugin reports unhealthy', async () => {
-    process.env.PLUGIN_ALLOWLIST = 'safe-plugin'
-    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{"status":"unhealthy"}', { status: 503 }))
-    const res = response()
-    await proxyPluginRequest({ params: { pluginId: 'safe-plugin' }, path: '/echo', url: '/echo', method: 'GET', headers: {} } as never, res as never)
-    expect(fetchMock).toHaveBeenCalledWith('http://myndbbs-plugin-safe-plugin:3500/healthz', expect.objectContaining({ method: 'GET' }))
-    expect(res.result.status).toBe(503)
-    expect(res.result.body).toEqual({ error: 'ERR_PLUGIN_HOST_UNHEALTHY' })
+  test.each(['/../x', '/%2e%2e/x', '/%2E%2E/x', '//evil', '/x\\y', '/x#y'])(
+    'rejects unsafe path %s',
+    async (pathname) => {
+      const fetch = jest.spyOn(global, 'fetch')
+      expect((await request(pathname)).status).toBe(400)
+      expect(fetch).not.toHaveBeenCalled()
+    },
+  )
+  test('serves only admin declared UI with sandbox CSP, never set-cookie', async () => {
+    const fetch = current().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ status: 200, bodyBase64: Buffer.from('<p>UI</p>').toString('base64') }),
+      ),
+    )
+    const result = await request('/__ui/ui/index.html', { user: { ...user, role: 'ADMIN' } })
+    expect(result.status).toBe(200)
+    expect(result.headers['content-security-policy']).toContain('sandbox allow-scripts')
+    expect(result.headers['content-security-policy']).not.toContain('allow-same-origin')
+    expect(result.headers['set-cookie']).toBeUndefined()
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
-
-  test('returns 502 when the plugin health probe is unreachable', async () => {
-    process.env.PLUGIN_ALLOWLIST = 'safe-plugin'
-    const fetchMock = jest.spyOn(global, 'fetch').mockRejectedValue(new Error('connect ECONNREFUSED'))
-    const res = response()
-    await proxyPluginRequest({ params: { pluginId: 'safe-plugin' }, path: '/echo', url: '/echo', method: 'GET', headers: {} } as never, res as never)
-    expect(fetchMock).toHaveBeenCalledWith('http://myndbbs-plugin-safe-plugin:3500/healthz', expect.objectContaining({ method: 'GET' }))
-    expect(res.result.status).toBe(502)
-    expect(res.result.body).toEqual({ error: 'ERR_PLUGIN_HOST_UNAVAILABLE' })
+  test('hides admin UI from ordinary users', async () => {
+    current()
+    expect((await request('/__ui/ui/index.html')).status).toBe(404)
   })
-
-  test('returns 502 when the plugin health probe times out', async () => {
-    process.env.PLUGIN_ALLOWLIST = 'safe-plugin'
-    const timeout = Object.assign(new Error('upstream timed out'), { name: 'TimeoutError' })
-    const fetchMock = jest.spyOn(global, 'fetch').mockRejectedValue(timeout)
-    const res = response()
-    await proxyPluginRequest({ params: { pluginId: 'safe-plugin' }, path: '/echo', url: '/echo', method: 'GET', headers: {} } as never, res as never)
-    expect(fetchMock).toHaveBeenCalledWith('http://myndbbs-plugin-safe-plugin:3500/healthz', expect.objectContaining({ method: 'GET' }))
-    expect(res.result.status).toBe(502)
-    expect(res.result.body).toEqual({ error: 'ERR_PLUGIN_HOST_TIMEOUT' })
+  test('rejects v1 manifest', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ ...manifest, apiVersion: 1 })))
+    expect((await request()).body).toEqual({ error: 'ERR_INVALID_PLUGIN_MANIFEST' })
   })
-
-  test('returns 502 when the business request is unreachable after a healthy probe', async () => {
-    process.env.PLUGIN_ALLOWLIST = 'safe-plugin'
-    const fetchMock = jest.spyOn(global, 'fetch')
-      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
-      .mockRejectedValueOnce(new Error('socket closed'))
-    const res = response()
-    await proxyPluginRequest({ params: { pluginId: 'safe-plugin' }, path: '/echo', url: '/echo', method: 'GET', headers: {} } as never, res as never)
-    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://myndbbs-plugin-safe-plugin:3500/echo', expect.objectContaining({ method: 'GET' }))
-    expect(res.result.status).toBe(502)
-    expect(res.result.body).toEqual({ error: 'ERR_PLUGIN_HOST_UNAVAILABLE' })
+  test('reports unavailability and timeout without direct host fallback', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockRejectedValue(Object.assign(new Error('timeout'), { name: 'TimeoutError' }))
+    expect((await request()).body).toEqual({ error: 'ERR_PLUGIN_HOST_TIMEOUT' })
   })
 })

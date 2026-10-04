@@ -49,6 +49,12 @@ export async function guardRouteAccess(request: NextRequest, ctx: MiddlewareCont
     return redirectResponse;
   }
 
+  // Plugin administration intentionally conceals its existence with 404, not a
+  // login/403 redirect. Its server layout AND page validate the real session.
+  if (ctx.pathname === '/admin/plugins' || ctx.pathname.startsWith('/admin/plugins/')) {
+    return null;
+  }
+
   const isEssentialPublic = isEssentialPublicPath(ctx.pathname);
   if (isEssentialPublic) {
     return null;

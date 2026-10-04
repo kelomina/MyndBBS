@@ -23,8 +23,14 @@
  * English keywords:
  *   admin panel, user management, category management, moderation, system config, routes
  */
-import { Router } from 'express'
-import { requireAuthHidden, requireAbility, requireSudo } from '../middleware/auth'
+import { Router, type NextFunction, type Response } from 'express'
+import multer from 'multer'
+import {
+  requireAuthHidden,
+  requireAbility,
+  requireSudo,
+  type AuthRequest,
+} from '../middleware/auth'
 import { validate } from '../middleware/validation'
 import {
   changeUserRoleSchema,
@@ -113,17 +119,50 @@ import {
   getRateLimitProtection,
   updateRateLimitProtection,
 } from '../controllers/rateLimitProtection'
-import {
-  getFederalProtection,
-  updateFederalProtection,
-} from '../controllers/federalProtection'
+import { getFederalProtection, updateFederalProtection } from '../controllers/federalProtection'
 import { getCaptchaProtection, updateCaptchaProtection } from '../controllers/captchaProtection'
 import { getSiteSettings, updateSiteSettings } from '../controllers/siteSettings'
+import {
+  listPlugins,
+  getPlugin,
+  uploadPluginRelease,
+  approvePluginRelease,
+  activatePlugin,
+  deactivatePlugin,
+  removePlugin,
+  reloadPlugin,
+  rollbackPlugin,
+  getPluginHealth,
+  getPluginConfig,
+  updatePluginConfig,
+  getPluginEventBacklog,
+} from '../controllers/plugins'
 import { statsQueryService } from '../queries/system/StatsQueryService'
 import { rateLimit } from 'express-rate-limit'
 import { getClientIp } from '../lib/rateLimit'
 
 const router: Router = Router()
+
+const pluginUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024, files: 1 },
+})
+
+function requirePluginViewer(req: AuthRequest, res: Response, next: NextFunction): void {
+  if (req.user?.role === 'ADMIN' || req.user?.role === 'SUPER_ADMIN') {
+    next()
+    return
+  }
+  res.status(404).json({ error: 'ERR_NOT_FOUND' })
+}
+
+function requirePluginOperator(req: AuthRequest, res: Response, next: NextFunction): void {
+  if (req.user?.role === 'SUPER_ADMIN') {
+    next()
+    return
+  }
+  res.status(404).json({ error: 'ERR_NOT_FOUND' })
+}
 
 /**
  * 管理后台请求频率限制器
@@ -391,6 +430,32 @@ router.post(
   requireAbility('update_status', 'Post'),
   rejectPendingComment,
 )
+
+// ── 插件平台管理 ──
+router.get('/plugins', requirePluginViewer, listPlugins)
+router.post(
+  '/plugins/releases',
+  requirePluginOperator,
+  requireSudo,
+  pluginUpload.single('artifact'),
+  uploadPluginRelease,
+)
+router.get('/plugins/:pluginId', requirePluginViewer, getPlugin)
+router.delete('/plugins/:pluginId', requirePluginOperator, requireSudo, removePlugin)
+router.get('/plugins/:pluginId/health', requirePluginViewer, getPluginHealth)
+router.get('/plugins/:pluginId/events/backlog', requirePluginViewer, getPluginEventBacklog)
+router.get('/plugins/:pluginId/config', requirePluginViewer, getPluginConfig)
+router.put('/plugins/:pluginId/config', requirePluginOperator, requireSudo, updatePluginConfig)
+router.post(
+  '/plugins/:pluginId/releases/:releaseId/approve',
+  requirePluginOperator,
+  requireSudo,
+  approvePluginRelease,
+)
+router.post('/plugins/:pluginId/activate', requirePluginOperator, requireSudo, activatePlugin)
+router.post('/plugins/:pluginId/deactivate', requirePluginOperator, requireSudo, deactivatePlugin)
+router.post('/plugins/:pluginId/reload', requirePluginOperator, requireSudo, reloadPlugin)
+router.post('/plugins/:pluginId/rollback', requirePluginOperator, requireSudo, rollbackPlugin)
 
 // ── 路由白名单管理 ──
 router.get('/routing-whitelist', requireAbility('manage', 'all'), getRouteWhitelist)

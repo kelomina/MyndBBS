@@ -55,3 +55,25 @@ packages/frontend/debug-*.cjs
 packages/frontend/verify-*.cjs
 packages/frontend/screenshot-*.png
 packages/frontend/public/comment-demos
+
+# Exclude local agent state, host-specific fixtures and private keys from build context.
+.codex
+.agents
+ops/plugins/server-test
+secrets
+**/secrets
+*.pem
+**/*.pem
+*.key
+**/*.key
+*.p12
+**/*.p12
+*.pfx
+**/*.pfx
+id_rsa
+**/id_rsa
+id_ed25519
+**/id_ed25519
+plugin-artifacts
+deploy-artifacts
+packages/frontend/tests/plugin-ui-smoke/artifacts

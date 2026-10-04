@@ -9,6 +9,7 @@ import { SmtpEmailSender } from '../infrastructure/services/identity/SmtpEmailSe
 import { PrismaEmailTemplateRepository } from '../infrastructure/repositories/PrismaEmailTemplateRepository';
 import { PrivateMessageEmailNotifier } from '../application/notification/PrivateMessageEmailNotifier';
 import { badgeApplicationService, unitOfWork } from '../registry';
+import { pluginEventBridge } from '../infrastructure/plugins/PluginEventBridge';
 
 export function bootstrapDomainSubscribers(): void {
   const emailSender = new QueuedEmailSender(new SmtpEmailSender());
@@ -33,4 +34,6 @@ export function bootstrapDomainSubscribers(): void {
   new PrivateMessageEmailNotifier({ emailSender, userDeliveryInfo }).register(getEventBus());
 
   new BadgeEventListener(getEventBus(), badgeApplicationService);
+  // Install durable acceptance before serving requests; plugin execution stays in the worker.
+  if (process.env.NODE_ENV !== 'test') pluginEventBridge.start();
 }

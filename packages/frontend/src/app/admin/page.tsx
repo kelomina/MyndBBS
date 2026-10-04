@@ -1,3 +1,4 @@
+import { PluginDashboard } from '../../components/plugins/PluginDashboard';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { serverFetch } from '../../lib/bff/serverApi';
@@ -31,7 +32,7 @@ export default async function AdminPage() {
   }
 
   if (data.user?.role === 'SUPER_ADMIN' || data.user?.role === 'ADMIN') {
-    redirect('/admin/users');
+    return <PluginDashboard />;
   }
 
   redirect('/');

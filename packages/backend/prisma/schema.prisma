@@ -945,3 +945,111 @@ model WikiCreationLimit {
 
   @@index([userId])
 }
+
+enum PluginDesiredState {
+  ACTIVE
+  DISABLED
+}
+
+enum PluginRuntimeState {
+  PENDING_APPROVAL
+  APPROVED
+  STARTING
+  ACTIVE
+  DISABLED
+  UNHEALTHY
+  FAILED
+  ROLLED_BACK
+}
+
+enum PluginReleaseState {
+  QUARANTINED
+  APPROVED
+  ACTIVE
+  RETIRED
+  REJECTED
+}
+
+enum PluginEventDeliveryState {
+  PENDING
+  DELIVERING
+  DELIVERED
+  FAILED
+  DEAD_LETTER
+}
+
+model Plugin {
+  id            String             @id @default(uuid()) @db.Uuid
+  pluginId      String             @unique
+  displayName   String?
+  description   String?
+  desiredState  PluginDesiredState  @default(DISABLED)
+  runtimeState  PluginRuntimeState  @default(PENDING_APPROVAL)
+  currentVersion String?
+  healthy       Boolean?
+  lastHealthAt  DateTime?
+  lastError     String?            @db.Text
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  releases      PluginRelease[]
+  config        PluginConfig?
+  deliveries    PluginEventDelivery[]
+
+  @@index([desiredState, runtimeState])
+}
+
+model PluginRelease {
+  id              String            @id @default(uuid()) @db.Uuid
+  pluginId        String            @db.Uuid
+  plugin          Plugin            @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  version         String
+  apiVersion      Int
+  manifest        Json
+  artifactSha256  String
+  signatureKeyId  String
+  artifactPath    String?
+  state           PluginReleaseState @default(QUARANTINED)
+  uploadedBy      String?           @db.Uuid
+  approvedBy      String?           @db.Uuid
+  uploadedAt      DateTime          @default(now())
+  approvedAt      DateTime?
+  activatedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([pluginId, version])
+  @@index([pluginId, state])
+}
+
+model PluginConfig {
+  id               String   @id @default(uuid()) @db.Uuid
+  pluginId         String   @unique @db.Uuid
+  plugin           Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  publicConfig     Json
+  encryptedSecrets String   @db.Text
+  secretPaths      Json     @default("[]")
+  updatedBy        String?  @db.Uuid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model PluginEventDelivery {
+  id             String                  @id @default(uuid()) @db.Uuid
+  pluginId       String                  @db.Uuid
+  plugin         Plugin                  @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  eventId        String
+  eventName      String
+  schemaVersion  Int
+  payload        Json
+  state          PluginEventDeliveryState @default(PENDING)
+  attempts       Int                     @default(0)
+  lastError      String?                 @db.Text
+  availableAt    DateTime                @default(now())
+  deliveredAt    DateTime?
+  lastAttemptAt  DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@unique([pluginId, eventId])
+  @@index([pluginId, state, availableAt])
+}

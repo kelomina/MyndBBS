@@ -241,3 +241,18 @@ packages/frontend/screenshot-*.png
 packages/frontend/public/comment-demos/
 
 
+
+# Local agent backups can contain credentials; never publish them.
+.codex/
+# One-off, host-bound isolated server fixtures remain local audit evidence.
+/ops/plugins/server-test/
+# Private credentials and generated release artifacts (public *.pub is allowed).
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+/plugin-artifacts/
+/deploy-artifacts/

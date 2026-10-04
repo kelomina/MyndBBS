@@ -1,0 +1,34 @@
+{
+  "apiVersion": 2,
+  "id": "example-counter",
+  "version": "1.0.0",
+  "entry": "entry.mjs",
+  "entrySha256": "e000af904e7bf03d89cbf370e81f0655c3b9ce3007f8b81fe569ee36bc028e46",
+  "signatureKeyId": "local-example-2026",
+  "capabilities": {
+    "routes": [
+      {
+        "path": "/counter",
+        "methods": [
+          "GET"
+        ],
+        "auth": "admin"
+      }
+    ],
+    "events": [],
+    "ui": [],
+    "config": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "additionalProperties": false
+      },
+      "secretPaths": []
+    }
+  }
+}

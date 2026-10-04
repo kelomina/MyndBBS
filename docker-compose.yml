@@ -1,6 +1,6 @@
 # ============================================================
-# MyndBBS - Docker Compose 部署配置
-# 使用方式:
+# MyndBBS - Docker Compose 閮ㄧ讲閰嶇疆
+# 浣跨敤鏂瑰紡:
 #   docker compose up -d
 #   docker compose logs -f
 # ============================================================
@@ -45,7 +45,7 @@ services:
 
   # ==================== Backend API ====================
   backend:
-    image: myndbbs-backend:deploy
+    image: ghcr.io/kelomina/myndbbs-backend:${CORE_IMAGE_TAG:-latest}
     container_name: myndbbs-backend
     restart: unless-stopped
     depends_on:
@@ -61,11 +61,14 @@ services:
       NODE_ENV: production
       COOKIE_SECURE: "true"
       PLUGIN_ALLOWLIST_FILE: /app/plugin-releases/allowlist.json
-      PLUGIN_GATEWAY_DNS_PREFIX: http://myndbbs-plugin-
+      PLUGIN_MANIFEST_ROOT: /app/plugin-releases
+      PLUGIN_CONTROL_URL: ${PLUGIN_CONTROL_URL:-}
+      PLUGIN_CONTROL_TOKEN: ${PLUGIN_CONTROL_TOKEN:-}
+      PLUGIN_CONFIG_ENCRYPTION_KEY: ${PLUGIN_CONFIG_ENCRYPTION_KEY:-}
     volumes:
       - uploads-data:/app/packages/backend/uploads
       - ${BACKEND_ENV_FILE:-./.env}:/app/packages/backend/.env:ro
-      - ${PLUGIN_DIR:-./plugins}:/app/plugin-releases:ro
+      - ${PLUGIN_HOST_DIR:-/opt/myndbbs/plugins}:/app/plugin-releases:ro
     ports:
       - "127.0.0.1:3001:3001"
     healthcheck:
@@ -75,9 +78,47 @@ services:
       retries: 6
       start_period: 20s
 
+  # ==================== External plugin supervisor ====================
+  # This is the only service allowed to access the Docker socket. The backend
+  # service above deliberately has no socket mount.
+  plugin-control:
+    profiles: [plugins]
+    image: ghcr.io/kelomina/myndbbs-plugin-control:${PLUGIN_INFRA_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    # This file MUST NOT be the backend .env. It contains PLUGIN_RUNTIME_SECRET
+    # only; a missing secret file fails closed when the profile is enabled.
+    env_file:
+      - ${PLUGIN_CONTROL_ENV_FILE:-/opt/myndbbs/secrets/plugin-control.env}
+    environment:
+      NODE_ENV: production
+      PLUGIN_ROOT: /opt/myndbbs/plugins
+      # Docker bind source is evaluated on the DAEMON HOST, not in this container.
+      PLUGIN_DOCKER_ROOT: ${PLUGIN_HOST_DIR:-/opt/myndbbs/plugins}
+      PLUGIN_CONTROL_TOKEN: ${PLUGIN_CONTROL_TOKEN:-}
+      PLUGIN_TRUST_KEYS_FILE: /opt/myndbbs/plugin-trust-keys.json
+      PLUGIN_DOCKER_TRUST_KEYS_FILE: ${PLUGIN_TRUST_KEYS_HOST_FILE:-/opt/myndbbs/plugin-trust-keys.json}
+      PLUGIN_NETWORK: ${PLUGIN_RUNTIME_NETWORK:-myndbbs_plugin_runtime}
+      PLUGIN_RUNTIME_IMAGE: ghcr.io/kelomina/myndbbs-plugin-runtime:${PLUGIN_INFRA_IMAGE_TAG:-latest}
+    volumes:
+      - type: bind
+        source: ${PLUGIN_HOST_DIR:-/opt/myndbbs/plugins}
+        target: /opt/myndbbs/plugins
+        bind:
+          create_host_path: false
+      - /var/run/docker.sock:/var/run/docker.sock
+      - type: bind
+        source: ${PLUGIN_TRUST_KEYS_HOST_FILE:-/opt/myndbbs/plugin-trust-keys.json}
+        target: /opt/myndbbs/plugin-trust-keys.json
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [default, plugin-runtime]
+    # No published port. Backend uses authenticated /v1/plugins/:id/proxy.
+    # Candidates receive ONLY plugin-runtime, never default or host networking.
+
   # ==================== Frontend (Next.js) ====================
   frontend:
-    image: myndbbs-frontend:deploy
+    image: ghcr.io/kelomina/myndbbs-frontend:${CORE_IMAGE_TAG:-latest}
     container_name: myndbbs-frontend
     restart: unless-stopped
     depends_on:
@@ -107,3 +148,10 @@ volumes:
   redis-data:
   uploads-data:
   meilisearch-data:
+
+# Only the trusted supervisor and its per-plugin candidates join this network.
+# No backend, database, Redis, frontend, public ports, or external egress.
+networks:
+  plugin-runtime:
+    name: ${PLUGIN_RUNTIME_NETWORK:-myndbbs_plugin_runtime}
+    internal: true

@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "tests/plugin-ui-smoke/artifacts/**",
     "check-*.cjs",
     "check-*.js",
     "debug-*.cjs",

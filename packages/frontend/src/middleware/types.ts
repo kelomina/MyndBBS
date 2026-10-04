@@ -38,6 +38,8 @@ export function initMiddlewareContext(request: NextRequest): MiddlewareContext {
 
   const locale = getLocale(request);
   const pathname = normalizePathname(request.nextUrl.pathname);
+  // Overwrite any incoming value: server layouts need trusted route context.
+  requestHeaders.set('x-mynd-pathname', pathname);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   if (request.cookies.get('NEXT_LOCALE')?.value !== locale) {

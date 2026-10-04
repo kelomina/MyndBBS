@@ -1,4 +1,4 @@
-import { fetcher } from './fetcher';
+import { fetcher, fetchWithAuth } from './fetcher';
 import type { BadgeDto, BadgeHolder } from '../../types/badges';
 import type {
   BannedIpItem,
@@ -357,3 +357,112 @@ export const getSiteSettings = (): Promise<SiteSettings> =>
 
 export const updateSiteSettings = (data: Partial<SiteSettings>) =>
   fetcher('/api/admin/site-settings', { method: 'PUT', body: JSON.stringify(data) });
+
+
+// ── Secure plugin platform ──
+
+export interface PluginUiMount {
+  slot: string;
+  path: string;
+}
+
+export interface PluginReleaseAdminDto {
+  id: string;
+  version: string;
+  apiVersion: number;
+  artifactSha256: string;
+  signatureKeyId: string;
+  state: string;
+  uploadedAt: string;
+  approvedAt: string | null;
+  activatedAt: string | null;
+}
+
+export interface PluginAdminDto {
+  id: string;
+  pluginId: string;
+  displayName: string | null;
+  description: string | null;
+  desiredState: string;
+  runtimeState: string;
+  currentVersion: string | null;
+  lastError: string | null;
+  healthy: boolean | null;
+  lastHealthAt: string | null;
+  releases: PluginReleaseAdminDto[];
+  config: Record<string, unknown> | null;
+  configSchema: Record<string, unknown> | null;
+  secretPaths: string[];
+  uiMounts: PluginUiMount[];
+  routeCapabilities: Array<{ path: string; methods: string[]; auth?: 'authenticated' | 'admin' | 'super_admin' }>;
+}
+
+async function pluginUploadError(response: Response): Promise<never> {
+  const payload = (await response.json().catch(() => ({}))) as { error?: unknown };
+  throw new Error(typeof payload.error === 'string' ? payload.error : `HTTP_${response.status}`);
+}
+
+export const getPlugins = (): Promise<PluginAdminDto[]> => fetcher('/api/admin/plugins');
+
+export const getPlugin = (pluginId: string): Promise<PluginAdminDto> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}`);
+
+export const uploadPluginRelease = async (artifact: File, signatureBase64: string): Promise<PluginAdminDto> => {
+  const form = new FormData();
+  form.append('artifact', artifact);
+  form.append('signature', signatureBase64.trim());
+  const response = await fetchWithAuth('/api/admin/plugins/releases', { method: 'POST', body: form });
+  if (!response.ok) return pluginUploadError(response);
+  return (await response.json()) as PluginAdminDto;
+};
+
+export const approvePluginRelease = (pluginId: string, releaseId: string): Promise<PluginAdminDto> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}/releases/${encodeURIComponent(releaseId)}/approve`, { method: 'POST' });
+
+export const activatePlugin = (pluginId: string, version?: string): Promise<PluginAdminDto> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}/activate`, {
+    method: 'POST',
+    body: JSON.stringify(version ? { version } : {}),
+  });
+
+export const deactivatePlugin = (pluginId: string): Promise<PluginAdminDto> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}/deactivate`, { method: 'POST' });
+
+export const reloadPlugin = (pluginId: string): Promise<PluginAdminDto> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}/reload`, { method: 'POST' });
+
+export const rollbackPlugin = (pluginId: string, version: string): Promise<PluginAdminDto> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}/rollback`, {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  });
+
+export const getPluginHealth = (pluginId: string) =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}/health`);
+
+export interface PluginConfigDto {
+  config: Record<string, unknown>;
+  schema: Record<string, unknown> | null;
+  secretPaths: string[];
+}
+
+export const getPluginConfig = (pluginId: string): Promise<PluginConfigDto> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}/config`);
+
+export const updatePluginConfig = (pluginId: string, config: Record<string, unknown>): Promise<PluginConfigDto> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}/config`, {
+    method: 'PUT',
+    body: JSON.stringify(config),
+  });
+
+export interface PluginEventBacklog {
+  pending: number;
+  failed: number;
+  deadLetter: number;
+}
+
+export const getPluginEventBacklog = (pluginId: string): Promise<PluginEventBacklog> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}/events/backlog`);
+
+export const removePlugin = (pluginId: string): Promise<unknown> =>
+  fetcher(`/api/admin/plugins/${encodeURIComponent(pluginId)}`, { method: 'DELETE' });
