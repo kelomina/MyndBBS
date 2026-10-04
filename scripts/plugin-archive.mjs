@@ -94,6 +94,12 @@ export function inspectArchive(archive) {
   for (const mount of manifest.capabilities.ui)
     if (!files.has(mount.path) || files.get(mount.path).length > 256 * 1024)
       throw new Error('ERR_INVALID_PLUGIN_UI_CAPABILITY')
+  const verificationUi = manifest.capabilities.humanVerification?.ui
+  if (
+    verificationUi &&
+    (!files.has(verificationUi) || files.get(verificationUi).length > 256 * 1024)
+  )
+    throw new Error('ERR_INVALID_PLUGIN_VERIFICATION_CAPABILITY')
   return { manifest, files, artifactSha256: sha256(archive) }
 }
 export function verifyArchive(archive, signature, trustKeys) {

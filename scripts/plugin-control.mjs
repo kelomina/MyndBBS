@@ -38,12 +38,30 @@ const json = (res, status, body) => {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' })
   res.end(JSON.stringify(body))
 }
-async function body(req) {
+function appliedVerificationPolicy(config) {
+  const surfaces = ['registration', 'post', 'comment', 'friendRequest']
+  if (
+    (config.enabled !== undefined && typeof config.enabled !== 'boolean') ||
+    (config.surfaces !== undefined &&
+      (!isObject(config.surfaces) ||
+        Object.keys(config.surfaces).some((key) => !surfaces.includes(key))))
+  )
+    throw new Error('ERR_INVALID_PLUGIN_CONFIG')
+  const policy = { enabled: config.enabled ?? true, surfaces: {} }
+  for (const purpose of surfaces) {
+    const value = config.surfaces?.[purpose]
+    if (value !== undefined && typeof value !== 'boolean')
+      throw new Error('ERR_INVALID_PLUGIN_CONFIG')
+    policy.surfaces[purpose] = value ?? true
+  }
+  return policy
+}
+async function body(req, limit = LIMIT) {
   let size = 0
   const chunks = []
   for await (const chunk of req) {
     size += chunk.length
-    if (size > LIMIT) throw new Error('ERR_PLUGIN_REQUEST_TOO_LARGE')
+    if (size > limit) throw new Error('ERR_PLUGIN_REQUEST_TOO_LARGE')
     chunks.push(chunk)
   }
   try {
@@ -149,10 +167,20 @@ export class DockerPluginRuntime {
       name,
     ])
     let state
-    try { state = JSON.parse(result.stdout) } catch { throw new Error('ERR_PLUGIN_HOST_UNAVAILABLE') }
+    try {
+      state = JSON.parse(result.stdout)
+    } catch {
+      throw new Error('ERR_PLUGIN_HOST_UNAVAILABLE')
+    }
     const networks = state?.networks
     const address = networks?.[this.network]?.IPAddress
-    if (!state?.running || !isObject(networks) || Object.keys(networks).length !== 1 || typeof address !== 'string' || isIP(address) !== 4)
+    if (
+      !state?.running ||
+      !isObject(networks) ||
+      Object.keys(networks).length !== 1 ||
+      typeof address !== 'string' ||
+      isIP(address) !== 4
+    )
       throw new Error('ERR_PLUGIN_HOST_UNAVAILABLE')
     return 'http://' + address + ':3500'
   }
@@ -350,9 +378,18 @@ export class PluginControl {
         throw new Error('ERR_PLUGIN_INTEGRITY_FAILED')
       if (!isObject(config) || Buffer.byteLength(JSON.stringify(config)) > 65536)
         throw new Error('ERR_INVALID_PLUGIN_CONFIG')
+      const verificationPolicy = verified.manifest.capabilities.humanVerification
+        ? appliedVerificationPolicy(config)
+        : undefined
       const previous = await this.state(id)
       const generation = randomUUID()
-      const name = 'myndbbs-plugin-' + id.slice(0, 24) + '-' + sha256(id).slice(0, 8) + '-' + generation.slice(0, 8)
+      const name =
+        'myndbbs-plugin-' +
+        id.slice(0, 24) +
+        '-' +
+        sha256(id).slice(0, 8) +
+        '-' +
+        generation.slice(0, 8)
       try {
         await this.runtime.start({
           name,
@@ -381,6 +418,9 @@ export class PluginControl {
           version,
           container: name,
           generation,
+          // Persist only the neutral policy actually supplied to this generation.
+          // Saving an editable DB config must not change live authorization before reload.
+          ...(verificationPolicy ? { verificationPolicy } : {}),
           state: 'ACTIVE',
           healthy: true,
         }
@@ -477,6 +517,98 @@ export class PluginControl {
     })
     if (!response.ok) throw new Error('ERR_PLUGIN_EVENT_DELIVERY_FAILED')
   }
+  async verificationSnapshot(id) {
+    const { state, manifest } = await this.activeManifest(id)
+    if (
+      manifest.id !== id ||
+      manifest.version !== state.version ||
+      manifest.capabilities.humanVerification?.apiVersion !== 1
+    )
+      throw new Error('ERR_PLUGIN_VERIFICATION_NOT_DECLARED')
+    const release = this.releasePath(id, state.version)
+    const approval = JSON.parse(await readFile(path.join(release, '.approved.json'), 'utf8'))
+    const artifactSha256 = (await readFile(path.join(release, '.artifact-sha256'), 'utf8')).trim()
+    if (
+      !/^[a-f0-9]{64}$/.test(artifactSha256) ||
+      approval.artifactSha256 !== artifactSha256 ||
+      !approval.approvedAt
+    )
+      throw new Error('ERR_PLUGIN_RELEASE_NOT_APPROVED')
+    if (!(await this.runtime.health(state.container)).healthy)
+      throw new Error('ERR_PLUGIN_HOST_UNHEALTHY')
+    if (!isObject(state.verificationPolicy))
+      throw new Error('ERR_PLUGIN_VERIFICATION_POLICY_MISSING')
+    const snapshot = {
+      providerId: id,
+      version: state.version,
+      generation: state.generation,
+      artifactSha256,
+      manifest,
+      policy: state.verificationPolicy,
+      healthy: true,
+    }
+    if (Buffer.byteLength(JSON.stringify(snapshot)) > 32 * 1024)
+      throw new Error('ERR_PLUGIN_RESPONSE_TOO_LARGE')
+    return { state, snapshot }
+  }
+  async humanVerificationInfo(id) {
+    return this.exclusive(id, async () => (await this.verificationSnapshot(id)).snapshot)
+  }
+  async humanVerification(id, input) {
+    if (
+      !isObject(input) ||
+      Object.keys(input).some(
+        (k) => !['operation', 'purpose', 'input', 'expectedGeneration'].includes(k),
+      ) ||
+      !['issue', 'verify', 'ui'].includes(input.operation) ||
+      !isObject(input.input) ||
+      Buffer.byteLength(JSON.stringify(input)) > 32 * 1024 ||
+      typeof input.expectedGeneration !== 'string'
+    )
+      throw new Error('ERR_INVALID_PLUGIN_VERIFICATION_REQUEST')
+    if (
+      input.operation !== 'ui' &&
+      !['registration', 'post', 'comment', 'friendRequest', 'rateLimitUnlock'].includes(
+        input.purpose,
+      )
+    )
+      throw new Error('ERR_INVALID_PLUGIN_VERIFICATION_REQUEST')
+    return this.exclusive(id, async () => {
+      const { state, snapshot } = await this.verificationSnapshot(id)
+      if (state.generation !== input.expectedGeneration)
+        throw new Error('ERR_PLUGIN_GENERATION_MISMATCH')
+      const response = await this.runtime.request(state.container, '/__human-verification', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-plugin-proxy-token': this.token(id, state.generation, 'proxy'),
+        },
+        body: JSON.stringify({
+          operation: input.operation,
+          ...(input.operation !== 'ui' ? { purpose: input.purpose } : {}),
+          input: input.input,
+        }),
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!response.ok || !response.body) throw new Error('ERR_PLUGIN_VERIFICATION_FAILED')
+      const limit = input.operation === 'ui' ? 512 * 1024 + 4096 : 32 * 1024
+      const chunks = []
+      let size = 0
+      for await (const chunk of response.body) {
+        size += chunk.length
+        if (size > limit) throw new Error('ERR_PLUGIN_RESPONSE_TOO_LARGE')
+        chunks.push(Buffer.from(chunk))
+      }
+      const result = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+      if (
+        !isObject(result) ||
+        (input.operation === 'ui' &&
+          (typeof result.html !== 'string' || Buffer.byteLength(result.html) > 256 * 1024))
+      )
+        throw new Error('ERR_INVALID_PLUGIN_VERIFICATION_RESPONSE')
+      return { snapshot, result }
+    })
+  }
   async proxy(id, input) {
     const { state, manifest } = await this.activeManifest(id)
     if (!safeRequestPath(input.path) || !isObject(input.user) || typeof input.user.id !== 'string')
@@ -559,6 +691,10 @@ export function createControlServer(control, token) {
       }
       const id = parts[3]
       const action = parts[4]
+      if (req.method === 'GET' && action === 'human-verification') {
+        json(res, 200, await control.humanVerificationInfo(id))
+        return
+      }
       if (req.method === 'GET' && action === 'health') {
         json(res, 200, await control.health(id))
         return
@@ -571,7 +707,7 @@ export function createControlServer(control, token) {
         json(res, 404, { error: 'ERR_NOT_FOUND' })
         return
       }
-      const data = await body(req)
+      const data = await body(req, action === 'human-verification' ? 32 * 1024 : LIMIT)
       let result
       if (action === 'approve')
         result = await control.approve(id, data.version, data.artifactSha256)
@@ -583,7 +719,8 @@ export function createControlServer(control, token) {
       else if (action === 'events') {
         await control.events(id, data)
         result = { status: 'ok' }
-      } else if (action === 'proxy') result = await control.proxy(id, data)
+      } else if (action === 'human-verification') result = await control.humanVerification(id, data)
+      else if (action === 'proxy') result = await control.proxy(id, data)
       else {
         json(res, 404, { error: 'ERR_NOT_FOUND' })
         return

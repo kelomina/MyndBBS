@@ -140,7 +140,7 @@ export function validateManifest(m: any) {
   const c = m.capabilities
   if (
     !isObject(c) ||
-    Object.keys(c).some((k: any) => !['routes', 'events', 'ui', 'config'].includes(k)) ||
+    Object.keys(c).some((k: any) => !['routes', 'events', 'ui', 'config', 'humanVerification'].includes(k)) ||
     ['routes', 'events', 'ui'].some((k: any) => !Array.isArray(c[k]) || c[k].length > 128)
   )
     throw new Error('ERR_INVALID_PLUGIN_CAPABILITIES')
@@ -172,6 +172,11 @@ export function validateManifest(m: any) {
       !u.path.endsWith('.html')
     )
       throw new Error('ERR_INVALID_PLUGIN_UI_CAPABILITY')
+  if (c.humanVerification !== undefined && (
+    !isObject(c.humanVerification) || c.humanVerification.apiVersion !== 1 ||
+    Object.keys(c.humanVerification).some((k: string) => !['apiVersion', 'ui'].includes(k)) ||
+    !safeRelative(c.humanVerification.ui) || !c.humanVerification.ui.endsWith('.html')
+  )) throw new Error('ERR_INVALID_PLUGIN_VERIFICATION_CAPABILITY')
   if (c.config !== undefined) {
     if (
       !isObject(c.config) ||

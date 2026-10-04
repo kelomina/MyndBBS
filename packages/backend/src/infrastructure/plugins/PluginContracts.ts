@@ -35,6 +35,7 @@ export type BackendPluginManifest = {
     events: readonly PluginEventCapability[]
     ui: readonly PluginUiMount[]
     config?: PluginConfigCapability
+    humanVerification?: { apiVersion: 1; ui: string }
   }
 }
 
@@ -72,6 +73,7 @@ export type BackendPlugin = {
   deactivate?(): Promise<void> | void
   handle?(request: BackendPluginRequest): Promise<BackendPluginResponse> | BackendPluginResponse
   handleEvent?(event: PluginEventEnvelope): Promise<void> | void
+  handleHumanVerification?(request: { operation: 'issue' | 'verify'; purpose: string; input: Record<string, unknown> }): Promise<Record<string, unknown>> | Record<string, unknown>
 }
 
 export type PluginRuntimeState =

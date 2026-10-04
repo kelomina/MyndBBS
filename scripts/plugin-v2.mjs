@@ -131,11 +131,19 @@ export function validateManifest(m) {
   )
     throw new Error('ERR_INVALID_PLUGIN_MANIFEST')
   if (!safeRelative(m.entry)) throw new Error('ERR_INVALID_PLUGIN_ENTRY')
-  if (m.displayName !== undefined && (typeof m.displayName !== 'string' || m.displayName.length > 120) || m.description !== undefined && (typeof m.description !== 'string' || m.description.length > 2000)) throw new Error('ERR_INVALID_PLUGIN_MANIFEST')
+  if (
+    (m.displayName !== undefined &&
+      (typeof m.displayName !== 'string' || m.displayName.length > 120)) ||
+    (m.description !== undefined &&
+      (typeof m.description !== 'string' || m.description.length > 2000))
+  )
+    throw new Error('ERR_INVALID_PLUGIN_MANIFEST')
   const c = m.capabilities
   if (
     !isObject(c) ||
-    Object.keys(c).some((k) => !['routes', 'events', 'ui', 'config'].includes(k)) ||
+    Object.keys(c).some(
+      (k) => !['routes', 'events', 'ui', 'config', 'humanVerification'].includes(k),
+    ) ||
     ['routes', 'events', 'ui'].some((k) => !Array.isArray(c[k]) || c[k].length > 128)
   )
     throw new Error('ERR_INVALID_PLUGIN_CAPABILITIES')
@@ -167,6 +175,15 @@ export function validateManifest(m) {
       !u.path.endsWith('.html')
     )
       throw new Error('ERR_INVALID_PLUGIN_UI_CAPABILITY')
+  if (
+    c.humanVerification !== undefined &&
+    (!isObject(c.humanVerification) ||
+      c.humanVerification.apiVersion !== 1 ||
+      Object.keys(c.humanVerification).some((k) => !['apiVersion', 'ui'].includes(k)) ||
+      !safeRelative(c.humanVerification.ui) ||
+      !c.humanVerification.ui.endsWith('.html'))
+  )
+    throw new Error('ERR_INVALID_PLUGIN_VERIFICATION_CAPABILITY')
   if (c.config !== undefined) {
     if (
       !isObject(c.config) ||

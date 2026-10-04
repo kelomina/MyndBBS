@@ -1,0 +1,190 @@
+{
+  "id": "human-verification",
+  "displayName": "Human verification",
+  "description": "Bundled isolated slider, geometry and proof-of-work provider. Unsigned source; approval required.",
+  "version": "1.0.0",
+  "apiVersion": 2,
+  "entry": "index.mjs",
+  "entrySha256": "7ba408ccee45e0fae2796aaa60f9070b9cb3c07ab8c1b922a0a58763761c161d",
+  "signatureKeyId": "myndbbs-bundled-v1",
+  "capabilities": {
+    "routes": [],
+    "events": [],
+    "ui": [],
+    "humanVerification": {
+      "apiVersion": 1,
+      "ui": "ui/challenge.html"
+    },
+    "config": {
+      "schema": {
+        "type": "object",
+        "title": "Human verification",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enable business verification",
+            "default": true
+          },
+          "surfaces": {
+            "type": "object",
+            "title": "Business surfaces",
+            "additionalProperties": false,
+            "properties": {
+              "registration": {
+                "type": "boolean",
+                "title": "registration",
+                "default": true
+              },
+              "post": {
+                "type": "boolean",
+                "title": "post",
+                "default": true
+              },
+              "comment": {
+                "type": "boolean",
+                "title": "comment",
+                "default": true
+              },
+              "friendRequest": {
+                "type": "boolean",
+                "title": "friendRequest",
+                "default": true
+              }
+            },
+            "default": {
+              "registration": true,
+              "post": true,
+              "comment": true,
+              "friendRequest": true
+            }
+          },
+          "sliderStrength": {
+            "type": "string",
+            "title": "Slider and geometry strength",
+            "enum": [
+              "low",
+              "normal",
+              "strict"
+            ],
+            "default": "low"
+          },
+          "federal": {
+            "type": "object",
+            "title": "Read-rate unlock challenge selection",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "title": "Use configured federal kinds for rateLimitUnlock",
+                "default": true
+              },
+              "kinds": {
+                "type": "object",
+                "title": "Enabled kinds",
+                "additionalProperties": false,
+                "properties": {
+                  "slider": {
+                    "type": "boolean",
+                    "title": "slider",
+                    "default": true
+                  },
+                  "geometry": {
+                    "type": "boolean",
+                    "title": "geometry",
+                    "default": true
+                  },
+                  "pow": {
+                    "type": "boolean",
+                    "title": "pow",
+                    "default": true
+                  }
+                },
+                "default": {
+                  "slider": true,
+                  "geometry": true,
+                  "pow": true
+                }
+              },
+              "defaultKind": {
+                "type": "string",
+                "title": "Default unlock kind",
+                "enum": [
+                  "slider",
+                  "geometry",
+                  "pow"
+                ],
+                "default": "slider"
+              },
+              "geometryLevel": {
+                "type": "integer",
+                "title": "Geometry level",
+                "default": 1,
+                "minimum": 1,
+                "maximum": 3
+              },
+              "powBits": {
+                "type": "integer",
+                "title": "PoW difficulty bits",
+                "default": 16,
+                "minimum": 8,
+                "maximum": 24
+              },
+              "timeoutSec": {
+                "type": "integer",
+                "title": "Geometry low/normal behavior timeout (seconds)",
+                "default": 10,
+                "minimum": 5,
+                "maximum": 60
+              },
+              "strictTimeoutSec": {
+                "type": "integer",
+                "title": "Geometry strict behavior timeout (seconds)",
+                "default": 15,
+                "minimum": 5,
+                "maximum": 60
+              }
+            },
+            "default": {
+              "enabled": true,
+              "kinds": {
+                "slider": true,
+                "geometry": true,
+                "pow": true
+              },
+              "defaultKind": "slider",
+              "geometryLevel": 1,
+              "powBits": 16,
+              "timeoutSec": 10,
+              "strictTimeoutSec": 15
+            }
+          }
+        },
+        "default": {
+          "enabled": true,
+          "surfaces": {
+            "registration": true,
+            "post": true,
+            "comment": true,
+            "friendRequest": true
+          },
+          "sliderStrength": "low",
+          "federal": {
+            "enabled": true,
+            "kinds": {
+              "slider": true,
+              "geometry": true,
+              "pow": true
+            },
+            "defaultKind": "slider",
+            "geometryLevel": 1,
+            "powBits": 16,
+            "timeoutSec": 10,
+            "strictTimeoutSec": 15
+          }
+        }
+      },
+      "secretPaths": []
+    }
+  }
+}

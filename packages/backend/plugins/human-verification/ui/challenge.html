@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Human verification</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fff;
+        --fg: #242424;
+        --muted: #616161;
+        --line: #d1d1d1;
+        --accent: #0f6cbd;
+        --soft: #f5f5f5;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-width: 0;
+        font:
+          14px/1.5 system-ui,
+          'Segoe UI',
+          sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+        overflow-wrap: anywhere;
+      }
+      body {
+        padding: 12px;
+      }
+      main {
+        width: 100%;
+        min-width: 0;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .surface {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin: 8px auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--soft);
+        touch-action: none;
+      }
+      canvas:focus-visible,
+      button:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+      button {
+        min-height: 44px;
+        padding: 8px 14px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+        white-space: normal;
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 12px;
+      }
+      .error {
+        color: #b10e1e;
+      }
+      progress {
+        width: 100%;
+        height: 12px;
+      }
+      #waiting {
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #242424;
+          --fg: #f5f5f5;
+          --muted: #bdbdbd;
+          --line: #616161;
+          --accent: #479ef5;
+          --soft: #292929;
+        }
+        .error {
+          color: #ff99a4;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="root"><div id="waiting" role="status">Loading… / 加载中…</div></main>
+    <script>
+      'use strict'
+      /**
+       * 纯 JS SHA-256（零外部依赖，file:// 可用，禁 crypto.subtle）。
+       * 逐字移植自站外演示 captcha-federal-demo.html 内联实现（经用户批准的 ground truth），
+       * 前后端前导零 bits 计数同一口径：hash hex 首 bits 全零即达标。
+       * 进站拼装口径：`SHA256(challenge + '|' + nonce)`（challenge 为 hex32，nonce 为十进制串）。
+       * 跨端固定向量 H5（与后端同向量，互指防复发）：
+       * 后端见 `packages/backend/src/lib/federalPow.ts:hashPowChallenge` + `tests/federalPow.test.ts` 固定向量
+       * （H1 后端对齐本 '|' 口径，powNonce 与本向量同值）；前端断言见 `tests/federalHotfix.ui.test.mjs` H5。
+       * 向量：challenge=0123456789abcdef0123456789abcdef / nonce='13' / bits=8 →
+       * powHash=0025b120f0ff25a607c96117b781129351077fd0a0b28c91f09ef7ac5608abe2（前导零 10bits≥8，通过）。
+       * 反向量：同 challenge 下 nonce='0' 在 '|' 口径仅 1bit（69ace822…，必失败），
+       * 而无 '|' 口径为 12bits（000cb919…，通过）——两向量严格区分拼装口径，任一端改动拼装必须同步更新两端断言。
+       */
+      /* eslint-disable no-var, @typescript-eslint/no-explicit-any */
+      // 演示原函数逐字移植（仅加 TS 类型标注，不改算术）
+      function sha256AsciiImpl(b) {
+        function c(a, bb) {
+          return (a >>> bb) | (a << (32 - bb))
+        }
+        for (
+          var d,
+            e,
+            f = Math.pow,
+            g = f(2, 32),
+            h = 'length',
+            i = '',
+            j = [],
+            k = 8 * b[h],
+            l = (sha256AsciiImpl.h = sha256AsciiImpl.h || []),
+            m = (sha256AsciiImpl.k = sha256AsciiImpl.k || []),
+            n = m[h],
+            o = {},
+            p = 2;
+          64 > n;
+          p++
+        )
+          if (!o[p]) {
+            for (d = 0; 313 > d; d += p) o[d] = p
+            l[n] = (f(p, 0.5) * g) | 0
+            m[n++] = (f(p, 1 / 3) * g) | 0
+          }
+        b += '\x80'
+        while ((b[h] % 64) - 56) b += '\x00'
+        for (d = 0; d < b[h]; d++) {
+          e = b.charCodeAt(d)
+          if (e >> 8) return ''
+          j[d >> 2] |= e << (((3 - d) % 4) * 8)
+        }
+        j[j[h]] = (k / g) | 0
+        j[j[h]] = k
+        for (e = 0; e < j[h]; ) {
+          var q = j.slice(e, (e += 16)),
+            r = l
+          l = l.slice(0, 8)
+          for (d = 0; 64 > d; d++) {
+            var s = q[d - 15],
+              t = q[d - 2],
+              u = l[0],
+              v = l[4],
+              w =
+                (l[7] +
+                  (c(v, 6) ^ c(v, 11) ^ c(v, 25)) +
+                  ((v & l[5]) ^ (~v & l[6])) +
+                  m[d] +
+                  (q[d] =
+                    16 > d
+                      ? q[d]
+                      : (q[d - 16] +
+                          (c(s, 7) ^ c(s, 18) ^ (s >>> 3)) +
+                          q[d - 7] +
+                          (c(t, 17) ^ c(t, 19) ^ (t >>> 10))) |
+                        0)) |
+                0,
+              x = ((c(u, 2) ^ c(u, 13) ^ c(u, 22)) + ((u & l[1]) ^ (u & l[2]) ^ (l[1] & l[2]))) | 0
+            l = [(w + x) | 0].concat(l)
+            l[4] = (l[4] + w) | 0
+          }
+          for (d = 0; 8 > d; d++) l[d] = (l[d] + r[d]) | 0
+        }
+        for (d = 0; 8 > d; d++)
+          for (e = 3; e + 1; e--) {
+            var y = (l[d] >> (8 * e)) & 255
+            i += (16 > y ? '0' : '') + y.toString(16)
+          }
+        return i
+      }
+      function utf8EncodeImpl(s) {
+        return unescape(encodeURIComponent(s))
+      }
+      /** 对 UTF-8 字符串求 SHA-256 hex（与演示 sha256Hex 一致）。 */
+      function sha256Hex(input) {
+        return sha256AsciiImpl(utf8EncodeImpl(input))
+      }
+      /** hash hex 是否满足前导零 bits（前后端同一口径）。 */
+      function meetsLeadingZeroBits(hashHex, bits) {
+        let need = bits
+        for (let i = 0; i < hashHex.length && need > 0; i++) {
+          const v = parseInt(hashHex.charAt(i), 16)
+          for (let b = 3; b >= 0 && need > 0; b--, need--) {
+            if ((v >> b) & 1) return false
+          }
+        }
+        return need <= 0
+      }
+      /** 进站 PoW 拼装：SHA256(challenge + '|' + nonce)。 */
+      function powHash(challenge, nonce) {
+        return sha256Hex(`${challenge}|${nonce}`)
+      }
+
+      ;(() => {
+        const messages = {
+          en: {
+            title: 'Security check',
+            slider: 'Move the marker onto the target',
+            geometry: 'Point to {target} on the clock',
+            hint: 'Drag the marker, or focus the drawing and use all four arrow keys to move it. Then choose Verify.',
+            verify: 'Verify',
+            cancel: 'Cancel',
+            working: 'Computing proof of work…',
+            pending: 'Answer submitted. Waiting for verification…',
+            expired: 'This challenge timed out. Cancel and start again.',
+            invalid: 'The challenge could not be displayed. Cancel and try again.',
+            limit: 'Interaction limit reached. Cancel and start again.',
+            progress: 'Computations',
+            clock: 'Time remaining',
+          },
+          zh: {
+            title: '安全验证',
+            slider: '请将标记移到目标位置',
+            geometry: '请将指针指向钟面上的 {target}',
+            hint: '拖动标记，或聚焦题面后使用四个方向键移动，再点击“验证”。',
+            verify: '验证',
+            cancel: '取消',
+            working: '正在计算工作量证明…',
+            pending: '答案已提交，正在等待验证…',
+            expired: '题目已超时，请取消后重新开始。',
+            invalid: '题目无法显示，请取消后重试。',
+            limit: '操作次数已达上限，请取消后重新开始。',
+            progress: '已计算次数',
+            clock: '剩余时间',
+          },
+        }
+        const params = new URLSearchParams(location.hash.slice(1)),
+          nonce = params.get('nonce')
+        if (
+          params.size !== 1 ||
+          !nonce ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(nonce)
+        )
+          return
+        let port = null,
+          id = '',
+          initialized = false,
+          stopped = false,
+          sent = false,
+          dict = messages.en,
+          challenge = null,
+          root = document.getElementById('root')
+        let timer = null,
+          workTimer = null,
+          resizeFrame = null,
+          image = null,
+          started = null,
+          stroke = 0,
+          samples = [],
+          x = 0,
+          y = 64,
+          micro = 0,
+          dragging = false,
+          answerButton = null,
+          status = null,
+          canvas = null,
+          ctx = null,
+          lastHeight = 0,
+          lastTime = 0
+        const exact = (o, keys) =>
+          o &&
+          typeof o === 'object' &&
+          !Array.isArray(o) &&
+          Object.keys(o).length === keys.length &&
+          Object.keys(o).every((k) => keys.includes(k))
+        const post = (type, extra = {}) => {
+          if (port && !stopped) port.postMessage({ type, nonce, challengeId: id, ...extra })
+        }
+        const cleanup = () => {
+          stopped = true
+          clearInterval(timer)
+          clearTimeout(workTimer)
+          cancelAnimationFrame(resizeFrame)
+          port?.close()
+          if (image) image.onload = null
+        }
+        const element = (tag, text, attrs = {}) => {
+          const el = document.createElement(tag)
+          if (text) el.textContent = text
+          for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
+          return el
+        }
+        const resize = () => {
+          cancelAnimationFrame(resizeFrame)
+          resizeFrame = requestAnimationFrame(() => {
+            const height = Math.ceil(root.getBoundingClientRect().height + 24)
+            if (height !== lastHeight) {
+              lastHeight = height
+              post('resize', { height })
+            }
+          })
+        }
+        const showError = (message) => {
+          clearTimeout(workTimer)
+          clearInterval(timer)
+          if (status) {
+            status.textContent = message
+            status.setAttribute('role', 'alert')
+            status.className = 'error'
+          }
+          if (answerButton) answerButton.disabled = true
+          sent = true
+          resize()
+        }
+        const controls = () =>
+          Array.from(document.querySelectorAll('button:not([disabled]),canvas[tabindex="0"]'))
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            post('cancel')
+            cleanup()
+            return
+          }
+          if (event.key === 'Tab') {
+            const items = controls(),
+              current = document.activeElement
+            if (event.shiftKey && current === items[0]) {
+              event.preventDefault()
+              post('focus-boundary', { direction: 'backward' })
+            } else if (!event.shiftKey && current === items.at(-1)) {
+              event.preventDefault()
+              post('focus-boundary', { direction: 'forward' })
+            }
+          }
+        })
+        window.addEventListener('pagehide', cleanup)
+        window.addEventListener('resize', resize)
+        function sample(px, py) {
+          if (sent || stopped) return false
+          if (samples.length >= 400) {
+            showError(dict.limit)
+            return false
+          }
+          const now = performance.now()
+          if (started === null) started = now
+          const t = Math.max(lastTime, Math.round(now - started))
+          lastTime = t
+          const point = { x: Math.round(px * 10) / 10, y: Math.round(py * 10) / 10, t }
+          if (challenge.kind === 'geometry') point.s = stroke
+          samples.push(point)
+          return true
+        }
+        function draw() {
+          if (!ctx) return
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          if (challenge.kind === 'slider') {
+            if (image?.complete && image.naturalWidth) ctx.drawImage(image, 0, 0, 318, 128)
+            ctx.beginPath()
+            ctx.arc(x + 24, y, 12, 0, 2 * Math.PI)
+            ctx.fillStyle = '#0f6cbd'
+            ctx.fill()
+            ctx.lineWidth = 3
+            ctx.strokeStyle = '#fff'
+            ctx.stroke()
+            canvas.setAttribute('aria-valuenow', String(Math.round(x)))
+            canvas.setAttribute('aria-valuetext', Math.round(x) + ' / 270')
+          } else {
+            ctx.strokeStyle = '#888'
+            ctx.lineWidth = 2
+            ctx.beginPath()
+            ctx.arc(100, 100, 90, 0, Math.PI * 2)
+            ctx.stroke()
+            ctx.fillStyle = matchMedia('(prefers-color-scheme:dark)').matches
+              ? '#f5f5f5'
+              : '#242424'
+            ctx.font = 'bold 15px system-ui'
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            challenge.puzzle.perm.forEach((n, i) => {
+              const a = (i * Math.PI) / 6 - Math.PI / 2
+              ctx.fillText(String(n), 100 + Math.cos(a) * 67, 100 + Math.sin(a) * 67)
+            })
+            const a = (micro / 1560) * Math.PI * 2 - Math.PI / 2
+            ctx.strokeStyle = '#0f6cbd'
+            ctx.lineWidth = 5
+            ctx.beginPath()
+            ctx.moveTo(100, 100)
+            ctx.lineTo(100 + Math.cos(a) * 53, 100 + Math.sin(a) * 53)
+            ctx.stroke()
+            ctx.fillStyle = '#0f6cbd'
+            ctx.beginPath()
+            ctx.arc(x, y, 5, 0, 2 * Math.PI)
+            ctx.fill()
+            canvas.setAttribute('aria-valuenow', String(micro))
+            canvas.setAttribute(
+              'aria-valuetext',
+              String(challenge.puzzle.perm[Math.round(micro / 130) % 12]),
+            )
+          }
+        }
+        function move(px, py) {
+          if (sent || stopped) return
+          if (challenge.kind === 'slider') {
+            x = Math.min(270, Math.max(0, px))
+            y = Math.min(116, Math.max(12, py))
+          } else {
+            x = Math.min(195, Math.max(5, px))
+            y = Math.min(195, Math.max(5, py))
+            micro =
+              Math.round(
+                ((((Math.atan2(x - 100, -(y - 100)) * 180) / Math.PI + 360) % 360) / 360) * 1560,
+              ) % 1560
+          }
+          if (sample(x, y)) draw()
+        }
+        function sendAnswer(solution) {
+          if (sent || stopped) return
+          if (
+            new TextEncoder().encode(JSON.stringify({ challengeId: id, solution })).length > 32768
+          ) {
+            showError(dict.limit)
+            return
+          }
+          sent = true
+          clearInterval(timer)
+          clearTimeout(workTimer)
+          if (answerButton) answerButton.disabled = true
+          status.textContent = dict.pending
+          post('answer', { solution })
+          resize()
+        }
+        function interaction() {
+          const slider = challenge.kind === 'slider'
+          canvas = element('canvas', '', {
+            class: 'surface',
+            width: slider ? '318' : '200',
+            height: slider ? '128' : '200',
+            tabindex: '0',
+            role: 'slider',
+            'aria-label': slider
+              ? dict.slider
+              : dict.geometry.replace('{target}', challenge.puzzle.targetHour),
+            'aria-valuemin': '0',
+            'aria-valuemax': slider ? '270' : '1559',
+            'aria-describedby': 'hint',
+          })
+          ctx = canvas.getContext('2d')
+          root.append(canvas)
+          if (slider) {
+            image = new Image()
+            image.onload = draw
+            image.onerror = () => showError(dict.invalid)
+            image.src = challenge.image
+          } else {
+            x = 100
+            y = 45
+            micro = 0
+            draw()
+          }
+          const at = (event) => {
+            const r = canvas.getBoundingClientRect()
+            return [
+              ((event.clientX - r.left) / r.width) * canvas.width - (slider ? 24 : 0),
+              ((event.clientY - r.top) / r.height) * canvas.height,
+            ]
+          }
+          canvas.addEventListener('pointerdown', (event) => {
+            if (sent || event.button !== 0) return
+            event.preventDefault()
+            canvas.focus()
+            dragging = true
+            stroke++
+            canvas.setPointerCapture(event.pointerId)
+            move(...at(event))
+          })
+          canvas.addEventListener('pointermove', (event) => {
+            if (dragging) move(...at(event))
+          })
+          canvas.addEventListener('pointerup', (event) => {
+            if (dragging) {
+              move(...at(event))
+              dragging = false
+            }
+          })
+          canvas.addEventListener('pointercancel', () => {
+            dragging = false
+          })
+          canvas.addEventListener('keydown', (event) => {
+            const delta = {
+              ArrowLeft: [-2, 0],
+              ArrowRight: [2, 0],
+              ArrowUp: [0, -2],
+              ArrowDown: [0, 2],
+            }[event.key]
+            if (!delta || sent) return
+            event.preventDefault()
+            if (!samples.length) stroke++
+            const distance = event.shiftKey ? 10 : 1
+          move(x + delta[0] * distance, y + delta[1] * distance)
+          })
+          root.append(element('p', dict.hint, { class: 'muted', id: 'hint' }))
+          if (!slider) {
+            let left =
+              challenge.strength === 'strict' ? challenge.strictTimeoutSec : challenge.timeoutSec
+            const countdown = element('p', dict.clock + ': ' + left + 's', { class: 'muted' })
+            root.append(countdown)
+            timer = setInterval(() => {
+              left--
+              countdown.textContent = dict.clock + ': ' + Math.max(0, left) + 's'
+              if (left <= 0) showError(dict.expired)
+            }, 1000)
+          }
+        }
+        function mine() {
+          status.textContent = dict.working
+          root.append(element('progress', '', { 'aria-label': dict.working }))
+          const counter = element('p', '0', { class: 'muted' })
+          root.append(counter)
+          let n = 0
+          const deadline = performance.now() + 10000
+          const step = () => {
+            if (sent || stopped) return
+            const until = performance.now() + 8
+            while (performance.now() < until) {
+              const candidate = String(n++)
+              if (
+                meetsLeadingZeroBits(powHash(challenge.challengeHex, candidate), challenge.bits)
+              ) {
+                sendAnswer({ nonce: candidate })
+                return
+              }
+            }
+            counter.textContent = dict.progress + ': ' + n
+            if (performance.now() >= deadline) {
+              showError(dict.expired)
+              return
+            }
+            workTimer = setTimeout(step, 0)
+          }
+          workTimer = setTimeout(step, 0)
+        }
+        function valid(c) {
+          if (!c || typeof c !== 'object') return false
+          if (c.kind === 'slider')
+            return (
+              exact(c, ['kind', 'image', 'strength']) &&
+              typeof c.image === 'string' &&
+              /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(c.image) &&
+              ['low', 'normal', 'strict'].includes(c.strength)
+            )
+          if (c.kind === 'geometry')
+            return (
+              exact(c, [
+                'kind',
+                'puzzleType',
+                'puzzle',
+                'geometryLevel',
+                'strength',
+                'timeoutSec',
+                'strictTimeoutSec',
+              ]) &&
+              c.puzzleType === 'rotation' &&
+              exact(c.puzzle, ['perm', 'targetHour']) &&
+              Array.isArray(c.puzzle.perm) &&
+              c.puzzle.perm.length === 12 &&
+              new Set(c.puzzle.perm).size === 12 &&
+              c.puzzle.perm.every((n) => Number.isInteger(n) && n >= 0 && n < 12) &&
+              Number.isInteger(c.puzzle.targetHour) &&
+              c.puzzle.targetHour >= 0 &&
+              c.puzzle.targetHour < 12 &&
+              [1, 2, 3].includes(c.geometryLevel) &&
+              ['low', 'normal', 'strict'].includes(c.strength) &&
+              [c.timeoutSec, c.strictTimeoutSec].every(
+                (n) => Number.isInteger(n) && n >= 5 && n <= 60,
+              )
+            )
+          return (
+            exact(c, ['kind', 'challengeHex', 'bits']) &&
+            c.kind === 'pow' &&
+            /^[a-f0-9]{32}$/.test(c.challengeHex) &&
+            Number.isInteger(c.bits) &&
+            c.bits >= 8 &&
+            c.bits <= 24
+          )
+        }
+        function init(event) {
+          const data = event.data
+          if (
+            initialized ||
+            event.source !== parent ||
+            !exact(data, ['type', 'nonce', 'locale', 'purpose', 'challengeId', 'challenge']) ||
+            data.type !== 'myndbbs:verification:init' ||
+            data.nonce !== nonce ||
+            event.ports.length !== 1 ||
+            !['en', 'zh'].includes(data.locale) ||
+            !['registration', 'post', 'comment', 'friendRequest', 'rateLimitUnlock'].includes(
+              data.purpose,
+            ) ||
+            typeof data.challengeId !== 'string'
+          )
+            return
+          initialized = true
+          port = event.ports[0]
+          id = data.challengeId
+          challenge = data.challenge
+          dict = messages[data.locale]
+          document.documentElement.lang = data.locale
+          root.replaceChildren()
+          root.append(element('h1', dict.title))
+          status = element('p', '', { role: 'status' })
+          root.append(status)
+          const actions = element('div', '', { class: 'actions' })
+          const cancel = element('button', dict.cancel, { type: 'button' })
+          cancel.onclick = () => {
+            post('cancel')
+            cleanup()
+          }
+          actions.append(cancel)
+          if (!valid(challenge)) {
+            root.append(actions)
+            showError(dict.invalid)
+            return
+          }
+          if (challenge.kind !== 'pow') {
+            root.append(
+              element(
+                'p',
+                challenge.kind === 'slider'
+                  ? dict.slider
+                  : dict.geometry.replace('{target}', challenge.puzzle.targetHour),
+              ),
+            )
+            interaction()
+            answerButton = element('button', dict.verify, { type: 'button', class: 'primary' })
+            answerButton.onclick = () => {
+              if (challenge.kind === 'slider')
+                sendAnswer({ dragPath: samples, totalDragTime: lastTime, finalPosition: x })
+              else sendAnswer({ microSlot: micro, behaviorSamples: samples })
+            }
+            actions.append(answerButton)
+          }
+          root.append(actions)
+          if (challenge.kind === 'pow') mine()
+          resize()
+        }
+        window.addEventListener('message', init)
+        parent.postMessage({ type: 'myndbbs:verification:ready', nonce }, '*')
+      })()
+    </script>
+  </body>
+</html>

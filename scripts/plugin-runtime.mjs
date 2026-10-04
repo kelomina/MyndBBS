@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { readFile, realpath } from 'node:fs/promises'
+import { readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import {
@@ -61,7 +61,16 @@ export async function loadPlugin(manifestPath) {
   const mod = await import(pathToFileURL(entry).href)
   const plugin = mod.default ?? mod
   if (!plugin || typeof plugin.activate !== 'function') throw new Error('ERR_PLUGIN_ENTRY_INVALID')
-  if (manifest.capabilities.routes.length && typeof plugin.handle !== 'function' || manifest.capabilities.events.length && typeof plugin.handleEvent !== 'function') throw new Error('ERR_PLUGIN_HANDLER_MISSING')
+  if (
+    (manifest.capabilities.routes.length && typeof plugin.handle !== 'function') ||
+    (manifest.capabilities.events.length && typeof plugin.handleEvent !== 'function')
+  )
+    throw new Error('ERR_PLUGIN_HANDLER_MISSING')
+  if (
+    manifest.capabilities.humanVerification &&
+    typeof plugin.handleHumanVerification !== 'function'
+  )
+    throw new Error('ERR_PLUGIN_HANDLER_MISSING')
   const config = JSON.parse(process.env.PLUGIN_CONFIG_JSON || '{}')
   let healthCheck = async () => undefined
   await plugin.activate({
@@ -142,6 +151,41 @@ export function createPluginServer(active) {
       }
       if (!tokenMatches(req.headers['x-plugin-proxy-token'], process.env.PLUGIN_PROXY_TOKEN)) {
         json(res, 404, { error: 'ERR_NOT_FOUND' })
+        return
+      }
+      if (req.url === '/__human-verification') {
+        const capability = active.manifest.capabilities.humanVerification
+        if (req.method !== 'POST' || capability?.apiVersion !== 1) {
+          json(res, 404, { error: 'ERR_NOT_FOUND' })
+          return
+        }
+        const input = await readJsonBody(req, 32 * 1024)
+        if (
+          !isObject(input) ||
+          Object.keys(input).some((k) => !['operation', 'purpose', 'input'].includes(k)) ||
+          !['issue', 'verify', 'ui'].includes(input.operation) ||
+          !isObject(input.input)
+        )
+          throw new Error('ERR_INVALID_PLUGIN_VERIFICATION_REQUEST')
+        if (input.operation === 'ui') {
+          const file = await realpath(path.resolve(active.directory, capability.ui))
+          if (!file.startsWith(active.directory + path.sep) || (await stat(file)).size > 256 * 1024)
+            throw new Error('ERR_PLUGIN_RESPONSE_TOO_LARGE')
+          json(res, 200, { html: await readFile(file, 'utf8') })
+          return
+        }
+        if (
+          !['registration', 'post', 'comment', 'friendRequest', 'rateLimitUnlock'].includes(
+            input.purpose,
+          ) ||
+          typeof active.plugin.handleHumanVerification !== 'function'
+        )
+          throw new Error('ERR_INVALID_PLUGIN_VERIFICATION_REQUEST')
+        const result = await active.plugin.handleHumanVerification(input)
+        const serialized = JSON.stringify(result)
+        if (!isObject(result) || Buffer.byteLength(serialized) > 32 * 1024)
+          throw new Error('ERR_PLUGIN_RESPONSE_TOO_LARGE')
+        json(res, 200, result)
         return
       }
       if (!safeRequestPath(req.url || '/')) throw new Error('ERR_INVALID_PLUGIN_PATH')
