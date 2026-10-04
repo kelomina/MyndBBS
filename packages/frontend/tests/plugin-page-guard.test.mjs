@@ -5,8 +5,9 @@ import vm from 'node:vm'
 import { createRequire } from 'node:module'
 const require=createRequire(import.meta.url), ts=require('typescript')
 function load(file,stubs){
+ const sourceUrl=new URL(file,import.meta.url)
  const evaluatedModule={exports:{}}
- vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL(file,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:evaluatedModule,exports:evaluatedModule.exports,require:n=>n in stubs?stubs[n]:require(n),Headers,URL,process,crypto:globalThis.crypto,btoa})
+ vm.runInNewContext(ts.transpileModule(fs.readFileSync(sourceUrl,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:evaluatedModule,exports:evaluatedModule.exports,require:n=>n in stubs?stubs[n]:n.startsWith('.')?load(new URL(n+'.ts',sourceUrl).href,stubs):require(n),Headers,URL,process,crypto:globalThis.crypto,btoa})
  return evaluatedModule.exports
 }
 test('plugin admin parent layout returns notFound for USER, MODERATOR and invalid sessions',async()=>{

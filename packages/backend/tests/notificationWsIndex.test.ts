@@ -30,13 +30,15 @@ describe('notification WS + index regression', () => {
     expect(schema).toContain('commentId')
   })
 
-  it('keeps slider 5-call semantics untouched (no federal kind leak into old paths except guard)', () => {
+  it('registration delegates to the purpose-bound verification port, not solver algorithms', () => {
     const authService = fs.readFileSync(
       path.join(__dirname, '../src/application/identity/AuthApplicationService.ts'),
       'utf8',
     )
-    // 旧路径仅加 kind==slider 守卫，不改容差/耗时/方差阈值
-    expect(authService).toContain("challengeKind !== 'slider'")
-    expect(authService).toContain('verifyTrajectoryForUnlock')
+    expect(authService).toContain("this.opts.humanVerification.requires('registration')")
+    expect(authService).toContain('this.opts.humanVerification.consumeProof(')
+    expect(authService).toContain("consumeProof(captchaId, 'registration')")
+    expect(authService).not.toContain('verifyTrajectoryForUnlock')
+    expect(authService).not.toContain('challengeKind')
   })
 })
