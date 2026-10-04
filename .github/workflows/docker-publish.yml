@@ -32,8 +32,23 @@ jobs:
             dockerfile: packages/frontend/Dockerfile
           - name: myndbbs-plugin-runtime
             dockerfile: packages/backend/plugin-runtime/Dockerfile
+          - name: myndbbs-plugin-control
+            dockerfile: packages/backend/plugin-control/Dockerfile
     steps:
       - uses: actions/checkout@v4
+
+      # Runtime/control images contain trusted infrastructure only. Plugin
+      # artifacts are signed separately and never activated by this workflow.
+      - name: Check plugin infrastructure syntax
+        if: matrix.name == 'myndbbs-plugin-runtime' || matrix.name == 'myndbbs-plugin-control'
+        shell: bash
+        run: |
+          node --check scripts/plugin-v2.mjs
+          node --check scripts/plugin-runtime.mjs
+          node --check scripts/plugin-archive.mjs
+          node --check scripts/plugin-control.mjs
+          node --check scripts/plugin-gateway.mjs
+          node --check scripts/plugin-host.mjs
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

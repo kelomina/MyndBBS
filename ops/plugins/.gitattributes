@@ -1,0 +1,2 @@
+example/*.mjs text eol=lf
+example/*.json text eol=lf

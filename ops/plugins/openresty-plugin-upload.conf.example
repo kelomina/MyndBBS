@@ -1,0 +1,20 @@
+# REVIEW-ONLY server-context snippet. NOT a complete vhost and NOT deployed.
+# Apply only after separate production approval, backup and context review.
+# Existing /api/submissions/ limits do NOT cover this plugin upload endpoint.
+# 20 MiB archive + signature/fields/multipart overhead requires >20m; use 24m.
+# Preserve the site's existing proxy/security/logging/timeout policy when merging.
+# An exact-match location takes precedence: do not accidentally drop directives
+# previously applied inside the site's /api/ location.
+location = /api/admin/plugins/releases {
+    client_max_body_size 24m;
+
+    # Keep the Next.js BFF path intact. Never bypass it to backend port 3001.
+    proxy_pass http://127.0.0.1:3100;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+# No online edit or reload is authorized by this template.
+# Future approved changes: backup -> container openresty -t -> reload -> external
+# authenticated boundary/health verification; restore backup on failure.

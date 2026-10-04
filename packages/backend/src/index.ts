@@ -281,6 +281,8 @@ const publicRoutes = require('./routes/public').default;
       const { shutdownWebSocketPushBridge } = require('./infrastructure/websocket/WebSocketPushBridge');
       await shutdownQueues();
       await shutdownWebSocketPushBridge();
+      const { pluginEventBridge } = require('./infrastructure/plugins/PluginEventBridge');
+      await pluginEventBridge.stop();
       wsConnectionManager.shutdown();
     } catch (err) {
       console.error('[Shutdown] Failed to close background services:', err);

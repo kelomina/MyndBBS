@@ -16,8 +16,10 @@ import {
   Mail,
   Award,
   BarChart3,
+  Plug,
 } from 'lucide-react'
 import { serverFetch } from '../../lib/bff/serverApi'
+import { PluginSlot } from '../../components/plugins/PluginSlot'
 import { TranslationProvider } from '../../components/TranslationProvider'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -69,7 +71,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <TranslationProvider dict={dict}>
       <div className="flex min-h-screen w-full bg-background">
-        <aside className="hidden w-64 flex-col border-r border-border bg-card sm:flex">
+        <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card sm:flex">
           <div className="flex h-16 items-center border-b border-border px-6">
             <Link href="/admin" className="text-xl font-bold tracking-tight text-primary">
               Admin Panel
@@ -124,6 +126,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               >
                 <ShieldAlert className="h-5 w-5" />
                 <span>{dict.admin?.protectionTitle || 'Protection & Anti-spam'}</span>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin/plugins"
+                className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                <Plug className="h-5 w-5" />
+                <span>{dict.admin?.pluginsTitle || 'Plugins'}</span>
               </Link>
             )}
             {isAdmin && (
@@ -186,10 +197,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 <span>{dict.admin?.auditLogs || 'Audit Logs'}</span>
               </Link>
             )}
+            {isAdmin && <PluginSlot slot="admin.sidebar" />}
           </nav>
         </aside>
 
-        <div className="flex flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-40 flex h-16 items-center border-b border-border bg-background/80 px-6 backdrop-blur-md">
             <div className="flex items-center sm:hidden">
               <Link href="/admin" className="text-lg font-bold text-primary">
@@ -201,7 +213,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </div>
           </header>
 
-          <main className="flex-1 p-6">{children}</main>
+          <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
         </div>
       </div>
     </TranslationProvider>

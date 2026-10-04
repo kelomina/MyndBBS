@@ -10,7 +10,7 @@ on:
         type: choice
         options: [frontend, plugin, core]
       deploy:
-        description: Install the artifact on production after the GitHub build
+        description: Deploy frontend/core only; plugin always requires admin upload and approval
         required: true
         default: false
         type: boolean
@@ -23,7 +23,7 @@ on:
         required: false
         type: string
       plugin_version:
-        description: Plugin manifest version (used for deployment metadata)
+        description: Expected plugin manifest version (optional consistency check)
         required: false
         type: string
       core_image_tag:
@@ -148,41 +148,48 @@ jobs:
             frontend-release-${{ github.sha }}.tar.gz
             frontend-release-${{ github.sha }}.sha256
 
+  # Plugin releases NEVER enter a deployment job, even when deploy=true.
   plugin-build:
     if: inputs.release_type == 'plugin'
     runs-on: ubuntu-latest
+    environment: plugin-signing
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Validate and package reviewed plugin
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Package and sign reviewed v2 plugin (no activation)
         shell: bash
         env:
           PLUGIN_ID: ${{ inputs.plugin_id }}
+          PLUGIN_VERSION_INPUT: ${{ inputs.plugin_version }}
+          PLUGIN_SIGNING_KEY: ${{ secrets.PLUGIN_SIGNING_KEY }}
+          PLUGIN_SIGNING_KEY_ID: ${{ vars.PLUGIN_SIGNING_KEY_ID }}
         run: |
           set -euo pipefail
-          test -n "$PLUGIN_ID"
-          test -d "packages/backend/plugins/$PLUGIN_ID"
-          test -f "packages/backend/plugins/$PLUGIN_ID/manifest.json"
-          node - <<'NODE'
-          const fs = require('fs')
-          const crypto = require('crypto')
-          const path = require('path')
-          const id = process.env.PLUGIN_ID
-          const root = path.resolve('packages/backend/plugins', id)
-          const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'))
-          if (manifest.id !== id || manifest.apiVersion !== 1 || !/^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$/.test(manifest.version)) throw new Error('invalid plugin manifest')
-          if (path.isAbsolute(manifest.entry) || manifest.entry.includes('\\') || manifest.entry.includes(':') || manifest.entry.split('/').some(p => !p || p === '.' || p === '..')) throw new Error('invalid plugin entry')
-          const entry = path.resolve(root, manifest.entry)
-          if (!entry.startsWith(root + path.sep)) throw new Error('plugin entry escapes root')
-          if (crypto.createHash('sha256').update(fs.readFileSync(entry)).digest('hex') !== manifest.sha256) throw new Error('plugin sha256 mismatch')
-          NODE
-          tar -czf "backend-plugin-${GITHUB_SHA}.tar.gz" -C "packages/backend/plugins/$PLUGIN_ID" .
-          sha256sum "backend-plugin-${GITHUB_SHA}.tar.gz" > "backend-plugin-${GITHUB_SHA}.sha256"
+          if [[ ! "$PLUGIN_ID" =~ ^[a-z0-9][a-z0-9-]{1,62}$ ]]; then
+            echo 'invalid plugin id' >&2
+            exit 2
+          fi
+          node scripts/package-plugin-release.mjs \
+            --source "packages/backend/plugins/$PLUGIN_ID" \
+            --out plugin-artifacts \
+            --id "$PLUGIN_ID" \
+            --version "$PLUGIN_VERSION_INPUT" \
+            --key-id "$PLUGIN_SIGNING_KEY_ID"
       - uses: actions/upload-artifact@v4
         with:
           name: backend-plugin-${{ github.sha }}
+          if-no-files-found: error
           path: |
-            backend-plugin-${{ github.sha }}.tar.gz
-            backend-plugin-${{ github.sha }}.sha256
+            plugin-artifacts/*.tar.gz
+            plugin-artifacts/*.tar.gz.sig
+            plugin-artifacts/*.tar.gz.sha256
+      - name: Human approval handoff
+        shell: bash
+        run: |
+          printf '%s\n' 'Plugin artifact only: download all three files, upload through Admin / Plugins, then SUPER_ADMIN sudo approval and activation. deploy input is intentionally ignored for plugins.' >> "$GITHUB_STEP_SUMMARY"
 
   core-prepare:
     if: inputs.release_type == 'core'
@@ -281,66 +288,6 @@ jobs:
             fi
             sudo -n bash scripts/finalize-frontend-release.sh "$DEPLOY_DIR"
             echo "hot-frontend-deploy=$RUN_ID version=$RELEASE_VERSION"
-
-  deploy-plugin:
-    if: inputs.release_type == 'plugin' && inputs.deploy == true
-    needs: plugin-build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            scripts/install-plugin-release.sh
-            scripts/ensure-hot-update-base.sh
-          sparse-checkout-cone-mode: false
-      - uses: actions/download-artifact@v4
-        with:
-          name: backend-plugin-${{ github.sha }}
-      - name: Create immutable deployment bundle
-        shell: bash
-        run: tar -czf plugin-deploy-bundle.tar.gz backend-plugin-${{ github.sha }}.tar.gz backend-plugin-${{ github.sha }}.sha256 scripts/install-plugin-release.sh scripts/ensure-hot-update-base.sh
-      - uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ env.SSH_HOST }}
-          port: ${{ env.SSH_PORT }}
-          username: ${{ env.SSH_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: plugin-deploy-bundle.tar.gz
-          target: /home/myndops/hot-release/${{ github.run_id }}
-      - uses: appleboy/ssh-action@v1
-        env:
-          PLUGIN_ID: ${{ inputs.plugin_id }}
-          PLUGIN_VERSION: ${{ inputs.plugin_version }}
-          PLUGIN_ADMIN_TOKEN: ${{ secrets.PLUGIN_ADMIN_TOKEN }}
-          RUN_ID: ${{ github.run_id }}
-          COMMIT_SHA: ${{ github.sha }}
-          DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
-          GHCR_USER: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          host: ${{ env.SSH_HOST }}
-          port: ${{ env.SSH_PORT }}
-          username: ${{ env.SSH_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: PLUGIN_ID,PLUGIN_VERSION,PLUGIN_ADMIN_TOKEN,RUN_ID,COMMIT_SHA,DEPLOY_DIR,GHCR_USER,GHCR_TOKEN
-          script: |
-            set -eu
-            test -n "$PLUGIN_VERSION"
-            test -n "$PLUGIN_ADMIN_TOKEN"
-            WORK=/home/myndops/hot-release/$RUN_ID
-            cd "$WORK"
-            tar -xzf plugin-deploy-bundle.tar.gz
-            printf '%s' "$GHCR_TOKEN" | sudo -n docker login ghcr.io --username "$GHCR_USER" --password-stdin >/dev/null
-            trap 'sudo -n docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-            sudo -n bash scripts/ensure-hot-update-base.sh "$DEPLOY_DIR"
-            sudo -n env PLUGIN_DIR="$DEPLOY_DIR/plugins" docker compose --env-file "$DEPLOY_DIR/.env" -f "$DEPLOY_DIR/docker-compose.yml" -f "$DEPLOY_DIR/docker-compose.hot-update.yml" up -d backend
-            for i in $(seq 1 30); do
-              sudo -n docker inspect -f '{{.State.Health.Status}}' myndbbs-backend 2>/dev/null | grep -q '^healthy$' && break
-              sleep 2
-            done
-            sudo -n docker inspect -f '{{.State.Health.Status}}' myndbbs-backend | grep -q '^healthy$'
-            sudo -n bash scripts/install-plugin-release.sh "$DEPLOY_DIR/plugins" "backend-plugin-$COMMIT_SHA.tar.gz" "$PLUGIN_ID" "$PLUGIN_VERSION" ghcr.io/kelomina/myndbbs-plugin-runtime:latest myndbbs_default "$PLUGIN_ADMIN_TOKEN"
-            echo "hot-plugin-deploy=$RUN_ID plugin=$PLUGIN_ID@$PLUGIN_VERSION"
 
   deploy-core:
     if: inputs.release_type == 'core' && inputs.deploy == true
