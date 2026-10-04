@@ -113,7 +113,7 @@ jobs:
           node - <<'NODE' >release-smoke-backend.log 2>&1 &
           const http = require('node:http')
           http.createServer((request, response) => {
-            if (request.url !== '/uploads/hot-release-probe.txt') {
+            if (request.url !== '/uploads/avatars/hot-release-probe.txt') {
               response.writeHead(404)
               response.end('not found')
               return
@@ -130,7 +130,7 @@ jobs:
           trap 'kill "$SERVER_PID" "$BACKEND_PID" >/dev/null 2>&1 || true' EXIT
           for _ in $(seq 1 600); do
             if curl -fsS --max-time 2 http://127.0.0.1:3119/robots.txt >/dev/null && \
-              test "$(curl -fsS --max-time 2 http://127.0.0.1:3119/uploads/hot-release-probe.txt)" = 'hot-release-upload-ok'; then
+              test "$(curl -fsS --max-time 2 http://127.0.0.1:3119/uploads/avatars/hot-release-probe.txt)" = 'hot-release-upload-ok'; then
               exit 0
             fi
             if ! kill -0 "$SERVER_PID" >/dev/null 2>&1; then

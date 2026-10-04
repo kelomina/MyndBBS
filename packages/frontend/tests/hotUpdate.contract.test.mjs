@@ -243,12 +243,16 @@ test('hot release workflow builds on GitHub and deploys only when explicitly req
   assert.match(workflow, /for _ in \$\(seq 1 600\); do[\s\S]*?sleep 1\r?\n\s+done/)
   assert.doesNotMatch(workflow, /for _ in \$\(seq 1 (?:30|90|180|300|420); do/)
   assert.match(workflow, /curl -fsS --max-time 2 http:\/\/127\.0\.0\.1:3119\/robots\.txt/)
-  assert.match(workflow, /request\.url !== '\/uploads\/hot-release-probe\.txt'/)
+  assert.match(workflow, /request\.url !== '\/uploads\/avatars\/hot-release-probe\.txt'/)
+  // The fixture has no routing whitelist API: use the same anonymous image path
+  // accepted by the real guard instead of polling a redirect to /403 forever.
+  const authGuard = fs.readFileSync(path.join(root, 'packages/frontend/src/middleware/authGuard.ts'), 'utf8')
+  assert.match(authGuard, /pathname\.startsWith\('\/uploads\/avatars'\)/)
   assert.match(workflow, /127\.0\.0\.2 myndbbs-backend/)
   assert.match(workflow, /\.listen\(3001, '127\.0\.0\.2'\)/)
   assert.match(
     workflow,
-    /curl -fsS --max-time 2 http:\/\/127\.0\.0\.1:3119\/uploads\/hot-release-probe\.txt/,
+    /curl -fsS --max-time 2 http:\/\/127\.0\.0\.1:3119\/uploads\/avatars\/hot-release-probe\.txt/,
   )
   assert.match(workflow, /sha256sum "frontend-release-\$\{GITHUB_SHA\}\.tar\.gz" > "frontend-release-\$\{GITHUB_SHA\}\.sha256"/)
   assert.match(workflow, /hot-frontend-\$RUN_ID/)
